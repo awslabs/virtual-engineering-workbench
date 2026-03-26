@@ -1,0 +1,19 @@
+@use "@cloudscape-design/design-tokens/index" as awsui;
+
+$header-color: #d1d5db;
+$header-color-hover: #eaf3ff;
+$header-background: #0f1b2a;
+$list-item-divider-color: #414d5c;
+
+[data-custom-button] button[class*="awsui_button"],
+[data-custom-button] [class*="awsui_content"] {
+  background-color: $header-background !important;
+  border-color: $header-background !important;
+  color: $header-color !important;
+  padding: 0 !important;
+}
+
+[data-custom-button] button[class*="awsui_button"]:hover,
+[data-custom-button] [class*="awsui_content"]:hover {
+  color: $header-color-hover !important;
+}

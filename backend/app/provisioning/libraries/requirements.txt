@@ -1,0 +1,10 @@
+mypy-boto3-cloudformation ~= 1.35
+mypy-boto3-dynamodb ~= 1.35
+mypy-boto3-ec2 ~= 1.35
+mypy-boto3-ecs ~= 1.35
+mypy-boto3-secretsmanager ~= 1.35
+mypy-boto3-servicecatalog ~= 1.35
+mypy-boto3-ssm ~= 1.35
+mypy-boto3-sts ~= 1.35
+mypy_boto3_secretsmanager ~= 1.35
+semver ~= 3.0.1

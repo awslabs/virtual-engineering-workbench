@@ -1,0 +1,83 @@
+@use "@cloudscape-design/design-tokens/index" as awsui;
+
+.form-content {
+  #form-dropdown {
+    ul {
+      padding-inline-start: 0;
+      margin-block: 0;
+      margin-inline: 0;
+    }
+    li {
+      margin-block: 0;
+      margin-inline: 0;
+    }
+  }
+}
+
+.card-fields {
+  height: 3em; /* Adjust height to accommodate two lines */
+  max-height: 3em; /* Set the maximum height for two lines */
+  overflow: hidden; /* Hide any overflowed content */
+  display: -webkit-box; /* Use WebKit for multi-line ellipsis */
+  -webkit-box-orient: vertical; /* Orient the box vertically */
+  -webkit-line-clamp: 2; /* Limit the text to 2 lines */
+  text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+  line-clamp: 2; /* Limit the text to 2 lines */
+  line-height: 1.5; /* Adjust line spacing to fit two lines comfortably */
+  word-wrap: break-word; /* Ensure long words break correctly */
+}
+
+.card-fields-1line {
+  height: 2em; /* Adjust height to accommodate two lines */
+  max-height: 2em; /* Set the maximum height for two lines */
+  overflow: hidden; /* Hide any overflowed content */
+  display: -webkit-box; /* Use WebKit for multi-line ellipsis */
+  -webkit-box-orient: vertical; /* Orient the box vertically */
+  -webkit-line-clamp: 1; /* Limit the text to 2 lines */
+  text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+  line-clamp: 1; /* Limit the text to 2 lines */
+  line-height: 1.5; /* Adjust line spacing to fit two lines comfortably */
+  word-wrap: break-word; /* Ensure long words break correctly */
+}
+
+.card-footer {
+  height: 3em; /* Adjust height to accommodate two lines */
+  max-height: 3em; /* Set the maximum height for two lines */
+  overflow: hidden; /* Hide any overflowed content */
+  display: -webkit-box; /* Use WebKit for multi-line ellipsis */
+  -webkit-box-orient: vertical; /* Orient the box vertically */
+  -webkit-line-clamp: 1; /* Limit the text to 1 lines */
+  text-overflow: ellipsis; /* Add ellipsis for overflowed text */
+  line-clamp: 1; /* Limit the text to 1 lines */
+  word-wrap: break-word; /* Ensure long words break correctly */
+}
+
+.selectSpinner {
+  position: absolute;
+  top: 25%;
+  left: 45%;
+  z-index: 1;
+}
+
+.tableSpinner {
+  display: flex;
+  justify-content: center;
+  left: 45%;
+  position: absolute;
+  z-index: 1;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: awsui.$space-scaled-xxl;
+  min-height: 54px;
+}
+
+.card-header-os-icons {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: awsui.$space-scaled-xxs;
+}

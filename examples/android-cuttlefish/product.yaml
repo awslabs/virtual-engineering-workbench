@@ -1,0 +1,471 @@
+# kics-scan disable=1819ac03-542b-4026-976b-f37addd59f3b,b7063015-6c31-4658-a8e7-14f98f37fd42,8d29754a-2a18-460d-a1ba-91009f8d359da
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Version {{ product_version }} template for {{ product_name }} Virtual Target
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMIId: "{{ ami_ids['us-east-1'] }}"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      InstanceType:
+        default: "What type of virtual target do you want to start?"
+      VolumeSize:
+        default: "How much storage would you like to have?"
+  ParameterMetadata:
+    InstanceType:
+      OptionLabels:
+        c8i.2xlarge: "Compute optimized: 8 vCPU, 16.0 GiB RAM (Intel, nested virtualization)"
+        m8i.2xlarge: "General purpose: 8 vCPU, 32.0 GiB RAM (Intel, nested virtualization)"
+      OptionWarnings:
+        c8i.2xlarge: "This instance type requires nested virtualization support for KVM/Cuttlefish."
+        m8i.2xlarge: "This instance type requires nested virtualization support for KVM/Cuttlefish."
+    VolumeSize:
+      OptionLabels:
+        "500": "500 GB"
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value: !GetAtt NestedVirtInstance.InstanceId
+  PrivateIP:
+    Description: Private IP address of the newly created EC2 instance
+    Value: !GetAtt NestedVirtInstance.PrivateIp
+  PublicIP:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt NestedVirtInstance.PublicIp
+  FeatureToggles:
+    Description: Enabled features for this workbench
+    Value: '[{ "feature": "WorkbenchWorkingDirectoryEnabled", "enabled": false }]'
+  SSHKeyPair:
+    Description: SSM Parameter containing the ssh key generated
+    Value: !Join ["", ["/ec2/keypair/", !GetAtt KeyPair.KeyPairId]]
+Parameters:
+  InstanceType:
+    AllowedValues: ["c8i.2xlarge", "m8i.2xlarge"]
+    Default: "c8i.2xlarge"
+    Description: Amazon EC2 Instance Type
+    Type: String
+  SubnetId:
+    Default: ""
+    Description: Subnet ID where workbench is provisioned. VEW provides a subnet with the most IPs remaining.
+    Type: AWS::EC2::Subnet::Id
+  UserSecurityGroupId:
+    Default: ""
+    Description: Security group created for the user
+    Type: AWS::EC2::SecurityGroup::Id
+  VolumeSize:
+    AllowedValues: [500]
+    Default: 500
+    Description: Amazon EBS Volume Size
+    Type: String
+  VpcIdSSM:
+    Default: /workbench/vpc/vpc-id
+    Type: AWS::SSM::Parameter::Value<String>
+Resources:
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName:
+        !Join [
+          "-",
+          [
+            "KeyPair",
+            !Select [
+              4,
+              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+            ],
+          ],
+        ]
+      KeyType: ed25519
+  InstanceProfile:
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+    Type: AWS::IAM::InstanceProfile
+  InstanceRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: !Sub ec2.${AWS::URLSuffix}
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/ProvisionedProductInstanceProfilePermissionsPolicyV2
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Effect: Allow
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*
+            Version: 2012-10-17
+          PolicyName: AllowCWLogs
+        - PolicyDocument:
+            Statement:
+              - Action: ec2:DescribeTags
+                Condition:
+                  StringEquals:
+                    ec2:Region: !Ref AWS::Region
+                Effect: Allow
+                Resource: "*"
+            Version: 2012-10-17
+          PolicyName: Ec2DescribeTagsUserTID
+        - PolicyDocument:
+            Statement:
+              # kics-scan ignore-line - Read-only access to DCV license bucket, not data exfiltration
+              - Action: s3:GetObject
+                Effect: Allow
+                Resource: !Sub arn:aws:s3:::dcv-license.${AWS::Region}/*
+            Version: 2012-10-17
+          PolicyName: S3ForNICEDCVLicense
+    Type: AWS::IAM::Role
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable ADB, STUN and VVRP
+      SecurityGroupIngress:
+        # kics-scan ignore-line - By design: port range required for inter-workbench communication, source restricted to UserSecurityGroupId
+        - SourceSecurityGroupId: !Ref UserSecurityGroupId
+          Description: Enable TCP connections from user workbenches and virtual targets
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: tcp
+        # kics-scan ignore-line - By design: port range required for inter-workbench communication, source restricted to UserSecurityGroupId
+        - SourceSecurityGroupId: !Ref UserSecurityGroupId
+          Description: Enable UDP connections from user workbenches and virtual targets
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: udp
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          Description: Allow all outbound traffic for virtual target connectivity
+          # kics-scan ignore-line - By design: virtual targets need unrestricted outbound for testing and validation
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcIdSSM
+  NestedVirtLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: !Sub lambda.${AWS::URLSuffix}
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: NestedVirtInstancePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSubnets
+                  - ec2:RunInstances
+                  - ec2:TerminateInstances
+                  - ec2:DescribeInstances
+                  - ec2:CreateTags
+                Resource: "*"
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt InstanceRole.Arn
+              - Effect: Allow
+                Action:
+                  - kms:CreateGrant
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                  - kms:GenerateDataKeyWithoutPlaintext
+                  - kms:ReEncryptFrom
+                  - kms:ReEncryptTo
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+  NestedVirtLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName:
+        !Join [
+          "-",
+          [
+            "SC-NestedVirtInstance",
+            !Select [
+              4,
+              !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]],
+            ],
+          ],
+        ]
+      Runtime: python3.13
+      Handler: index.handler
+      Timeout: 300
+      Role: !GetAtt NestedVirtLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import botocore.auth
+          import botocore.awsrequest
+          import botocore.credentials
+          import urllib.request
+          import urllib.parse
+          import base64
+          import xml.etree.ElementTree as ET
+          from datetime import datetime, timezone
+
+          session = boto3.Session()
+          region = session.region_name
+          credentials = session.get_credentials().get_frozen_credentials()
+          ec2 = boto3.client("ec2")
+
+          def sign_and_post(params):
+              endpoint = f"https://ec2.{region}.amazonaws.com/"
+              body = urllib.parse.urlencode(params, quote_via=urllib.parse.quote)
+              req = botocore.awsrequest.AWSRequest(method="POST", url=endpoint, data=body,
+                  headers={"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
+              signer = botocore.auth.SigV4Auth(credentials, "ec2", region)
+              signer.add_auth(req)
+              http_req = urllib.request.Request(
+                  endpoint, data=body.encode("utf-8"),
+                  headers=dict(req.headers), method="POST")
+              try:
+                  resp = urllib.request.urlopen(http_req)
+                  return ET.fromstring(resp.read())
+              except urllib.error.HTTPError as e:
+                  error_body = e.read().decode("utf-8")
+                  print(f"EC2 API error ({e.code}): {error_body}")
+                  # Parse the EC2 error XML for a cleaner message
+                  try:
+                      err_root = ET.fromstring(error_body)
+                      ns = err_root.tag.split("}")[0] + "}" if "}" in err_root.tag else ""
+                      code = err_root.findtext(f".//{ns}Code", "Unknown")
+                      msg = err_root.findtext(f".//{ns}Message", error_body)
+                      raise Exception(f'Resource handler returned message: "{msg}"')
+                  except ET.ParseError:
+                      raise Exception(f'Resource handler returned message: "{error_body}"')
+
+          def send_response(event, context, status, data=None, reason=""):
+              body = json.dumps({
+                  "Status": status,
+                  "Reason": reason or f"See CloudWatch Log Stream: {context.log_stream_name}",
+                  "PhysicalResourceId": data.get("InstanceId", "NONE") if data else "NONE",
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "Data": data or {},
+              }).encode("utf-8")
+              req = urllib.request.Request(
+                  event["ResponseURL"], data=body,
+                  headers={"Content-Type": ""}, method="PUT")
+              urllib.request.urlopen(req)
+
+          def get_fallback_subnets(primary_subnet_id):
+              subnet_info = ec2.describe_subnets(SubnetIds=[primary_subnet_id])["Subnets"][0]
+              vpc_id = subnet_info["VpcId"]
+              all_subnets = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])["Subnets"]
+              others = [s["SubnetId"] for s in all_subnets if s["SubnetId"] != primary_subnet_id]
+              return [primary_subnet_id] + others
+
+          def build_run_params(props, subnet_id, user_data):
+              sgs = props["SecurityGroupIds"]
+              params = {
+                  "Action": "RunInstances",
+                  "Version": "2016-11-15",
+                  "ImageId": props["ImageId"],
+                  "InstanceType": props["InstanceType"],
+                  "KeyName": props["KeyName"],
+                  "SubnetId": subnet_id,
+                  "IamInstanceProfile.Arn": props["IamInstanceProfileArn"],
+                  "MinCount": "1",
+                  "MaxCount": "1",
+                  "UserData": user_data,
+                  "BlockDeviceMapping.1.DeviceName": "/dev/sda1",
+                  "BlockDeviceMapping.1.Ebs.Iops": "3000",
+                  "BlockDeviceMapping.1.Ebs.VolumeSize": str(int(props["VolumeSize"])),
+                  "BlockDeviceMapping.1.Ebs.VolumeType": "gp3",
+                  "CpuOptions.NestedVirtualization": "enabled",
+                  "TagSpecification.1.ResourceType": "instance",
+                  "TagSpecification.1.Tag.1.Key": "vew:virtualtarget:type",
+                  "TagSpecification.1.Tag.1.Value": "android-cuttlefish",
+              }
+              for i, sg in enumerate(sgs, 1):
+                  params[f"SecurityGroupId.{i}"] = sg
+              return params
+
+          def is_capacity_error(error_msg):
+              msg = str(error_msg)
+              return "InsufficientInstanceCapacity" in msg or "insufficient capacity" in msg.lower()
+
+          def get_termination_reason(instance_id):
+              try:
+                  desc = ec2.describe_instances(InstanceIds=[instance_id])
+                  inst = desc["Reservations"][0]["Instances"][0]
+                  reason = inst.get("StateTransitionReason", "")
+                  state_reason = inst.get("StateReason", {}).get("Message", "")
+                  return f"{reason} | {state_reason}"
+              except Exception:
+                  return "unknown"
+
+          def run_instance(props, event):
+              user_data = base64.b64encode(props["UserData"].encode("utf-8")).decode("utf-8")
+              subnets = get_fallback_subnets(props["SubnetId"])
+              last_error = None
+
+              for subnet_id in subnets:
+                  params = build_run_params(props, subnet_id, user_data)
+                  try:
+                      root = sign_and_post(params)
+                  except Exception as e:
+                      last_error = e
+                      if is_capacity_error(e):
+                          print(f"No capacity in subnet {subnet_id}, trying next...")
+                          continue
+                      raise
+
+                  ns = root.tag.split("}")[0] + "}" if "}" in root.tag else ""
+                  instance_id = root.find(f".//{ns}instanceId").text
+                  print(f"Instance {instance_id} launched in subnet {subnet_id}, waiting for running state...")
+
+                  try:
+                      waiter = ec2.get_waiter("instance_running")
+                      waiter.wait(InstanceIds=[instance_id], WaiterConfig={"Delay": 10, "MaxAttempts": 30})
+                      print(f"Instance {instance_id} is running")
+                      return instance_id
+                  except Exception as e:
+                      reason = get_termination_reason(instance_id)
+                      print(f"Instance {instance_id} failed to reach running state: {e} (reason: {reason})")
+                      last_error = Exception(
+                          f'Resource handler returned message: "Instance {instance_id} terminated in subnet {subnet_id}: {reason}"'
+                      )
+                      if is_capacity_error(reason):
+                          print(f"Capacity-related termination in subnet {subnet_id}, trying next...")
+                          continue
+                      raise last_error
+
+              raise last_error
+
+          def wait_and_describe(instance_id):
+              desc = ec2.describe_instances(InstanceIds=[instance_id])
+              return desc["Reservations"][0]["Instances"][0]
+
+          def handler(event, context):
+              try:
+                  props = event["ResourceProperties"]
+                  request_type = event["RequestType"]
+
+                  if request_type == "Create":
+                      instance_id = run_instance(props, event)
+                      inst = wait_and_describe(instance_id)
+                      send_response(event, context, "SUCCESS", {
+                          "InstanceId": instance_id,
+                          "PrivateIp": inst.get("PrivateIpAddress", ""),
+                          "PublicIp": inst.get("PublicIpAddress", ""),
+                      })
+
+                  elif request_type == "Delete":
+                      instance_id = event.get("PhysicalResourceId", "")
+                      if instance_id and instance_id != "NONE":
+                          try:
+                              ec2.terminate_instances(InstanceIds=[instance_id])
+                              waiter = ec2.get_waiter("instance_terminated")
+                              waiter.wait(InstanceIds=[instance_id], WaiterConfig={"Delay": 10, "MaxAttempts": 30})
+                          except ec2.exceptions.ClientError as e:
+                              if "InvalidInstanceID" not in str(e):
+                                  raise
+                      send_response(event, context, "SUCCESS", {"InstanceId": instance_id})
+
+                  elif request_type == "Update":
+                      old_instance_id = event.get("PhysicalResourceId", "")
+                      instance_id = run_instance(props, event)
+                      inst = wait_and_describe(instance_id)
+                      if old_instance_id and old_instance_id != "NONE":
+                          try:
+                              ec2.terminate_instances(InstanceIds=[old_instance_id])
+                          except ec2.exceptions.ClientError:
+                              pass
+                      send_response(event, context, "SUCCESS", {
+                          "InstanceId": instance_id,
+                          "PrivateIp": inst.get("PrivateIpAddress", ""),
+                          "PublicIp": inst.get("PublicIpAddress", ""),
+                      })
+
+              except Exception as e:
+                  print(f"Error: {e}")
+                  send_response(event, context, "FAILED", reason=str(e))
+  # kics-scan ignore-block - Detailed monitoring is a per-customer cost decision; instances monitored via CloudWatch agent and SSM
+  NestedVirtInstance:
+    Type: Custom::NestedVirtInstance
+    DependsOn:
+      - InstanceProfile
+    Properties:
+      ServiceToken: !GetAtt NestedVirtLambda.Arn
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref AWS::Region
+        - AMIId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !GetAtt SecurityGroup.GroupId
+        - !Ref UserSecurityGroupId
+      IamInstanceProfileArn: !GetAtt InstanceProfile.Arn
+      VolumeSize: !Ref VolumeSize
+      UserData: !Sub |
+        #!/bin/bash -e
+
+        modprobe kvm_intel || true
+        if [ ! -e /dev/kvm ]; then
+          echo "ERROR: /dev/kvm not available"
+          exit 1
+        fi
+
+        # Setup CF home
+        CF_HOME=/opt/android-cuttlefish/cf
+        mkdir -p "$CF_HOME/cuttlefish" "$CF_HOME/.cache"
+        chmod -R u+rwX "$CF_HOME"
+        chown -R ubuntu:ubuntu "$CF_HOME"
+
+        # Setup cvd lock dir
+        mkdir -p /var/tmp/cvd/lock/
+        chown ubuntu:ubuntu /var/tmp/cvd/lock/
+
+        # Configure operator to bind to all interfaces
+        echo 'operator_listen_address=0.0.0.0
+        operator_https_port=1443' > /etc/default/cuttlefish-operator
+
+        # Start services (these run as their own service users)
+        service nginx start
+        service cuttlefish-host-resources start
+        service cuttlefish-operator start
+        service cuttlefish-host_orchestrator start
+
+        # Wait for operator to be ready
+        sleep 3
+
+        # Create launch script
+        cat > /tmp/run_cuttlefish.sh <<'SCRIPT'
+        #!/bin/bash -e
+        cd /opt/android-cuttlefish/cf
+        HOME=/opt/android-cuttlefish/cf /opt/android-cuttlefish/cf/bin/launch_cvd \
+          --report_anonymous_usage_stats=n \
+          --noresume \
+          --start_webrtc=true \
+          --enable_sandbox=false
+        SCRIPT
+        chmod +x /tmp/run_cuttlefish.sh
+
+        # Launch as ubuntu with correct groups via sg
+        touch /var/log/cuttlefish-userdata.log
+        chown ubuntu:ubuntu /var/log/cuttlefish-userdata.log
+        nohup sudo -u ubuntu sg kvm -c /tmp/run_cuttlefish.sh > /var/log/cuttlefish-userdata.log 2>&1 &

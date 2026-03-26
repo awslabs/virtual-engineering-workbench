@@ -1,0 +1,1 @@
+export * from './set-as-recommended-prompt';

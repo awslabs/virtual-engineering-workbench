@@ -1,0 +1,9 @@
+@use "@cloudscape-design/design-tokens/index" as awsui;
+
+
+.homeContainer {
+    display: flex;
+    align-items: center;
+    gap: awsui.$space-static-xs;
+    cursor: pointer;
+}

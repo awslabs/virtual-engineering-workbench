@@ -1,0 +1,18 @@
+{
+  "notices": false,
+  "app": "npx ts-node --prefer-ts-exts bin/infrastructure.ts",
+  "context": {
+    "app-name": "proserve-wb-ui",
+    "deployment-qualifier": "b704d",
+    "@aws-cdk/core:stackRelativeExports": "true",
+    "config": {
+      "dev": {
+        "CustomLoginDNSEnabled": false,
+        "PrivateDeployment": false,
+        "VPCName": "default-vpc",
+        "AllowCustomUserLogin": true,
+        "RequireCustomUserLogin2FA": true
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+-r app/projects/libraries/requirements.txt
+-r app/shared/requirements.txt
+-r app/usecase/libraries/requirements.txt
+aws-cdk-lib ~= 2.186.0
+aws-cdk.aws-lambda-python-alpha ~= 2.186.0a0
+boto3 ~= 1.40
+cdk-monitoring-constructs ~= 9.2.0
+cdk-nag ~= 2.35.54
+constructs ~= 10.4.2

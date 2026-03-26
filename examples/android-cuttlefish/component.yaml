@@ -1,0 +1,77 @@
+name: Android Cuttlefish Virtual Target
+description: Installs Android Cuttlefish host packages and Android 15 device image for virtual device emulation
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: RegisterCuttlefishAptRepository
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              curl -fsSL https://us-apt.pkg.dev/doc/repo-signing-key.gpg \
+                -o /etc/apt/trusted.gpg.d/artifact-registry.asc
+              chmod a+r /etc/apt/trusted.gpg.d/artifact-registry.asc
+              echo "deb https://us-apt.pkg.dev/projects/android-cuttlefish-artifacts android-cuttlefish main" \
+                | tee -a /etc/apt/sources.list.d/artifact-registry.list
+      - name: InstallCuttlefishHostPackages
+        action: ExecuteBash
+        timeoutSeconds: 300
+        inputs:
+          commands:
+            - apt-get update
+            - apt-get install -y cuttlefish-base cuttlefish-user unzip nginx cuttlefish-orchestration
+      - name: ConfigureCuttlefishUser
+        action: ExecuteBash
+        inputs:
+          commands:
+            - usermod -aG kvm,cvdnetwork,render ubuntu
+      - name: DownloadAndroidImage
+        action: ExecuteBash
+        timeoutSeconds: 900
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              mkdir -p /opt/android-cuttlefish
+              cd /opt/android-cuttlefish
+
+              BUILD_ID="14981173"
+              BASE_URL="https://ci.android.com/builds/submitted/${BUILD_ID}/aosp_cf_x86_64_only_phone-userdebug/latest"
+
+              download_artifact() {
+                local artifact_name="$1"
+                local output_file="$2"
+                local page_url="${BASE_URL}/${artifact_name}"
+                echo "Resolving download URL for ${artifact_name}..."
+                local html
+                html=$(curl -sfL "${page_url}")
+                local gcs_url
+                gcs_url=$(echo "$html" | python3 -c "import sys,re;html=sys.stdin.read();m=re.search(r'\"artifactUrl\":\"([^\"]+)\"',html);assert m,'artifactUrl not found';print(m.group(1).encode().decode('unicode_escape'))")
+                echo "Downloading ${artifact_name} from GCS..."
+                curl -fL --retry 3 -o "${output_file}" "${gcs_url}"
+              }
+
+              download_artifact "cvd-host_package.tar.gz" "cvd-host_package.tar.gz"
+              download_artifact "aosp_cf_x86_64_only_phone-img-${BUILD_ID}.zip" "aosp_cf_x86_64_only_phone-img-${BUILD_ID}.zip"
+            - |
+              set -euo pipefail
+              cd /opt/android-cuttlefish
+
+              mkdir -p cf
+              cd cf
+
+              tar -xvf /opt/android-cuttlefish/cvd-host_package.tar.gz
+              unzip -o /opt/android-cuttlefish/aosp_cf_x86_64_only_phone-img-*.zip
+  - name: validate
+    steps:
+      - name: VerifyCuttlefishInstallation
+        action: ExecuteBash
+        timeoutSeconds: 600
+        inputs:
+          commands:
+            - |
+              dpkg -l | grep -q cuttlefish-base
+              dpkg -l | grep -q cuttlefish-user
+              dpkg -l | grep -q cuttlefish-orchestration
+              test -d /opt/android-cuttlefish/cf

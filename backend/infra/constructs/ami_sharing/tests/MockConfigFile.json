@@ -1,0 +1,124 @@
+{
+    "StateMachines": {
+        "AmiSharingStateMachine": {
+            "TestCases": {
+                "CopyPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaCopy",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "SharePath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaShare",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "DonePath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaDone",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "NotRequiredPath": {
+                    "DecideActionLambda": "MockedDecideActionLambdaDone",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                }
+            }
+        }
+    },
+    "MockedResponses": {
+        "MockedFailAmiSharingLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "FailAmiSharingResponse"
+                    }
+                }
+            }
+        },
+        "MockedDecideActionLambdaCopy": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "COPY",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": null,
+                        "region": "eu-west-3"
+                    }
+                }
+            }
+        },
+        "MockedDecideActionLambdaShare": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "SHARE",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": null,
+                        "region": "eu-west-3"
+                    }
+                }
+            }
+        },
+        "MockedDecideActionLambdaDone": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "DONE",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": "ami-54321",
+                        "region": "eu-west-3"
+                    }
+                }
+            }
+        },
+        "MockedCopyAmiLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "CopyAmiResponse",
+                        "copiedAmiId": "ami-54321"
+                    }
+                }
+            }
+        },
+        "MockedVerifyCopyLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "VerifyCopyResponse",
+                        "isCopyVerified": true
+                    }
+                }
+            }
+        },
+        "MockedShareAmiLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "ShareAmiResponse"
+                    }
+                }
+            }
+        },
+        "MockedSucceedAmiSharingLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "SucceedAmiSharingResponse"
+                    }
+                }
+            }
+        }
+    }
+}

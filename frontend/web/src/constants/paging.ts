@@ -1,0 +1,1 @@
+export const DEFAULT_MEMBER_PAGE_SIZE = 2000;

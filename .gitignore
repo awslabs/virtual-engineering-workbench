@@ -1,0 +1,13 @@
+.coverage
+.DS_Store
+.idea
+.venv
+.vscode
+**/*/.DS_Store
+backend/cdk.out*
+coverage.xml
+htmlcov/
+.deploy-logs
+.deploy-config-*
+deploy-config.env
+poc-code-snippets-add-poc-nv

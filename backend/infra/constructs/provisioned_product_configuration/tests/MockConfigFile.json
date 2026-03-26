@@ -1,0 +1,117 @@
+{
+    "StateMachines": {
+        "ProvisionedProductConfigurationStateMachine": {
+            "TestCases": {
+                "SuccessPath": {
+                    "StartConfigLambda": "MockedStartConfigLambda",
+                    "GetConfigStatusLambda": "MockedGetConfigStatusLambdaSuccess",
+                    "FailConfigLambda": "MockedFailConfigLambda",
+                    "CompleteConfigLambda": "MockedCompleteConfigLambda",
+                    "IsProvisionedProductReadyLambda": "MockedIsProvisionedProductReadyLambda"
+                },
+                "FailPath": {
+                    "StartConfigLambda": "MockedStartConfigLambda",
+                    "GetConfigStatusLambda": "MockedGetConfigStatusLambdaFailed",
+                    "FailConfigLambda": "MockedFailConfigLambda",
+                    "IsProvisionedProductReadyLambda": "MockedIsProvisionedProductReadyLambda"
+                },
+                "RetrySuccessPath": {
+                    "StartConfigLambda": "MockedStartConfigLambda",
+                    "GetConfigStatusLambda": "MockedGetConfigStatusLambdaInProgress",
+                    "FailConfigLambda": "MockedFailConfigLambda",
+                    "CompleteConfigLambda": "MockedCompleteConfigLambda",
+                    "IsProvisionedProductReadyLambda": "MockedIsProvisionedProductReadyLambda"
+                }
+            }
+        }
+    },
+    "MockedResponses": {
+        "MockedStartConfigLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "StartProvisionedProductConfigurationResponse"
+                    }
+                }
+            }
+        },
+        "MockedGetConfigStatusLambdaSuccess": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "GetProvisionedProductConfigurationStatusResponse",
+                        "status": "SUCCESS",
+                        "reason": null
+                    }
+                }
+            }
+        },
+        "MockedGetConfigStatusLambdaFailed": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "GetProvisionedProductConfigurationStatusResponse",
+                        "status": "FAILED",
+                        "reason": "There is a problem."
+                    }
+                }
+            }
+        },
+        "MockedGetConfigStatusLambdaInProgress": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "GetProvisionedProductConfigurationStatusResponse",
+                        "status": "IN_PROGRESS",
+                        "reason": null
+                    }
+                }
+            },
+            "1": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "GetProvisionedProductConfigurationStatusResponse",
+                        "status": "SUCCESS",
+                        "reason": null
+                    }
+                }
+            }
+        },
+        "MockedFailConfigLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "FailProvisionedProductConfigurationResponse"
+                    }
+                }
+            }
+        },
+        "MockedCompleteConfigLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "CompleteProvisionedProductConfigurationResponse"
+                    }
+                }
+            }
+        },
+        "MockedIsProvisionedProductReadyLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "IsProvisionedProductReadyResponse",
+                        "isReady": false
+                    }
+                }
+            },
+            "1": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "IsProvisionedProductReadyResponse",
+                        "isReady": true
+                    }
+                }
+            }
+        }
+    }
+}

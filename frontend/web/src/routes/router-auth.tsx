@@ -1,0 +1,258 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { useNavigationComponents } from '../components/layout/navigation/navigation-components.logic';
+import { useNavigationPaths } from '../components/layout/navigation/navigation-paths.logic';
+import { RouteNames } from '../components/layout/navigation/navigation.static';
+import { useProjectsSwitch } from '../hooks';
+import React from 'react';
+import { getHomePage } from '.';
+
+const SwaggerUIComponent = React.lazy(
+  () => import('../components/pages/swagger/swagger')
+);
+
+export const RouterAuth = (): React.ReactElement => {
+  const { selectedProject } = useProjectsSwitch({ skipFetch: true });
+  const { getPathFor } = useNavigationPaths();
+  const { getComponentFor } = useNavigationComponents();
+
+  return (
+    <Routes>
+      <Route
+        path={getPathFor(RouteNames.ProvisionWorkbench)}
+        element={getComponentFor(RouteNames.ProvisionWorkbench)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ProvisionWorkbenchUseMapping)}
+        element={getComponentFor(RouteNames.ProvisionWorkbench)}
+      />
+      <Route
+        path={getPathFor(RouteNames.AvailableWorkbenches)}
+        element={getComponentFor(RouteNames.AvailableWorkbenches)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MyWorkbenches)}
+        element={getComponentFor(RouteNames.MyWorkbenches)}
+      />
+      <Route
+        path={getPathFor(RouteNames.WorkbenchDetails)}
+        element={getComponentFor(RouteNames.WorkbenchDetails)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Programs)}
+        element={getComponentFor(RouteNames.Programs)}
+      />
+      <Route
+        path={getPathFor(RouteNames.OnboardProjectAccount)}
+        element={getComponentFor(RouteNames.OnboardProjectAccount)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ProjectUserAssignment)}
+        element={getComponentFor(RouteNames.ProjectUserAssignment)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ProjectMembers)}
+        element={getComponentFor(RouteNames.ProjectMembers)}
+      />
+      <Route path="/login" element={<Navigate replace={true} to="/" />} />
+      <Route
+        path="/"
+        element={
+          <Navigate
+            replace={true}
+            to={
+              selectedProject?.projectId ?
+                getPathFor(getHomePage()) :
+                getPathFor(RouteNames.Programs)
+            }
+          />
+        }
+      />
+      <Route
+        path={getPathFor(RouteNames.TechnologyDetails)}
+        element={getComponentFor(RouteNames.TechnologyDetails)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Technologies)}
+        element={getComponentFor(RouteNames.Technologies)}
+      />
+      <Route
+        path={getPathFor(RouteNames.AddTechnology)}
+        element={getComponentFor(RouteNames.AddTechnology)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateTechnology)}
+        element={getComponentFor(RouteNames.UpdateTechnology)}
+      />
+      <Route
+        path={getPathFor(RouteNames.HelpPage)}
+        element={getComponentFor(RouteNames.HelpPage)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateProgram)}
+        element={getComponentFor(RouteNames.CreateProgram)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateProgram)}
+        element={getComponentFor(RouteNames.UpdateProgram)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateProduct)}
+        element={getComponentFor(RouteNames.CreateProduct)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateProductVersion)}
+        element={getComponentFor(RouteNames.CreateProductVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateProductVersion)}
+        element={getComponentFor(RouteNames.UpdateProductVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Products)}
+        element={getComponentFor(RouteNames.Products)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Product)}
+        element={getComponentFor(RouteNames.Product)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ProductVersionDetails)}
+        element={getComponentFor(RouteNames.ProductVersionDetails)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CompareProductVersions)}
+        element={getComponentFor(RouteNames.CompareProductVersions)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpgradeWorkbenchV2)}
+        element={getComponentFor(RouteNames.UpgradeWorkbenchV2)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Components)}
+        element={getComponentFor(RouteNames.Components)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateComponent)}
+        element={getComponentFor(RouteNames.CreateComponent)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CompareComponentVersions)}
+        element={getComponentFor(RouteNames.CompareComponentVersions)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ViewComponent)}
+        element={getComponentFor(RouteNames.ViewComponent)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateComponent)}
+        element={getComponentFor(RouteNames.UpdateComponent)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateComponentVersion)}
+        element={getComponentFor(RouteNames.CreateComponentVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateComponentVersion)}
+        element={getComponentFor(RouteNames.UpdateComponentVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ViewComponentVersion)}
+        element={getComponentFor(RouteNames.ViewComponentVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Recipes)}
+        element={getComponentFor(RouteNames.Recipes)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateRecipe)}
+        element={getComponentFor(RouteNames.CreateRecipe)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ViewRecipe)}
+        element={getComponentFor(RouteNames.ViewRecipe)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateRecipeVersion)}
+        element={getComponentFor(RouteNames.CreateRecipeVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateRecipeVersion)}
+        element={getComponentFor(RouteNames.UpdateRecipeVersion)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ViewRecipeVersion)}
+        element={getComponentFor(RouteNames.ViewRecipeVersion)}
+      />
+      <Route
+        path="/_swagger/:boundedContextName"
+        element={
+          <React.Suspense fallback={<></>}>
+            <SwaggerUIComponent />
+          </React.Suspense>
+        }
+      />
+      <Route
+        path={getPathFor(RouteNames.Images)}
+        element={getComponentFor(RouteNames.Images)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MandatoryComponentsLists)}
+        element={getComponentFor(RouteNames.MandatoryComponentsLists)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreateMandatoryComponentsList)}
+        element={getComponentFor(RouteNames.CreateMandatoryComponentsList)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdateMandatoryComponentsList)}
+        element={getComponentFor(RouteNames.UpdateMandatoryComponentsList)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ViewMandatoryComponentsList)}
+        element={getComponentFor(RouteNames.ViewMandatoryComponentsList)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ProvisionedProductsAdministration)}
+        element={getComponentFor(RouteNames.ProvisionedProductsAdministration)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MyVirtualTargets)}
+        element={getComponentFor(RouteNames.MyVirtualTargets)}
+      />
+      <Route
+        path={getPathFor(RouteNames.AvailableVirtualTargets)}
+        element={getComponentFor(RouteNames.AvailableVirtualTargets)}
+      />
+      <Route
+        path={getPathFor(RouteNames.VirtualTargetDetails)}
+        element={getComponentFor(RouteNames.VirtualTargetDetails)}
+      />
+      <Route
+        path={getPathFor(RouteNames.ProvisionVirtualTarget)}
+        element={getComponentFor(RouteNames.ProvisionVirtualTarget)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpgradeVirtualTarget)}
+        element={getComponentFor(RouteNames.UpgradeVirtualTarget)}
+      />
+      <Route
+        path={getPathFor(RouteNames.Pipelines)}
+        element={getComponentFor(RouteNames.Pipelines)}
+      />
+      <Route
+        path={getPathFor(RouteNames.CreatePipeline)}
+        element={getComponentFor(RouteNames.CreatePipeline)}
+      />
+      <Route
+        path={getPathFor(RouteNames.UpdatePipeline)}
+        element={getComponentFor(RouteNames.UpdatePipeline)}
+      />
+      <Route
+        path={getPathFor(RouteNames.NotFoundErrorPage)}
+        element={getComponentFor(RouteNames.NotFoundErrorPage)}
+      />
+    </Routes>
+  );
+};

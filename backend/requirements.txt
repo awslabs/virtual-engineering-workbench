@@ -1,0 +1,18 @@
+-r app/projects/libraries/requirements.txt
+-r app/shared/requirements.txt
+-r app/packaging/libraries/requirements.txt
+-r app/publishing/libraries/requirements.txt
+-r app/provisioning/libraries/requirements.txt
+-r infra/constructs/eventbridge/eb_upsert_handler/requirements.txt
+-r app/authorization/libraries/requirements.txt
+-r app/usecase/libraries/requirements.txt
+aws-cdk-lib ~= 2.234.1
+aws-cdk.aws-lambda-python-alpha ~= 2.234.1a0
+aws-cdk.aws-pipes-alpha ~= 2.234.1a0
+aws-cdk.aws-pipes-sources-alpha ~= 2.234.1a0
+aws-cdk.aws-pipes-targets-alpha ~= 2.234.1a0
+boto3 ~= 1.40
+cdk-monitoring-constructs ~= 9.2.0
+cdk-nag ~= 2.35.54
+constructs ~= 10.4.2
+typeguard ~= 2.13.3

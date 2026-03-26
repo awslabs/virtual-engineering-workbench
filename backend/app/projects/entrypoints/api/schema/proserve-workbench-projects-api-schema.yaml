@@ -1,0 +1,2359 @@
+# kics-scan disable=663c442d-f918-4f62-b096-0bf5dcbeb655,00b78adf-b83f-419c-8ed8-c6018441dd3a,6998389e-66b2-473d-8d05-c8d71ac4d04d,8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85,8c84f75e-5048-4926-a4cb-33e7b3431300,fb7d81e7-4150-48c4-b914-92fc05da6a2f,6c35d2c6-09f2-4e5c-a094-e0e91327071d,9f88c88d-824d-4d9a-b985-e22977046042,561710b1-b845-4562-95ce-2397a05ccef4,d172a060-8569-4412-8045-3560ebd477e8,86e3702f-c868-44b2-b61d-ea5316c18110,5915c20f-dffa-4cee-b5d4-f457ddc0151a,2bd608ae-8a1f-457f-b710-c237883cb313,181bd815-767e-4e95-a24d-bb3c87328e19,2ea04bef-c769-409e-9179-ee3a50b5c0ac,fbf699b5-ef74-4542-9cf1-f6eeac379373,962fa01e-b791-4dcc-b04a-4a3e7389be5e,237402e2-c2f0-46c9-9cf5-286160cf7bfc,40e1d1bf-11a9-4f63-a3a2-a8b84c602839,37140f7f-724a-4c87-a536-e9cee1d61533,8d0921d6-4131-461f-a253-99e873f8f77e,151331e2-11f4-4bb6-bd35-9a005e695087,8fe1846f-52cc-4413-ace9-1933d7d23672,96729c6b-7400-4d9e-9807-17f00cdde4d2,8af270ce-298b-4405-9922-82a10aee7a4f,a92be1d5-d762-484a-86d6-8cd0907ba100
+# - 663c442d-f918-4f62-b096-0bf5dcbeb655: CORS preflight OPTIONS requires unauthenticated access (RFC 6454)
+# - 00b78adf-b83f-419c-8ed8-c6018441dd3a: String pattern validation enforced by Pydantic and domain value objects
+# - 6998389e-66b2-473d-8d05-c8d71ac4d04d: Array size validation enforced by Pydantic and domain value objects
+# - 8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85: String maxLength validation enforced by Pydantic and domain value objects
+# - 8c84f75e-5048-4926-a4cb-33e7b3431300: Authorization header param required by API Gateway for cacheKeyParameters/identitySource
+# - fb7d81e7-4150-48c4-b914-92fc05da6a2f: x-amazon-apigateway-* are standard AWS vendor extensions per OpenAPI 3.0 spec
+# - 6c35d2c6-09f2-4e5c-a094-e0e91327071d: Error responses handled globally via x-amazon-apigateway-gateway-responses and Lambda Powertools
+# - 9f88c88d-824d-4d9a-b985-e22977046042: Additional properties handling enforced by Pydantic BaseModel
+# - 561710b1-b845-4562-95ce-2397a05ccef4: False positive, path params defined on each operation
+# - d172a060-8569-4412-8045-3560ebd477e8: All-optional schema properties are intentional, required fields enforced by Pydantic
+# - 86e3702f-c868-44b2-b61d-ea5316c18110: Error responses handled globally via x-amazon-apigateway-gateway-responses and Lambda Powertools
+# - 5915c20f-dffa-4cee-b5d4-f457ddc0151a: Intentional empty arrays for CORS security:[] and apiKey empty scopes
+# - 2bd608ae-8a1f-457f-b710-c237883cb313: False positive, KICS does not resolve $ref chains in schema required properties
+# - 181bd815-767e-4e95-a24d-bb3c87328e19: Numeric min validation enforced by Pydantic and domain value objects
+# - 2ea04bef-c769-409e-9179-ee3a50b5c0ac: Numeric max validation enforced by Pydantic and domain value objects
+# - fbf699b5-ef74-4542-9cf1-f6eeac379373: Numeric format validation enforced by Pydantic and domain value objects
+# - 962fa01e-b791-4dcc-b04a-4a3e7389be5e: Schemas auto-generated from Pydantic, some referenced indirectly by Swagger UI
+# - 237402e2-c2f0-46c9-9cf5-286160cf7bfc: False positive, KICS treats path params as wildcards causing false ambiguity
+# - 40e1d1bf-11a9-4f63-a3a2-a8b84c602839: AVP-Request-Authorizer uses type:apiKey as standard API Gateway custom authorizer pattern, not actual API key
+# - 37140f7f-724a-4c87-a536-e9cee1d61533: Empty scopes [] is correct for non-OAuth security schemes per OpenAPI spec
+# - 8d0921d6-4131-461f-a253-99e873f8f77e: Server URL variables {Host}/{BasePath} resolved at deployment time by CDK/CloudFormation
+# - 151331e2-11f4-4bb6-bd35-9a005e695087: False positive from KICS misidentifying x-amazon-apigateway vendor extensions as fixed field keys
+# - 8fe1846f-52cc-4413-ace9-1933d7d23672: False positive, KICS confuses schema properties named 'parameters' with OpenAPI Parameter Objects
+# - 96729c6b-7400-4d9e-9807-17f00cdde4d2: Intentional for dcv_api (internal, custom cookie auth) and api_webhooks (GitHub signature middleware)
+# - 8af270ce-298b-4405-9922-82a10aee7a4f: Auth handled outside OpenAPI security schemes for dcv_api, executing, and api_webhooks
+# - a92be1d5-d762-484a-86d6-8cd0907ba100: Minor doc gap in dcv_api, response body controlled by Lambda not API Gateway
+openapi: "3.0.1"
+info:
+  title: "Workbench Projects API"
+  description: "API in charge of processing the methods required for the use cases"
+  version: "2024-04-11T12:00:00Z"
+servers:
+  - url: "https://{Host}/{BasePath}"
+security:
+  - AVP-Request-Authorizer: []
+x-amazon-apigateway-request-validators:
+  all:
+    validateRequestBody: true
+    validateRequestParameters: true
+  params-only:
+    validateRequestBody: false
+    validateRequestParameters: true
+  body-only:
+    validateRequestBody: true
+    validateRequestParameters: false
+  none:
+    validateRequestBody: false
+    validateRequestParameters: false
+x-amazon-apigateway-request-validator: none
+x-amazon-apigateway-gateway-responses:
+  DEFAULT_4XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": "Client error", "validationError": "" }'
+  BAD_REQUEST_PARAMETERS:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": $context.error.messageString, "validationError": "$context.error.validationErrorString" }'
+  BAD_REQUEST_BODY:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": $context.error.messageString, "validationError": "$context.error.validationErrorString" }'
+  DEFAULT_5XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": "Server error", "validationError": "" }'
+paths:
+  /_swagger:
+    get:
+      description: "Gets autogenerated Open API spec."
+      operationId: "GetSwaggerSpec"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            default: json
+            enum:
+              - json
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetSwaggerSpecCORS"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects:
+    get:
+      description: "Get all projects"
+      operationId: "GetProjects"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.querystring.nextToken"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: "Create a project"
+      operationId: "CreateProject"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateProjectRequest"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateProjectResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "QueryProjectCors"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}:
+    get:
+      description: "Get a project"
+      operationId: "GetProject"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: "Update a project"
+      operationId: "UpdateProject"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateProjectRequest"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateProjectResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "QueryAllProjectsCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/accounts:
+    put:
+      description: "Re-onboard project account"
+      operationId: "ReonboardProjectAccount"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ReonboardProjectAccountRequest"
+        required: true
+      responses:
+        "202":
+          description: "202 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReonboardProjectAccountResponse"
+      security:
+        - AVP-Request-Authorizer: []
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: "Associate an AWS account to a project"
+      operationId: "AddProjectAccount"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/OnBoardProjectAccountRequest"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnBoardProjectAccountResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: "Get all accounts associated to a program/project"
+      operationId: "GetProjectAccounts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: accountType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: stage
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectAccountsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+          - "method.request.querystring.accountType"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "QueryProjectAccountsCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST,PUT'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/accounts/{accountId}:
+    patch:
+      description: "Change account entity"
+      operationId: "UpdateProjectAccount"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateProjectAccountRequest"
+        required: true
+      responses:
+        "202":
+          description: "202 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateProjectAccountResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "ModifyProjectAccountCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,PUT,PATCH'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/technologies:
+    get:
+      description: "Get all technologies for a given project"
+      operationId: "GetTechnologies"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetTechnologiesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+          - "method.request.querystring.nextToken"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: "Add a technology to a given project"
+      operationId: "AddTechnology"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AddTechnologyRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddTechnologyResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "QueryTechnologiesCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/technologies/{techId}:
+    put:
+      description: "Update a technology"
+      operationId: "UpdateTechnology"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: techId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateTechnologyRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateTechnologyResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    delete:
+      description: "Delete a technology"
+      operationId: "DeleteTechnology"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: techId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteTechnologyResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "UpdateTechnologiesCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: techId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/users:
+    delete:
+      description: "Remove multiple users from a specific project"
+      operationId: "RemoveProjectUsers"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RemoveUsersRequest"
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoveUsersResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: "Add a new user to a program/project"
+      operationId: "AddProjectUser"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AssignUserRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssignUserResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: "Reassign users to different roles for a specific project"
+      operationId: "ReAssignProjectUsers"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ReAssignUsersRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReAssignUsersResponse"
+      security:
+        - AVP-Request-Authorizer: []
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: "Get all users associated to a project"
+      operationId: "GetProjectUsers"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectAssignmentsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "QueryProjectUsersCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectAccountsResponse"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST,PUT,DELETE'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/users/{userId}:
+    delete:
+      description: "Remove an user from a specific project"
+      operationId: "RemoveProjectUser"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnAssignUserResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: "Get all roles associated to a user in a project"
+      operationId: "GetUserRoles"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUserRolesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "QuerySingleProjectUserCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,PATCH'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/enrolments:
+    get:
+      description: "Get all enrolments associated to a project"
+      operationId: "GetProjectEnrolments"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectEnrolmentsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: "Request to be enrolled to a program"
+      operationId: "EnrolUser"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/EnrolUserRequest"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnrolUserResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: "Approve or Reject pending enrolments for a specific project"
+      operationId: "UpdateEnrolments"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateEnrolmentsRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateEnrolmentsResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "EnrolUserCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /internal/accounts:
+    get:
+      description: "Get all accounts associated to a project"
+      operationId: "GetInternalProjectAccounts"
+      parameters:
+        - name: accountType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+        - name: stage
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: technologyId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.querystring.accountType"
+          - "method.request.querystring.projectId"
+          - "method.request.querystring.stage"
+          - "method.request.querystring.nextToken"
+          - "method.request.querystring.pageSize"
+          - "method.request.querystring.technologyId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/user:
+    get:
+      description: "Get user"
+      operationId: "GetInternalUser"
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUserResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.querystring.userId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/user/assignments:
+    get:
+      description: "Get all user assignments via internal API"
+      operationId: "GetInternalAssignments"
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectsResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.querystring.userId"
+          - "method.request.querystring.nextToken"
+          - "method.request.querystring.pageSize"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/projects:
+    get:
+      description: "Get all projects via internal API"
+      operationId: "GetInternalProjects"
+      parameters:
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectsResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.querystring.nextToken"
+          - "method.request.querystring.pageSize"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/projects/{projectId}/users:
+    get:
+      description: "Get all project assignments via internal API"
+      operationId: "GetInternalProjectAssignments"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectAssignmentsResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.path.projectId"
+          - "method.request.querystring.pageSize"
+          - "method.request.querystring.nextToken"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/projects/{projectId}/users/{userId}:
+    get:
+      description: "Get all user assignment in a project via internal API"
+      operationId: "GetInternalProjectUserAssignment"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProjectAssignmentResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.path.projectId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/users:
+    get:
+      description: "Get all users"
+      operationId: "GetInternalUsers"
+      parameters:
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: nextToken
+          in: query
+          required: false
+          schema:
+            type: object
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+        cacheKeyParameters:
+          - "method.request.querystring.pageSize"
+          - "method.request.querystring.nextToken"
+components:
+  schemas:
+    Empty:
+      title: "Empty Schema"
+      type: "object"
+    User:
+      title: User
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          title: UserId
+          type: string
+          description: Unique ID of the user.
+        userEmail:
+          title: UserEmail
+          type: string
+          description: Email of a user.
+    Project:
+      title: Project
+      type: object
+      required:
+        - projectId
+      properties:
+        projectId:
+          title: ProjectId
+          type: string
+          description: Unique ID of the project.
+        projectName:
+          title: ProjectName
+          type: string
+          description: Name of the project.
+        projectDescription:
+          title: ProjectDescription
+          type: string
+          description: Description of the project.
+        isActive:
+          title: IsActive
+          type: boolean
+          description: Project active flag
+        createDate:
+          title: CreateDate
+          type: string
+          description: Point in time where project is created.
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Point in time where project is last updated.
+    ProjectAssignment:
+      title: ProjectAssignment
+      type: object
+      properties:
+        projectId:
+          title: ProjectId
+          type: string
+          description: Unique ID of the project.
+        roles:
+          title: Roles
+          type: array
+          description: User roles in the project.
+          items:
+            type: string
+        activeDirectoryGroups:
+          title: ActiveDirectoryGroups
+          type: array
+          description: Active directory groups that the user is member of
+          items:
+            "$ref": "#/components/schemas/GetProjectAssignmentsResponseItemADGroup"
+        activeDirectoryGroupStatus:
+          title: ActiveDirectoryGroupStatus
+          type: string
+          description: Status of adding the user to the AD groups
+        userEmail:
+          title: UserEmail
+          type: string
+          description: User email.
+    ProjectEnrolment:
+      title: ProjectEnrolment
+      type: object
+      required:
+        - projectId
+        - status
+      properties:
+        projectId:
+          title: ProjectId
+          type: string
+          description: Unique ID of the project enrolment.
+        status:
+          title: Status
+          type: string
+          description: Status of the project enrolment.
+    ProjectAccount:
+      title: ProjectAccount
+      type: object
+      required:
+        - awsAccountId
+        - accountType
+        - technologyId
+      properties:
+        id:
+          title: Id
+          type: string
+          description: Unique ID of the account.
+        awsAccountId:
+          title: AwsAccountId
+          type: string
+          description: Unique ID of the AWS account.
+        accountType:
+          title: AccountType
+          type: string
+          description: Type of the account.
+        accountName:
+          title: AccountName
+          type: string
+          description: Name of the account.
+        accountDescription:
+          title: AccountDescription
+          type: string
+          description: Description of the account.
+        createDate:
+          title: CreateDate
+          type: string
+          description: Point in time where account is created.
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Point in time where account is last updated.
+        accountStatus:
+          title: AccountStatus
+          type: string
+          description: Account status
+        stage:
+          title: Stage
+          type: string
+          description: The stage account represents. Possible values dev, qa, prod
+        technologyId:
+          title: TechnologyId
+          type: string
+          description: The reference to the associated technology platform
+        region:
+          title: region
+          type: string
+          description: Region in which workbenches will be provisioned in this account.
+        lastOnboardingResult:
+          title: LastOnboardingResult
+          type: string
+          description: Result of the last onboarding / reonboarding
+        lastOnboardingErrorMessage:
+          title: LastOnboardingErrorMessage
+          type: string
+          description: Error message of the last onboarding / reonboarding if it failed
+    Technology:
+      title: Technology
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          title: Id
+          type: string
+          description: The ID of the technology
+        name:
+          title: Name
+          type: string
+          description: The name of the technology
+        description:
+          title: Description
+          type: string
+          description: The description of the technology
+    AddTechnologyRequest:
+      title: AddTechnologyRequest
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          title: Name
+          type: string
+          description: The name of the technology
+        description:
+          title: Description
+          type: string
+          description: The description of the technology
+    AddTechnologyResponse:
+      title: AddTechnologyResponse
+      type: object
+    UpdateTechnologyRequest:
+      title: UpdateTechnologyRequest
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          title: Name
+          type: string
+          description: The name of the technology
+        description:
+          title: Description
+          type: string
+          description: The description of the technology
+    UpdateTechnologyResponse:
+      title: UpdateTechnologyResponse
+      type: object
+    DeleteTechnologyResponse:
+      title: DeleteTechnologyResponse
+      type: object
+    OnBoardProjectAccountRequest:
+      title: OnBoardProjectAccountRequest
+      type: object
+      required:
+        - awsAccountId
+        - accountType
+        - technologyId
+        - region
+      properties:
+        id:
+          title: Id
+          type: string
+          description: Unique ID of the account.
+        awsAccountId:
+          title: AwsAccountId
+          type: string
+          description: Unique ID of the AWS account.
+        accountType:
+          title: AccountType
+          type: string
+          description: Type of the account.
+        accountName:
+          title: AccountName
+          type: string
+          description: Name of the account.
+        accountDescription:
+          title: AccountDescription
+          type: string
+          description: Description of the account.
+        createDate:
+          title: CreateDate
+          type: string
+          description: Point in time where account is created.
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Point in time where account is last updated.
+        accountStatus:
+          title: AccountStatus
+          type: string
+          description: Account status
+        stage:
+          title: Stage
+          type: string
+          description: The stage account represents. Possible values dev, qa, prod
+        technologyId:
+          title: TechnologyId
+          type: string
+          description: The reference to the associated technology platform
+        region:
+          title: region
+          type: string
+          description: Region in which workbenches will be provisioned in this account.
+    OnBoardProjectAccountResponse:
+      title: OnBoardProjectAccountResponse
+      type: object
+    ReonboardProjectAccountRequest:
+      title: ReonboardProjectAccountRequest
+      type: object
+      required:
+        - accountIds
+      properties:
+        accountIds:
+          title: AccountIds
+          type: array
+          items:
+            type: string
+    ReonboardProjectAccountResponse:
+      title: OnBoardProjectAccountResponse
+      type: object
+    GetTechnologiesResponse:
+      title: GetTechnologiesResponse
+      required:
+        - technologies
+      type: object
+      properties:
+        nextToken:
+          title: LastEvaluatedKey token
+          nullable: true
+          type: object
+        technologies:
+          title: Technologies
+          type: array
+          items:
+            "$ref": "#/components/schemas/Technology"
+    GetUserResponse:
+      title: GetProjectResponse
+      type: object
+      properties:
+        user:
+          title: User
+          "$ref": "#/components/schemas/User"
+    GetProjectsResponse:
+      title: GetProjectsResponse
+      required:
+        - projects
+      type: object
+      properties:
+        nextToken:
+          title: LastEvaluatedKey token
+          nullable: true
+          type: object
+        projects:
+          title: Projects
+          type: array
+          items:
+            "$ref": "#/components/schemas/Project"
+        assignments:
+          title: Assignments
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProjectAssignment"
+        enrolments:
+          title: Enrolments
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProjectEnrolment"
+    GetProjectAccountsResponse:
+      title: GetProjectAccountsResponse
+      required:
+        - projectAccounts
+      type: object
+      properties:
+        projectAccounts:
+          title: ProjectAccounts
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProjectAccount"
+        nextToken:
+          title: LastEvaluatedKey token
+          nullable: true
+          type: object
+    AssignUserRequest:
+      title: AssignUserRequest
+      type: object
+      properties:
+        userId:
+          title: UserId
+          type: string
+          description: User TID
+        roles:
+          title: Roles
+          type: array
+          description: User roles in the project
+          items:
+            type: string
+    AssignUserResponse:
+      title: AssignUserResponse
+      type: object
+    ReAssignUsersRequest:
+      title: ReAssignUsersRequest
+      type: object
+      properties:
+        roles:
+          title: Roles
+          type: array
+          description: Users roles in the project
+          items:
+            type: string
+        userIds:
+          title: UserIds
+          type: array
+          description: User IDs in the project
+          items:
+            type: string
+    ReAssignUsersResponse:
+      title: ReAssignUsersResponse
+      type: object
+    RemoveUsersRequest:
+      title: RemoveUsersRequest
+      type: object
+      properties:
+        userIds:
+          title: UserIds
+          type: array
+          description: User IDs
+          items:
+            type: string
+    RemoveUsersResponse:
+      title: RemoveUsersResponse
+      type: object
+    UnAssignUserResponse:
+      title: UnAssignUserResponse
+      type: object
+    GetUserRolesResponse:
+      title: GetUserRolesResponse
+      required:
+        - roles
+      type: object
+      properties:
+        roles:
+          title: roles
+          type: array
+          items:
+            type: string
+    GetProjectAssignmentsResponseItemADGroup:
+      title: GetProjectAssignmentsResponseItemADGroup
+      type: object
+      properties:
+        domain:
+          title: Domain
+          type: string
+          description: AD Domain
+        groupName:
+          title: GroupName
+          type: string
+          description: AD Group
+    GetProjectAssignmentsResponseItem:
+      title: GetProjectAssignmentsResponseItem
+      type: object
+      properties:
+        userId:
+          title: UserId
+          type: string
+          description: User TID
+        roles:
+          title: Roles
+          type: array
+          description: User roles in the project
+          items:
+            type: string
+        userEmail:
+          title: UserEmail
+          type: string
+          description: Email address of the user
+        activeDirectoryGroups:
+          title: ActiveDirectoryGroups
+          type: array
+          description: Active directory groups that the user is member of
+          items:
+            "$ref": "#/components/schemas/GetProjectAssignmentsResponseItemADGroup"
+        activeDirectoryGroupStatus:
+          title: ActiveDirectoryGroupStatus
+          type: string
+          description: Status of adding the user to the AD groups
+    GetProjectAssignmentsResponse:
+      title: GetProjectAssignmentsResponse
+      type: object
+      properties:
+        nextToken:
+          title: LastEvaluatedKey token
+          nullable: true
+          type: string
+        assignments:
+          title: Assignments
+          type: array
+          items:
+            "$ref": "#/components/schemas/GetProjectAssignmentsResponseItem"
+    GetProjectAssignmentResponseItem:
+      title: GetProjectAssignmentResponseItem
+      required:
+        - userId
+        - roles
+      type: object
+      properties:
+        userId:
+          title: UserId
+          type: string
+          description: User TID
+        roles:
+          title: Roles
+          type: array
+          description: User roles in the project
+          items:
+            type: string
+    GetProjectAssignmentResponse:
+      title: GetProjectAssignmentResponse
+      type: object
+      properties:
+        assignment:
+          title: Assignment
+          "$ref": "#/components/schemas/GetProjectAssignmentResponseItem"
+    GetProjectEnrolmentsResponse:
+      title: GetProjectEnrolmentsResponse
+      type: object
+      properties:
+        nextToken:
+          title: LastEvaluatedKey token
+          nullable: true
+          type: object
+        enrolments:
+          title: Enrolments
+          type: array
+          items:
+            "$ref": "#/components/schemas/GetProjectEnrolmentsResponseItem"
+    GetProjectEnrolmentsResponseItem:
+      title: GetProjectEnrolmentsResponseItem
+      type: object
+      properties:
+        id:
+          title: Id
+          type: string
+        userId:
+          title: UserId
+          type: string
+          description: User TID
+        userEmail:
+          title: userEmail
+          type: string
+          description: User e-mail
+        projectId:
+          title: ProjectId
+          type: string
+          description: Project ID
+        status:
+          title: Status
+          type: string
+          description: Enrolment status
+        ticketId:
+          title: TicketId
+          type: string
+          description: Enrolment ticket ID
+        approver:
+          title: Approver
+          type: string
+          description: Enrolment approver
+        reason:
+          title: Reason
+          type: string
+          description: Enrolment decline reason
+        createDate:
+          title: CreateDate
+          type: string
+          description: Point in time where enrolment is created
+        resolveDate:
+          title: ResolveDate
+          type: string
+          description: Point in time where enrolment is resolved
+        sourceSystem:
+          title: SourceSystem
+          type: string
+          description: System in which enrolment request was approved
+    EnrolUserRequest:
+      title: EnrolUserRequest
+      type: object
+    EnrolUserResponse:
+      title: EnrolUserResponse
+      type: object
+    UpdateEnrolmentsRequest:
+      title: UpdateEnrolmentsRequest
+      type: object
+      properties:
+        enrolmentIds:
+          title: EnrolmentIds
+          type: array
+          description: Enrolment IDs to approve or decline
+          items:
+            type: string
+        reason:
+          title: Reason
+          type: string
+          description: Reason for enrolment rejection
+        status:
+          title: Status
+          type: string
+          description: Enrolment status
+        roles:
+          title: Roles
+          type: array
+          description: User roles in the project
+          items:
+            type: string
+    UpdateEnrolmentsResponse:
+      title: UpdateEnrolmentsResponse
+      type: object
+    UpdateProjectAccountRequest:
+      title: UpdateProjectAccountRequest
+      type: object
+      required:
+        - accountStatus
+      properties:
+        accountStatus:
+          title: AccountStatus
+          type: string
+          description: "Status of the account. Accepted values: 'active' | 'inactive'"
+    UpdateProjectAccountResponse:
+      title: UpdateProjectAccountResponse
+      type: object
+    CreateProjectRequest:
+      title: CreateProjectRequest
+      type: object
+      required:
+        - name
+        - isActive
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Name of the project
+        description:
+          title: Description
+          type: string
+          description: Description of the project
+        isActive:
+          title: IsActive
+          type: boolean
+          description: Project active flag
+    CreateProjectResponse:
+      title: CreateProjectResponse
+      type: object
+    GetProjectResponse:
+      title: GetProjectResponse
+      required:
+        - project
+      type: object
+      properties:
+        project:
+          title: Project
+          "$ref": "#/components/schemas/Project"
+    UpdateProjectRequest:
+      title: UpdateProjectRequest
+      type: object
+      required:
+        - name
+        - isActive
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Name of the project
+        description:
+          title: Description
+          type: string
+          description: Description of the project
+        isActive:
+          title: IsActive
+          type: boolean
+          description: Project active flag
+    UpdateProjectResponse:
+      title: UpdateProjectResponse
+      type: object
+    GetUsersResponse:
+      title: GetUsersResponse
+      required:
+        - users
+      type: object
+      properties:
+        users:
+          title: Users
+          type: array
+          items:
+            "$ref": "#/components/schemas/User"
+        nextToken:
+          title: LastEvaluatedKey token
+          type: string
+          description: paging token
+  securitySchemes:
+    AVP-Request-Authorizer:
+      type: "apiKey"
+      name: "AmazonVerifiedPermissions"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        type: "request"
+        authorizerUri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{authorization_bc_handler_arn}}/invocations"
+        authorizerCredentials: "{{apigw_invocation_role_arn}}"
+        authorizerResultTtlInSeconds: 1800
+        identitySource: "method.request.header.Authorization, context.path, context.httpMethod"
+    sigv4:
+      type: "apiKey"
+      name: "Authorization"
+      in: "header"
+      x-amazon-apigateway-authtype: "awsSigv4"

@@ -1,0 +1,39 @@
+div[class='modal']{
+  position: fixed;
+  z-index: 9999;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+
+  & div[class='modal-container']{
+    background-color: #fff;
+    position:absolute;
+    top: calc(10vh - 40px);
+    left: calc(10vw - 20px);
+    width: calc(80vw - 20px);
+    height: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    border-radius: 16px;
+  }
+
+  & div[class*='awsui_content']{
+    width: 100% !important;
+    height: auto !important;
+    overflow: hidden;
+
+    & img{
+      width:60%;
+      height: auto;
+    }
+
+    & video{
+      width: 100%;
+      height: auto;
+    }
+  }
+}

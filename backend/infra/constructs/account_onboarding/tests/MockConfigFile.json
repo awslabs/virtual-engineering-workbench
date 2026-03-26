@@ -1,0 +1,43 @@
+{
+  "StateMachines": {
+    "AccountOnboardingStateMachine": {
+      "TestCases": {
+        "AccountOnboardingSuccess": {
+          "SetupStaticResources": "MockSetupStaticResources",
+          "SetupDynamicResources": "MockSetupDynamicResources"
+        },
+        "AccountOnboardingFail": {
+          "SetupStaticResources": "MockSetupStaticResourcesFail"
+        }
+      }
+    }
+  },
+  "MockedResponses": {
+    "MockSetupStaticResources": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "SetupStaticResourceResponse"
+          }
+        }
+      }
+    },
+    "MockSetupDynamicResources": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "SetupDynamicResourceResponse"
+          }
+        }
+      }
+    },
+    "MockSetupStaticResourcesFail": {
+      "0": {
+        "Throw": {
+          "Cause": "Lambda timed out.",
+          "Error": "Lambda.TimeoutException"
+        }
+      }
+    }
+  }
+}

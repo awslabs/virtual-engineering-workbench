@@ -1,0 +1,62 @@
+export const i18nWorkbench = {
+  noProducts: 'No products',
+  noProductsLong: 'No products to display.',
+  noProductsFound: 'No products found.',
+  clearFilter: 'Clear filter',
+  loadingProducts: 'Loading products',
+  breadcrumbLevel1: 'Workbenches: All workbenches',
+  helpPanelHeader: 'All workbenches',
+  helpPanelDetails:
+    'On this page you can find all available workbenches and toolchain products for provisioning.',
+  actionProvision: 'Create',
+  actionToolsPreview: 'Tools Preview',
+  noOSVersionsAvailable: 'N/A',
+  actionExperiment: 'Experiment',
+  headerTitle: 'All workbenches',
+  actionDetails: 'Learn more',
+  findFilter: 'Find workbenches or tools',
+  productSelection: 'Product selection',
+  availableProductStage: 'Stages',
+  availableProductDescription: 'Description',
+  availableProductRegion: 'Regions',
+  availableProductProvisioningTime: 'Estimated provisioning time',
+  noProvisioningTime: 'Not available',
+  selectRegion: 'Region',
+  selectStage: 'Stage',
+  errorFetchAvailableProducts: 'Error fetching available products',
+  errorFetchAvailableProductVersions: 'Error fetching available product versions',
+  firstRegionDropdownOption: 'Any region',
+  firstStageDropdownOption: 'Any stage',
+  productType: 'Workbench',
+
+  viewDetailsButton: 'View details',
+  infoPanelLabel1: 'What is a workbench?',
+  infoPanelMessage1: `Workbenches are predefined use case specific environments
+  that come fully equipped with all the tools, integrated development environments (IDEs),
+  and licensing necessary for you to jump start your work. Whether working on
+  advanced driver assistance systems or personalized infotainment applications,
+  these specialized environments ensure you have the right resources to begin your work effectively.`,
+  infoPanelMessage2: '',
+  infoPanelLabel2: 'What can I accomplish?',
+  infoPanelMessage3: `This page allows you to browse existing workbenches and select a workbench
+  applicable to your use case to create an instance of.`,
+  infoPanelMessage4: `Use the information in each card to help you make an informed decision.
+  After selecting a workbench to create an instance of, you will have the opportunity to configure
+  the workbench and view additional information such as the installed tools,
+  release notes, and main software versions.`,
+  helpPanelProductToolsDetails: 'Installed Tools Preview',
+  recommendedVersionTag: 'Recommended',
+  formFieldStageHeader: 'Stage',
+  formFieldVersionHeader: 'Version',
+  formFieldRegionHeader: 'Region',
+  tableHeaderToolsName: 'Name',
+  tableHeaderToolsVersion: 'Version',
+  tableLoadingResources: 'Loading resources',
+  tableNoResources: 'List of tools unavailable',
+  filterToolsPlaceholder: 'Find tools',
+  tableFilterNoResultTitle: 'No tools',
+  tableFilterNoResultActionText: 'Clear filter',
+  tableFilterNoResultSubtitle: 'No tools where found using your search criteria.',
+  helpPanelStaticDescription: 'Explore the tools installed in the available workbench versions.' +
+   'For more details, visit the workbench configuration page.'
+};

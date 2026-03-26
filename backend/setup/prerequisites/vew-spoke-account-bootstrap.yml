@@ -1,0 +1,238 @@
+# kics-scan disable=8d29754a-2a18-460d-a1ba-9509f8d359da
+AWSTemplateFormatVersion: 2010-09-09
+Description: Parameters and IAM role used to bootstrap VEW resources with CDK.
+Parameters:
+  Qualifier:
+    AllowedPattern: "[A-Za-z0-9_-]{1,10}"
+    ConstraintDescription: Qualifier must be an alphanumeric identifier of at most 10 characters.
+    Description: An identifier to distinguish multiple bootstrap stacks in the same environment.
+    Default: ioc760get
+    Type: String
+  ToolkitStackName:
+    Description: The name of the toolkit stack.
+    Default: VEWCDKToolkit
+    Type: String
+  WebApplicationAccountId:
+    Description: The AWS account ID of the Web Application.
+    MinLength: 12
+    MaxLength: 12
+    Type: String
+  WebApplicationEnvironment:
+    AllowedValues:
+      - dev
+      - prod
+      - qa
+    Default: dev
+    Description: The environment of the Web Application.
+    Type: String
+  WebApplicationRolePrefix:
+    Default: proserve-wb-projects
+    Description: The prefix of the Web Application IAM role that will assume this IAM role.
+    Type: String
+
+  VPCIdParameterValue:
+    Type: String
+    Default: ""
+    Description: VPC ID to use for Virtual Engineering Workbench. Leave empty to create a new VPC.
+
+Conditions:
+  CreateVPC: !Equals [!Ref VPCIdParameterValue, ""]
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Condition: CreateVPC
+    Properties:
+      CidrBlock: 10.1.0.0/20
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub proserve-wb-vpc-${WebApplicationEnvironment}
+
+  IGW:
+    Type: AWS::EC2::InternetGateway
+    Condition: CreateVPC
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub proserve-wb-igw-${WebApplicationEnvironment}
+
+  IGWAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: CreateVPC
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref IGW
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateVPC
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub proserve-wb-public-rt-${WebApplicationEnvironment}
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Condition: CreateVPC
+    DependsOn: IGWAttach
+    Properties:
+      RouteTableId: !Ref PublicRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGW
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Condition: CreateVPC
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.0.0/22
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub proserve-wb-public-subnet-1-${WebApplicationEnvironment}
+        - Key: ProvisioningEnabled
+          Value: "True"
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Condition: CreateVPC
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.4.0/22
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub proserve-wb-public-subnet-2-${WebApplicationEnvironment}
+        - Key: ProvisioningEnabled
+          Value: "True"
+
+  PublicSubnet3:
+    Type: AWS::EC2::Subnet
+    Condition: CreateVPC
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.1.8.0/22
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub proserve-wb-public-subnet-3-${WebApplicationEnvironment}
+        - Key: ProvisioningEnabled
+          Value: "True"
+
+  PubRTAssoc1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateVPC
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRT
+
+  PubRTAssoc2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateVPC
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRT
+
+  PubRTAssoc3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateVPC
+    Properties:
+      SubnetId: !Ref PublicSubnet3
+      RouteTableId: !Ref PublicRT
+
+  # kics-scan ignore-block - CDK bootstrap role requires S3/IAM permissions, scoped to cdk-${Qualifier}-* resources
+  VEWAccountBootstrapRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+              - sts:TagSession
+            Condition:
+              ForAllValues:StringLike:
+                "aws:PrincipalArn": !Sub arn:${AWS::Partition}:iam::${WebApplicationAccountId}:role/${WebApplicationRolePrefix}-*-${WebApplicationEnvironment}
+                "aws:RequestTag/UserId": "*"
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${WebApplicationAccountId}:root
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${ToolkitStackName}/*
+              - Action:
+                  - ecr:CreateRepository
+                  - ecr:DeleteRepository
+                  - ecr:DescribeRepositories
+                  - ecr:GetRepositoryPolicy
+                  - ecr:PutLifecyclePolicy
+                  - ecr:SetRepositoryPolicy
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/cdk-${Qualifier}-container-assets-${AWS::AccountId}-${AWS::Region}
+              - Action:
+                  - iam:AttachRolePolicy
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:UpdateAssumeRolePolicy
+                  - sts:AssumeRole
+                  - sts:TagSession
+                Effect: Allow
+                Resource:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/*
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${Qualifier}-cfn-exec-role-${AWS::AccountId}-${AWS::Region}
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${Qualifier}-deploy-role-${AWS::AccountId}-${AWS::Region}
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${Qualifier}-file-publishing-role-${AWS::AccountId}-${AWS::Region}
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${Qualifier}-image-publishing-role-${AWS::AccountId}-${AWS::Region}
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-${Qualifier}-lookup-role-${AWS::AccountId}-${AWS::Region}
+              - Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:DeleteBucketPolicy
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutBucketVersioning
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutLifecycleConfiguration
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:s3:::cdk-${Qualifier}-assets-${AWS::AccountId}-${AWS::Region}
+              - Action:
+                  - ssm:DeleteParameter
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:PutParameter
+                Effect: Allow
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cdk-bootstrap/${Qualifier}/version
+            Version: 2012-10-17
+          PolicyName: VEWAccountCDKBootstrapPolicy
+      RoleName: VEWAccountBootstrapRole
+    Type: AWS::IAM::Role
+
+  VPCIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /workbench/vpc/vpc-id
+      Type: String
+      Value: !If [CreateVPC, !Ref VPC, !Ref VPCIdParameterValue]
+      Description: VPC ID to use for Virtual Engineering Workbench

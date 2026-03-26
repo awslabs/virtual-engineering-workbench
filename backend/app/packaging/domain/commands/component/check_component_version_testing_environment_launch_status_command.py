@@ -1,0 +1,10 @@
+from app.packaging.domain.value_objects.component_version import component_version_id_value_object
+from app.packaging.domain.value_objects.component_version_test_execution import (
+    component_version_test_execution_id_value_object,
+)
+from app.shared.adapters.message_bus import command_bus
+
+
+class CheckComponentVersionTestingEnvironmentLaunchStatusCommand(command_bus.Command):
+    componentVersionId: component_version_id_value_object.ComponentVersionIdValueObject
+    testExecutionId: component_version_test_execution_id_value_object.ComponentVersionTestExecutionIdValueObject

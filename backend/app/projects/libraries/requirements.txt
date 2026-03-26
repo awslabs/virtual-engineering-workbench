@@ -1,0 +1,4 @@
+mypy-boto3-dynamodb ~= 1.35
+mypy-boto3-ec2 ~= 1.35
+mypy-boto3-route53 ~= 1.35
+pendulum ~= 3.0.0

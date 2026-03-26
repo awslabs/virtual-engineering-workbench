@@ -1,0 +1,13 @@
+from typing import Optional
+
+from app.packaging.domain.value_objects.component_version import components_versions_list_value_object
+from app.packaging.domain.value_objects.recipe import recipe_id_value_object
+from app.packaging.domain.value_objects.recipe_version import recipe_version_id_value_object
+from app.shared.adapters.message_bus import command_bus
+
+
+class UpdateRecipeVersionAssociationsCommand(command_bus.Command):
+    recipeId: recipe_id_value_object.RecipeIdValueObject
+    recipeVersionId: recipe_version_id_value_object.RecipeVersionIdValueObject
+    componentsVersionsList: components_versions_list_value_object.ComponentsVersionsListValueObject
+    previousComponentsVersionsList: Optional[components_versions_list_value_object.ComponentsVersionsListValueObject]
