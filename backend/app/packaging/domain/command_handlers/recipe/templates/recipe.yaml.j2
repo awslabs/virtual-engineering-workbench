@@ -1,0 +1,41 @@
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: ExecuteNestedDocument
+        action: ExecuteDocument
+        loop:
+          name: recipeLoop
+          forEach:
+          {%- for arn in component_arns %}
+            - {{ arn }}
+          {%- endfor %}
+        inputs:
+          document: "{{"{{ recipeLoop.value }}"}}"
+          phases: build
+  - name: validate
+    steps:
+      - name: ExecuteNestedDocument
+        action: ExecuteDocument
+        loop:
+          name: recipeLoop
+          forEach:
+          {%- for arn in component_arns %}
+            - {{ arn }}
+          {%- endfor %}
+        inputs:
+          document: "{{"{{ recipeLoop.value }}"}}"
+          phases: validate
+  - name: test
+    steps:
+      - name: ExecuteNestedDocument
+        action: ExecuteDocument
+        loop:
+          name: recipeLoop
+          forEach:
+          {%- for arn in component_arns %}
+            - {{ arn }}
+          {%- endfor %}
+        inputs:
+          document: "{{"{{ recipeLoop.value }}"}}"
+          phases: test

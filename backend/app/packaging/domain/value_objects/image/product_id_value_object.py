@@ -1,0 +1,16 @@
+import typing
+from dataclasses import dataclass
+
+from app.packaging.domain.exceptions import domain_exception
+
+
+@dataclass(frozen=True)
+class ProductIdValueObject:
+    value: str
+
+
+def from_str(value: typing.Optional[str]) -> ProductIdValueObject:
+    if not value:
+        raise domain_exception.DomainException("Product ID cannot be empty.")
+
+    return ProductIdValueObject(value=value)

@@ -1,0 +1,27 @@
+export const i18n = {
+  breadcrumbLevel1: 'Product management: Mandatory Components Lists',
+  navHeader: 'Mandatory Components Lists',
+  navHeaderDescription:
+    'View all mandatory components lists that are available in the selected program for product packaging.',
+  navHeaderInfo: 'Info',
+  infoHeader: 'Mandatory Components Lists',
+  createButtonText: 'Create mandatory components list',
+  emptyMandatoryComponentsLists: 'No mandatory components lists',
+  emptyMandatoryComponentsListsSubTitle: 'No available mandatory components lists',
+  emptyMandatoryComponentsListsResolve: 'Create mandatory components lists',
+  tableFilterNoResultTitle: 'No mandatory components lists',
+  tableFilterNoResultActionText: 'Clear filter',
+  tableFilterNoResultSubtitle: 'No mandatory components lists were found using your search criteria.',
+  infoDescription: 'In this screen you can list mandatory components lists.',
+  findMandatoryComponentsListsPlaceholder: 'Find mandatory components lists',
+  mandatorycomponentslistsFetchErrorTitle: 'Unable to fetch mandatory components lists',
+  mandatoryComponentListsAlert: 'Please note that mandatory component lists are shared between programs. ' +
+    'Make sure to only edit them in the program where their components are defined.',
+  tableHeaderPlatform: 'Platform',
+  tableHeaderArchitecture: 'Architecture',
+  tableHeaderOsVersion: 'OS Version',
+  tableHeader: 'Mandatory Components Lists',
+  buttonActions: 'Actions',
+  buttonViewMandatoryComponentsList: 'View',
+  buttonUpdateMandatoryComponentsList: 'Update',
+};

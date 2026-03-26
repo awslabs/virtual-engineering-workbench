@@ -1,0 +1,131 @@
+@use '@cloudscape-design/design-tokens/index' as awsui;
+@use 'sass:map';
+
+$feedback-component-bottom-pos: 170px;
+$feedback-component-max-width: 500px;
+$feedback-component-x-margin: 12px;
+$feedback-button-margin-top: 10px;
+
+$feedback-button-color-background: #414d5c;
+$feedback-button-color-hover: #5F6B7A;
+$feedback-button-color-text: #FFFFFF;
+
+$feedback-root-color-background: #161d26;
+
+$feedback-btn-variant: (
+  'default-background': $feedback-button-color-background,
+  'default-border-color': $feedback-button-color-background,
+  'default-color': $feedback-button-color-text,
+  'hover-background': $feedback-button-color-hover,
+  'hover-border-color': $feedback-button-color-hover,
+  'hover-color': $feedback-button-color-text,
+);
+
+.feedbackComponent {
+  position: fixed;
+  bottom: $feedback-component-bottom-pos;
+  right: 0;
+  max-width: $feedback-component-max-width;
+  margin: 0 $feedback-component-x-margin;
+
+  &.hidden>.popupRoot {
+    display: none;
+  }
+
+  &.hidden>.feedbackButtonContent {
+    margin-top: 0px;
+  }
+
+  &:focus,
+  &.hidden:focus {
+    outline: none;
+  }
+}
+
+.feedbackButtonContent {
+  width: 100%;
+  margin-top: $feedback-button-margin-top;
+
+  div > button {
+    background: map.get($feedback-btn-variant, 'default-background') !important;
+    color: map.get($feedback-btn-variant, 'default-color') !important;
+    border-color: map.get($feedback-btn-variant, 'default-border-color') !important;
+  
+    &:hover {
+      background: map.get($feedback-btn-variant, 'hover-background') !important;
+      color: map.get($feedback-btn-variant, 'hover-color') !important;
+      border-color: map.get($feedback-btn-variant, 'hover-border-color') !important;
+    }
+  }
+}
+
+
+.popupRoot {
+  width: 100%;
+  box-shadow: 0px 6px 36px rgba(0, 7, 22, 0.1), 0px 1px 1px rgba(233, 235, 237, 0.4);
+  border-radius: 16px;
+  background-color: $feedback-root-color-background;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 20px 0px;
+}
+
+.popupContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0px 24px;
+}
+
+.header {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-bottom: 16px;
+}
+
+.buttonIconParent {
+  align-self: stretch;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.footer {
+  margin-top: 20px;
+
+  // Make sure that the footer is always visible
+  position: sticky;
+  inset-block-end: 0;
+  z-index: 800;
+
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+
+  width: 100%;
+}
+
+
+.content {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 16px;
+
+  div > ul {
+    margin-block-start: 0;
+    margin-block-end: 0;
+    padding-inline-start: 20px;
+  }
+}

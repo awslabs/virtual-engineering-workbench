@@ -1,0 +1,167 @@
+import os
+
+import boto3
+import pytest
+from attr import dataclass
+from moto import mock_aws
+from openapi_spec_validator.readers import read_from_filename
+
+from app.shared.api import secrets_manager_api
+
+TEST_REGION = "us-east-1"
+TEST_SECRET_NAME = "audit-logging-key"
+
+
+@pytest.fixture
+def lambda_context():
+    @dataclass
+    class context:
+        function_name = "test"
+        memory_limit_in_mb = 128
+        invoked_function_arn = "arn:aws:lambda:eu-west-1:000000000:function:test"
+        aws_request_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+    return context
+
+
+@pytest.fixture(autouse=True)
+def aws_credentials(monkeypatch):
+    """Mocked AWS Credentials for moto."""
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "testing")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "testing")
+    monkeypatch.setenv("AWS_SECURITY_TOKEN", "testing")
+    monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
+    monkeypatch.setenv("AWS_REGION", TEST_REGION)
+    monkeypatch.setenv("AWS_DEFAULT_REGION", TEST_REGION)
+    monkeypatch.setenv("POWERTOOLS_METRICS_NAMESPACE", "Test")
+    monkeypatch.setenv("POWERTOOLS_SERVICE_NAME", "Projects")
+    monkeypatch.setenv("AUDIT_LOGGING_KEY_NAME", TEST_SECRET_NAME)
+
+
+@pytest.fixture()
+def cognito_identity_mock():
+    with mock_aws():
+        yield boto3.client("cognito-idp", region_name=TEST_REGION)
+
+
+@pytest.fixture()
+def cognito_user_pool_mock(cognito_identity_mock):
+    return cognito_identity_mock.create_user_pool(PoolName="Test")
+
+
+@pytest.fixture(autouse=True)
+def mock_secrets_manager():
+    with mock_aws():
+        yield boto3.client(
+            "secretsmanager",
+            region_name=TEST_REGION,
+            aws_access_key_id="access-key-id",
+            aws_secret_access_key="secret-access-key",
+            aws_session_token="session-token",
+        )
+
+
+@pytest.fixture(autouse=True)
+def mock_audit_logging_secret(mock_secrets_manager):
+    secrets_manager = secrets_manager_api.SecretsManagerAPI(
+        region=TEST_REGION,
+        access_key_id="access_key_id",
+        secret_access_key="secret_access_key",
+        session_token="session_token",
+    )
+
+    return secrets_manager.create_secret(name=TEST_SECRET_NAME, value="test123")
+
+
+@pytest.fixture()
+def mock_cognito_user(cognito_identity_mock, cognito_user_pool_mock):
+    user = cognito_identity_mock.admin_create_user(
+        UserPoolId=cognito_user_pool_mock["UserPool"]["Id"],
+        Username="Kiff",
+        UserAttributes=[
+            {
+                "Name": "email",
+                "Value": "test@example.com",
+            },
+            {
+                "Name": "sub",
+                "Value": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            },
+        ],
+    )
+
+    return user
+
+
+@pytest.fixture
+def authenticated_event(cognito_user_pool_mock, mock_cognito_user):
+    user_sub_attribute = [x for x in mock_cognito_user["User"]["Attributes"] if x["Name"].lower() == "sub"][0]
+
+    def _authenticated_event(body, path, http_method, query_params=None):
+        return {
+            "resource": path,
+            "path": path,
+            "httpMethod": http_method,
+            "headers": {"Accept": "application/json", "Authorization": "Bearer eyjjdjdjdjd"},
+            "multiValueHeaders": {"Accept": ["application/json"]},
+            "queryStringParameters": query_params,
+            "multiValueQueryStringParameters": (
+                {key: [val] for key, val in query_params.items()} if query_params else None
+            ),
+            "pathParameters": {"proxy": ""},
+            "stageVariables": None,
+            "requestContext": {
+                "authorizer": {
+                    "userName": "T00123122",
+                    "userEmail": "leto@atreides.com",
+                    "stages": '["dev", "qa", "prod"]',
+                    "userRoles": '["ADMIN"]',
+                    "userDomains": '["DOMAIN"]',
+                },
+                "resourceId": "jcjzu1",
+                "resourcePath": path,
+                "httpMethod": http_method,
+                "extendedRequestId": "AAAAsH-rFiAFpyQ=",
+                "requestTime": "17/Jun/2021:15:34:02 +0000",
+                "path": path,
+                "accountId": "111111111111",
+                "protocol": "HTTP/1.1",
+                "stage": "test-invoke-stage",
+                "domainPrefix": "testPrefix",
+                "requestTimeEpoch": 1623944042664,
+                "requestId": "c6af9ac6-7b61-11e6-9a41-93e8deadbeef",
+                "identity": {
+                    "cognitoIdentityPoolId": "us-east-1:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "accountId": "111111111111",
+                    "cognitoIdentityId": "us-east-1:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+                    "caller": "AROXXXXXXXXXXXXXXXXX:CognitoIdentityCredentials",
+                    "sourceIp": "0.0.0.0",
+                    "principalOrgId": "o-xxxxxxxxxx",
+                    "accessKey": "AXXXXXXXXXXXXXXXXXXXXX",
+                    "cognitoAuthenticationType": "authenticated",
+                    "cognitoAuthenticationProvider": f"cognito-idp.us-east-1.amazonaws.com/us-east-1_lqYSBenxm,cognito-idp.us-east-1.amazonaws.com/{cognito_user_pool_mock['UserPool']['Id']}:CognitoSignIn:{user_sub_attribute['Value']}",
+                    "userArn": "arn:aws:sts::111111111111:assumed-role/Test-Cognito-Group/CognitoIdentityCredentials",
+                    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/0.0.0.0 Safari/537.36",
+                    "user": "AROXXXXXXXXXXXXXXXXX:CognitoIdentityCredentials",
+                },
+                "apiId": "xxxxxxxxxx",
+            },
+            "version": "1.00",
+            "body": body,
+            "isBase64Encoded": False,
+        }
+
+    return _authenticated_event
+
+
+@pytest.fixture
+def api_schema():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    schema_path = os.path.join(
+        current_dir,
+        "..",
+        "schema",
+        "proserve-workbench-publishing-api-schema.yaml",
+    )
+    spec_dict, base_uri = read_from_filename(schema_path)
+    return spec_dict

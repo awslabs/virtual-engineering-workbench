@@ -1,0 +1,8 @@
+.DS_Store
+.idea
+.vscode
+.yarn/releases/
+ci/node_modules
+coverage/
+node_modules
+web/junit.xml

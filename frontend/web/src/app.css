@@ -1,0 +1,45 @@
+.filter {
+  width: 500px;
+}
+
+.inputs {
+  margin-top: -20px;
+}
+
+.favorite-icon {
+  margin-top: 5px;
+}
+
+.center-icon {
+  margin-top: 5px;
+  margin-left: 3px;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.maintenance-window-action {
+  margin-top: 4px;
+}
+
+.notification-button {
+  margin-top: -20px;
+}
+
+.logs {
+  white-space: pre-wrap;
+}
+
+.markdown p {
+  margin: 0px;
+}
+
+.awsui_textarea_qk1j1_157db_97.awsui_textarea-readonly_qk1j1_157db_123:not(#\9) {
+  border: none !important;
+  padding: 0px;
+}
+
+.text-area {
+  margin-left: 26px;
+}

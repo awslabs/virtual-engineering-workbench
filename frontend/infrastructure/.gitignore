@@ -1,0 +1,34 @@
+# misc
+.DS_Store
+.idea
+
+*.js
+!jest.config.js
+!.eslintrc.js
+!eslint.config.js
+*.d.ts
+!cognitoAtEdge.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+test_result
+coverage
+!setEnvVars.js
+cdk.context.json
+# Yarn v4 PnP files
+.pnp.*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# Keep these Yarn v4 files in git:
+# .yarn/releases
+# .yarn/plugins
+# .yarnrc.yml
+
+# Yarn v4 releases (contains false positive secrets)
+.yarn/releases/

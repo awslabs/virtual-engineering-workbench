@@ -1,0 +1,132 @@
+{
+	"StateMachines": {
+		"RecipeVersionTestingStateMachine": {
+			"TestCases": {
+				"RecipeVersionTestSuccess": {
+					"LaunchTestEnvironment": "MockLaunchTestEnvironment",
+					"CheckTestEnvironmentLaunchStatus": "MockCheckTestEnvironmentLaunchStatus",
+					"SetupTestEnvironment": "MockSetupTestEnvironment",
+					"CheckTestEnvironmentSetupStatus": "MockCheckTestEnvironmentSetupStatus",
+					"RunRecipeVersionTest": "MockRunRecipeVersionTest",
+					"CheckRecipeVersionTestStatus": "MockCheckRecipeVersionTestStatus",
+					"CompleteRecipeVersionTest": "MockCompleteRecipeVersionTest"
+				},
+				"RecipeVersionTestFail": {
+					"LaunchTestEnvironment": "MockLaunchTestEnvironmentFail",
+					"CompleteRecipeVersionTest": "MockCompleteRecipeVersionTestFail"
+				}
+			}
+		}
+	},
+	"MockedResponses": {
+		"MockLaunchTestEnvironment": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "LaunchTestEnvironmentResponse"
+					}
+				}
+			}
+		},
+		"MockCheckTestEnvironmentLaunchStatus": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "CheckTestEnvironmentLaunchStatusResponse",
+						"instanceStatus": "DISCONNECTED"
+					}
+				}
+			},
+			"1": {
+				"Return": {
+					"Payload": {
+						"eventType": "CheckTestEnvironmentLaunchStatusResponse",
+						"instanceStatus": "CONNECTED"
+					}
+				}
+			}
+		},
+		"MockSetupTestEnvironment": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "SetupTestEnvironmentResponse"
+					}
+				}
+			}
+		},
+		"MockCheckTestEnvironmentSetupStatus": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "CheckTestEnvironmentSetupStatusResponse",
+						"setupCommandStatus": "RUNNING"
+					}
+				}
+			},
+			"1": {
+				"Return": {
+					"Payload": {
+						"eventType": "CheckTestEnvironmentSetupStatusResponse",
+						"setupCommandStatus": "SUCCESS"
+					}
+				}
+			}
+		},
+		"MockRunRecipeVersionTest": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "RunRecipeVersionTestResponse"
+					}
+				}
+			}
+		},
+		"MockCheckRecipeVersionTestStatus": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "CheckRecipeVersionTestStatusResponse",
+						"testCommandStatus": "RUNNING"
+					}
+				}
+			},
+			"1": {
+				"Return": {
+					"Payload": {
+						"eventType": "CheckRecipeVersionTestStatusResponse",
+						"testCommandStatus": "SUCCESS"
+					}
+				}
+			}
+		},
+		"MockCompleteRecipeVersionTest": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "CompleteRecipeVersionTestResponse",
+						"recipeVersionTestStatus": "SUCCESS"
+					}
+				}
+			}
+		},
+		"MockLaunchTestEnvironmentFail": {
+			"0": {
+				"Throw": {
+					"Cause": "Lambda timed out.",
+					"Error": "Lambda.TimeoutException"
+				}
+			}
+		},
+		"MockCompleteRecipeVersionTestFail": {
+			"0": {
+				"Return": {
+					"Payload": {
+						"eventType": "CompleteRecipeVersionTestResponse",
+						"recipeVersionTestStatus": "FAILED"
+					}
+				}
+			}
+		}
+	}
+}

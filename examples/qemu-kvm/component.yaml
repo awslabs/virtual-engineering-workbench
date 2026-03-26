@@ -1,0 +1,49 @@
+name: QEMU KVM Nested Virtualization
+description: Installs QEMU, KVM kernel modules, and libvirt for nested virtualization on Intel c8i instances
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: InstallKvmAndQemu
+        action: ExecuteBash
+        inputs:
+          commands:
+            - apt-get update
+            - apt-get install -y qemu-kvm qemu-system-x86 libvirt-daemon-system libvirt-clients bridge-utils virtinst cloud-image-utils wget
+      - name: ConfigureKvmModules
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              # Ensure KVM modules load at boot
+              echo "kvm" >> /etc/modules-load.d/kvm.conf
+              echo "kvm_intel" >> /etc/modules-load.d/kvm.conf
+            - |
+              echo "options kvm_intel nested=1" > /etc/modprobe.d/kvm-intel.conf
+      - name: ConfigureLibvirt
+        action: ExecuteBash
+        inputs:
+          commands:
+            - systemctl enable libvirtd
+            - usermod -aG kvm,libvirt ubuntu
+  - name: validate
+    steps:
+      - name: VerifyKvmPackages
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              dpkg -l | grep -q qemu-kvm
+              dpkg -l | grep -q qemu-system-x86
+              dpkg -l | grep -q libvirt-daemon-system
+              dpkg -l | grep -q cloud-image-utils
+              test -f /etc/modules-load.d/kvm.conf
+              test -f /etc/modprobe.d/kvm-intel.conf
+              grep -q "kvm_intel" /etc/modules-load.d/kvm.conf
+      - name: VerifyQemuKvmRuntime
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              qemu-system-x86_64 --version
+              lscpu | grep --extended-regexp "Model name:|Flags:" || true

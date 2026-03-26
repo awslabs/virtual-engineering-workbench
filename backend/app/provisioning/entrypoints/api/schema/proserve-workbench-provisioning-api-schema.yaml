@@ -1,0 +1,2706 @@
+# kics-scan disable=663c442d-f918-4f62-b096-0bf5dcbeb655,00b78adf-b83f-419c-8ed8-c6018441dd3a,6998389e-66b2-473d-8d05-c8d71ac4d04d,8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85,8c84f75e-5048-4926-a4cb-33e7b3431300,fb7d81e7-4150-48c4-b914-92fc05da6a2f,6c35d2c6-09f2-4e5c-a094-e0e91327071d,9f88c88d-824d-4d9a-b985-e22977046042,561710b1-b845-4562-95ce-2397a05ccef4,d172a060-8569-4412-8045-3560ebd477e8,86e3702f-c868-44b2-b61d-ea5316c18110,5915c20f-dffa-4cee-b5d4-f457ddc0151a,2bd608ae-8a1f-457f-b710-c237883cb313,181bd815-767e-4e95-a24d-bb3c87328e19,2ea04bef-c769-409e-9179-ee3a50b5c0ac,fbf699b5-ef74-4542-9cf1-f6eeac379373,962fa01e-b791-4dcc-b04a-4a3e7389be5e,237402e2-c2f0-46c9-9cf5-286160cf7bfc,40e1d1bf-11a9-4f63-a3a2-a8b84c602839,37140f7f-724a-4c87-a536-e9cee1d61533,8d0921d6-4131-461f-a253-99e873f8f77e,151331e2-11f4-4bb6-bd35-9a005e695087,8fe1846f-52cc-4413-ace9-1933d7d23672,96729c6b-7400-4d9e-9807-17f00cdde4d2,8af270ce-298b-4405-9922-82a10aee7a4f,a92be1d5-d762-484a-86d6-8cd0907ba100
+# - 663c442d-f918-4f62-b096-0bf5dcbeb655: CORS preflight OPTIONS requires unauthenticated access (RFC 6454)
+# - 00b78adf-b83f-419c-8ed8-c6018441dd3a: String pattern validation enforced by Pydantic and domain value objects
+# - 6998389e-66b2-473d-8d05-c8d71ac4d04d: Array size validation enforced by Pydantic and domain value objects
+# - 8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85: String maxLength validation enforced by Pydantic and domain value objects
+# - 8c84f75e-5048-4926-a4cb-33e7b3431300: Authorization header param required by API Gateway for cacheKeyParameters/identitySource
+# - fb7d81e7-4150-48c4-b914-92fc05da6a2f: x-amazon-apigateway-* are standard AWS vendor extensions per OpenAPI 3.0 spec
+# - 6c35d2c6-09f2-4e5c-a094-e0e91327071d: Error responses handled globally via x-amazon-apigateway-gateway-responses and Lambda Powertools
+# - 9f88c88d-824d-4d9a-b985-e22977046042: Additional properties handling enforced by Pydantic BaseModel
+# - 561710b1-b845-4562-95ce-2397a05ccef4: False positive, path params defined on each operation
+# - d172a060-8569-4412-8045-3560ebd477e8: All-optional schema properties are intentional, required fields enforced by Pydantic
+# - 86e3702f-c868-44b2-b61d-ea5316c18110: Error responses handled globally via x-amazon-apigateway-gateway-responses and Lambda Powertools
+# - 5915c20f-dffa-4cee-b5d4-f457ddc0151a: Intentional empty arrays for CORS security:[] and apiKey empty scopes
+# - 2bd608ae-8a1f-457f-b710-c237883cb313: False positive, KICS does not resolve $ref chains in schema required properties
+# - 181bd815-767e-4e95-a24d-bb3c87328e19: Numeric min validation enforced by Pydantic and domain value objects
+# - 2ea04bef-c769-409e-9179-ee3a50b5c0ac: Numeric max validation enforced by Pydantic and domain value objects
+# - fbf699b5-ef74-4542-9cf1-f6eeac379373: Numeric format validation enforced by Pydantic and domain value objects
+# - 962fa01e-b791-4dcc-b04a-4a3e7389be5e: Schemas auto-generated from Pydantic, some referenced indirectly by Swagger UI
+# - 237402e2-c2f0-46c9-9cf5-286160cf7bfc: False positive, KICS treats path params as wildcards causing false ambiguity
+# - 40e1d1bf-11a9-4f63-a3a2-a8b84c602839: AVP-Request-Authorizer uses type:apiKey as standard API Gateway custom authorizer pattern, not actual API key
+# - 37140f7f-724a-4c87-a536-e9cee1d61533: Empty scopes [] is correct for non-OAuth security schemes per OpenAPI spec
+# - 8d0921d6-4131-461f-a253-99e873f8f77e: Server URL variables {Host}/{BasePath} resolved at deployment time by CDK/CloudFormation
+# - 151331e2-11f4-4bb6-bd35-9a005e695087: False positive from KICS misidentifying x-amazon-apigateway vendor extensions as fixed field keys
+# - 8fe1846f-52cc-4413-ace9-1933d7d23672: False positive, KICS confuses schema properties named 'parameters' with OpenAPI Parameter Objects
+# - 96729c6b-7400-4d9e-9807-17f00cdde4d2: Intentional for dcv_api (internal, custom cookie auth) and api_webhooks (GitHub signature middleware)
+# - 8af270ce-298b-4405-9922-82a10aee7a4f: Auth handled outside OpenAPI security schemes for dcv_api, executing, and api_webhooks
+# - a92be1d5-d762-484a-86d6-8cd0907ba100: Minor doc gap in dcv_api, response body controlled by Lambda not API Gateway
+openapi: "3.0.1"
+info:
+  title: "Product Provisioning API"
+  description: "API in charge of provisioning VEW products"
+  version: "2024-08-12T12:00:00Z"
+servers:
+  - url: "https://{Host}/{BasePath}"
+security:
+  - AVP-Request-Authorizer: []
+x-amazon-apigateway-request-validators:
+  all:
+    validateRequestBody: true
+    validateRequestParameters: true
+  params-only:
+    validateRequestBody: false
+    validateRequestParameters: true
+  body-only:
+    validateRequestBody: true
+    validateRequestParameters: false
+  none:
+    validateRequestBody: false
+    validateRequestParameters: false
+x-amazon-apigateway-request-validator: none
+x-amazon-apigateway-gateway-responses:
+  DEFAULT_4XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": "Client error", "validationError": "" }'
+  BAD_REQUEST_PARAMETERS:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": $context.error.messageString, "validationError": "$context.error.validationErrorString" }'
+  BAD_REQUEST_BODY:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": $context.error.messageString, "validationError": "$context.error.validationErrorString" }'
+  DEFAULT_5XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": "Server error", "validationError": "" }'
+x-amazon-apigateway-minimum-compression-size: 1024
+paths:
+  /_swagger:
+    get:
+      description: "Gets autogenerated Open API spec."
+      operationId: "GetSwaggerSpec"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            default: json
+            enum:
+              - json
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetSwaggerSpecCORS"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/available:
+    get:
+      description: "Get available products"
+      operationId: "GetAvailableProducts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productType
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAvailableProductsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetAvailableProductsCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned:
+    post:
+      description: "Launch a specific product"
+      operationId: "LaunchProduct"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/LaunchProductRequest"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchProductResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: "Get provisioned products by user"
+      operationId: "GetProvisionedProducts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProvisionedProductsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "LaunchProductCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Cache-Control,X-Api-Version'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/all:
+    get:
+      description: "Get provisioned products by project"
+      operationId: "GetProjectProvisionedProducts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllProvisionedProductsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProjectProvisionedProductsCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Cache-Control,X-Api-Version'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/paginated:
+    get:
+      description: "Get provisioned products by project with pagination"
+      operationId: "GetProjectPaginatedProvisionedProducts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pageSize
+          in: query
+          schema:
+            type: number
+        - name: pagingKey
+          in: query
+          schema:
+            type: string
+        - name: productName
+          in: query
+          schema:
+            type: string
+        - name: versionName
+          in: query
+          schema:
+            type: string
+        - name: productType
+          in: query
+          schema:
+            type: string
+        - name: owner
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: stage
+          in: query
+          schema:
+            type: string
+        - name: experimental
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPaginatedProvisionedProductsResponse"
+      security:
+        - AVP-Request-Authorizer: []
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProjectPaginatedProvisionedProductsCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Cache-Control,X-Api-Version'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/stop:
+    patch:
+      description: "Stop provisioned products"
+      operationId: "StopProvisionedProducts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/StopProvisionedProductsRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StopProvisionedProductsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "StopProvisionedProductsCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'PATCH,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/remove:
+    put:
+      description: "Remove provisioned products"
+      operationId: "RemoveProvisionedProducts"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RemoveProvisionedProductsRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoveProvisionedProductsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "RemoveProvisionedProductsCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}:
+    get:
+      description: "Get provisioned product"
+      operationId: "GetProvisionedProduct"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProvisionedProductResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProvisionedProductCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /internal/products/provisioned/all:
+    get:
+      description: "Get all provisioned products internal"
+      operationId: "GetAllProvisionedProductsInternal"
+      parameters:
+        - name: pagingKey
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllProvisionedProductsResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/projects/{projectId}/products/provisioned:
+    post:
+      description: "Launch a specific product"
+      operationId: "InternalLaunchProduct"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/LaunchProductRequestInternal"
+        required: true
+      responses:
+        "201":
+          description: "201 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchProductResponseInternal"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/projects/{projectId}/products/provisioned/{provisionedProductId}:
+    get:
+      description: "Internal Get provisioned product"
+      operationId: "InternalGetProvisionedProduct"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalGetProvisionedProductResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/ssh-key:
+    get:
+      description: "Get provisioned product SSH key"
+      operationId: "GetProvisionedProductSSHKey"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProvisionedProductSSHKeyResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProvisionedProductSSHKeyCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/user-credentials:
+    get:
+      description: "Get provisioned product user credentials"
+      operationId: "GetProvisionedProductUserCredentials"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProvisionedProductUserSecretResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProvisionedProductUserCredentialsCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/update:
+    put:
+      description: "Update provisioned product"
+      operationId: "UpdateProvisionedProduct"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateProvisionedProductRequest"
+        required: true
+      responses:
+        "202":
+          description: "202 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateProvisionedProductResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "202"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "UpdateProvisionedProductCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/remove:
+    put:
+      description: "Remove provisioned product"
+      operationId: "RemoveProvisionedProduct"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoveProvisionedProductResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "RemoveProvisionedProductCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /internal/projects/{projectId}/products/provisioned/{provisionedProductId}/remove:
+    put:
+      description: "Remove provisioned product"
+      operationId: "InternalRemoveProvisionedProduct"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/start:
+    patch:
+      description: "Start provisioned product"
+      operationId: "StartProvisionedProduct"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StartProvisionedProductResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+          - "method.request.path.provisionedProductId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "StartProvisionedProductCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'PATCH,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/stop:
+    patch:
+      description: "Stop provisioned product"
+      operationId: "StopProvisionedProduct"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StopProvisionedProductResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+          - "method.request.path.provisionedProductId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "StopProvisionedProductCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'PATCH,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/{productId}/versions:
+    get:
+      description: "Get available product versions by stage and region"
+      operationId: "GetAvailableProductVersions"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: region
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: stage
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAvailableProductVersionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetAvailableProductVersionsCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/user-ip-address:
+    patch:
+      description: "Authorize user IP address"
+      operationId: "AuthorizeUserIpAddress"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthorizeUserIpAddressResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+          - "method.request.path.projectId"
+          - "method.request.path.provisionedProductId"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "AuthorizeUserIpAddressCors"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,PATCH'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /profile:
+    get:
+      description: "Get user profile"
+      operationId: "GetUserProfile"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUserProfileResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.header.Authorization"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: "Update user profile"
+      operationId: "UpdateUserProfile"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateUserProfileRequest"
+        required: true
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateUserProfileResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetUserProfileCORS"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS,PUT'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /internal/users/maintenance-windows:
+    get:
+      description: "Get users within given maintenance window"
+      operationId: "GetUsersWithinMaintenanceWindow"
+      parameters:
+        - name: day
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: startHour
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetUsersWithinMaintenanceWindowResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: "params-only"
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - "method.request.querystring.day"
+          - "method.request.querystring.startHour"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+  /internal/provisioning-subnets:
+    get:
+      description: "Gets all subnets used for provisioning in spoke account"
+      operationId: "InternalGetProvisioningSubnets"
+      parameters:
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: region
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalGetProvisioningSubnetsResponse"
+      security:
+        - sigv4: []
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+components:
+  schemas:
+    Empty:
+      title: "Empty Schema"
+      type: "object"
+    AvailableProduct:
+      title: AvailableProduct
+      type: object
+      required:
+        - productId
+        - productName
+        - productType
+        - availableStages
+        - availableRegions
+      properties:
+        productId:
+          title: ProductId
+          type: string
+          description: Unique ID of the product.
+        productName:
+          title: ProductName
+          type: string
+          description: Name of the product.
+        productType:
+          title: ProductType
+          type: string
+          description: Type of the product (WORKBENCH|VIRTUAL_TARGET).
+        productDescription:
+          title: ShortDescription
+          type: string
+          description: Description of the product.
+        totalReportedTimes:
+          title: TotalReportedTimes
+          type: integer
+          description: Total number of provisioning times that have been reported.
+        averageProvisioningTime:
+          title: AverageProvisioningTime
+          type: integer
+          description: Average provisioning time of a product.
+        availableStages:
+          title: AvailableStages
+          type: array
+          items:
+            type: string
+        availableRegions:
+          title: AvailableRegions
+          type: array
+          items:
+            type: string
+        availableTools:
+          title: AvailableTools
+          type: array
+          items:
+            type: string
+          description: Software Tools available in the product.
+        availableOSVersions:
+          title: AvailableOSVersions
+          type: array
+          items:
+            type: string
+          description: Operating System versions available for the product.
+    GetAvailableProductsResponse:
+      title: GetAvailableProductsResponse
+      type: object
+      required:
+        - availableProducts
+      properties:
+        availableProducts:
+          title: AvailableProducts
+          type: array
+          items:
+            "$ref": "#/components/schemas/AvailableProduct"
+    ProvisioningParameter:
+      title: ProvisioningParameter
+      type: object
+      required:
+        - key
+      properties:
+        key:
+          title: Key
+          type: string
+          description: The parameter key.
+        value:
+          title: Value
+          type: string
+          description: The parameter value.
+    ParameterConstraints:
+      title: ParameterConstraints
+      type: object
+      properties:
+        allowedPattern:
+          title: AllowedPattern
+          type: string
+          description: A regular expression that represents the patterns that allow for String types.
+        allowedValues:
+          title: AllowedValues
+          type: array
+          description: The values that the administrator has allowed for the parameter.
+          items:
+            type: string
+        constraintDescription:
+          title: ConstraintDescription
+          type: string
+          description: A string that explains a constraint when the constraint is violated.
+        maxLength:
+          title: MaxLength
+          type: string
+          description: An integer value that determines the largest number of characters you want to allow for String types.
+        maxValue:
+          title: MaxValue
+          type: string
+          description: A numeric value that determines the largest numeric value you want to allow for Number types.
+        minLength:
+          title: MinLength
+          type: string
+          description: An integer value that determines the smallest number of characters you want to allow for String types.
+        minValue:
+          title: MinValue
+          type: string
+          description: A numeric value that determines the smallest numeric value you want to allow for Number types.
+    ProductParameterMetaData:
+      title: ProductParameterMetaData
+      type: object
+      properties:
+        label:
+          title: Label
+          type: string
+          description: User friendly labels of the parameter
+        optionLabels:
+          title: OptionLabels
+          type: object
+          description: Dictionary with user friendly labels for dropdown options.
+        optionWarnings:
+          title: OptionWarnings
+          type: object
+          description: Dictionary with warnings to show to the user if they select particular values.
+    ProductParameter:
+      title: ProductParameter
+      type: object
+      required:
+        - parameterKey
+      properties:
+        parameterKey:
+          title: ParameterKey
+          type: string
+          description: Parameter key.
+        defaultValue:
+          title: DefaultValue
+          type: string
+          description: Default value.
+        description:
+          title: Description
+          type: string
+          description: The description of the parameter.
+        isNoEcho:
+          title: IsNoEcho
+          type: boolean
+          description: If this value is true, the value for this parameter is obfuscated from view when the parameter is retrieved.
+        parameterType:
+          title: ParameterType
+          type: string
+          description: The parameter type.
+        parameterConstraints:
+          $ref: "#/components/schemas/ParameterConstraints"
+        parameterMetaData:
+          $ref: "#/components/schemas/ProductParameterMetaData"
+    GetProductVersionResponseMetadataItem:
+      title: GetProductVersionResponse
+      type: object
+      properties:
+        label:
+          title: Label
+          type: string
+        value:
+          title: Value
+          type: array
+          items:
+            type: string
+    GetProductVersionResponse:
+      title: GetProductVersionResponse
+      type: object
+      required:
+        - productParameters
+      properties:
+        productParameters:
+          title: ProductParameters
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProductParameter"
+        metadata:
+          title: Metadata
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/GetProductVersionResponseMetadataItem"
+          description: Metadata of the product.
+    AvailableVersionDistributionMetadataItem:
+      title: AvailableVersionDistributionMetadataItem
+      type: object
+      properties:
+        label:
+          title: Label
+          type: string
+        value:
+          title: Value
+          type: array
+          items:
+            type: string
+    ComponentVersionDetail:
+      title: ComponentVersionDetail
+      type: object
+      required:
+        - componentName
+        - componentVersionType
+        - softwareVendor
+        - softwareVersion
+      properties:
+        componentName:
+          title: ComponentName
+          type: string
+          description: The component version name.
+        componentVersionType:
+          title: ComponentVersionType
+          type: string
+          description: The component version type (MAIN|HELPER).
+        softwareVendor:
+          title: SoftwareVendor
+          type: string
+          description: The software vendor name.
+        softwareVersion:
+          title: SoftwareVersion
+          type: string
+        licenseDashboard:
+          title: LicenseDashboard
+          type: string
+          description: The license dashboard for the software vendors.
+        notes:
+          title: Notes
+          type: string
+          description: Notes about the component version.
+    AvailableVersionDistribution:
+      title: AvailableVersionDistribution
+      type: object
+      required:
+        - versionId
+        - versionName
+        - isRecommendedVersion
+      properties:
+        versionId:
+          title: VersionId
+          type: string
+          description: Version ID
+        versionName:
+          title: VersionName
+          type: string
+          description: Version name
+        versionDescription:
+          title: VersionDescription
+          type: string
+          description: Version description
+        isRecommendedVersion:
+          title: IsRecommendedVersion
+          type: boolean
+          description: Recommended/not recommended flag
+        parameters:
+          title: Parameters
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductParameter"
+        metadata:
+          title: Metadata
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/AvailableVersionDistributionMetadataItem"
+          description: Metadata of the product version.
+        componentVersionDetails:
+          title: ComponentVersionDetails
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionDetail"
+          description: Details of the components versions of the product version.
+        osVersion:
+          title: OsVersion
+          type: string
+          description: Operating System version of the product version.
+    ProvisionedProductOutput:
+      title: ProvisionedProductOutput
+      type: object
+      required:
+        - outputKey
+        - outputValue
+      properties:
+        outputKey:
+          title: OutputKey
+          type: string
+          description: Output Key.
+        outputValue:
+          title: OutputValue
+          type: string
+          description: Value of the output key.
+        description:
+          title: Description
+          type: string
+          description: Short description for the key.
+        outputType:
+          title: OutputType
+          type: string
+          description: Output Type.
+    ProvisionedProduct:
+      title: ProvisionedProduct
+      type: object
+      required:
+        - projectId
+        - provisionedProductId
+        - provisionedProductName
+        - userId
+        - status
+        - productId
+        - productName
+        - versionId
+        - versionName
+        - stage
+        - region
+        - createDate
+        - awsAccountId
+        - isRetired
+      properties:
+        projectId:
+          title: ProjectId
+          type: string
+          description: Project Id.
+        provisionedProductId:
+          title: ProvisionedProductId
+          type: string
+          description: Provisioned Product Id.
+        provisionedProductName:
+          title: ProvisionedProductName
+          type: string
+          description: Provisioned Product name.
+        provisionedProductType:
+          title: ProvisionedProductType
+          type: string
+          description: Provisioned Product type.
+        userId:
+          title: UserId
+          type: string
+          description: User Id.
+        status:
+          title: Status
+          type: string
+          description: Status.
+        statusReason:
+          title: StatusReason
+          type: string
+          description: Status reason.
+        productId:
+          title: ProductId
+          type: string
+          description: Product Id.
+        productName:
+          title: ProductName
+          type: string
+          description: Product name.
+        productDescription:
+          title: ProductDescription
+          type: string
+          description: Product description.
+        versionId:
+          title: VersionId
+          type: string
+          description: Version Id.
+        versionName:
+          title: VersionName
+          type: string
+          description: Version name.
+        versionDescription:
+          title: VersionDescription
+          type: string
+          description: Version description.
+        stage:
+          title: Stage
+          type: string
+          description: Stage.
+        region:
+          title: Region
+          type: string
+          description: Region.
+        provisioningParameters:
+          title: ProvisioningParameters
+          type: array
+          items:
+            $ref: "#/components/schemas/ProvisioningParameter"
+          description: Provisioning parameters.
+        outputs:
+          title: outputs
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProvisionedProductOutput"
+        instanceId:
+          title: InstanceId
+          type: string
+          description: Instance Id.
+        privateIp:
+          title: PrivateIp
+          type: string
+          description: Private Ip.
+        publicIp:
+          title: publicIp
+          type: string
+          description: Public Ip.
+        sshEnabled:
+          title: SSHEnabled
+          type: boolean
+          description: Is SSH login enabled?
+        usernamePasswordLoginEnabled:
+          title: UsernamePasswordLoginEnabled
+          type: boolean
+          description: Is username - password login enabled?
+        upgradeAvailable:
+          title: UpgradeAvailable
+          type: boolean
+          description: Upgrade available.
+        newVersionName:
+          title: NewVersionName
+          type: string
+          description: New version name.
+        newVersionId:
+          title: NewVersionId
+          type: string
+          description: New version Id.
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create date.
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last update date.
+        instanceRecommendationReason:
+          title: InstanceRecommendationReason
+          type: string
+          description: Instance recommendation reason.
+        recommendedInstanceType:
+          title: RecommendedInstanceType
+          type: string
+          description: Recommended instance type.
+        additionalConfigurations:
+          title: AdditionalConfigurations
+          type: array
+          items:
+            $ref: "#/components/schemas/AdditionalConfiguration"
+        experimental:
+          title: Experimental
+          type: boolean
+          description: Is this provisioned product experimental?
+        componentVersionDetails:
+          title: ComponentVersionDetails
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionDetail"
+          description: Details of the components versions of the product version.
+        osVersion:
+          title: OsVersion
+          type: string
+          description: Operating System version of the product version.
+        awsAccountId:
+          title: AwsAccountId
+          type: string
+          description: Aws account ID
+        containerClusterName:
+          title: ContainerClusterName
+          type: string
+          description: Cluster name for the container product
+        containerName:
+          title: ContainerName
+          type: string
+          description: Container name for the container product
+        containerTaskArn:
+          title: ContainerTaskArn
+          type: string
+          description: Task ARN for the container product
+        provisionedCompoundProductId:
+          title: ProvisionedCompoundProductId
+          type: string
+          description: ID of the provisioned compound product if launched into one
+        isRetired:
+          title: IsRetired
+          type: boolean
+          description: The flag to show if the product version is retired
+    ProvisionedProductInternal:
+      allOf:
+        - $ref: "#/components/schemas/ProvisionedProduct"
+        - type: object
+          properties:
+            keyPairId:
+              title: KeyPairId
+              type: string
+              description: Key Pair ID.
+    AdditionalConfigurationParameter:
+      title: AdditionalConfigurationParameter
+      type: object
+      required:
+        - key
+      properties:
+        key:
+          title: Key
+          type: string
+          description: The parameter key.
+        value:
+          title: Value
+          type: string
+          description: The parameter value.
+    AdditionalConfiguration:
+      title: ProvisioningParameter
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          title: Type
+          type: string
+          description: The configuration type.
+        parameters:
+          title: Value
+          type: array
+          description: The configuration parameters.
+          items:
+            "$ref": "#/components/schemas/AdditionalConfigurationParameter"
+    GetProvisionedProductResponse:
+      title: GetProvisionedProductsResponse
+      type: object
+      properties:
+        provisionedProduct:
+          "$ref": "#/components/schemas/ProvisionedProduct"
+        versionMetadata:
+          "$ref": "#/components/schemas/AvailableVersionDistribution"
+    InternalGetProvisionedProductResponse:
+      title: InternalGetProvisionedProductsResponse
+      type: object
+      properties:
+        provisionedProduct:
+          "$ref": "#/components/schemas/ProvisionedProductInternal"
+    GetAllProvisionedProductsResponse:
+      title: GetAllProvisionedProductsResponse
+      type: object
+      required:
+        - provisionedProducts
+      properties:
+        pagingKey:
+          title: PagingKey
+          type: string
+          description: Paging start key.
+        provisionedProducts:
+          title: provisionedProducts
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProvisionedProduct"
+    GetPaginatedProvisionedProductsResponse:
+      title: GetPaginatedProvisionedProductsResponse
+      type: object
+      required:
+        - provisionedProducts
+      properties:
+        pagingKey:
+          title: PagingKey
+          type: string
+          description: Paging start key.
+        provisionedProducts:
+          title: provisionedProducts
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProvisionedProduct"
+    GetProvisionedProductsResponse:
+      title: GetProvisionedProductsResponse
+      type: object
+      required:
+        - provisionedProducts
+      properties:
+        provisionedProducts:
+          title: provisionedProducts
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProvisionedProduct"
+    LaunchProductRequest:
+      title: LaunchProductRequest
+      type: object
+      required:
+        - productId
+        - versionId
+        - stage
+        - region
+      properties:
+        productId:
+          title: productId
+          type: string
+          description: Product ID.
+        versionId:
+          title: VersionId
+          type: string
+          description: Unique ID of the product version to be provisioned.
+        provisioningParameters:
+          title: ProvisioningParameters
+          type: array
+          description: Parameters specified by the administrator that are required for provisioning the product.
+          items:
+            $ref: "#/components/schemas/ProvisioningParameter"
+        additionalConfigurations:
+          title: AdditionalConfigurations
+          type: array
+          description: Additional configurations that are required to configure the provisioned product.
+          items:
+            $ref: "#/components/schemas/AdditionalConfiguration"
+        stage:
+          title: Stage
+          type: string
+          description: Product provisioning stage.
+        region:
+          title: Region
+          type: string
+          description: Region to which provision the product.
+    LaunchProductResponse:
+      title: LaunchProductResponse
+      type: object
+    DeploymentOption:
+      title: DeploymentOption
+      type: string
+      description: Deployment option for availability zone strategy
+      enum:
+        - SINGLE_AZ
+        - MULTI_AZ
+    LaunchProductRequestInternal:
+      title: LaunchProductRequestInternal
+      type: object
+      required:
+        - productId
+        - versionId
+        - stage
+        - region
+        - deploymentOption
+      properties:
+        productId:
+          title: productId
+          type: string
+          description: Product ID.
+        versionId:
+          title: VersionId
+          type: string
+          description: Unique ID of the product version to be provisioned.
+        provisioningParameters:
+          title: ProvisioningParameters
+          type: array
+          description: Parameters specified by the administrator that are required for provisioning the product.
+          items:
+            $ref: "#/components/schemas/ProvisioningParameter"
+        additionalConfigurations:
+          title: AdditionalConfigurations
+          type: array
+          description: Additional configurations that are required to configure the provisioned product.
+          items:
+            $ref: "#/components/schemas/AdditionalConfiguration"
+        stage:
+          title: Stage
+          type: string
+          description: Product provisioning stage.
+        region:
+          title: Region
+          type: string
+          description: Region to which provision the product.
+        userName:
+          title: UserName
+          type: string
+          description: Name of the user who will own the provisioned product.
+        provisionedCompoundProductId:
+          title: ProvisionedCompoundProductId
+          type: string
+          description: ID of the provisioned compound product if launched into one
+        deploymentOption:
+          title: DeploymentOption
+          description: Deployment option for availability zone strategy
+          $ref: "#/components/schemas/DeploymentOption"
+    LaunchProductResponseInternal:
+      title: LaunchProductResponseInternal
+      type: object
+      required:
+        - provisionedProductId
+      properties:
+        provisionedProductId:
+          title: ProvisionedProductId
+          type: string
+          description: Provisioned Product ID.
+    UpdateProvisionedProductRequest:
+      title: UpdateProvisionedProductRequest
+      type: object
+      required:
+        - versionId
+        - provisioningParameters
+      properties:
+        versionId:
+          title: VersionId
+          type: string
+          description: Product version Id
+        provisioningParameters:
+          title: ProvisioningParameters
+          type: array
+          description: Parameters specified by the administrator that are required for upgrading the product.
+          items:
+            $ref: "#/components/schemas/ProvisioningParameter"
+    UpdateProvisionedProductResponse:
+      title: UpdateProvisionedProductResponse
+      type: object
+    RemoveProvisionedProductResponse:
+      title: RemoveProvisionedProductResponse
+      type: object
+    RemoveProvisionedProductsRequest:
+      title: StopProvisionedProductsRequest
+      type: object
+      required:
+        - provisionedProductIds
+      properties:
+        provisionedProductIds:
+          title: ProvisionedProductIds
+          type: array
+          description: list of provisoned product ids
+          items:
+            type: string
+    RemoveProvisionedProductsResponse:
+      title: RemoveProvisionedProductResponse
+      type: object
+    StartProvisionedProductResponse:
+      title: StartProvisionedProductResponse
+      type: object
+    StopProvisionedProductResponse:
+      title: StopProvisionedProductResponse
+      type: object
+    StopProvisionedProductsRequest:
+      title: StopProvisionedProductsRequest
+      type: object
+      required:
+        - provisionedProductIds
+      properties:
+        provisionedProductIds:
+          title: ProvisionedProductIds
+          type: array
+          description: list of provisoned product ids
+          items:
+            type: string
+    StopProvisionedProductsResponse:
+      title: StopProvisionedProductResponse
+      type: object
+    GetAvailableProductVersionsResponse:
+      title: GetAvailableProductVersionsResponse
+      type: object
+      properties:
+        availableProductVersions:
+          title: AvailableProductVersions
+          type: array
+          items:
+            "$ref": "#/components/schemas/AvailableVersionDistribution"
+    GetUserProfileResponseFeature:
+      title: GetUserProfileResponseFeature
+      type: object
+      properties:
+        version:
+          title: Version
+          type: string
+          description: Version of the feature
+        feature:
+          title: Feature
+          type: string
+          description: Feature name
+        enabled:
+          title: Enabled
+          type: boolean
+          description: Enabled/disabled flag
+    MaintenanceWindow:
+      title: MaintenanceWindow
+      type: object
+      required:
+        - day
+        - startTime
+        - endTime
+      properties:
+        day:
+          title: Day
+          description: Day of the week for maintenance window.(monday-sunday)
+          type: string
+        startTime:
+          title: StartTime
+          description: Start Time for maintenance window
+          type: string
+        endTime:
+          title: EndTime
+          description: End Time for maintenance window
+          type: string
+    GetUserProfileResponse:
+      title: GetUserProfileResponse
+      type: object
+      properties:
+        preferredRegion:
+          title: PreferredRegion
+          type: string
+          description: Preferred region of the user as defined in the settings.
+        enabledRegions:
+          title: EnabledRegions
+          type: array
+          description: Enabled regions for VEW product provisioning.
+          items:
+            type: string
+        enabledFeatures:
+          title: EnabledFeatures
+          type: array
+          description: Enabled features for the user.
+          items:
+            $ref: "#/components/schemas/GetUserProfileResponseFeature"
+        preferredNetwork:
+          title: PreferredNetwork
+          type: string
+          description: Preferred network of the user as defined in the settings.
+        applicationVersion:
+          title: ApplicationVersion
+          type: string
+          description: VEW UI Application Version.
+        applicationVersionFrontend:
+          title: ApplicationVersionFrontend
+          type: string
+          description: VEW UI Application Version(Frontend).
+        applicationVersionBackend:
+          title: ApplicationVersionBackend
+          type: string
+          description: VEW UI Application Version(Backend).
+        preferredMaintenanceWindows:
+          title: PreferredMaintenanceWindows
+          description: Preferred maintenance window
+          type: array
+          items:
+            $ref: "#/components/schemas/MaintenanceWindow"
+    UpdateUserProfileRequest:
+      title: UpdateUserProfileRequest
+      type: object
+      required:
+        - preferredMaintenanceWindows
+      properties:
+        preferredRegion:
+          title: PreferredRegion
+          type: string
+          description: Preferred region of the user as defined in the settings.
+        preferredNetwork:
+          title: PreferredNetwork
+          type: string
+          description: Preferred network of the user as defined in the settings.
+        preferredMaintenanceWindows:
+          title: PreferredMaintenanceWindows
+          description: Preferred maintenance window
+          type: array
+          items:
+            $ref: "#/components/schemas/MaintenanceWindow"
+    UpdateUserProfileResponse:
+      title: UpdateUserProfileResponse
+      type: object
+    GetUsersWithinMaintenanceWindowResponse:
+      title: GetUsersWithinMaintenanceWindowResponse
+      type: object
+      required:
+        - usersIds
+      properties:
+        usersIds:
+          title: UsersIds
+          type: array
+          description: Users ids within maintenance window.
+          items:
+            type: string
+    AuthorizeUserIpAddressResponse:
+      title: AuthorizeUserIpAddressResponse
+      type: object
+    GetProvisionedProductSSHKeyResponse:
+      title: GetProvisionedProductSSHKeyResponse
+      type: object
+      properties:
+        sshKey:
+          title: SSHKey
+          type: string
+          description: SSH Key value
+    GetProvisionedProductUserSecretResponse:
+      title: GetProvisionedProductUserSecretResponse
+      type: object
+      properties:
+        username:
+          title: UserName
+          type: string
+          description: User name
+        password:
+          title: Password
+          type: string
+          description: User password
+    ProvisioningSubnet:
+      title: ProvisioningSubnet
+      type: object
+      properties:
+        subnetId:
+          title: SubnetID
+          type: string
+          description: Subnet ID
+        cidrBlock:
+          title: CidrBlock
+          type: string
+          description: Subnet CIDR block
+        vpcId:
+          title: VpcId
+          type: string
+          description: VPC Id
+    InternalGetProvisioningSubnetsResponse:
+      title: InternalGetProvisioningSubnetsResponse
+      type: object
+      properties:
+        subnets:
+          title: Subnets
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProvisioningSubnet"
+  securitySchemes:
+    AVP-Request-Authorizer:
+      type: "apiKey"
+      name: "AmazonVerifiedPermissions"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        type: "request"
+        authorizerUri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{authorization_bc_handler_arn}}/invocations"
+        authorizerCredentials: "{{apigw_invocation_role_arn}}"
+        authorizerResultTtlInSeconds: 1800
+        identitySource: "method.request.header.Authorization, context.path, context.httpMethod"
+    sigv4:
+      type: "apiKey"
+      name: "Authorization"
+      in: "header"
+      x-amazon-apigateway-authtype: "awsSigv4"

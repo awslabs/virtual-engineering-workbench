@@ -1,0 +1,16 @@
+Mock the command handler as we only want to test the handler method functionality
+"accountId": "001234567890"
+TEST_TABLE_NAME = "test-table"
+mock_service_catalog_api.return_value
+test
+AWS_ACCOUNT_ID = "012345678910"
+aws_account_id="012345678900"
+private_key
+id="fake-id"
+awsAccountId="012345678900"
+"awsAccountId": "001234567890"
+awsAccountId="001234567890"
+"account": "112233445566"
+AROAZPQ655KRI5RONLURH
+AROARRAKZGISM56GULW7J
+^-----BEGIN .*-----\nMIICXAIBAAKBgQC\+5ePolLv6VcWLp2f17g6r6vHl\+eoLuodOOfUl8JK\+MVmvXbPa[A-Za-z0-9+\/=\s]+-----END .*-----$

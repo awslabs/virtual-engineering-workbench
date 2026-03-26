@@ -1,0 +1,15 @@
+import typing
+from dataclasses import dataclass
+
+from app.packaging.domain.exceptions import domain_exception
+
+
+@dataclass(frozen=True)
+class RecipeNameValueObject:
+    value: str
+
+
+def from_str(value: typing.Optional[str]) -> RecipeNameValueObject:
+    if not value:
+        raise domain_exception.DomainException("Recipe name cannot be empty.")
+    return RecipeNameValueObject(value=value)

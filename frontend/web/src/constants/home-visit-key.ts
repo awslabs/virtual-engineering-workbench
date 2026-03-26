@@ -1,0 +1,1 @@
+export const LAST_VISIT_HOME_DATE_KEY = 'last-visit-home';

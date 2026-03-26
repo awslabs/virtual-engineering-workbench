@@ -1,0 +1,4397 @@
+# kics-scan disable=663c442d-f918-4f62-b096-0bf5dcbeb655,00b78adf-b83f-419c-8ed8-c6018441dd3a,6998389e-66b2-473d-8d05-c8d71ac4d04d,8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85,8c84f75e-5048-4926-a4cb-33e7b3431300,fb7d81e7-4150-48c4-b914-92fc05da6a2f,6c35d2c6-09f2-4e5c-a094-e0e91327071d,9f88c88d-824d-4d9a-b985-e22977046042,561710b1-b845-4562-95ce-2397a05ccef4,d172a060-8569-4412-8045-3560ebd477e8,86e3702f-c868-44b2-b61d-ea5316c18110,5915c20f-dffa-4cee-b5d4-f457ddc0151a,2bd608ae-8a1f-457f-b710-c237883cb313,181bd815-767e-4e95-a24d-bb3c87328e19,2ea04bef-c769-409e-9179-ee3a50b5c0ac,fbf699b5-ef74-4542-9cf1-f6eeac379373,962fa01e-b791-4dcc-b04a-4a3e7389be5e,237402e2-c2f0-46c9-9cf5-286160cf7bfc,40e1d1bf-11a9-4f63-a3a2-a8b84c602839,37140f7f-724a-4c87-a536-e9cee1d61533,8d0921d6-4131-461f-a253-99e873f8f77e,151331e2-11f4-4bb6-bd35-9a005e695087,8fe1846f-52cc-4413-ace9-1933d7d23672,96729c6b-7400-4d9e-9807-17f00cdde4d2,8af270ce-298b-4405-9922-82a10aee7a4f,a92be1d5-d762-484a-86d6-8cd0907ba100
+# - 663c442d-f918-4f62-b096-0bf5dcbeb655: CORS preflight OPTIONS requires unauthenticated access (RFC 6454)
+# - 00b78adf-b83f-419c-8ed8-c6018441dd3a: String pattern validation enforced by Pydantic and domain value objects
+# - 6998389e-66b2-473d-8d05-c8d71ac4d04d: Array size validation enforced by Pydantic and domain value objects
+# - 8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85: String maxLength validation enforced by Pydantic and domain value objects
+# - 8c84f75e-5048-4926-a4cb-33e7b3431300: Authorization header param required by API Gateway for cacheKeyParameters/identitySource
+# - fb7d81e7-4150-48c4-b914-92fc05da6a2f: x-amazon-apigateway-* are standard AWS vendor extensions per OpenAPI 3.0 spec
+# - 6c35d2c6-09f2-4e5c-a094-e0e91327071d: Error responses handled globally via x-amazon-apigateway-gateway-responses and Lambda Powertools
+# - 9f88c88d-824d-4d9a-b985-e22977046042: Additional properties handling enforced by Pydantic BaseModel
+# - 561710b1-b845-4562-95ce-2397a05ccef4: False positive, path params defined on each operation
+# - d172a060-8569-4412-8045-3560ebd477e8: All-optional schema properties are intentional, required fields enforced by Pydantic
+# - 86e3702f-c868-44b2-b61d-ea5316c18110: Error responses handled globally via x-amazon-apigateway-gateway-responses and Lambda Powertools
+# - 5915c20f-dffa-4cee-b5d4-f457ddc0151a: Intentional empty arrays for CORS security:[] and apiKey empty scopes
+# - 2bd608ae-8a1f-457f-b710-c237883cb313: False positive, KICS does not resolve $ref chains in schema required properties
+# - 181bd815-767e-4e95-a24d-bb3c87328e19: Numeric min validation enforced by Pydantic and domain value objects
+# - 2ea04bef-c769-409e-9179-ee3a50b5c0ac: Numeric max validation enforced by Pydantic and domain value objects
+# - fbf699b5-ef74-4542-9cf1-f6eeac379373: Numeric format validation enforced by Pydantic and domain value objects
+# - 962fa01e-b791-4dcc-b04a-4a3e7389be5e: Schemas auto-generated from Pydantic, some referenced indirectly by Swagger UI
+# - 237402e2-c2f0-46c9-9cf5-286160cf7bfc: False positive, KICS treats path params as wildcards causing false ambiguity
+# - 40e1d1bf-11a9-4f63-a3a2-a8b84c602839: AVP-Request-Authorizer uses type:apiKey as standard API Gateway custom authorizer pattern, not actual API key
+# - 37140f7f-724a-4c87-a536-e9cee1d61533: Empty scopes [] is correct for non-OAuth security schemes per OpenAPI spec
+# - 8d0921d6-4131-461f-a253-99e873f8f77e: Server URL variables {Host}/{BasePath} resolved at deployment time by CDK/CloudFormation
+# - 151331e2-11f4-4bb6-bd35-9a005e695087: False positive from KICS misidentifying x-amazon-apigateway vendor extensions as fixed field keys
+# - 8fe1846f-52cc-4413-ace9-1933d7d23672: False positive, KICS confuses schema properties named 'parameters' with OpenAPI Parameter Objects
+# - 96729c6b-7400-4d9e-9807-17f00cdde4d2: Intentional for dcv_api (internal, custom cookie auth) and api_webhooks (GitHub signature middleware)
+# - 8af270ce-298b-4405-9922-82a10aee7a4f: Auth handled outside OpenAPI security schemes for dcv_api, executing, and api_webhooks
+# - a92be1d5-d762-484a-86d6-8cd0907ba100: Minor doc gap in dcv_api, response body controlled by Lambda not API Gateway
+openapi: 3.0.1
+info:
+  title: "Workbench Packaging API"
+  description: "API in charge of packaging workbench products"
+  version: "2023-10-31T12:00:00Z"
+servers:
+  - url: "https://{Host}/{BasePath}"
+security:
+  - AVP-Request-Authorizer: []
+x-amazon-apigateway-request-validators:
+  all:
+    validateRequestBody: true
+    validateRequestParameters: true
+  params-only:
+    validateRequestBody: false
+    validateRequestParameters: true
+  body-only:
+    validateRequestBody: true
+    validateRequestParameters: false
+  none:
+    validateRequestBody: false
+    validateRequestParameters: false
+x-amazon-apigateway-request-validator: none
+x-amazon-apigateway-gateway-responses:
+  DEFAULT_4XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": "Client error", "validationError": "" }'
+  BAD_REQUEST_PARAMETERS:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": $context.error.messageString, "validationError": "$context.error.validationErrorString" }'
+  BAD_REQUEST_BODY:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": $context.error.messageString, "validationError": "$context.error.validationErrorString" }'
+  DEFAULT_5XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+    responseTemplates:
+      application/json: '{ "message": "Server error", "validationError": "" }'
+paths:
+  /_swagger:
+    get:
+      description: "Gets autogenerated Open API spec."
+      operationId: "GetSwaggerSpec"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: format
+          in: query
+          schema:
+            type: string
+            default: json
+            enum:
+              - json
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        cacheKeyParameters:
+          - method.request.header.Authorization
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetSwaggerSpecCORS"
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
+  /projects/{projectId}/components:
+    get:
+      description: Get all components from a specific project
+      operationId: GetComponents
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Create a component
+      operationId: CreateComponent
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateComponentRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateComponentResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ComponentsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components/{componentId}:
+    delete:
+      description: Archive a specific component
+      operationId: ArchiveComponent
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Empty"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchiveComponentResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: Get a specific component
+      operationId: GetComponent
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.componentId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Share a component
+      operationId: ShareComponent
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareComponentRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareComponentResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: Update a component name and description
+      operationId: UpdateComponent
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateComponentRequest"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateComponentResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ComponentCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components/{componentId}/versions:
+    get:
+      description: Get all versions from a specific component
+      operationId: GetComponentVersions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentVersionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.componentId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Create a component version
+      operationId: CreateComponentVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateComponentVersionRequest"
+        required: true
+      responses:
+        "201":
+          description: 201 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateComponentVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ComponentVersionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components/{componentId}/validate-version:
+    post:
+      description: Validate a component version
+      operationId: ValidateComponentVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateComponentVersionRequest"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateComponentVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ValidateComponentVersionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components/{componentId}/versions/{versionId}:
+    delete:
+      description: Retire a specific component version
+      operationId: RetireComponentVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Empty"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetireComponentVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: Get a specific component version
+      operationId: GetComponentVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.componentId
+          - method.request.path.versionId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Release a component version
+      operationId: ReleaseComponentVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReleaseComponentVersionRequest"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseComponentVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: Update a component version
+      operationId: UpdateComponentVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateComponentVersionRequest"
+        required: true
+      responses:
+        "201":
+          description: 201 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateComponentVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ComponentVersionCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components/{componentId}/versions/{versionId}/test-executions:
+    get:
+      description: Get all test executions from a specific component version
+      operationId: GetComponentVersionTestExecutions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentVersionTestExecutionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.componentId
+          - method.request.path.versionId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ComponentVersionTestExecutionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components/{componentId}/versions/{versionId}/test-executions/{testExecutionId}/{instanceId}/logs-url:
+    get:
+      description: Get log url of a specific component version test execution
+      operationId: GetComponentVersionTestExecutionLogsUrl
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: testExecutionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentVersionTestExecutionLogsUrlResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.componentId
+          - method.request.path.versionId
+          - method.request.path.testExecutionId
+          - method.request.path.instanceId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ComponentVersionTestExecutionLogsUrlCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: componentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: testExecutionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/components-versions:
+    get:
+      description: Get all components versions given a status, platform, OS version, and architecture
+      operationId: GetComponentsVersions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: platform
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: os
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: arch
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: global
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetComponentsVersionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.querystring.status
+          - method.request.querystring.platform
+          - method.request.querystring.os
+          - method.request.querystring.arch
+          - method.request.querystring.global
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: GetComponentsVersionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/mandatory-components-list:
+    get:
+      description: Get a mandatory components list given a platform, OS version, and architecture
+      operationId: GetMandatoryComponentsList
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: mandatoryComponentsListPlatform
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: mandatoryComponentsListOsVersion
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: mandatoryComponentsListArchitecture
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMandatoryComponentsListResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.querystring.mandatoryComponentsListPlatform
+          - method.request.querystring.mandatoryComponentsListOsVersion
+          - method.request.querystring.mandatoryComponentsListArchitecture
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Create a mandatory components list given a platform, OS version, and architecture
+      operationId: CreateMandatoryComponentsList
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMandatoryComponentsListRequest"
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMandatoryComponentsListResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: Update a mandatory components list given a platform, OS version, and architecture
+      operationId: UpdateMandatoryComponentsList
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMandatoryComponentsListRequest"
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateMandatoryComponentsListResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: GetMandatoryComponentsListCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/mandatory-components-lists:
+    get:
+      description: Get all the available mandatory components lists
+      operationId: GetMandatoryComponentsLists
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMandatoryComponentsListsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: GetMandatoryComponentsListsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/pipelines:
+    get:
+      description: Get all pipelines from a specific project
+      operationId: GetPipelines
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPipelinesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Create a pipeline
+      operationId: CreatePipeline
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePipelineRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatePipelineResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: PipelinesCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/pipelines/{pipelineId}:
+    delete:
+      description: Retire a specific pipeline
+      operationId: RetirePipeline
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Empty"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetirePipelineResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: Get a specific pipeline
+      operationId: GetPipeline
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPipelineResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.pipelineId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: Update an existing pipeline
+      operationId: UpdatePipeline
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePipelineRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdatePipelineResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: PipelinesUpdateCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,DELETE,PUT,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes:
+    get:
+      description: Get all recipes from a specific project
+      operationId: GetRecipes
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Creates a recipe
+      operationId: CreateRecipe
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecipeRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRecipeResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: RecipesCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes/{recipeId}:
+    delete:
+      description: Archive a specific recipe
+      operationId: ArchiveRecipe
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Empty"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArchiveRecipeResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: Get a specific recipe
+      operationId: GetRecipe
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipeResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.recipeId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: RecipeCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes/{recipeId}/versions:
+    get:
+      description: Get all versions from a specific recipe
+      operationId: GetRecipeVersions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipeVersionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.recipeId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Create a Recipe version
+      operationId: CreateRecipeVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRecipeVersionRequest"
+        required: true
+      responses:
+        "201":
+          description: 201 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRecipeVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: RecipeVersionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes/{recipeId}/versions/{versionId}:
+    delete:
+      description: Retire a specific recipe version
+      operationId: RetireRecipeVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Empty"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetireRecipeVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    get:
+      description: Get a specific recipe version
+      operationId: GetRecipeVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipeVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.recipeId
+          - method.request.path.versionId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: Update a recipe version
+      operationId: UpdateRecipeVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRecipeVersionRequest"
+        required: true
+      responses:
+        "201":
+          description: 201 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateRecipeVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Release a recipe version
+      operationId: ReleaseRecipeVersion
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Empty"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReleaseRecipeVersionResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: RecipeVersionCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,OPTIONS,POST,PUT'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes/{recipeId}/versions/{versionId}/test-executions:
+    get:
+      description: Get all test executions from a specific recipe version
+      operationId: GetRecipeVersionTestExecutions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipeVersionTestExecutionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.recipeId
+          - method.request.path.versionId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: RecipeVersionTestExecutionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes/{recipeId}/versions/{versionId}/test-executions/{testExecutionId}/logs-url:
+    get:
+      description: Get logs url of a specific recipe version test execution
+      operationId: GetRecipeVersionTestExecutionLogsUrl
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: testExecutionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipeVersionTestExecutionLogsUrlResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.recipeId
+          - method.request.path.versionId
+          - method.request.path.testExecutionId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: RecipeVersionTestExecutionLogsUrlCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: versionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: testExecutionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/recipes-versions:
+    get:
+      description: Get all recipes versions given a status
+      operationId: GetRecipesVersions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetRecipesVersionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.querystring.status
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: GetRecipesVersionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/images:
+    get:
+      description: Get all images from a specific project
+      operationId: GetImages
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetImagesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    post:
+      description: Creates an image
+      operationId: CreateImage
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateImageRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateImageResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ImagesCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/images/{imageId}:
+    get:
+      description: Get a specific Image
+      operationId: GetImage
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetImageResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+          - method.request.path.imageId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ImagesOperationsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/allowed-build-instance-types:
+    get:
+      description: Get all Allowed build types for an architecture
+      operationId: GetPipelinesAllowedBuildTypes
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recipeId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetPipelinesAllowedBuildTypesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: PipelinesAllowedBuildTypeCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+components:
+  schemas:
+    ArchiveRecipeResponse:
+      title: ArchiveRecipeResponse
+      type: object
+    ArchiveComponentResponse:
+      title: ArchiveComponentResponse
+      type: object
+    Recipe:
+      title: Recipe
+      type: object
+      required:
+        - recipeId
+        - recipeDescription
+        - recipeName
+        - recipePlatform
+        - recipeArchitecture
+        - recipeOsVersion
+        - status
+        - createDate
+        - createdBy
+        - lastUpdateDate
+        - lastUpdatedBy
+      properties:
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID
+        recipeDescription:
+          title: RecipeDescription
+          type: string
+          description: Recipe Description
+        recipeName:
+          title: RecipeName
+          type: string
+          description: Recipe Name
+        recipePlatform:
+          title: RecipePlatform
+          type: string
+          description: Recipe Platform
+        recipeArchitecture:
+          title: RecipeArchitecture
+          type: string
+          description: Operating system architecture of the recipe
+        recipeOsVersion:
+          title: RecipeOsVersion
+          type: string
+          description: Recipe OS Version
+        status:
+          title: Status
+          type: string
+          description: Status of the Recipe (CREATED/ARCHIVED)
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        createdBy:
+          title: CreatedBy
+          type: string
+          description: Created By
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+        lastUpdatedBy:
+          title: LastUpdatedBy
+          type: string
+          description: Last Update By
+    CreateRecipeRequest:
+      title: CreateRecipeRequest
+      type: object
+      required:
+        - recipeDescription
+        - recipeName
+        - recipePlatform
+        - recipeArchitecture
+        - recipeOsVersion
+      properties:
+        recipeDescription:
+          title: RecipeDescription
+          type: string
+          description: Recipe Description
+        recipeName:
+          title: RecipeName
+          type: string
+          description: Recipe Name
+        recipePlatform:
+          title: RecipePlatform
+          type: string
+          description: Recipe Platform
+        recipeArchitecture:
+          title: RecipeArchitecture
+          type: string
+          description: Operating system architecture
+        recipeOsVersion:
+          title: RecipeOsVersion
+          type: string
+          description: Recipe OS Version
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        createdBy:
+          title: CreatedBy
+          type: string
+          description: Created By
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+        lastUpdatedBy:
+          title: LastUpdatedBy
+          type: string
+          description: Last Update By
+    CreateRecipeResponse:
+      title: CreateRecipeResponse
+      type: object
+    GetRecipeResponse:
+      title: GetRecipeResponse
+      type: object
+      required:
+        - recipe
+      properties:
+        recipe:
+          title: Recipe
+          $ref: "#/components/schemas/Recipe"
+    GetRecipesResponse:
+      title: GetRecipesResponse
+      type: object
+      required:
+        - recipes
+      properties:
+        recipes:
+          title: Recipes
+          type: array
+          items:
+            $ref: "#/components/schemas/Recipe"
+    RecipeVersion:
+      title: RecipeVersion
+      type: object
+      required:
+        - recipeId
+        - recipeVersionId
+        - recipeComponentsVersions
+        - recipeVersionDescription
+        - recipeVersionName
+        - recipeVersionVolumeSize
+        - status
+        - createDate
+        - lastUpdateDate
+        - createdBy
+        - lastUpdatedBy
+      properties:
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe Version ID
+        recipeComponentsVersions:
+          title: RecipeComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeComponentVersion"
+          description: List of component versions that are part of this recipe
+        recipeVersionDescription:
+          title: RecipeVersionDescription
+          type: string
+          description: Recipe Version Description
+        recipeVersionName:
+          title: RecipeVersionName
+          type: string
+          description: Recipe Version Name
+        recipeVersionVolumeSize:
+          title: RecipeVersionVolumeSize
+          type: string
+          description: Size (in GB) of the recipe version root volume
+        recipeVersionIntegrations:
+          title: RecipeVersionIntegrations
+          type: array
+          items:
+            type: string
+          description: List of the selected integrations for the recipe version
+        status:
+          title: Status
+          type: string
+          description: Status of the Recipe Version (CREATING/CREATED/TESTING/VALIDATED/UPDATING/RELEASED/RETIRED/FAILED)
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        createdBy:
+          title: CreatedBy
+          type: string
+          description: Created By
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+        lastUpdatedBy:
+          title: LastUpdatedBy
+          type: string
+          description: Last Update By
+    CreateRecipeVersionRequest:
+      title: CreateRecipeVersionRequest
+      type: object
+      required:
+        - recipeComponentsVersions
+        - recipeVersionDescription
+        - recipeVersionReleaseType
+        - recipeVersionVolumeSize
+      properties:
+        recipeComponentsVersions:
+          title: RecipeComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeComponentVersion"
+          description: List of component versions that are part of this recipe
+        recipeVersionDescription:
+          title: RecipeVersionDescription
+          type: string
+          description: Recipe Version Description
+        recipeVersionReleaseType:
+          title: RecipeVersionReleaseType
+          type: string
+          description: The release type of the new recipe version
+        recipeVersionVolumeSize:
+          title: RecipeVersionVolumeSize
+          type: string
+          description: Size (in GB) of the recipe version root volume
+        recipeVersionIntegrations:
+          title: RecipeVersionIntegrations
+          description: A list of enabled integrations
+          type: array
+          items:
+            type: string
+    CreateRecipeVersionResponse:
+      title: CreateRecipeVersionResponse
+      type: object
+    RecipeComponentVersion:
+      title: RecipeVersion
+      type: object
+      required:
+        - componentId
+        - componentName
+        - componentVersionId
+        - componentVersionName
+        - componentVersionType
+        - order
+      properties:
+        componentId:
+          title: ComponentId
+          type: string
+          description: Component ID
+        componentName:
+          title: ComponentName
+          type: string
+          description: Component Name
+        componentVersionId:
+          title: ComponentVersionId
+          type: string
+          description: Component Version ID
+        componentVersionName:
+          title: ComponentVersionName
+          type: string
+          description: Component Version Name
+        componentVersionType:
+          title: ComponentVersionType
+          type: string
+          description: Component Version Type (MAIN|HELPER)
+        order:
+          title: Order
+          type: integer
+          description: Order that the component will run in the recipe
+    GetRecipeVersionResponse:
+      title: GetRecipeVersionResponse
+      type: object
+      required:
+        - recipe_version
+      properties:
+        recipe_version:
+          title: RecipeVersion
+          $ref: "#/components/schemas/RecipeVersion"
+    GetRecipeVersionsResponse:
+      title: GetRecipeVersionsResponse
+      type: object
+      required:
+        - recipe_versions
+      properties:
+        recipe_versions:
+          title: RecipeVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeVersion"
+    Component:
+      title: Component
+      type: object
+      required:
+        - componentId
+        - componentDescription
+        - componentName
+        - componentPlatform
+        - componentSupportedArchitectures
+        - componentSupportedOsVersions
+        - status
+        - createDate
+        - createdBy
+        - lastUpdateDate
+        - lastUpdatedBy
+      properties:
+        componentId:
+          title: ComponentId
+          type: string
+          description: Component ID
+        componentDescription:
+          title: ComponentDescription
+          type: string
+          description: Component Description
+        componentName:
+          title: ComponentName
+          type: string
+          description: Component Name
+        componentSupportedArchitectures:
+          title: componentSupportedArchitectures
+          type: array
+          items:
+            type: string
+          description: Operating system architectures that are compatible/supported by the component
+        componentPlatform:
+          title: ComponentPlatform
+          type: string
+          description: Component Platform
+        componentSupportedOsVersions:
+          title: ComponentSupportedOsVersions
+          description: Component Supported OS Versions
+          type: array
+          items:
+            type: string
+        status:
+          title: Status
+          type: string
+          description: Status of the component (CREATED/ARCHIVED)
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        createdBy:
+          title: CreatedBy
+          type: string
+          description: Created By
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+        lastUpdatedBy:
+          title: LastUpdatedBy
+          type: string
+          description: Last Update By
+    ComponentVersion:
+      title: ComponentVersion
+      type: object
+      required:
+        - componentId
+        - componentVersionId
+        - componentVersionDescription
+        - componentVersionName
+        - softwareVendor
+        - softwareVersion
+        - status
+        - createDate
+        - lastUpdateDate
+        - createdBy
+        - lastUpdatedBy
+      properties:
+        componentId:
+          title: ComponentId
+          type: string
+          description: Component ID
+        componentVersionId:
+          title: ComponentVersionId
+          type: string
+          description: Component version ID
+        componentVersionDescription:
+          title: ComponentVersionDescription
+          type: string
+          description: Component version Description
+        componentVersionName:
+          title: ComponentVersionName
+          type: string
+          description: Component version Name
+        componentVersionDependencies:
+          title: ComponentVersionDependencies
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: List of component versions that are required by the new component version
+        softwareVendor:
+          title: SoftwareVendor
+          type: string
+          description: The software vendor name e.g. Vector
+        softwareVersion:
+          title: SoftwareVersion
+          type: string
+          description: The software version e.g. 1.0.0
+        licenseDashboard:
+          title: LicenseDashboard
+          type: string
+          description: The license dashboard for the software vendors
+        notes:
+          title: Notes
+          type: string
+          description: Notes about the new component software
+        status:
+          title: Status
+          type: string
+          description: Status of the component version (CREATING/CREATED/TESTING/VALIDATED/UPDATING/RELEASED/RETIRED/FAILED)
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        createdBy:
+          title: CreatedBy
+          type: string
+          description: Created By
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+        lastUpdatedBy:
+          title: LastUpdatedBy
+          type: string
+          description: Last Update By
+    ComponentVersionSummary:
+      title: ComponentVersionSummary
+      type: object
+      required:
+        - componentId
+        - componentVersionId
+        - componentVersionName
+        - componentName
+      properties:
+        componentId:
+          title: ComponentId
+          type: string
+          description: Component ID
+        componentVersionId:
+          title: ComponentVersionId
+          type: string
+          description: Component version ID
+        componentVersionName:
+          title: ComponentVersionName
+          type: string
+          description: Component version Name
+        componentName:
+          title: ComponentName
+          type: string
+          description: Component Name
+    ComponentVersionTestExecutionSummary:
+      title: ComponentVersionTestExecutionSummary
+      type: object
+      required:
+        - componentVersionId
+        - instanceArchitecture
+        - instanceId
+        - instanceImageUpstreamId
+        - instanceOsVersion
+        - instancePlatform
+        - status
+        - testExecutionId
+        - createDate
+        - lastUpdateDate
+      properties:
+        componentVersionId:
+          title: ComponentVersionId
+          type: string
+          description: Component version ID
+        instanceArchitecture:
+          title: InstanceArchitecture
+          type: string
+          description: Test instance operating system architecture
+        instanceId:
+          title: InstanceId
+          type: string
+          description: Test instance ID
+        instanceImageUpstreamId:
+          title: InstanceImageUpstreamId
+          type: string
+          description: Test instance image upstream (AMI) ID
+        instanceOsVersion:
+          title: InstanceOsVersion
+          type: string
+          description: Test instance operating system version
+        instancePlatform:
+          title: InstancePlatform
+          type: string
+          description: Test instance platform
+        status:
+          title: Status
+          type: string
+          description: Status of the test execution (PENDING/RUNNING/SUCCESS/FAILED)
+        testExecutionId:
+          title: TestExecutionId
+          type: string
+          description: Test execution ID
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+    ComponentVersionEntry:
+      title: ComponentVersionEntry
+      type: object
+      required:
+        - componentId
+        - componentName
+        - componentVersionId
+        - componentVersionName
+        - order
+      properties:
+        componentId:
+          title: ComponentId
+          type: string
+          description: Component ID
+        componentName:
+          title: ComponentName
+          type: string
+          description: Component Name
+        componentVersionId:
+          title: ComponentVersionId
+          type: string
+          description: Component Version ID
+        componentVersionName:
+          title: ComponentVersionName
+          type: string
+          description: Component Version Name
+        componentVersionType:
+          title: ComponentVersionType
+          type: string
+          description: Component Version Type (MAIN|HELPER)
+        order:
+          title: Order
+          type: integer
+          description: Order that the component will run in the recipe
+        position:
+          title: Position
+          type: string
+          description: Position of the component (PREPEND|APPEND)
+    ComponentMetadata:
+      title: ComponentMetadata
+      type: object
+      required:
+        - associatedProjects
+      properties:
+        associatedProjects:
+          title: associatedProjects
+          type: array
+          description: Component associated projects
+          items:
+            type: object
+            required:
+              - projectId
+            properties:
+              projectId:
+                type: string
+                description: Component associated project
+    MandatoryComponentsList:
+      title: MandatoryComponentsList
+      type: object
+      required:
+        - mandatoryComponentsListPlatform
+        - mandatoryComponentsListOsVersion
+        - mandatoryComponentsListArchitecture
+        - prependedComponentsVersions
+        - appendedComponentsVersions
+      properties:
+        mandatoryComponentsListPlatform:
+          title: MandatoryComponentsListPlatform
+          type: string
+          description: Platform for which the mandatory components list is enforced
+        mandatoryComponentsListOsVersion:
+          title: MandatoryComponentsListOsVersion
+          type: string
+          description: OS for which the mandatory components list is enforced
+        mandatoryComponentsListArchitecture:
+          title: MandatoryComponentsListArchitecture
+          type: string
+          description: Architecture for which the mandatory components list is enforced
+        prependedComponentsVersions:
+          title: PrependedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: Components versions that will be prepended to recipe versions
+        appendedComponentsVersions:
+          title: AppendedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: Components versions that will be appended to recipe versions
+    CreateComponentRequest:
+      title: CreateComponentRequest
+      type: object
+      required:
+        - componentName
+        - componentPlatform
+        - componentSupportedArchitectures
+        - componentSupportedOsVersions
+      properties:
+        componentName:
+          title: componentName
+          type: string
+          description: The name of the new component
+        componentDescription:
+          title: componentDescription
+          type: string
+          description: Describe in brief what this component does
+        componentPlatform:
+          title: componentPlatform
+          type: string
+          description: The platform of the component (Windows / Linux)
+        componentSupportedArchitectures:
+          title: componentSupportedArchitectures
+          type: array
+          items:
+            type: string
+          description: Operating system architectures that are compatible/supported by the component
+        componentSupportedOsVersions:
+          title: componentSupportedOsVersions
+          type: array
+          items:
+            type: string
+          description: The operating systems supported by the component see https://docs.aws.amazon.com/imagebuilder/latest/userguide/what-is-image-builder.html#image-builder-os
+    ShareComponentRequest:
+      title: ShareComponentRequest
+      type: object
+      required:
+        - projectIds
+      properties:
+        projectIds:
+          title: projectIds
+          type: array
+          items:
+            type: string
+          description: List of projects to share the component
+    CreateComponentResponse:
+      title: CreateComponentResponse
+      type: object
+      required:
+        - componentId
+      properties:
+        componentId:
+          title: ComponentId
+          type: string
+          description: Component ID of the newly created component
+    ShareComponentResponse:
+      title: ShareComponentResponse
+      type: object
+    UpdateComponentRequest:
+      title: UpdateComponentRequest
+      type: object
+      required:
+        - componentDescription
+      properties:
+        componentDescription:
+          title: ComponentDescription
+          type: string
+          description: The new description for the component
+    UpdateComponentResponse:
+      title: UpdateComponentResponse
+      type: object
+    CreateComponentVersionRequest:
+      title: CreateComponentVersionRequest
+      type: object
+      required:
+        - componentVersionDescription
+        - componentVersionReleaseType
+        - componentVersionYamlDefinition
+        - softwareVendor
+        - softwareVersion
+      properties:
+        componentVersionDescription:
+          title: ComponentVersionDescription
+          type: string
+          description: The description for new component version
+        componentVersionDependencies:
+          title: ComponentVersionDependencies
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: List of component versions that are required by the new component version
+        componentVersionReleaseType:
+          title: ComponentVersionReleaseType
+          type: string
+          description: The release type of the new component version
+        componentVersionYamlDefinition:
+          title: ComponentVersionYamlDefinition
+          type: string
+          description: The YAML definition of the new component version
+        softwareVendor:
+          title: SoftwareVendor
+          type: string
+          description: The software vendor name e.g. Vector
+        softwareVersion:
+          title: SoftwareVersion
+          type: string
+          description: The software version e.g. 1.0.0
+        licenseDashboard:
+          title: LicenseDashboard
+          type: string
+          description: The license dashboard for the software vendors
+        notes:
+          title: Notes
+          type: string
+          description: Notes about the new component software
+    CreateComponentVersionResponse:
+      title: CreateComponentVersionResponse
+      type: object
+    Empty:
+      title: Empty Schema
+      type: object
+    ValidateComponentVersionRequest:
+      title: ValidateComponentVersionRequest
+      type: object
+      required:
+        - componentVersionYamlDefinition
+      properties:
+        componentVersionYamlDefinition:
+          title: ComponentVersionYamlDefinition
+          type: string
+          description: The YAML definition of the new component version
+    ValidateComponentVersionResponse:
+      title: ValidateComponentVersionResponse
+      type: object
+    GetComponentResponse:
+      title: GetComponentResponse
+      type: object
+      required:
+        - component
+      properties:
+        component:
+          title: Component
+          $ref: "#/components/schemas/Component"
+        metadata:
+          title: Metadata
+          $ref: "#/components/schemas/ComponentMetadata"
+    ReleaseComponentVersionResponse:
+      title: ReleaseComponentVersionResponse
+      type: object
+    GetComponentVersionResponse:
+      title: GetComponentVersionResponse
+      type: object
+      required:
+        - component_version
+      properties:
+        component_version:
+          title: ComponentVersion
+          $ref: "#/components/schemas/ComponentVersion"
+        yaml_definition:
+          title: YamlDefinition
+          type: object
+        yaml_definition_b64:
+          title: YamlDefinitionB64
+          type: string
+    GetComponentVersionTestExecutionLogsUrlResponse:
+      title: GetComponentVersionTestExecutionLogsUrlResponse
+      type: object
+      required:
+        - logs_url
+      properties:
+        logs_url:
+          title: LogsUrl
+          type: string
+    GetComponentVersionsResponse:
+      title: GetComponentVersionsResponse
+      type: object
+      required:
+        - component_versions
+      properties:
+        component_versions:
+          title: ComponentVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersion"
+    GetComponentsVersionsResponse:
+      title: GetComponentsVersionsResponse
+      type: object
+      required:
+        - components_versions_summary
+      properties:
+        components_versions_summary:
+          title: ComponentVersionSummary
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionSummary"
+    GetComponentVersionTestExecutionsResponse:
+      title: GetComponentVersionTestExecutionsResponse
+      type: object
+      required:
+        - component_version_test_execution_summaries
+      properties:
+        component_version_test_execution_summaries:
+          title: ComponentVersionTestExecutionSummaries
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionTestExecutionSummary"
+    GetComponentsResponse:
+      title: GetComponentsResponse
+      type: object
+      required:
+        - components
+      properties:
+        components:
+          title: Components
+          type: array
+          items:
+            $ref: "#/components/schemas/Component"
+    GetMandatoryComponentsListResponse:
+      title: GetMandatoryComponentsListResponse
+      type: object
+      required:
+        - mandatoryComponentsList
+      properties:
+        mandatoryComponentsList:
+          title: MandatoryComponentsList
+          $ref: "#/components/schemas/MandatoryComponentsList"
+    GetMandatoryComponentsListsResponse:
+      title: GetMandatoryComponentsListsResponse
+      type: object
+      required:
+        - mandatoryComponentsLists
+      properties:
+        mandatoryComponentsLists:
+          title: MandatoryComponentsLists
+          type: array
+          items:
+            $ref: "#/components/schemas/MandatoryComponentsList"
+    CreateMandatoryComponentsListRequest:
+      title: CreateMandatoryComponentsListRequest
+      type: object
+      required:
+        - mandatoryComponentsListPlatform
+        - mandatoryComponentsListOsVersion
+        - mandatoryComponentsListArchitecture
+        - prependedComponentsVersions
+        - appendedComponentsVersions
+      properties:
+        mandatoryComponentsListPlatform:
+          title: MandatoryComponentsListPlatform
+          type: string
+          description: Platform for which the mandatory components list is enforced
+        mandatoryComponentsListOsVersion:
+          title: MandatoryComponentsListOsVersion
+          type: string
+          description: OS for which the mandatory components list is enforced
+        mandatoryComponentsListArchitecture:
+          title: MandatoryComponentsListArchitecture
+          type: string
+          description: Architecture for which the mandatory components list is enforced
+        prependedComponentsVersions:
+          title: PrependedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: Components versions that will be prepended to recipe versions
+        appendedComponentsVersions:
+          title: AppendedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: Components versions that will be appended to recipe versions
+    CreateMandatoryComponentsListResponse:
+      title: CreateMandatoryComponentsListResponse
+      type: object
+    UpdateMandatoryComponentsListRequest:
+      title: UpdateMandatoryComponentsListRequest
+      type: object
+      required:
+        - mandatoryComponentsListPlatform
+        - mandatoryComponentsListOsVersion
+        - mandatoryComponentsListArchitecture
+        - prependedComponentsVersions
+        - appendedComponentsVersions
+      properties:
+        mandatoryComponentsListPlatform:
+          title: MandatoryComponentsListPlatform
+          type: string
+          description: Platform for which the mandatory components list is enforced
+        mandatoryComponentsListOsVersion:
+          title: MandatoryComponentsListOsVersion
+          type: string
+          description: OS for which the mandatory components list is enforced
+        mandatoryComponentsListArchitecture:
+          title: MandatoryComponentsListArchitecture
+          type: string
+          description: Architecture for which the mandatory components list is enforced
+        prependedComponentsVersions:
+          title: PrependedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: Components versions that will be prepended to recipe versions
+        appendedComponentsVersions:
+          title: AppendedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: Components versions that will be appended to recipe versions
+    UpdateMandatoryComponentsListResponse:
+      title: UpdateMandatoryComponentsListResponse
+      type: object
+    UpdateComponentVersionRequest:
+      title: UpdateComponentVersionRequest
+      type: object
+      required:
+        - componentVersionDescription
+        - componentVersionYamlDefinition
+        - softwareVendor
+        - softwareVersion
+      properties:
+        componentVersionDescription:
+          title: ComponentVersionDescription
+          type: string
+          description: The description for new component version
+        componentVersionYamlDefinition:
+          title: ComponentVersionYamlDefinition
+          type: string
+          description: The YAML definition of the new component version
+        componentVersionDependencies:
+          title: ComponentVersionDependencies
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: List of component versions that are required by the new component version
+        softwareVendor:
+          title: SoftwareVendor
+          type: string
+          description: The software vendor name e.g. Vector
+        softwareVersion:
+          title: SoftwareVersion
+          type: string
+          description: The software version e.g. 1.0.0
+        licenseDashboard:
+          title: LicenseDashboard
+          type: string
+          description: The license dashboard for the software vendors
+        notes:
+          title: Notes
+          type: string
+          description: Notes about the new component software
+    UpdateComponentVersionResponse:
+      title: UpdateComponentVersionResponse
+      type: object
+    UpdateRecipeVersionRequest:
+      title: UpdateRecipeVersionRequest
+      type: object
+      required:
+        - recipeComponentsVersions
+        - recipeVersionDescription
+        - recipeVersionVolumeSize
+      properties:
+        recipeComponentsVersions:
+          title: RecipeComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeComponentVersion"
+          description: List of component versions that are part of this recipe
+        recipeVersionDescription:
+          title: RecipeVersionDescription
+          type: string
+          description: Recipe Version Description
+        recipeVersionVolumeSize:
+          title: RecipeVersionVolumeSize
+          type: string
+          description: Size (in GB) of the recipe version root volume
+        recipeVersionIntegrations:
+          title: RecipeVersionIntegrations
+          description: A list of enabled integrations
+          type: array
+          items:
+            type: string
+    UpdateRecipeVersionResponse:
+      title: CreateRecipeVersionResponse
+      type: object
+    ReleaseRecipeVersionResponse:
+      title: ReleaseRecipeVersionResponse
+      type: object
+    GetRecipeVersionTestExecutionLogsUrlResponse:
+      title: GetRecipeVersionTestExecutionLogsUrlResponse
+      type: object
+      required:
+        - logs_url
+      properties:
+        logs_url:
+          title: LogsUrl
+          type: string
+    GetRecipeVersionTestExecutionsResponse:
+      title: GetRecipeVersionTestExecutionResponse
+      type: object
+      required:
+        - recipe_version_test_execution_summaries
+      properties:
+        recipe_version_test_execution_summaries:
+          title: RecipeVersionTestExecutionSummaries
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeVersionTestExecutionSummary"
+    RecipeVersionTestExecutionSummary:
+      title: RecipeVersionTestExecutionSummary
+      type: object
+      required:
+        - recipeVersionId
+        - instanceArchitecture
+        - instanceImageUpstreamId
+        - instanceOsVersion
+        - instancePlatform
+        - status
+        - testExecutionId
+        - instanceId
+        - createDate
+        - lastUpdateDate
+      properties:
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe version ID
+        instanceArchitecture:
+          title: InstanceArchitecture
+          type: string
+          description: Test instance operating system architecture
+        instanceImageUpstreamId:
+          title: InstanceImageUpstreamId
+          type: string
+          description: Test instance image upstream (AMI) ID
+        instanceOsVersion:
+          title: InstanceOsVersion
+          type: string
+          description: Test instance operating system version
+        instancePlatform:
+          title: InstancePlatform
+          type: string
+          description: Test instance platform
+        status:
+          title: Status
+          type: string
+          description: Status of the test execution (PENDING/RUNNING/SUCCESS/FAILED)
+        testExecutionId:
+          title: TestExecutionId
+          type: string
+          description: Test execution ID
+        instanceId:
+          title: InstanceId
+          type: string
+          description: Test instance ID
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+    RetireRecipeVersionResponse:
+      title: RetireRecipeVersionResponse
+      type: object
+    RecipeVersionSummary:
+      title: RecipeVersionSummary
+      type: object
+      required:
+        - recipeId
+        - recipeVersionId
+        - recipeVersionName
+        - recipeName
+      properties:
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe version ID
+        recipeVersionName:
+          title: RecipeVersionName
+          type: string
+          description: Recipe version Name
+        recipeName:
+          title: RecipeName
+          type: string
+          description: Recipe Name
+    GetRecipesVersionsResponse:
+      title: GetRecipesVersionsResponse
+      type: object
+      required:
+        - recipes_versions_summary
+      properties:
+        recipes_versions_summary:
+          title: RecipeVersionSummary
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeVersionSummary"
+    RetireComponentVersionResponse:
+      title: RetireComponentVersionResponse
+      type: object
+    CreatePipelineRequest:
+      title: CreatePipelineRequest
+      type: object
+      required:
+        - buildInstanceTypes
+        - pipelineDescription
+        - pipelineName
+        - pipelineSchedule
+        - recipeId
+        - recipeVersionId
+      properties:
+        buildInstanceTypes:
+          title: BuildInstanceTypes
+          type: array
+          items:
+            type: string
+          description: The instance types of the infrastructure configuration. You can specify one or more instance types to use for this build
+        pipelineDescription:
+          title: PipelinetDescription
+          type: string
+          description: The description of the pipeline
+        pipelineName:
+          title: PipelineName
+          type: string
+          description: The name of the pipeline
+        pipelineSchedule:
+          title: PipelineSchedule
+          type: string
+          description: The schedule of the pipeline. See https://docs.aws.amazon.com/imagebuilder/latest/userguide/cron-expressions.html
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID of the recipe associated to the pipeline
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe version ID of the recipe version associated to the pipeline
+        productId:
+          title: ProductId
+          type: string
+          description: Product ID to associate with the pipeline for automatic version creation
+    CreatePipelineResponse:
+      title: CreatePipelineResponse
+      type: object
+    GetPipelineResponse:
+      title: GetPipelineResponse
+      type: object
+      required:
+        - pipeline
+      properties:
+        pipeline:
+          title: Pipeline
+          $ref: "#/components/schemas/Pipeline"
+    GetPipelinesResponse:
+      title: GetPipelinesResponse
+      type: object
+      required:
+        - pipelines
+      properties:
+        pipelines:
+          title: Pipelines
+          type: array
+          items:
+            $ref: "#/components/schemas/Pipeline"
+    Pipeline:
+      title: Pipeline
+      type: object
+      required:
+        - pipelineId
+        - buildInstanceTypes
+        - pipelineDescription
+        - pipelineName
+        - pipelineSchedule
+        - recipeId
+        - recipeName
+        - recipeVersionId
+        - recipeVersionName
+        - status
+        - createDate
+        - lastUpdateDate
+        - createdBy
+        - lastUpdatedBy
+      properties:
+        pipelineId:
+          title: PipelineId
+          type: string
+          description: Pipeline ID
+        buildInstanceTypes:
+          title: BuildInstanceTypes
+          type: array
+          items:
+            type: string
+          description: The instance types of the infrastructure configuration. You can specify one or more instance types to use for this build
+        pipelineDescription:
+          title: PipelinetDescription
+          type: string
+          description: The description of the pipeline
+        pipelineName:
+          title: PipelineName
+          type: string
+          description: The name of the pipeline
+        pipelineSchedule:
+          title: PipelineSchedule
+          type: string
+          description: The schedule of the pipeline. See https://docs.aws.amazon.com/imagebuilder/latest/userguide/cron-expressions.html
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID of the recipe associated to the pipeline
+        recipeName:
+          title: RecipeName
+          type: string
+          description: Recipe Name of the recipe associated to the pipeline
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe version ID of the recipe version associated to the pipeline
+        recipeVersionName:
+          title: RecipeVersionName
+          type: string
+          description: Recipe version Name of the recipe version associated to the pipeline
+        productId:
+          title: ProductId
+          type: string
+          description: Product ID associated with the pipeline for automatic version creation
+        status:
+          title: Status
+          type: string
+          description: Status of the pipeline (CREATING/CREATED/UPDATING/RELEASED/RETIRED/FAILED)
+        createDate:
+          title: CreateDate
+          type: string
+          description: Create Date
+        distributionConfigArn:
+          title: DistributionConfigArn
+          type: string
+          description: The Amazon Resource Name (ARN) of the distribution configuration
+        infrastructureConfigArn:
+          title: InfrastructureConfigArn
+          type: string
+          description: The Amazon Resource Name (ARN) of the infrastructure configuration
+        pipelineArn:
+          title: PipelineArn
+          type: string
+          description: The Amazon Resource Name (ARN) of the pipeline
+        createdBy:
+          title: CreatedBy
+          type: string
+          description: Created By
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last Update Date
+        lastUpdatedBy:
+          title: LastUpdatedBy
+          type: string
+          description: Last Update By
+    RetirePipelineResponse:
+      title: RetirePipelineResponse
+      type: object
+    UpdatePipelineRequest:
+      title: UpdatePipelineRequest
+      type: object
+      required:
+        - pipelineId
+      properties:
+        buildInstanceTypes:
+          title: BuildInstanceTypes
+          type: array
+          items:
+            type: string
+          description: The instance types of the infrastructure configuration. You can specify one or more instance types to use for this build
+        pipelineId:
+          title: PipelineId
+          type: string
+          description: Pipeline ID
+        pipelineSchedule:
+          title: PipelineSchedule
+          type: string
+          description: The schedule of the pipeline. See https://docs.aws.amazon.com/imagebuilder/latest/userguide/cron-expressions.html
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe version ID of the recipe version associated to the pipeline
+        productId:
+          title: ProductId
+          type: string
+          description: Product ID to associate with the pipeline for automatic version creation
+    UpdatePipelineResponse:
+      title: CreatePipelineResponse
+      type: object
+    Image:
+      title: Image
+      type: object
+      required:
+        - imageId
+        - imageBuildVersion
+        - imageBuildVersionArn
+        - pipelineId
+        - pipelineName
+        - recipeId
+        - recipeName
+        - recipeVersionId
+        - recipeVersionName
+        - status
+        - createDate
+        - lastUpdateDate
+        - createdBy
+        - lastUpdatedBy
+      properties:
+        imageId:
+          title: ImageId
+          type: string
+          description: Image ID
+        imageBuildVersion:
+          title: ImageBuildVersion
+          type: string
+          description: The build version of the image created by the pipeline
+        imageBuildVersionArn:
+          title: ImageBuildVersionArn
+          type: string
+          description: The Amazon Resource Name (ARN) of the image created by the pipeline
+        pipelineId:
+          title: PipelineId
+          type: string
+          description: Pipeline ID that created the image
+        pipelineName:
+          title: PipelineName
+          type: string
+          description: Pipeline Name that created the image
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID that is used by the pipeline
+        recipeName:
+          title: RecipeName
+          type: string
+          description: Recipe Name that is used by the pipeline
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe version ID that used by the pipeline
+        recipeVersionName:
+          title: RecipeVersionName
+          type: string
+          description: Recipe version Name that used by the pipeline
+        status:
+          title: Status
+          type: string
+          description: Status of the image (CREATING/CREATED/FAILED/RETIRED)
+        imageUpstreamId:
+          title: ImageUpstreamId
+          type: string
+          description: Amazon Machine Image (AMI) ID of the created image
+        createDate:
+          title: CreateDate
+          type: string
+          description: Creation date of the image
+        lastUpdateDate:
+          title: LastUpdateDate
+          type: string
+          description: Last update date of the image
+    CreateImageRequest:
+      title: CreateImageRequest
+      type: object
+      required:
+        - pipelineId
+      properties:
+        pipelineId:
+          title: PipelineId
+          type: string
+          description: Pipeline ID that created the image
+    CreateImageResponse:
+      title: CreateImageResponse
+      type: object
+    GetImagesResponse:
+      title: GetImagesResponse
+      type: object
+      required:
+        - images
+      properties:
+        images:
+          title: Images
+          type: array
+          items:
+            $ref: "#/components/schemas/Image"
+    GetImageResponse:
+      title: GetImageResponse
+      type: object
+      required:
+        - image
+      properties:
+        image:
+          title: Image
+          $ref: "#/components/schemas/Image"
+    GetPipelinesAllowedBuildTypesResponse:
+      title: GetPipelinesAllowedBuildTypesResponse
+      type: object
+      required:
+        - pipelines_allowed_build_types
+      properties:
+        pipelines_allowed_build_types:
+          title: PipelineAllowedBuildTypes
+          type: array
+          items:
+            type: string
+    ReleaseComponentVersionRequest:
+      title: ReleaseComponentVersionRequest
+      description: Request body for releasing a component version
+      type: object
+  securitySchemes:
+    AVP-Request-Authorizer:
+      type: "apiKey"
+      name: "AmazonVerifiedPermissions"
+      in: "header"
+      x-amazon-apigateway-authtype: "custom"
+      x-amazon-apigateway-authorizer:
+        type: "request"
+        authorizerUri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{authorization_bc_handler_arn}}/invocations"
+        authorizerCredentials: "{{apigw_invocation_role_arn}}"
+        authorizerResultTtlInSeconds: 1800
+        identitySource: "method.request.header.Authorization, context.path, context.httpMethod"

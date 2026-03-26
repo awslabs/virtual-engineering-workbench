@@ -1,0 +1,15 @@
+@use '@cloudscape-design/design-tokens/index' as awsui;
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  color: #eee;
+  background: #232f3e;
+  box-sizing: border-box;
+  padding: 5px 1rem;
+  line-height: var(--font-body-m-line-height-i7xxvv, 22px);
+  z-index: 1000;
+  font-size: var(--font-body-m-size-sregvd, 14px);
+  font-family: var(--font-family-base-qnistn, "Open Sans", "Helvetica Neue", Roboto, Arial, sans-serif);
+}

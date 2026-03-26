@@ -1,0 +1,30 @@
+export const i18n = {
+  accessButtonText: 'Access',
+  clearFilter: 'Clear filter',
+  emptyGridButtonText: 'Enroll in programs',
+  emptyGridSubtitle: 'Once you enroll in programs you will be able to see them here.',
+  emptyGridTitle: 'You have not enrolled in programs yet',
+  enrolmentsSuccessTitle: 'Thank you for signing up for the program!',
+  enrolmentsSuccessContent:
+  'Your request has been received and will go through a validation process. Once completed, ' +
+  'you will receive a notification by mail and you will be granted access to the program(s) accordingly.',
+  enrolmentsErrorTitle: 'Unable to enrol the program',
+  getEnrolmentsErrorTitle: 'Unable to fetch enrolments',
+  enrollButtonText: 'Enroll',
+  filterPlaceholder: 'Find programs',
+  header: 'Programs',
+  loadingText: 'Programs loading...',
+  noAllProgramsTitle: 'You are all caught up!',
+  noAllProgramsSubtitle: 'You have already signed up for all the programs.',
+  noProgramsFound: 'No programs found.',
+  noProgramsTitle: 'You have not enrolled in programs yet',
+  noProgramsSubtitle: 'Once you enroll in programs you will be able to see them here.',
+  noProgramsButtonText: 'Enroll in programs',
+  segmentLabelAllPrograms: 'All programs',
+  segmentLabelMyPrograms: 'My programs',
+  statusEnrolled: 'Enrolled',
+  statusAvailable: 'Available',
+  statusPending: 'Pending',
+  withdrawButtonText: 'Withdraw',
+  createProgram: 'Create'
+};

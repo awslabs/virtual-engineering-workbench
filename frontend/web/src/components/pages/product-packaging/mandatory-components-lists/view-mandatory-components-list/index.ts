@@ -1,0 +1,1 @@
+export * from './view-mandatory-components-list';

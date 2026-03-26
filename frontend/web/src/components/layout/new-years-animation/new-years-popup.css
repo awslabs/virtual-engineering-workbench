@@ -1,0 +1,21 @@
+.new-years-header {
+  font-size: 70px;
+  font-family: 'Encode Sans';
+  font-weight: lighter;
+  margin-top: 30px;
+  color: #0972D3
+}
+
+.new-years-text {
+  font-family: 'Encode Sans';
+  font-weight: lighter;
+  font-size: 18px;
+  margin-top: 20px;
+  margin-left: 50px;
+  color: #0972D3
+}
+
+.logo {
+  width: 100px;
+  margin-top: 10px;
+}

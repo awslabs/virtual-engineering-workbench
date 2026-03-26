@@ -1,0 +1,132 @@
+{
+  "StateMachines": {
+    "ComponentVersionTestingStateMachine": {
+      "TestCases": {
+        "ComponentVersionTestSuccess": {
+          "LaunchTestEnvironment": "MockLaunchTestEnvironment",
+          "CheckTestEnvironmentLaunchStatus": "MockCheckTestEnvironmentLaunchStatus",
+          "SetupTestEnvironment": "MockSetupTestEnvironment",
+          "CheckTestEnvironmentSetupStatus": "MockCheckTestEnvironmentSetupStatus",
+          "RunComponentVersionTest": "MockRunComponentVersionTest",
+          "CheckComponentVersionTestStatus": "MockCheckComponentVersionTestStatus",
+          "CompleteComponentVersionTest": "MockCompleteComponentVersionTest"
+        },
+        "ComponentVersionTestFail": {
+          "LaunchTestEnvironment": "MockLaunchTestEnvironmentFail",
+          "CompleteComponentVersionTest": "MockCompleteComponentVersionTestFail"
+        }
+      }
+    }
+  },
+  "MockedResponses": {
+    "MockLaunchTestEnvironment": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "LaunchTestEnvironmentResponse"
+          }
+        }
+      }
+    },
+    "MockCheckTestEnvironmentLaunchStatus": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "CheckTestEnvironmentLaunchStatusResponse",
+            "instancesStatus": "DISCONNECTED"
+          }
+        }
+      },
+      "1": {
+        "Return": {
+          "Payload": {
+            "eventType": "CheckTestEnvironmentLaunchStatusResponse",
+            "instancesStatus": "CONNECTED"
+          }
+        }
+      }
+    },
+    "MockSetupTestEnvironment": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "SetupTestEnvironmentResponse"
+          }
+        }
+      }
+    },
+    "MockCheckTestEnvironmentSetupStatus": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "CheckTestEnvironmentSetupStatusResponse",
+            "setupCommandsStatus": "RUNNING"
+          }
+        }
+      },
+      "1": {
+        "Return": {
+          "Payload": {
+            "eventType": "CheckTestEnvironmentSetupStatusResponse",
+            "setupCommandsStatus": "SUCCESS"
+          }
+        }
+      }
+    },
+    "MockRunComponentVersionTest": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "RunComponentVersionTestResponse"
+          }
+        }
+      }
+    },
+    "MockCheckComponentVersionTestStatus": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "CheckComponentVersionTestStatusResponse",
+            "testCommandsStatus": "RUNNING"
+          }
+        }
+      },
+      "1": {
+        "Return": {
+          "Payload": {
+            "eventType": "CheckComponentVersionTestStatusResponse",
+            "testCommandsStatus": "SUCCESS"
+          }
+        }
+      }
+    },
+    "MockCompleteComponentVersionTest": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "CompleteComponentVersionTestResponse",
+            "componentVersionTestStatus": "SUCCESS"
+          }
+        }
+      }
+    },
+    "MockLaunchTestEnvironmentFail": {
+      "0": {
+        "Throw": {
+          "Cause": "Lambda timed out.",
+          "Error": "Lambda.TimeoutException"
+        }
+      }
+    },
+    "MockCompleteComponentVersionTestFail": {
+      "0": {
+        "Return": {
+          "Payload": {
+            "eventType": "CompleteComponentVersionTestResponse",
+            "componentVersionTestStatus": "FAILED"
+          }
+        }
+      }
+    }
+  }
+}

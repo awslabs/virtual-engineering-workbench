@@ -1,0 +1,55 @@
+name: FreeRTOS
+description: Installs ARM GCC cross-compiler, FreeRTOS kernel source, and QEMU ARM system emulator
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: InstallDependencies
+        action: ExecuteBash
+        inputs:
+          commands:
+            - apt-get update
+            - apt-get install -y build-essential cmake git wget make
+      - name: InstallArmGcc
+        action: ExecuteBash
+        inputs:
+          commands:
+            - apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi
+      - name: InstallQemu
+        action: ExecuteBash
+        inputs:
+          commands:
+            - apt-get install -y qemu-system-arm
+      - name: DownloadFreeRTOS
+        action: ExecuteBash
+        inputs:
+          commands:
+            - git clone https://github.com/FreeRTOS/FreeRTOS.git /opt/freertos --branch 202411.00 --recurse-submodules
+            - ls /opt/freertos/FreeRTOS/Source
+            - ls /opt/freertos/FreeRTOS/Demo/CORTEX_MPS2_QEMU_IAR_GCC
+  - name: validate
+    steps:
+      - name: VerifyToolchain
+        action: ExecuteBash
+        inputs:
+          commands:
+            - arm-none-eabi-gcc --version
+            - arm-none-eabi-gdb --version
+            - make --version
+            - qemu-system-arm --version
+            - test -d /opt/freertos/FreeRTOS/Source
+            - test -d /opt/freertos/FreeRTOS/Demo
+      - name: CompileAndRunDemo
+        action: ExecuteBash
+        timeoutSeconds: 300
+        inputs:
+          commands:
+            - make -C /opt/freertos/FreeRTOS/Demo/CORTEX_MPS2_QEMU_IAR_GCC/build/gcc -j$(nproc)
+            - >-
+              timeout 10 qemu-system-arm
+              -machine mps2-an385
+              -cpu cortex-m3
+              -kernel /opt/freertos/FreeRTOS/Demo/CORTEX_MPS2_QEMU_IAR_GCC/build/gcc/output/RTOSDemo.out
+              -monitor none
+              -nographic
+              -serial stdio || true

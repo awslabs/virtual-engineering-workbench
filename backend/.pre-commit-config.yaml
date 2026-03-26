@@ -1,0 +1,77 @@
+exclude: frontend
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: requirements-txt-fixer
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+        exclude: sbom.json
+      - id: check-merge-conflict
+      - id: detect-aws-credentials
+        args: [--allow-missing-credentials]
+      - id: detect-private-key
+        exclude: |
+          (?x)^(
+              .gitallowed|
+              backend/.gitallowed|
+              backend/app/authorizer/tests/conftest.py|
+              backend/app/pipelines/adapters/tests/conftest.py
+          )$
+      - id: debug-statements
+      - id: check-ast
+        language: python
+        language_version: python3.13
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        language: python
+        language_version: python3.13
+        args: ["--line-length", "120"]
+  - repo: https://github.com/pycqa/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        language: python
+        language_version: python3.13
+        args:
+          [
+            "--src",
+            "backend",
+            "--profile",
+            "black",
+            "--filter-files",
+            "--line-length",
+            "120",
+          ]
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.3.0
+    hooks:
+      - id: flake8
+        language_version: python3.13
+        additional_dependencies: [flake8-typing-imports==1.16.0]
+        args:
+          [
+            "--max-line-length",
+            "120",
+            "--extend-ignore",
+            "E203,E501,E701,E722,TYP006,TYP001",
+            "--max-complexity",
+            "8",
+          ]
+        exclude: setup
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        language_version: python3.13
+        args: ["--config-file", "backend/mypy.ini"]
+        additional_dependencies:
+          - types-requests
+          - boto3-stubs

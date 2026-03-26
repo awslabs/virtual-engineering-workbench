@@ -1,0 +1,80 @@
+@use "@cloudscape-design/design-tokens/index" as awsui;
+@use "sass:map";
+@use "../page-header.scss";
+
+.customHeader {
+  background: page-header.$header-background;
+  font-family: awsui.$font-family-base;
+  font-size: awsui.$font-size-heading-xs;
+  font-weight: awsui.$font-weight-heading-xs;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 awsui.$space-scaled-xxl;
+  justify-content: space-between;
+}
+
+.logoContainer {
+  display: flex;
+  flex-direction: row;
+  color: page-header.$header-color;
+  align-items: center;
+  user-select: none;
+  cursor: pointer;
+}
+
+.logoImg {
+  display: flex;
+  align-items: center;
+  max-block-size: 32px;
+}
+
+.utilitiesList {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  color: page-header.$header-color;
+  list-style: none;
+  padding: 0 awsui.$space-static-m 0 0;
+}
+
+.utilitiesListItem {
+  padding: 0 18px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  user-select: none;
+}
+
+.utilitiesListItemIconContainer{
+  margin-right: awsui.$space-scaled-xxs;
+}
+
+.utilitiesListItem:not(:last-child) {
+  border-right: page-header.$list-item-divider-color solid 1px;
+}
+
+.utilitiesListItemIcon {
+  margin-right: awsui.$space-scaled-xxs;
+}
+
+.environmentLabel {
+  font-weight: bold;
+  height: awsui.$space-static-l;
+  margin-left: 28px;
+  background: awsui.$color-background-notification-red;
+  padding: awsui.$space-static-xxxs awsui.$space-static-s;
+  color: #fbfbfb;
+  border-radius: awsui.$border-radius-badge;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  cursor: default;
+}
+
+.dropDownButton {
+  border: none;
+  background: page-header.$header-background;
+  color: page-header.$header-color;
+  padding: 0;
+}
