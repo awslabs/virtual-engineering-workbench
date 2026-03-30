@@ -20,6 +20,7 @@ mypy-boto3-stepfunctions ~= 1.37
 openapi-spec-validator ~= 0.7.1
 pip-audit ~= 2.6
 pre-commit ~= 4.2
+pygments ~= 2.20.0
 pytest ~= 9.0.2
 pytest-cov ~= 4.1
 pytest-mock ~= 3.11
