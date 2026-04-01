@@ -41,7 +41,7 @@ class DynamoDBAMIsQueryService(amis_query_service.AMIsQueryService):
             start_key = result.get("LastEvaluatedKey", None)
             done = start_key is None
             if result.get("Items"):
-                amis.extend([ami.Ami.parse_obj(item) for item in result["Items"]])
+                amis.extend([ami.Ami.model_validate(item) for item in result["Items"]])
 
         return amis
 
@@ -57,5 +57,5 @@ class DynamoDBAMIsQueryService(amis_query_service.AMIsQueryService):
         )
 
         if item := response.get("Item"):
-            return ami.Ami.parse_obj(item)
+            return ami.Ami.model_validate(item)
         return None

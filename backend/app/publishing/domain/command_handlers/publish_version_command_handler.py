@@ -157,8 +157,10 @@ def handle(
                 scProvisioningArtifactId=sc_provisioning_artifact_id,
                 templateLocation=template_path,
                 status=version.VersionStatus.Created,
-                parameters=[param.dict() for param in parameters],
-                metadata=({key: val.dict() for key, val in version_metadata.items()} if version_metadata else None),
+                parameters=[param.model_dump() for param in parameters],
+                metadata=(
+                    {key: val.model_dump() for key, val in version_metadata.items()} if version_metadata else None
+                ),
                 lastUpdateDate=datetime.now(timezone.utc).isoformat(),
             )
             uow.commit()

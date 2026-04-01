@@ -22,7 +22,7 @@ class EventContext(BaseModel):
 
 
 class Message(BaseModel, ABC):
-    event_name: str = Field(..., name="Event Name", alias="eventName")
+    event_name: str = Field(..., alias="eventName", json_schema_extra={"name": "Event Name"})
     event_context: EventContext = Field(default_factory=lambda: EventContext(), alias="context")
 
 

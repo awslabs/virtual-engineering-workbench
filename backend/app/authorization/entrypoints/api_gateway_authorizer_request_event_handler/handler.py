@@ -41,7 +41,7 @@ def handler(
         authorizer.AuthorizationRequest(
             auth_token=event.get_header_value("Authorization"),
             api_id=event.request_context.api_id,
-            operation_id=event.request_context.get("requestContext").get("operationName"),
+            operation_id=event.request_context.get("operationName"),
             resource_ids=event.path_parameters,
             resource=event.method_arn,
             resource_path=event.request_context.resource_path,

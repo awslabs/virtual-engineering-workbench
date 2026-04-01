@@ -45,7 +45,7 @@ def handle_launch_test_environment_action(event: step_function_model.LaunchTestE
         )
     )
 
-    return step_function_model.LaunchTestEnvironmentResponse().dict(by_alias=True)
+    return step_function_model.LaunchTestEnvironmentResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CheckTestEnvironmentLaunchStatusRequest)
@@ -61,7 +61,7 @@ def handle_check_test_environment_launch_status_action(
 
     instance_status = dependencies.command_bus.handle(command)
 
-    return step_function_model.CheckTestEnvironmentLaunchStatusResponse(instanceStatus=instance_status).dict(
+    return step_function_model.CheckTestEnvironmentLaunchStatusResponse(instanceStatus=instance_status).model_dump(
         by_alias=True
     )
 
@@ -79,7 +79,7 @@ def handle_setup_test_environment_action(
         )
     )
 
-    return step_function_model.SetupTestEnvironmentResponse().dict(by_alias=True)
+    return step_function_model.SetupTestEnvironmentResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CheckTestEnvironmentSetupStatusRequest)
@@ -95,9 +95,9 @@ def handle_check_test_environment_setup_status_action(
 
     setup_command_status = dependencies.command_bus.handle(command)
 
-    return step_function_model.CheckTestEnvironmentSetupStatusResponse(setupCommandStatus=setup_command_status).dict(
-        by_alias=True
-    )
+    return step_function_model.CheckTestEnvironmentSetupStatusResponse(
+        setupCommandStatus=setup_command_status
+    ).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.RunRecipeVersionTestRequest)
@@ -114,7 +114,7 @@ def handle_run_recipe_version_test_action(
         )
     )
 
-    return step_function_model.RunRecipeVersionTestResponse().dict(by_alias=True)
+    return step_function_model.RunRecipeVersionTestResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CheckRecipeVersionTestStatusRequest)
@@ -130,7 +130,7 @@ def handle_check_recipe_version_test_status_action(
 
     test_command_status = dependencies.command_bus.handle(command)
 
-    return step_function_model.CheckRecipeVersionTestStatusResponse(testCommandStatus=test_command_status).dict(
+    return step_function_model.CheckRecipeVersionTestStatusResponse(testCommandStatus=test_command_status).model_dump(
         by_alias=True
     )
 
@@ -150,7 +150,7 @@ def handle_complete_recipe_version_test_action(event: step_function_model.Comple
 
     return step_function_model.CompleteRecipeVersionTestResponse(
         recipeVersionTestStatus=recipe_version_test_status
-    ).dict(by_alias=True)
+    ).model_dump(by_alias=True)
 
 
 @tracer.capture_lambda_handler  # type: ignore

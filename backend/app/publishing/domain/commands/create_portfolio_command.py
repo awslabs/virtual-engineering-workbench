@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.publishing.domain.value_objects import (
     account_id_value_object,
@@ -17,6 +17,4 @@ class CreatePortfolioCommand(BaseModel):
     accountId: account_id_value_object.AccountIdValueObject
     stage: stage_value_object.StageValueObject
     region: region_value_object.RegionValueObject
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

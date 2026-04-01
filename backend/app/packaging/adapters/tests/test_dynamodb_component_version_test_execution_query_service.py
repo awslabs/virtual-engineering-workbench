@@ -21,7 +21,7 @@ def fill_db_with_test_executions(
                         test_execution.instanceId,
                     ]
                 ),
-                **test_execution.dict(),
+                **test_execution.model_dump(),
             }
         )
 

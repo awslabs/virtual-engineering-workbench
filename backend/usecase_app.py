@@ -35,28 +35,28 @@ base_config = config.BaseConfig(
 
 # Define app configs
 prerequisites_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="prerequisites",
     component_specific=config.prerequisites_app_config[environment],
     environment_config=config.env_config[environment],
 )
 
 usecase_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="usecase",
     environment_config=config.env_config[environment],
     component_specific=config.usecase_app_config[environment],
 )
 
 product_publishing_enablement_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="product-publishing-enablement",
     environment_config=config.env_config[environment],
     component_specific=config.product_publishing_enablement_app_config[environment],
 )
 
 provisioning_enablement_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="provisioning-enablement",
     environment_config=config.env_config[environment],
     component_specific=config.provisioning_enablement_app_config[environment],

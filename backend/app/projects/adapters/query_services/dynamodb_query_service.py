@@ -75,7 +75,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
                 Limit=page_size,
             )
 
-        assignments = [project_assignment.Assignment.parse_obj(item) for item in result["Items"]]
+        assignments = [project_assignment.Assignment.model_validate(item) for item in result["Items"]]
 
         if not assignments:
             return [], None, []
@@ -100,7 +100,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
             # retry batch_get_item with exponential backup up to 3 times.
             # throw Exception in case 3rd retry fails or contains unprocessed keys
 
-        projects = [project.Project.parse_obj(item) for item in raw_projects["Responses"][self._table_name]]
+        projects = [project.Project.model_validate(item) for item in raw_projects["Responses"][self._table_name]]
         if "LastEvaluatedKey" in result:
             return projects, result["LastEvaluatedKey"], assignments
         else:
@@ -141,10 +141,10 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
                 IndexName=self._gsi_entities,
             )
 
-        projects = [project.Project.parse_obj(item) for item in projects_result["Items"]]
+        projects = [project.Project.model_validate(item) for item in projects_result["Items"]]
 
         if assignments_result:
-            assignments = [project_assignment.Assignment.parse_obj(item) for item in assignments_result["Items"]]
+            assignments = [project_assignment.Assignment.model_validate(item) for item in assignments_result["Items"]]
         else:
             assignments = []
 
@@ -180,9 +180,9 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
 
         while DDB_RESPONSE_PAGING_PARAM in (result := self._dynamodb_client.query(**query_params)):
             query_params[DDB_REQUEST_PAGING_PARAM] = result.get(DDB_RESPONSE_PAGING_PARAM)
-            project_accounts.extend([project_account.ProjectAccount.parse_obj(item) for item in result["Items"]])
+            project_accounts.extend([project_account.ProjectAccount.model_validate(item) for item in result["Items"]])
 
-        project_accounts.extend([project_account.ProjectAccount.parse_obj(item) for item in result["Items"]])
+        project_accounts.extend([project_account.ProjectAccount.model_validate(item) for item in result["Items"]])
         return project_accounts
 
     def list_project_accounts_by_aws_account(self, aws_account_id: str) -> List[project_account.ProjectAccount]:
@@ -192,7 +192,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
             IndexName=self._gsi_aws_accounts,
         )
 
-        pas = [project_account.ProjectAccount.parse_obj(item) for item in result["Items"]]
+        pas = [project_account.ProjectAccount.model_validate(item) for item in result["Items"]]
         return pas
 
     def get_project_account_by_id(self, project_id: str, account_id: str) -> project_account.ProjectAccount | None:
@@ -204,7 +204,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
             },
         )
 
-        return project_account.ProjectAccount.parse_obj(result["Item"]) if "Item" in result else None
+        return project_account.ProjectAccount.model_validate(result["Item"]) if "Item" in result else None
 
     def get_project_by_id(self, id: str) -> Optional[project.Project]:
         result = self._dynamodb_client.get_item(
@@ -216,7 +216,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
         )
 
         if "Item" in result:
-            return project.Project.parse_obj(result["Item"])
+            return project.Project.model_validate(result["Item"])
 
         return None
 
@@ -234,7 +234,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
         )
 
         for page in pages:
-            assignments.extend([project_assignment.Assignment.parse_obj(item) for item in page.get("Items", [])])
+            assignments.extend([project_assignment.Assignment.model_validate(item) for item in page.get("Items", [])])
 
         return assignments
 
@@ -258,7 +258,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
         result = self._dynamodb_client.query(**query_kwargs)
 
         return paging_utils.PagedResponse[project_assignment.Assignment](
-            items=[project_assignment.Assignment.parse_obj(item) for item in result["Items"]],
+            items=[project_assignment.Assignment.model_validate(item) for item in result["Items"]],
             page_token=result.get("LastEvaluatedKey", None),
         )
 
@@ -272,7 +272,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
         )
 
         if "Item" in result:
-            return project_assignment.Assignment.parse_obj(result["Item"])
+            return project_assignment.Assignment.model_validate(result["Item"])
 
         return None
 
@@ -305,7 +305,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
                 Limit=page_size,
                 FilterExpression=filter_expression,  # type: ignore
             )
-        project_accounts = [project_account.ProjectAccount.parse_obj(item) for item in result["Items"]]
+        project_accounts = [project_account.ProjectAccount.model_validate(item) for item in result["Items"]]
 
         if "LastEvaluatedKey" in result:
             return project_accounts, result["LastEvaluatedKey"]
@@ -321,7 +321,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
             },
         )
 
-        result = user.User.parse_obj(query_result["Item"])
+        result = user.User.model_validate(query_result["Item"])
 
         return result if result else None
 
@@ -352,7 +352,7 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
                 IndexName=self._gsi_entities,
             )
 
-        users = [user.User.parse_obj(item) for item in result["Items"]]
+        users = [user.User.model_validate(item) for item in result["Items"]]
 
         if "LastEvaluatedKey" in result:
             return users, result["LastEvaluatedKey"]
@@ -407,7 +407,7 @@ class DynamoDBTechnologiesQueryService(technologies_query_service.TechnologiesQu
 
         technologies.extend(result.get("Items", []))
 
-        results = [technology.Technology.parse_obj(item) for item in technologies]
+        results = [technology.Technology.model_validate(item) for item in technologies]
 
         return results
 
@@ -429,7 +429,7 @@ class DynamoDBEnrolmentQueryService(enrolment_query_service.EnrolmentQueryServic
             Limit=1,
         )
 
-        results = [enrolment.Enrolment.parse_obj(item) for item in result["Items"]]
+        results = [enrolment.Enrolment.model_validate(item) for item in result["Items"]]
 
         return results.pop() if results else None
 
@@ -442,7 +442,7 @@ class DynamoDBEnrolmentQueryService(enrolment_query_service.EnrolmentQueryServic
             },
         )
 
-        result = enrolment.Enrolment.parse_obj(query_result["Item"])
+        result = enrolment.Enrolment.model_validate(query_result["Item"])
 
         return result if result else None
 
@@ -471,7 +471,7 @@ class DynamoDBEnrolmentQueryService(enrolment_query_service.EnrolmentQueryServic
                 Limit=page_size,
             )
 
-        results = [enrolment.Enrolment.parse_obj(item) for item in result["Items"]]
+        results = [enrolment.Enrolment.model_validate(item) for item in result["Items"]]
 
         if "LastEvaluatedKey" in result:
             return results, result["LastEvaluatedKey"]
@@ -497,7 +497,7 @@ class DynamoDBEnrolmentQueryService(enrolment_query_service.EnrolmentQueryServic
                 IndexName=self._gsi_qsk,
             )
 
-        results = [enrolment.Enrolment.parse_obj(item) for item in result["Items"]]
+        results = [enrolment.Enrolment.model_validate(item) for item in result["Items"]]
 
         if "LastEvaluatedKey" in result:
             return results, result["LastEvaluatedKey"]
@@ -534,7 +534,7 @@ class DynamoDBEnrolmentQueryService(enrolment_query_service.EnrolmentQueryServic
                 FilterExpression=filter_expression,
             )
 
-        results = [enrolment.Enrolment.parse_obj(item) for item in result["Items"]]
+        results = [enrolment.Enrolment.model_validate(item) for item in result["Items"]]
 
         if "LastEvaluatedKey" in result:
             return results, result["LastEvaluatedKey"]

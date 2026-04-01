@@ -1,10 +1,10 @@
 Jinja2 ~= 3.1
-mypy-boto3-dynamodb ~= 1.35
-mypy-boto3-ec2 ~= 1.35
-mypy-boto3-iam ~= 1.35
-mypy-boto3-imagebuilder ~= 1.35
-mypy-boto3-s3 ~= 1.35
-mypy-boto3-ssm ~= 1.35
+mypy-boto3-dynamodb ~= 1.42
+mypy-boto3-ec2 ~= 1.42
+mypy-boto3-iam ~= 1.42
+mypy-boto3-imagebuilder ~= 1.42
+mypy-boto3-s3 ~= 1.42
+mypy-boto3-ssm ~= 1.42
 natsort ~= 8.4.0
 pyyaml ~= 6.0.1
 semver ~= 3.0.1

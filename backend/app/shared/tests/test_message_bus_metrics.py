@@ -11,12 +11,12 @@ from app.shared.instrumentation import metrics
 
 
 class Event(message_bus.Message):
-    event_name: str = pydantic.Field("Event", name="Event Name", alias="eventName")
+    event_name: str = pydantic.Field("Event", alias="eventName", json_schema_extra={"name": "Event Name"})
 
 
 class ScheduleConfig(message_bus_metrics.ScheduleConfig):
-    end_time: datetime = pydantic.Field(datetime.now(), name="End Time", alias="endTime")
-    schedule_id: str = pydantic.Field("Schedule ID", name="Schedule ID", alias="scheduleId")
+    end_time: datetime = pydantic.Field(datetime.now(), alias="endTime", json_schema_extra={"name": "End Time"})
+    schedule_id: str = pydantic.Field("Schedule ID", alias="scheduleId", json_schema_extra={"name": "Schedule ID"})
 
 
 class ScheduleFlexibleConfig(message_bus.ScheduleFlexibleConfig):
@@ -134,7 +134,7 @@ def test_message_with_event_context_should_serialize():
     # ARRANGE
     evt = Event()
     # ACT
-    event_json = evt.json()
+    event_json = evt.model_dump_json()
     event_dict = json.loads(event_json)
     # ASSERT
     assert "event_context" in event_dict

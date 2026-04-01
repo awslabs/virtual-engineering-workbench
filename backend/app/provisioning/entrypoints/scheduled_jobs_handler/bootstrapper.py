@@ -4,7 +4,7 @@ from mypy_boto3_cloudformation import client as cf_client
 from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_servicecatalog import client
 from mypy_boto3_ssm import client as ssm_client
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.provisioning.adapters.query_services import (
     aws_networking_query_service,
@@ -66,9 +66,7 @@ class Dependencies(BaseModel):
     provisioned_products_domain_qry_srv: provisioned_products_domain_query_service.ProvisionedProductsDomainQueryService
     projects_domain_query_service: projects_domain_query_service.ProjectsDomainQueryService
     provisioned_product_cleanup_config: str
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

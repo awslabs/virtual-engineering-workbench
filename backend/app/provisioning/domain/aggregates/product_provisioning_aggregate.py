@@ -1628,7 +1628,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         """
         current_time = datetime.now(timezone.utc).isoformat()
 
-        if self._original_product and self._original_product.dict() != self._product.dict():
+        if self._original_product and self._original_product.model_dump() != self._product.model_dump():
             self._pending_updates.append(
                 lambda uow: uow.get_repository(product.ProductPrimaryKey, product.Product).update_entity(
                     pk=product.ProductPrimaryKey(
@@ -1653,7 +1653,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         elif (
             self._original_user_profile
             and self._user_profile
-            and self._original_user_profile.dict() != self._user_profile.dict()
+            and self._original_user_profile.model_dump() != self._user_profile.model_dump()
         ):
             self._user_profile.createDate = current_time
             self._user_profile.lastUpdateDate = current_time

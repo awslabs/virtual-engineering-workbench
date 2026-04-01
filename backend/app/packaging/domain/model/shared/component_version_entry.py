@@ -1,7 +1,7 @@
 import typing
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ComponentVersionEntryType(StrEnum):
@@ -23,6 +23,8 @@ class ComponentVersionEntryPosition(StrEnum):
 
 
 class ComponentVersionEntry(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     componentId: str = Field(..., title="ComponentId")
     componentName: str = Field(..., title="ComponentName")
     componentVersionId: str = Field(..., title="ComponentVersionId")

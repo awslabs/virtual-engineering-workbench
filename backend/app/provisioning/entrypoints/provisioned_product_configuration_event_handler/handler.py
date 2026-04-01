@@ -33,7 +33,7 @@ def handle_start_provisoned_product_configuration(
         provisioned_product_id=provisioned_product_id_value_object.from_str(event.provisioned_product_id)
     )
     dependencies.command_bus.handle(command)
-    return step_function_model.StartProvisionedProductConfigurationResponse().dict(by_alias=True)
+    return step_function_model.StartProvisionedProductConfigurationResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.GetProvisionedProductConfigurationStatusRequest)
@@ -45,9 +45,9 @@ def handle_get_provisoned_product_configuration_status(
             provisioned_product_id=provisioned_product_id_value_object.from_str(event.provisioned_product_id)
         )
     )
-    return step_function_model.GetProvisionedProductConfigurationStatusResponse(status=status, reason=reason).dict(
-        by_alias=True
-    )
+    return step_function_model.GetProvisionedProductConfigurationStatusResponse(
+        status=status, reason=reason
+    ).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.FailProvisionedProductConfigurationRequest)
@@ -59,7 +59,7 @@ def handle_fail_provisoned_product_configuration(
         reason=failure_reason_value_object.from_str(event.reason),
     )
     dependencies.command_bus.handle(command)
-    return step_function_model.FailProvisionedProductConfigurationResponse().dict(by_alias=True)
+    return step_function_model.FailProvisionedProductConfigurationResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CompleteProvisionedProductConfigurationRequest)
@@ -70,7 +70,7 @@ def handle_complete_provisioned_product_configuration(
         provisioned_product_id=provisioned_product_id_value_object.from_str(event.provisioned_product_id),
     )
     dependencies.command_bus.handle(command)
-    return step_function_model.CompleteProvisionedProductConfigurationResponse().dict(by_alias=True)
+    return step_function_model.CompleteProvisionedProductConfigurationResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.IsProvisionedProductReadyRequest)
@@ -80,7 +80,7 @@ def handle_is_provisioned_product_ready(
     is_ready = dependencies.provisioned_product_configuration_domain_qs.is_provisioned_product_ready(
         provisioned_product_id=provisioned_product_id_value_object.from_str(event.provisioned_product_id)
     )
-    return step_function_model.IsProvisionedProductReadyResponse(isReady=is_ready).dict(by_alias=True)
+    return step_function_model.IsProvisionedProductReadyResponse(isReady=is_ready).model_dump(by_alias=True)
 
 
 @tracer.capture_lambda_handler  # type: ignore

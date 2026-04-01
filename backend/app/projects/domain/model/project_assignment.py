@@ -1,7 +1,7 @@
 import enum
 from typing import List, Optional
 
-from pydantic import Field, validator
+from pydantic import Field, field_validator
 
 from app.projects.domain.model import user
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
@@ -29,6 +29,9 @@ class Assignment(unit_of_work.Entity):
     activeDirectoryGroups: list[user.ActiveDirectoryGroup] = Field([], title="ActiveDirectoryGroups")
     activeDirectoryGroupStatus: user.UserADStatus = Field(user.UserADStatus.UNKNOWN, title="ActiveDirectoryGroupStatus")
 
-    @validator("roles", each_item=True, pre=True)
+    @field_validator("roles", mode="before")
+    @classmethod
     def roles_upper_case(cls, v):
-        return v.upper()
+        if isinstance(v, list):
+            return [item.upper() for item in v]
+        return v

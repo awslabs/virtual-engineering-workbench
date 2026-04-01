@@ -75,6 +75,7 @@ TEST_COMPONENT_VERSION_DETAILS = [
         softwareVersion="1.87.0",
     )
 ]
+TEST_COMPONENT_VERSION_DETAILS_DUMPED = [cvd.model_dump() for cvd in TEST_COMPONENT_VERSION_DETAILS]
 
 
 @pytest.fixture
@@ -457,7 +458,7 @@ def test_get_available_products(lambda_context, authenticated_event, mocked_depe
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAvailableProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProducts).is_not_none()
     assertpy.assert_that(len(response.availableProducts)).is_equal_to(5)
@@ -484,7 +485,7 @@ def test_launch_product(
         region="us-east-1",
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/projects/{project_id}/products/provisioned",
         "POST",
     )
@@ -495,7 +496,7 @@ def test_launch_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.LaunchProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.LaunchProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_launch_provisioned_product_handler.assert_called_once()
 
@@ -528,7 +529,7 @@ def test_launch_product_internal(
         deploymentOption=api_model.DeploymentOption.MULTI_AZ,
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/internal/projects/{project_id}/products/provisioned",
         "POST",
         iam_auth=True,
@@ -540,7 +541,7 @@ def test_launch_product_internal(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.LaunchProductResponseInternal.parse_obj(json.loads(result["body"]))
+    response = api_model.LaunchProductResponseInternal.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProductId).is_equal_to("vew-pp-123")
     command_handler_mock.assert_called_once()
@@ -576,7 +577,7 @@ def test_launch_product_internal_with_single_az_deployment_option(
         deploymentOption=api_model.DeploymentOption.SINGLE_AZ,
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/internal/projects/{project_id}/products/provisioned",
         "POST",
         iam_auth=True,
@@ -588,7 +589,7 @@ def test_launch_product_internal_with_single_az_deployment_option(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.LaunchProductResponseInternal.parse_obj(json.loads(result["body"]))
+    response = api_model.LaunchProductResponseInternal.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     command_handler_mock.assert_called_once()
     cmd = command_handler_mock.call_args.kwargs.get("command")
@@ -616,7 +617,7 @@ def test_launch_experimental_product(
         region="us-east-1",
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/projects/{project_id}/products/provisioned",
         "POST",
     )
@@ -627,7 +628,7 @@ def test_launch_experimental_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.LaunchProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.LaunchProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_launch_provisioned_product_handler.assert_called_once()
 
@@ -659,7 +660,7 @@ def test_launch_product_with_additional_configurations(
         region="us-east-1",
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/projects/{project_id}/products/provisioned",
         "POST",
     )
@@ -670,7 +671,7 @@ def test_launch_product_with_additional_configurations(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.LaunchProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.LaunchProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_launch_provisioned_product_handler.assert_called_once()
 
@@ -693,7 +694,7 @@ def test_update_provisioned_product(
         versionId="vers-123",
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/projects/{project_id}/products/provisioned/{provisioned_product_id}/update",
         "PUT",
     )
@@ -704,7 +705,7 @@ def test_update_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.UpdateProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.UpdateProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_update_provisioned_product_handler.assert_called_once()
 
@@ -733,7 +734,7 @@ def test_remove_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.RemoveProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.RemoveProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_remove_provisioned_product_handler.assert_called_once()
 
@@ -779,7 +780,9 @@ def test_remove_provisioned_products(
 
     request = api_model.RemoveProvisionedProductsRequest(provisionedProductIds=["pp-123", "pp-321"])
 
-    minimal_event = authenticated_event(request.json(), f"/projects/{project_id}/products/provisioned/remove", "PUT")
+    minimal_event = authenticated_event(
+        request.model_dump_json(), f"/projects/{project_id}/products/provisioned/remove", "PUT"
+    )
 
     # ACT
     result = handler.handler(minimal_event, lambda_context)
@@ -787,7 +790,7 @@ def test_remove_provisioned_products(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.RemoveProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.RemoveProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_remove_provisioned_products_handler.assert_called_once()
 
@@ -827,11 +830,11 @@ def test_get_available_product_version(
         region=region_value_object.from_str("us-east-1"),
         return_technical_params=False,
     )
-    response = api_model.GetAvailableProductVersionsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductVersionsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_length(2)
-    assertpy.assert_that(response.availableProductVersions[0].dict()).is_equal_to(
+    assertpy.assert_that(response.availableProductVersions[0].model_dump()).is_equal_to(
         {
             "isRecommendedVersion": True,
             "parameters": [
@@ -912,7 +915,7 @@ def test_get_user_provisioned_products(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProducts).is_length(5)
     mocked_virtual_targets_domain_query_service.get_provisioned_products.assert_called_once_with(
@@ -940,7 +943,9 @@ def test_get_user_provisioned_products(
                     newVersionId="new-vers-id",
                     stage=provisioned_product.ProvisionedProductStage.QA,
                     region="us-east-1",
-                    provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+                    provisioningParameters=[
+                        provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()
+                    ],
                     createDate="2023-09-01T00:00:00+00:00",
                     lastUpdateDate="2023-09-01T00:00:00+00:00",
                     outputs=[
@@ -949,12 +954,12 @@ def test_get_user_provisioned_products(
                             outputValue="outputs-value",
                             description=None,
                             outputType=None,
-                        )
+                        ).model_dump()
                     ],
                     sshEnabled=True,
                     usernamePasswordLoginEnabled=True,
                     experimental=True,
-                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                     osVersion=TEST_OS_VERSION,
                     awsAccountId="12345678912",
                     isRetired=False,
@@ -992,7 +997,7 @@ def test_get_project_provisioned_products(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAllProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAllProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProducts).is_length(5)
     mocked_virtual_targets_domain_query_service.get_provisioned_products.assert_called_once_with(
@@ -1018,7 +1023,9 @@ def test_get_project_provisioned_products(
                     newVersionId="new-vers-id",
                     stage=provisioned_product.ProvisionedProductStage.QA,
                     region="us-east-1",
-                    provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+                    provisioningParameters=[
+                        provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()
+                    ],
                     createDate="2023-09-01T00:00:00+00:00",
                     lastUpdateDate="2023-09-01T00:00:00+00:00",
                     outputs=[
@@ -1027,12 +1034,12 @@ def test_get_project_provisioned_products(
                             outputValue="outputs-value",
                             description=None,
                             outputType=None,
-                        )
+                        ).model_dump()
                     ],
                     sshEnabled=True,
                     usernamePasswordLoginEnabled=True,
                     experimental=True,
-                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                     osVersion=TEST_OS_VERSION,
                     awsAccountId="12345678912",
                     isRetired=False,
@@ -1071,7 +1078,7 @@ def test_get_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProduct).is_equal_to(
         api_model.ProvisionedProduct(
@@ -1089,7 +1096,7 @@ def test_get_provisioned_product(
             newVersionId="new-vers-id",
             stage=provisioned_product.ProvisionedProductStage.QA,
             region="us-east-1",
-            provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+            provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()],
             createDate="2023-09-01T00:00:00+00:00",
             lastUpdateDate="2023-09-01T00:00:00+00:00",
             outputs=[
@@ -1098,19 +1105,19 @@ def test_get_provisioned_product(
                     outputValue="outputs-value",
                     description=None,
                     outputType=None,
-                )
+                ).model_dump()
             ],
             sshEnabled=True,
             usernamePasswordLoginEnabled=True,
             experimental=True,
-            componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+            componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
             osVersion=TEST_OS_VERSION,
             awsAccountId="12345678912",
             isRetired=False,
         )
     )
     assertpy.assert_that(response.versionMetadata).is_not_none()
-    assertpy.assert_that(response.versionMetadata.dict()).is_equal_to(
+    assertpy.assert_that(response.versionMetadata.model_dump()).is_equal_to(
         {
             "isRecommendedVersion": True,
             "parameters": [
@@ -1193,7 +1200,7 @@ def test_internal_get_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProduct).is_equal_to(
         api_model.ProvisionedProduct(
@@ -1211,7 +1218,7 @@ def test_internal_get_provisioned_product(
             newVersionId="new-vers-id",
             stage=provisioned_product.ProvisionedProductStage.QA,
             region="us-east-1",
-            provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+            provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()],
             createDate="2023-09-01T00:00:00+00:00",
             lastUpdateDate="2023-09-01T00:00:00+00:00",
             outputs=[
@@ -1220,12 +1227,12 @@ def test_internal_get_provisioned_product(
                     outputValue="outputs-value",
                     description=None,
                     outputType=None,
-                )
+                ).model_dump()
             ],
             sshEnabled=True,
             usernamePasswordLoginEnabled=True,
             experimental=True,
-            componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+            componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
             osVersion=TEST_OS_VERSION,
             awsAccountId="12345678912",
             isRetired=False,
@@ -1256,7 +1263,7 @@ def test_internal_get_all_provisioned_products(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAllProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAllProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProducts).is_length(5)
     mocked_virtual_targets_domain_query_service.get_all_provisioned_products.assert_called_once()
@@ -1278,7 +1285,9 @@ def test_internal_get_all_provisioned_products(
                     newVersionId="new-vers-id",
                     stage=provisioned_product.ProvisionedProductStage.QA,
                     region="us-east-1",
-                    provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+                    provisioningParameters=[
+                        provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()
+                    ],
                     createDate="2023-09-01T00:00:00+00:00",
                     lastUpdateDate="2023-09-01T00:00:00+00:00",
                     outputs=[
@@ -1287,12 +1296,12 @@ def test_internal_get_all_provisioned_products(
                             outputValue="outputs-value",
                             description=None,
                             outputType=None,
-                        )
+                        ).model_dump()
                     ],
                     sshEnabled=True,
                     usernamePasswordLoginEnabled=True,
                     experimental=True,
-                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                     osVersion=TEST_OS_VERSION,
                     awsAccountId="12345678912",
                     isRetired=False,
@@ -1329,7 +1338,7 @@ def test_get_provisioned_product_ssh_key(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProvisionedProductSSHKeyResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProvisionedProductSSHKeyResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.sshKey).is_equal_to("abc")
     mocked_virtual_targets_domain_query_service.get_provisioned_product_ssh_key.assert_called_with(
@@ -1364,7 +1373,7 @@ def test_get_provisioned_product_user_credentials(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProvisionedProductUserSecretResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProvisionedProductUserSecretResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.username).is_equal_to("user")
     assertpy.assert_that(response.password).is_equal_to("pwd")
@@ -1399,7 +1408,7 @@ def test_start_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.StartProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.StartProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_start_provisioned_product_handler.assert_called_once()
 
@@ -1428,7 +1437,7 @@ def test_stop_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.StopProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.StopProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_stop_provisioned_product_handler.assert_called_once()
 
@@ -1449,7 +1458,7 @@ def test_stop_provisioned_products(
     request = api_model.StopProvisionedProductsRequest(provisionedProductIds=["pp-123", "pp-321"])
 
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/projects/{project_id}/products/provisioned/stop",
         "PATCH",
     )
@@ -1460,7 +1469,7 @@ def test_stop_provisioned_products(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.StopProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.StopProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_stop_provisioned_products_handler.assert_called_once()
 
@@ -1485,7 +1494,7 @@ def test_update_user_profile(
         ],
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         "/profile",
         "PUT",
     )
@@ -1496,7 +1505,7 @@ def test_update_user_profile(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.UpdateUserProfileResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.UpdateUserProfileResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     mocked_update_user_profile_handler.assert_called_once()
 
@@ -1530,13 +1539,13 @@ def test_get_user_profile(
     test_profile: user_profile.UserProfile = get_test_user_profile()
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetUserProfileResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetUserProfileResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.preferredRegion).is_equal_to(test_profile.preferredRegion)
     assertpy.assert_that(response.preferredNetwork).is_equal_to(test_profile.preferredNetwork)
     assertpy.assert_that(response.enabledRegions).contains_only("us-east-1", "eu-west-3")
     assertpy.assert_that(response.enabledFeatures).contains_only(
-        frontend_feature.FrontendFeature(
+        api_model.GetUserProfileResponseFeature(
             version="v0.0.0",
             feature="EnabledFeature",
             enabled=True,
@@ -1546,7 +1555,7 @@ def test_get_user_profile(
     assertpy.assert_that(response.applicationVersionBackend).is_equal_to("3.12")
     assertpy.assert_that(response.applicationVersionFrontend).is_equal_to("3.12")
     assertpy.assert_that(response.preferredMaintenanceWindows).is_equal_to(
-        [api_model.MaintenanceWindow.parse_obj(mw) for mw in test_profile.preferredMaintenanceWindows]
+        [api_model.MaintenanceWindow.model_validate(mw.model_dump()) for mw in test_profile.preferredMaintenanceWindows]
     )
     mocked_user_profile_domain_query_service.get_user_configuration.assert_called_once_with(
         user_id=user_id_value_object.from_str("T00123122")
@@ -1589,7 +1598,7 @@ def test_get_users_within_maintenance_window(lambda_context, authenticated_event
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetUsersWithinMaintenanceWindowResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetUsersWithinMaintenanceWindowResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.usersIds).is_length(3)
 
@@ -1792,7 +1801,7 @@ def test_get_paginated_project_provisioned_products(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetPaginatedProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetPaginatedProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProducts).is_length(5)
     mocked_virtual_targets_domain_query_service.get_paginated_provisioned_products.assert_called_once_with(
@@ -1831,7 +1840,9 @@ def test_get_paginated_project_provisioned_products(
                     newVersionId="new-vers-id",
                     stage=provisioned_product.ProvisionedProductStage.QA,
                     region="us-east-1",
-                    provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+                    provisioningParameters=[
+                        provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()
+                    ],
                     createDate="2023-09-01T00:00:00+00:00",
                     lastUpdateDate="2023-09-01T00:00:00+00:00",
                     outputs=[
@@ -1840,12 +1851,12 @@ def test_get_paginated_project_provisioned_products(
                             outputValue="outputs-value",
                             description=None,
                             outputType=None,
-                        )
+                        ).model_dump()
                     ],
                     sshEnabled=True,
                     usernamePasswordLoginEnabled=True,
                     experimental=True,
-                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+                    componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                     osVersion=TEST_OS_VERSION,
                     awsAccountId="12345678912",
                     isRetired=False,

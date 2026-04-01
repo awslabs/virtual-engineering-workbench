@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ContainerState(BaseModel):
@@ -8,9 +8,7 @@ class ContainerState(BaseModel):
 class ContainerTag(BaseModel):
     key: str = Field(..., alias="Key")
     value: str = Field(..., alias="Value")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ContainerDetails(BaseModel):
@@ -19,6 +17,4 @@ class ContainerDetails(BaseModel):
     state: ContainerState = Field(..., alias="State")
     task_arn: str | None = Field(None, alias="TaskArn")
     name: str | None = Field(None, alias="Name")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

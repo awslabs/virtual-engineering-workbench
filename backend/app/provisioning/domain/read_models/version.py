@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.provisioning.domain.read_models import component_version_detail
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
@@ -38,9 +38,7 @@ class VersionParameter(BaseModel):
     parameterType: Optional[str] = Field(None, title="ParameterType")
     parameterMetaData: Optional[ParameterMetadata] = Field(None, title="ParameterMetadata", alias="parameterMetadata")
     isTechnicalParameter: bool = Field(False, title="IsTechnicalParameter")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class ProductVersionMetadataItem(BaseModel):

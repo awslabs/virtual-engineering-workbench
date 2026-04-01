@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -16,7 +18,9 @@ class ComponentVersionDetail(BaseModel):
 
 
 class AutomatedImageRegistrationCompleted(BaseModel):
-    event_name: str = Field("AutomatedImageRegistrationCompleted", alias="eventName", const=True)
+    event_name: Literal["AutomatedImageRegistrationCompleted"] = Field(
+        "AutomatedImageRegistrationCompleted", alias="eventName"
+    )
     ami_id: str = Field(..., alias="amiId")
     product_id: str = Field(..., alias="productId")
     project_id: str = Field(..., alias="projectId")

@@ -12,7 +12,7 @@ def fill_db_with_mandatory_components_list(
         Item={
             "PK": f"{dynamo_entity_config.DBPrefix.Platform}#{mandatory_components_list_entity.mandatoryComponentsListPlatform}",
             "SK": f"{dynamo_entity_config.DBPrefix.Os}#{mandatory_components_list_entity.mandatoryComponentsListOsVersion}#{dynamo_entity_config.DBPrefix.Arch}#{mandatory_components_list_entity.mandatoryComponentsListArchitecture}",
-            **mandatory_components_list_entity.dict(),
+            **mandatory_components_list_entity.model_dump(),
         }
     )
 

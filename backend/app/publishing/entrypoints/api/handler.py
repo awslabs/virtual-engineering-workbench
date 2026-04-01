@@ -1,10 +1,10 @@
 from http import HTTPStatus
+from typing import Annotated
 
 from aws_lambda_powertools import logging, tracing
 from aws_lambda_powertools.event_handler import api_gateway, content_types
 from aws_lambda_powertools.event_handler.openapi.models import Server
 from aws_lambda_powertools.event_handler.openapi.params import Query
-from aws_lambda_powertools.shared.types import Annotated
 from aws_lambda_powertools.utilities import typing
 from aws_xray_sdk.core import patch_all
 
@@ -123,7 +123,7 @@ def get_products(
         project_id=project_id_value_object.from_str(project_id),
     )
 
-    products_parsed = [api_model.Product.parse_obj(product) for product in products]
+    products_parsed = [api_model.Product.model_validate(product.model_dump()) for product in products]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -344,9 +344,9 @@ def get_product_version(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetProductVersionResponse(
-            product=api_model.Product.parse_obj(product),
-            version=api_model.VersionSummary.parse_obj(summary),
-            distributions=[api_model.VersionDistribution.parse_obj(d) for d in distributions],
+            product=api_model.Product.model_validate(product.model_dump()),
+            version=api_model.VersionSummary.model_validate(summary.model_dump()),
+            distributions=[api_model.VersionDistribution.model_validate(d.model_dump()) for d in distributions],
             draft_template=draft_template,
         ),
         content_type=content_types.APPLICATION_JSON,
@@ -372,7 +372,9 @@ def get_product_version_distribution_internal(
         status_code=HTTPStatus.OK,
         body=api_model.GetProductVersionInternalResponse(
             version=(
-                api_model.AvailableVersionDistributionEnriched.parse_obj(version_enriched) if version_enriched else None
+                api_model.AvailableVersionDistributionEnriched.model_validate(version_enriched)
+                if version_enriched
+                else None
             ),
         ),
         content_type=content_types.APPLICATION_JSON,
@@ -449,8 +451,8 @@ def get_product(project_id: str, product_id: str) -> api_gateway.Response[api_mo
         product_id=product_id_value_object.from_str(product_id),
     )
 
-    product_parsed = api_model.Product.parse_obj(product)
-    product_parsed.versions = [api_model.VersionSummary.parse_obj(s) for s in summaries]
+    product_parsed = api_model.Product.model_validate(product.model_dump())
+    product_parsed.versions = [api_model.VersionSummary.model_validate(s.model_dump()) for s in summaries]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -473,7 +475,9 @@ def get_latest_major_versions(
     version_summaries = dependencies.versions_domain_qry_srv.get_latest_major_version_summaries(
         product_id=product_id_value_object.from_str(product_id)
     )
-    version_summaries_parsed = [api_model.VersionSummary.parse_obj(vers) for vers in version_summaries]
+    version_summaries_parsed = [
+        api_model.VersionSummary.model_validate(vers.model_dump()) for vers in version_summaries
+    ]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -504,7 +508,9 @@ def get_available_product_versions(
         region=region,
     )
 
-    versions_parsed = [api_model.AvailableVersionDistribution.parse_obj(version) for version in versions]
+    versions_parsed = [
+        api_model.AvailableVersionDistribution.model_validate(version.model_dump()) for version in versions
+    ]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -545,7 +551,7 @@ def get_amis(project_id: str) -> api_gateway.Response[api_model.GetAmisResponse]
 
     amis = dependencies.amis_domain_qry_srv.get_amis(project_id)
 
-    amis_parsed = [api_model.Ami.parse_obj(ami_item) for ami_item in amis]
+    amis_parsed = [api_model.Ami.model_validate(ami_item.model_dump()) for ami_item in amis]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -603,7 +609,7 @@ def get_available_products(
         product_type=product_type,
     )
 
-    products_parsed = [api_model.AvailableProduct.parse_obj(product) for product in products]
+    products_parsed = [api_model.AvailableProduct.model_validate(product.model_dump()) for product in products]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -623,7 +629,7 @@ def get_available_product_versions_internal(
         product_id=product_id_value_object.from_str(product_id)
     )
 
-    versions_parsed = [api_model.AvailableVersionDistributionEnriched.parse_obj(v) for v in versions_enriched]
+    versions_parsed = [api_model.AvailableVersionDistributionEnriched.model_validate(v) for v in versions_enriched]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -648,7 +654,7 @@ def get_available_product_version_internal(
         version_id=version_id_value_object.from_str(version_id),
     )
 
-    versions_parsed = [api_model.AvailableVersionDistributionEnriched.parse_obj(v) for v in versions_enriched]
+    versions_parsed = [api_model.AvailableVersionDistributionEnriched.model_validate(v) for v in versions_enriched]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,

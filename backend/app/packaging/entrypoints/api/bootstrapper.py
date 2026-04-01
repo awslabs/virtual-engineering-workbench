@@ -3,7 +3,7 @@ import json
 import boto3
 from aws_lambda_powertools import logging
 from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.packaging.adapters.query_services import (
     dynamodb_component_query_service,
@@ -121,9 +121,7 @@ class Dependencies(BaseModel):
     )
     pipeline_srv: ec2_image_builder_pipeline_service.Ec2ImageBuilderPipelineService
     component_definition_service: aws_component_definition_service.AWSComponentDefinitionService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

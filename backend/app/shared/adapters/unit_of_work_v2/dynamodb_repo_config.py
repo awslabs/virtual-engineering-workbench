@@ -133,7 +133,7 @@ class DynamicEntityAttribute(typing.Generic[TPrimaryKey, T]):
     @property
     def required_attributes_for_update(self) -> set[str]:
         """Gets a list of required attribute names for successfully generating a dynamic attribute"""
-        non_required_attributes: list[str] = self._primary_key_type.__fields__.keys()
+        non_required_attributes: list[str] = self._primary_key_type.model_fields.keys()
         return set(self.attributes_for_update) - set(non_required_attributes)
 
 
@@ -152,7 +152,7 @@ class GenericDynamoDBRepositoryConfig(typing.Generic[TPrimaryKey, T]):
         self._entity_type: typing.Type = entity_type
         self._exclude_none: bool = False
         self._modifiers: list[typing.Callable[[unit_of_work.T], dict]] = [
-            lambda ent: ent.dict(exclude_none=self._exclude_none)
+            lambda ent: ent.model_dump(exclude_none=self._exclude_none)
         ]
         self._update_modifiers: list[typing.Callable[[dict], dict]] = []
         self._table_name: str | None = None

@@ -13,12 +13,12 @@ class PathMethod(pydantic.BaseModel):
 class PathContext(pydantic.BaseModel):
     path: str
     methods: list[PathMethod]
-    cors_methods: list[str] | None
-    cors_headers: list[str] | None
-    cors_method_error: list[str] | None
-    cors_header_error: list[str] | None
-    tag_name_errors: list[str] | None
-    auth_errors: list[str] | None
+    cors_methods: list[str] | None = None
+    cors_headers: list[str] | None = None
+    cors_method_error: list[str] | None = None
+    cors_header_error: list[str] | None = None
+    tag_name_errors: list[str] | None = None
+    auth_errors: list[str] | None = None
 
 
 class OpenAPIAnalyzer:

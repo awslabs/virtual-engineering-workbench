@@ -30,7 +30,7 @@ class AssignmentsDynamoDBQueryService(assignments_query_service.AssignmentsQuery
             & Key("SK").begins_with(f"{dynamo_entity_config.DBPrefix.PROJECT.value}#"),
         )
         for page in pages:
-            ret_val.extend([project_assignment.Assignment.parse_obj(item) for item in page["Items"]])
+            ret_val.extend([project_assignment.Assignment.model_validate(item) for item in page["Items"]])
 
         return ret_val
 
@@ -45,6 +45,6 @@ class AssignmentsDynamoDBQueryService(assignments_query_service.AssignmentsQuery
             IndexName=self.__gsi_inverted_pk,
         )
         for page in pages:
-            ret_val.extend([project_assignment.Assignment.parse_obj(item) for item in page["Items"]])
+            ret_val.extend([project_assignment.Assignment.model_validate(item) for item in page["Items"]])
 
         return ret_val

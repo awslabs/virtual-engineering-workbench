@@ -2,7 +2,7 @@ from typing import Optional
 
 import boto3
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.projects.adapters.query_services import dynamodb_query_service
 from app.projects.adapters.repository import dynamo_entity_config
@@ -39,9 +39,7 @@ class Dependencies(BaseModel):
     projects_query_service: projects_query_service.ProjectsQueryService
     technologies_query_service: technologies_query_service.TechnologiesQueryService
     enrolment_query_service: enrolment_query_service.EnrolmentQueryService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(

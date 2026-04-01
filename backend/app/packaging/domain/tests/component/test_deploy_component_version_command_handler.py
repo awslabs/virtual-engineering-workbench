@@ -70,7 +70,7 @@ def test_handle_should_deploy_version(
     )
     component_yaml_definition_s3_prefix = f"{get_test_component_id}/{component_upstream_version}/component.yaml"
     component_yaml_definition_s3_uri = f"s3://test-bucket/{component_yaml_definition_s3_prefix}"
-    component_entity = component.Component.parse_obj(
+    component_entity = component.Component.model_validate(
         {
             "componentId": get_test_component_id,
             "componentName": "test-component",
@@ -212,7 +212,7 @@ def test_handle_should_raise_if_deploying_existing_non_rc_version(
     )
     component_yaml_definition_s3_prefix = f"{get_test_component_id}/{component_upstream_version}/component.yaml"
     component_yaml_definition_s3_uri = f"s3://test-bucket/{component_yaml_definition_s3_prefix}"
-    component_entity = component.Component.parse_obj(
+    component_entity = component.Component.model_validate(
         {
             "componentId": get_test_component_id,
             "componentName": "test-component",
@@ -288,7 +288,7 @@ def test_handle_should_update_rc_version(
     )
     component_yaml_definition_s3_prefix = f"{get_test_component_id}/{component_upstream_version}/component.yaml"
     component_yaml_definition_s3_uri = f"s3://test-bucket/{component_yaml_definition_s3_prefix}"
-    component_entity = component.Component.parse_obj(
+    component_entity = component.Component.model_validate(
         {
             "componentId": get_test_component_id,
             "componentName": "test-component",

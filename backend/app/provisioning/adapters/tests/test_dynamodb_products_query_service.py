@@ -35,7 +35,7 @@ def fill_db_with_products(backend_app_dynamodb_table, products: list[product.Pro
             Item={
                 "PK": f"{DBPrefix.PROJECT.value}#{prod.projectId}",
                 "SK": f"{DBPrefix.PRODUCT.value}#{prod.productId}",
-                **prod.dict(),
+                **prod.model_dump(),
             }
         )
 

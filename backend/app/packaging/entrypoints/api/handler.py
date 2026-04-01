@@ -1,10 +1,10 @@
 from http import HTTPStatus
+from typing import Annotated
 
 from aws_lambda_powertools import logging, tracing
 from aws_lambda_powertools.event_handler import api_gateway, content_types
 from aws_lambda_powertools.event_handler.openapi.models import Server
 from aws_lambda_powertools.event_handler.openapi.params import Query
-from aws_lambda_powertools.shared.types import Annotated
 from aws_lambda_powertools.utilities import typing
 from aws_xray_sdk.core import patch_all
 
@@ -155,7 +155,7 @@ def get_components(
         project_id=project_id_value_object.from_str(project_id),
     )
 
-    components_parsed = [api_model.Component.parse_obj(component) for component in components]
+    components_parsed = [api_model.Component.model_validate(component.model_dump()) for component in components]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -234,8 +234,8 @@ def get_component(
         component_id=component_id_value_object.from_str(component_id),
     )
 
-    component_parsed = api_model.Component.parse_obj(component)
-    associated_projects = [api_model.AssociatedProject.parse_obj(ca) for ca in component_association]
+    component_parsed = api_model.Component.model_validate(component.model_dump())
+    associated_projects = [api_model.AssociatedProject.model_validate(ca.model_dump()) for ca in component_association]
     component_metadata = api_model.ComponentMetadata(associatedProjects=associated_projects)
 
     return api_gateway.Response(
@@ -306,7 +306,8 @@ def get_component_versions(
     )
 
     component_versions_parsed = [
-        api_model.ComponentVersion.parse_obj(component_version) for component_version in component_versions
+        api_model.ComponentVersion.model_validate(component_version.model_dump())
+        for component_version in component_versions
     ]
 
     return api_gateway.Response(
@@ -414,7 +415,7 @@ def get_component_version(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetComponentVersionResponse(
-            component_version=api_model.ComponentVersion.parse_obj(component_version),
+            component_version=api_model.ComponentVersion.model_validate(component_version.model_dump()),
             yaml_definition=yaml_definition_obj,
             yaml_definition_b64=yaml_definition_b64,
         ),
@@ -459,7 +460,7 @@ def get_components_versions(
         del kwargs["project_id"]
     components_versions_summary = dependencies.component_version_domain_qry_srv.get_all_components_versions(**kwargs)
     components_versions_summary_parsed = [
-        api_model.ComponentVersionSummary.parse_obj(component_version)
+        api_model.ComponentVersionSummary.model_validate(component_version.model_dump())
         for component_version in components_versions_summary
     ]
 
@@ -565,7 +566,9 @@ def get_component_version_test_executions(
     )
 
     component_version_test_execution_summaries_parsed = [
-        api_model.ComponentVersionTestExecutionSummary.parse_obj(component_version_test_execution_summary)
+        api_model.ComponentVersionTestExecutionSummary.model_validate(
+            component_version_test_execution_summary.model_dump()
+        )
         for component_version_test_execution_summary in component_version_test_execution_summaries
     ]
 
@@ -672,10 +675,12 @@ def get_mandatory_components_list(
         )
 
     prepended_components = [
-        comp for comp in mandatory_components_list.mandatoryComponentsVersions if comp.position == "PREPEND"
+        comp.model_dump()
+        for comp in mandatory_components_list.mandatoryComponentsVersions
+        if comp.position == "PREPEND"
     ]
     appended_components = [
-        comp for comp in mandatory_components_list.mandatoryComponentsVersions if comp.position == "APPEND"
+        comp.model_dump() for comp in mandatory_components_list.mandatoryComponentsVersions if comp.position == "APPEND"
     ]
 
     mandatory_components_list_parsed = api_model.MandatoryComponentsList(
@@ -773,10 +778,14 @@ def get_mandatory_components_lists(
     mandatory_components_lists_parsed = []
     for mandatory_components_list in mandatory_components_lists:
         prepended_components = [
-            comp for comp in mandatory_components_list.mandatoryComponentsVersions if comp.position == "PREPEND"
+            comp.model_dump()
+            for comp in mandatory_components_list.mandatoryComponentsVersions
+            if comp.position == "PREPEND"
         ]
         appended_components = [
-            comp for comp in mandatory_components_list.mandatoryComponentsVersions if comp.position == "APPEND"
+            comp.model_dump()
+            for comp in mandatory_components_list.mandatoryComponentsVersions
+            if comp.position == "APPEND"
         ]
 
         mandatory_components_lists_parsed.append(
@@ -836,7 +845,7 @@ def get_recipes(
         project_id=project_id_value_object.from_str(project_id),
     )
 
-    recipes_parsed = [api_model.Recipe.parse_obj(recipe) for recipe in recipes]
+    recipes_parsed = [api_model.Recipe.model_validate(recipe.model_dump()) for recipe in recipes]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -860,7 +869,7 @@ def get_recipe(
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
-        body=api_model.GetRecipeResponse(recipe=api_model.Recipe.parse_obj(recipe)),
+        body=api_model.GetRecipeResponse(recipe=api_model.Recipe.model_validate(recipe.model_dump())),
         content_type=content_types.APPLICATION_JSON,
     )
 
@@ -932,7 +941,9 @@ def get_recipe_versions(
         recipe_id=recipe_id_value_object.from_str(recipe_id),
     )
 
-    recipe_versions_parsed = [api_model.RecipeVersion.parse_obj(recipe_version) for recipe_version in recipe_versions]
+    recipe_versions_parsed = [
+        api_model.RecipeVersion.model_validate(recipe_version.model_dump()) for recipe_version in recipe_versions
+    ]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -985,7 +996,9 @@ def get_recipe_version(
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
-        body=api_model.GetRecipeVersionResponse(recipe_version=api_model.RecipeVersion.parse_obj(recipe_version)),
+        body=api_model.GetRecipeVersionResponse(
+            recipe_version=api_model.RecipeVersion.model_validate(recipe_version.model_dump())
+        ),
         content_type=content_types.APPLICATION_JSON,
     )
 
@@ -1071,7 +1084,7 @@ def get_recipe_version_test_executions(
     )
 
     recipe_version_test_execution_summaries_parsed = [
-        api_model.RecipeVersionTestExecutionSummary.parse_obj(recipe_version_test_execution_summary)
+        api_model.RecipeVersionTestExecutionSummary.model_validate(recipe_version_test_execution_summary.model_dump())
         for recipe_version_test_execution_summary in recipe_version_test_execution_summaries
     ]
 
@@ -1148,7 +1161,7 @@ def get_pipelines(
         project_id=project_id_value_object.from_str(project_id),
     )
 
-    pipelines_parsed = [api_model.Pipeline.parse_obj(pipeline) for pipeline in pipelines]
+    pipelines_parsed = [api_model.Pipeline.model_validate(pipeline.model_dump()) for pipeline in pipelines]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -1170,7 +1183,7 @@ def get_pipeline(
         pipeline_id=pipeline_id_value_object.from_str(pipeline_id),
     )
 
-    pipeline_parsed = api_model.Pipeline.parse_obj(pipeline)
+    pipeline_parsed = api_model.Pipeline.model_validate(pipeline.model_dump())
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -1247,7 +1260,8 @@ def get_recipes_versions(
         project_id=project_id_value_object.from_str(project_id),
     )
     recipes_versions_summary_parsed = [
-        api_model.RecipeVersionSummary.parse_obj(recipe_version) for recipe_version in recipes_versions_summary
+        api_model.RecipeVersionSummary.model_validate(recipe_version.model_dump())
+        for recipe_version in recipes_versions_summary
     ]
 
     return api_gateway.Response(
@@ -1290,7 +1304,10 @@ def get_images(
         project_id=project_id_value_object.from_str(project_id),
     )
 
-    images_parsed = [api_model.Image.parse_obj(image) for image in images]
+    images_parsed = [
+        api_model.Image.model_validate({**image.model_dump(), "imageBuildVersion": str(image.imageBuildVersion)})
+        for image in images
+    ]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -1312,7 +1329,9 @@ def get_image(
         image_id=image_id_value_object.from_str(image_id),
     )
 
-    image_parsed = api_model.Image.parse_obj(image)
+    image_parsed = api_model.Image.model_validate(
+        {**image.model_dump(), "imageBuildVersion": str(image.imageBuildVersion)}
+    )
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -1334,7 +1353,7 @@ def get_pipelines_allowed_build_types(
         recipe_id=recipe_id_value_object.from_str(recipe_id.pop() if recipe_id else None),
     )
 
-    recipe_parsed = api_model.Recipe.parse_obj(recipe)
+    recipe_parsed = api_model.Recipe.model_validate(recipe.model_dump())
     allowed_build_types = dependencies.pipeline_srv.get_pipeline_allowed_build_instance_types(
         architecture=recipe_parsed.recipeArchitecture
     )

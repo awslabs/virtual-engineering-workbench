@@ -1,6 +1,6 @@
 import boto3
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.publishing.adapters.query_services import (
     dynamodb_amis_query_service,
@@ -62,9 +62,7 @@ class Dependencies(BaseModel):
     versions_domain_qry_srv: versions_domain_query_service.VersionsDomainQueryService
     portfolios_domain_qry_srv: portfolios_domain_query_service.PortfoliosDomainQueryService
     template_domain_qry_srv: template_domain_query_service.TemplateDomainQueryService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

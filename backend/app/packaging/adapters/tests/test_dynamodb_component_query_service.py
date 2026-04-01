@@ -12,7 +12,7 @@ def fill_db_with_components(backend_app_table, components: list[component.Compon
                 "PK": f"{dynamo_entity_config.DBPrefix.Component}#{comp.componentId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.Component}#{comp.componentId}",
                 "entity": dynamo_entity_config.DBPrefix.Component,
-                **comp.dict(),
+                **comp.model_dump(),
             }
         )
 
@@ -26,7 +26,7 @@ def fill_db_with_project_component_associations(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.Component}#{proj_comp_asso.componentId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.Project}#{proj_comp_asso.projectId}",
-                **proj_comp_asso.dict(),
+                **proj_comp_asso.model_dump(),
             }
         )
 

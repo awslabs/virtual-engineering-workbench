@@ -122,7 +122,7 @@ def handle(
                 mandatoryComponentsListOsVersion=os,
                 mandatoryComponentsListArchitecture=architecture,
             ),
-            mandatoryComponentsVersions=[comp.dict() for comp in positioned_components],
+            mandatoryComponentsVersions=[comp.model_dump() for comp in positioned_components],
             lastUpdateDate=current_time,
             lastUpdatedBy=command.lastUpdatedBy.value,
         )

@@ -70,7 +70,7 @@ class DynamoDBRecipeVersionQueryService(recipe_version_query_service.RecipeVersi
 
         recipe_versions.extend(result.get("Items", []))
 
-        return [recipe_version.RecipeVersion.parse_obj(obj) for obj in recipe_versions]
+        return [recipe_version.RecipeVersion.model_validate(obj) for obj in recipe_versions]
 
     def get_recipe_version(self, recipe_id: str, version_id: str) -> recipe_version.RecipeVersion | None:
         """Return a specific recipe version."""
@@ -84,7 +84,7 @@ class DynamoDBRecipeVersionQueryService(recipe_version_query_service.RecipeVersi
         )
 
         if "Item" in result:
-            return recipe_version.RecipeVersion.parse_obj(result.get("Item"))
+            return recipe_version.RecipeVersion.model_validate(result.get("Item"))
         else:
             return None
 
@@ -111,9 +111,9 @@ class DynamoDBRecipeVersionQueryService(recipe_version_query_service.RecipeVersi
             dynamodb_result.extend(result.get("Items", []))
         dynamodb_result.extend(result.get("Items", []))
         for _recipe_version in dynamodb_result:
-            parsed_component_version = recipe_version.RecipeVersion.parse_obj(_recipe_version)
+            parsed_component_version = recipe_version.RecipeVersion.model_validate(_recipe_version)
             # Pydantic model can parse other objects and extracts only the attributes that it matches for the model.
             recipe_versions_summary.append(
-                recipe_version_summary.RecipeVersionSummary.parse_obj(parsed_component_version)
+                recipe_version_summary.RecipeVersionSummary.model_validate(parsed_component_version.model_dump())
             )
         return recipe_versions_summary

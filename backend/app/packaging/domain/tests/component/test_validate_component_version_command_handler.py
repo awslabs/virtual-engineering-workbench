@@ -54,7 +54,7 @@ def test_handle_should_validate_version(
     component_yaml_definition_s3_uri = (
         f"s3://test-bucket/{component_yaml_definition_s3_prefix}/{PLACEHOLDER_VERSION}/component.yaml"
     )
-    component_entity = component.Component.parse_obj(
+    component_entity = component.Component.model_validate(
         {
             "componentId": get_test_component_id,
             "componentName": "test-component",
@@ -107,7 +107,7 @@ def test_handle_should_raise_exception(
     get_test_component_id,
 ):
     # ARRANGE
-    component_entity = component.Component.parse_obj(
+    component_entity = component.Component.model_validate(
         {
             "componentId": get_test_component_id,
             "componentName": "test-component",

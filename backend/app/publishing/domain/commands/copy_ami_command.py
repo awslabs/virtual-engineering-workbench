@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.publishing.domain.value_objects import ami_id_value_object, region_value_object
 
@@ -6,6 +6,4 @@ from app.publishing.domain.value_objects import ami_id_value_object, region_valu
 class CopyAmiCommand(BaseModel):
     originalAmiId: ami_id_value_object.AmiIdValueObject
     region: region_value_object.RegionValueObject
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

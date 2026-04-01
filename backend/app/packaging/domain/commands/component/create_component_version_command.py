@@ -25,6 +25,8 @@ class CreateComponentVersionCommand(command_bus.Command):
     componentVersionDependencies: component_version_dependencies_value_object.ComponentVersionDependenciesValueObject
     softwareVendor: component_software_vendor_value_object.ComponentSoftwareVendorValueObject
     softwareVersion: component_software_version_value_object.ComponentSoftwareVersionValueObject
-    licenseDashboard: Optional[component_license_dashboard_url_value_object.ComponentLicenseDashboardUrlValueObject]
-    notes: Optional[component_software_version_notes_value_object.ComponentSoftwareVersionNotesValueObject]
+    licenseDashboard: Optional[component_license_dashboard_url_value_object.ComponentLicenseDashboardUrlValueObject] = (
+        None
+    )
+    notes: Optional[component_software_version_notes_value_object.ComponentSoftwareVersionNotesValueObject] = None
     createdBy: user_id_value_object.UserIdValueObject

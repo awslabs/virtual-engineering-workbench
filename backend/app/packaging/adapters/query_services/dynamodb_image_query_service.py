@@ -48,7 +48,7 @@ class DynamoDBImageQueryService(image_query_service.ImageQueryService):
 
         images.extend(result.get("Items", []))
 
-        return [image.Image.parse_obj(obj) for obj in images]
+        return [image.Image.model_validate(obj) for obj in images]
 
     def get_images_by_recipe_id_and_version_name(self, recipe_id: str, recipe_version_name: str) -> list[image.Image]:
         """Returns the list of all images for the given recipe id and version name."""
@@ -70,7 +70,7 @@ class DynamoDBImageQueryService(image_query_service.ImageQueryService):
 
         images.extend(result.get("Items", []))
 
-        return [image.Image.parse_obj(obj) for obj in images]
+        return [image.Image.model_validate(obj) for obj in images]
 
     def get_image(self, project_id: str, image_id: str) -> image.Image | None:
         """Return image for given image id."""
@@ -84,7 +84,7 @@ class DynamoDBImageQueryService(image_query_service.ImageQueryService):
         )
 
         if "Item" in result:
-            return image.Image.parse_obj(result["Item"])
+            return image.Image.model_validate(result["Item"])
         else:
             return None
 
@@ -99,7 +99,7 @@ class DynamoDBImageQueryService(image_query_service.ImageQueryService):
 
         # Only 1 result is returned at a time, hence we don't paginate
         if result.get("Items", []):
-            return image.Image.parse_obj(result.get("Items", [])[0])
+            return image.Image.model_validate(result.get("Items", [])[0])
         else:
             return None
 
@@ -114,6 +114,6 @@ class DynamoDBImageQueryService(image_query_service.ImageQueryService):
 
         # Only 1 result is returned at a time, hence we don't paginate
         if result.get("Items", []):
-            return image.Image.parse_obj(result["Items"][0])
+            return image.Image.model_validate(result["Items"][0])
         else:
             return None

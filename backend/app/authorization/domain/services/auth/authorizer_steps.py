@@ -6,6 +6,7 @@ import jwt
 import pydantic
 from aws_lambda_powertools import Logger, Metrics
 from aws_lambda_powertools.metrics import MetricUnit
+from pydantic import ConfigDict
 
 from app.authorization.domain.ports import (
     assignments_query_service,
@@ -206,9 +207,7 @@ class AVPEntityType(enum.StrEnum):
 class AVPEntityIdentifier(pydantic.BaseModel):
     entity_id: str = pydantic.Field(alias="entityId")
     entity_type: str = pydantic.Field(alias="entityType")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class AVPEntity(pydantic.BaseModel):
@@ -414,7 +413,7 @@ class AmazonVerifiedPermissionsAuthorizer(authorizer.AuthorizerStep):
         }
 
         entity_ctx = AVPEntityResolutionContext(
-            entities=[AVPEntity(identifier=principal.copy())],
+            entities=[AVPEntity(identifier=principal.model_copy())],
         )
 
         for entity_resolver in self.__entity_resolvers:
@@ -423,10 +422,12 @@ class AmazonVerifiedPermissionsAuthorizer(authorizer.AuthorizerStep):
         try:
             if self.__authz_service.is_action_allowed(
                 policy_store_id=context.api_auth_cfg.policy_store_id,
-                principal=principal.dict(exclude_none=True, by_alias=True),
+                principal=principal.model_dump(exclude_none=True, by_alias=True),
                 action=action,
-                resource=entity_ctx.resource.dict(exclude_none=True, by_alias=True) if entity_ctx.resource else None,
-                entities={"entityList": [e.dict(exclude_none=True, by_alias=True) for e in entity_ctx.entities]},
+                resource=(
+                    entity_ctx.resource.model_dump(exclude_none=True, by_alias=True) if entity_ctx.resource else None
+                ),
+                entities={"entityList": [e.model_dump(exclude_none=True, by_alias=True) for e in entity_ctx.entities]},
             ):
                 return True
 

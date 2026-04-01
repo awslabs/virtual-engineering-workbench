@@ -1,13 +1,15 @@
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from app.packaging.domain.model.component import component_version_detail
 from app.shared.adapters.message_bus import message_bus
 
 
 class AutomatedImageRegistrationCompleted(message_bus.Message):
-    event_name: str = Field("AutomatedImageRegistrationCompleted", alias="eventName", const=True)
+    event_name: Literal["AutomatedImageRegistrationCompleted"] = Field(
+        "AutomatedImageRegistrationCompleted", alias="eventName"
+    )
     amiId: str = Field(..., title="amiId")
     productId: Optional[str] = Field(None, title="productId")
     projectId: str = Field(..., title="projectId")
@@ -20,11 +22,9 @@ class AutomatedImageRegistrationCompleted(message_bus.Message):
     platform: str = Field(..., title="platform")
     architecture: str = Field(..., title="architecture")
     integrations: list[str] = Field([], title="integrations")
+    model_config = ConfigDict(populate_by_name=True)
 
-    class Config:
-        allow_population_by_field_name = True
-
-    def json(self, **kwargs) -> str:
+    def model_dump_json(self, **kwargs) -> str:
         kwargs.setdefault("exclude_none", True)
 
-        return super().json(**kwargs)
+        return super().model_dump_json(**kwargs)

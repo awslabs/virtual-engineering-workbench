@@ -10,6 +10,16 @@ from app.provisioning.adapters.query_services import publishing_api_query_servic
 from app.provisioning.domain.read_models import version
 
 
+def _make_validation_error():
+    """Create a real Pydantic v2 ValidationError for testing."""
+    try:
+        # Use a model with required fields to trigger a ValidationError
+        version.Version.model_validate({})
+    except ValidationError as e:
+        return e
+    raise RuntimeError("Expected ValidationError")
+
+
 @mock.patch("app.shared.api.aws_api.AWSAPI")
 def test_get_available_product_versions_returns_versions(mock_api, mock_logger, get_sample_version):
     # ARRANGE
@@ -17,9 +27,9 @@ def test_get_available_product_versions_returns_versions(mock_api, mock_logger, 
     publishing_api_qry_srv = publishing_api_query_service.PublishingApiQueryService(api=mock_api, logger=mock_logger)
     mock_api.call_api.return_value = {
         "availableProductVersions": [
-            get_sample_version().dict(),
-            get_sample_version(version_id="vers-2").dict(),
-            get_sample_version(version_id="vers-3").dict(),
+            get_sample_version().model_dump(),
+            get_sample_version(version_id="vers-2").model_dump(),
+            get_sample_version(version_id="vers-3").model_dump(),
         ]
     }
 
@@ -61,7 +71,7 @@ def test_get_version_returns_version(mock_api, mock_logger, get_sample_version):
     # ARRANGE
 
     publishing_api_qry_srv = publishing_api_query_service.PublishingApiQueryService(api=mock_api, logger=mock_logger)
-    mock_api.call_api.return_value = {"version": get_sample_version().dict()}
+    mock_api.call_api.return_value = {"version": get_sample_version().model_dump()}
 
     # ACT
     version = publishing_api_qry_srv.get_version(product_id="prod-1", version_id="vers-1", account_id="001234567890")
@@ -84,10 +94,7 @@ def test_get_version_returns_version(mock_api, mock_logger, get_sample_version):
     (
         (HTTPError(), "Unable to fetch version: vers-1 for product: prod-1"),
         (
-            ValidationError(
-                errors=["Error message"],
-                model=version.GetProductVersionInternalResponse,
-            ),
+            _make_validation_error(),
             "Unable to parse version: vers-1 for product: prod-1",
         ),
     ),

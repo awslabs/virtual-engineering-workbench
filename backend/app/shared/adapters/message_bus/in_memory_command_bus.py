@@ -18,7 +18,7 @@ class InMemoryCommandBus(command_bus.CommandBus):
 
         self._logger.info({"Command": command_name})
 
-        self._logger.debug({"Payload": command.dict()})
+        self._logger.debug({"Payload": command.model_dump()})
 
         try:
             return self._command_handlers[command_name](command)

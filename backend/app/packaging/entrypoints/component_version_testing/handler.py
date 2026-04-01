@@ -43,7 +43,7 @@ def handle_launch_test_environment_action(event: step_function_model.LaunchTestE
         )
     )
 
-    return step_function_model.LaunchTestEnvironmentResponse().dict(by_alias=True)
+    return step_function_model.LaunchTestEnvironmentResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CheckTestEnvironmentLaunchStatusRequest)
@@ -59,7 +59,7 @@ def handle_check_test_environment_launch_status_action(
 
     istances_status = dependencies.command_bus.handle(command)
 
-    return step_function_model.CheckTestEnvironmentLaunchStatusResponse(instancesStatus=istances_status).dict(
+    return step_function_model.CheckTestEnvironmentLaunchStatusResponse(instancesStatus=istances_status).model_dump(
         by_alias=True
     )
 
@@ -77,7 +77,7 @@ def handle_setup_test_environment_action(
         )
     )
 
-    return step_function_model.SetupTestEnvironmentResponse().dict(by_alias=True)
+    return step_function_model.SetupTestEnvironmentResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CheckTestEnvironmentSetupStatusRequest)
@@ -93,9 +93,9 @@ def handle_check_test_environment_setup_status_action(
 
     setup_commands_status = dependencies.command_bus.handle(command)
 
-    return step_function_model.CheckTestEnvironmentSetupStatusResponse(setupCommandsStatus=setup_commands_status).dict(
-        by_alias=True
-    )
+    return step_function_model.CheckTestEnvironmentSetupStatusResponse(
+        setupCommandsStatus=setup_commands_status
+    ).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.RunComponentVersionTestRequest)
@@ -112,7 +112,7 @@ def handle_run_component_version_test_action(
         )
     )
 
-    return step_function_model.RunComponentVersionTestResponse().dict(by_alias=True)
+    return step_function_model.RunComponentVersionTestResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CheckComponentVersionTestStatusRequest)
@@ -128,9 +128,9 @@ def handle_check_component_version_test_status_action(
 
     test_commands_status = dependencies.command_bus.handle(command)
 
-    return step_function_model.CheckComponentVersionTestStatusResponse(testCommandsStatus=test_commands_status).dict(
-        by_alias=True
-    )
+    return step_function_model.CheckComponentVersionTestStatusResponse(
+        testCommandsStatus=test_commands_status
+    ).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CompleteComponentVersionTestRequest)
@@ -147,7 +147,7 @@ def handle_complete_component_version_test_action(event: step_function_model.Com
 
     return step_function_model.CompleteComponentVersionTestResponse(
         componentVersionTestStatus=component_version_test_status
-    ).dict(by_alias=True)
+    ).model_dump(by_alias=True)
 
 
 @tracer.capture_lambda_handler  # type: ignore

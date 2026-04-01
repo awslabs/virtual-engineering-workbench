@@ -1,9 +1,13 @@
+from typing import Literal
+
 from pydantic import Field
 
 from app.shared.adapters.message_bus import message_bus
 
 
 class ProvisionedProductStartInitiated(message_bus.Message):
-    event_name: str = Field("ProvisionedProductStartInitiated", alias="eventName", const=True)
+    event_name: Literal["ProvisionedProductStartInitiated"] = Field(
+        "ProvisionedProductStartInitiated", alias="eventName"
+    )
     provisioned_product_id: str = Field(..., alias="provisionedProductId")
     user_ip_address: str = Field(..., alias="userIpAddress")

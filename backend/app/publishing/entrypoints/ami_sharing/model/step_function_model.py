@@ -58,7 +58,9 @@ class SucceedAmiSharingRequest(BaseModel):
     product_id: str = Field(..., alias="productId")
     version_id: str = Field(..., alias="versionId")
     aws_account_id: str = Field(..., alias="awsAccountId")
-    copied_ami_id: Optional[str] = Field(..., alias="copiedAmiId")
+    copied_ami_id: Optional[str] = Field(
+        ..., alias="copiedAmiId"
+    )  # Required but nullable: callers must explicitly pass this field, even if the value is None
     previous_event_name: str = Field(..., alias="previousEventName")
     old_version_id: Optional[str] = Field(None, alias="oldVersionId")
     product_type: str = Field(..., alias="productType")

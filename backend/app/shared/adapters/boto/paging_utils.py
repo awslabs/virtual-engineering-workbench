@@ -2,6 +2,7 @@ import typing
 from typing import Generic, TypeVar
 
 import pydantic
+from pydantic import ConfigDict
 
 T = TypeVar("T")
 
@@ -14,6 +15,4 @@ class PageInfo(pydantic.BaseModel):
 class PagedResponse(pydantic.BaseModel, Generic[T]):
     items: list[T] = pydantic.Field(default_factory=list)
     page_token: typing.Any | None = pydantic.Field(None)
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

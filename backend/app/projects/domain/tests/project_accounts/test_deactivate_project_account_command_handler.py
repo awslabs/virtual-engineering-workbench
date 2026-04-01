@@ -54,7 +54,7 @@ def test_can_deactivate_active_project_account(handler_dependencies, mock_uow_2,
     mock_uow_2.commit.assert_called_once()
 
     (key, ent) = mock_account_repo.update_entity.call_args.args
-    assertpy.assert_that(key).is_equal_to(
+    assertpy.assert_that(key.model_dump()).is_equal_to(
         {
             "projectId": "fake_project_id",
             "id": account.id,

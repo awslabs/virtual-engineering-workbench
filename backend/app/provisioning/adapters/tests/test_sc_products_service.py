@@ -149,7 +149,7 @@ def test_sc_products_service_get_provisioned_product_details_returns_product_tag
 
     # ASSERT
     assertpy.assert_that(resp).is_not_none()
-    assertpy.assert_that(resp.dict()).is_equal_to(
+    assertpy.assert_that(resp.model_dump()).is_equal_to(
         {
             "id": "pp-q4qjlwuha5arw",
             "status": "AVAILABLE",

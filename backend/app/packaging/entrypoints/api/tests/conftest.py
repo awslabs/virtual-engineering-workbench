@@ -559,7 +559,7 @@ def create_component(authenticated_event, lambda_context):
             componentDescription=component_description,
         )
 
-        evt = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/components", "POST")
+        evt = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/components", "POST")
         result = handler.handler(evt, lambda_context)
         return result["statusCode"], result["body"]
 
@@ -610,7 +610,7 @@ def share_component(authenticated_event, lambda_context):
         )
 
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/components/{component_id}",
             "POST",
         )
@@ -634,7 +634,7 @@ def update_component(authenticated_event, lambda_context):
         )
 
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/components/{component_id}",
             "PUT",
         )
@@ -689,7 +689,7 @@ def create_component_version(authenticated_event, lambda_context):
 
         request = api_model.CreateComponentVersionRequest(**kwargs)
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/components/{component_id}/versions",
             "POST",
         )
@@ -730,7 +730,7 @@ def validate_component_version(authenticated_event, lambda_context):
 
         request = api_model.CreateComponentVersionRequest(**kwargs)
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/components/{component_id}/validateVersions",
             "POST",
         )
@@ -835,14 +835,16 @@ def update_component_version(authenticated_event, lambda_context):
         request = api_model.UpdateComponentVersionRequest(
             componentVersionDescription=component_version_description,
             componentVersionYamlDefinition=component_version_yaml_definition,
-            componentVersionDependencies=component_version_dependencies,
+            componentVersionDependencies=[
+                dep.model_dump() if hasattr(dep, "model_dump") else dep for dep in component_version_dependencies
+            ],
             softwareVendor=software_vendor,
             softwareVersion=software_version,
             licenseDashboard=license_dashboard,
             notes=notes,
         )
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/components/{component_id}/versions/{version_id}",
             "PUT",
         )
@@ -956,7 +958,7 @@ def create_recipe(authenticated_event, lambda_context):
             lastUpdateDate=last_update_date,
             lastUpdatedBy=last_updated_by,
         )
-        evt = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/recipes", "POST")
+        evt = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/recipes", "POST")
         result = handler.handler(evt, lambda_context)
         return result["statusCode"], json.loads(result["body"])
 
@@ -1027,7 +1029,7 @@ def create_recipe_version(authenticated_event, lambda_context):
             recipeVersionVolumeSize=recipe_version_volume_size,
         )
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/recipes/{recipe_id}/versions",
             "POST",
         )
@@ -1148,7 +1150,7 @@ def update_recipe_version(authenticated_event, lambda_context):
             recipeVersionVolumeSize=recipe_version_volume_size,
         )
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/recipes/{recipe_id}/versions/{recipe_version_id}",
             "PUT",
         )
@@ -1252,7 +1254,7 @@ def create_mandatory_components_list(authenticated_event, lambda_context):
                 appendedComponentsVersions=appended_components_versions or [],
             )
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/mandatory-components-list",
             "POST",
         )
@@ -1295,7 +1297,7 @@ def update_mandatory_components_list(authenticated_event, lambda_context):
                 appendedComponentsVersions=appended_components_versions or [],
             )
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/mandatory-components-list",
             "PUT",
         )
@@ -1413,7 +1415,7 @@ def create_pipeline(authenticated_event, lambda_context):
             recipeId=recipe_id,
             recipeVersionId=recipe_version_id,
         )
-        evt = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/pipelines", "POST")
+        evt = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/pipelines", "POST")
         result = handler.handler(evt, lambda_context)
         return result["statusCode"], json.loads(result["body"])
 
@@ -1520,7 +1522,7 @@ def update_pipeline(authenticated_event, lambda_context):
             **kwargs,
         )
         evt = authenticated_event(
-            json.dumps(request.dict()),
+            json.dumps(request.model_dump()),
             f"/projects/{project_id}/pipelines/{pipeline_id}",
             "PUT",
         )
@@ -1553,7 +1555,7 @@ def create_image(authenticated_event, lambda_context):
         )
         from app.packaging.entrypoints.api import handler
 
-        evt = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/images", "POST")
+        evt = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/images", "POST")
         result = handler.handler(evt, lambda_context)
         return result["statusCode"], json.loads(result["body"])
 

@@ -5,6 +5,7 @@ from unittest import mock
 import assertpy
 import pydantic
 import pytest
+from pydantic import ConfigDict
 
 from app.shared.adapters.unit_of_work_v2 import (
     dynamodb_repo_config,
@@ -62,9 +63,7 @@ class Service(unit_of_work.Entity):
     service_label: str = pydantic.Field(..., alias="serviceLabel")
     service_type: str = pydantic.Field(..., alias="serviceType")
     state: str = pydantic.Field(...)
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):

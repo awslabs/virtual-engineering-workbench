@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProductVersionPublished(BaseModel):
@@ -7,6 +7,4 @@ class ProductVersionPublished(BaseModel):
     version_name: str = Field(..., alias="versionName")
     stage: str = Field(..., alias="stage")
     region: str = Field(..., alias="region")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

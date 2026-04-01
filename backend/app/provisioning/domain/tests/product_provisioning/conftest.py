@@ -47,6 +47,7 @@ TEST_COMPONENT_VERSION_DETAILS = [
         softwareVersion="1.87.0",
     )
 ]
+TEST_COMPONENT_VERSION_DETAILS_DUMPED = [cvd.model_dump() for cvd in TEST_COMPONENT_VERSION_DETAILS]
 
 
 @pytest.fixture()

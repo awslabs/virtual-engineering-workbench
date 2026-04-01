@@ -63,7 +63,7 @@ class DynamoDBProductsQueryService(products_query_service.ProductsQueryService):
             start_key = result.get(PagingParams.RESPONSE_PAGING, None)
             done = start_key is None
             if result.get("Items"):
-                products.extend([product.Product.parse_obj(item) for item in result["Items"]])
+                products.extend([product.Product.model_validate(item) for item in result["Items"]])
 
         return products
 
@@ -85,6 +85,6 @@ class DynamoDBProductsQueryService(products_query_service.ProductsQueryService):
         )
 
         if "Item" in result:
-            return product.Product.parse_obj(result["Item"])
+            return product.Product.model_validate(result["Item"])
 
         return None

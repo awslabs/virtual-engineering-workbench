@@ -71,7 +71,7 @@ class ServiceCatalogProductsServiceCachedInMemory(products_service.ProductsServi
                 )
 
                 for item in result.get("ProvisionedProducts", []):
-                    pp = provisioned_product_details.ProvisionedProductDetails.parse_obj(item)
+                    pp = provisioned_product_details.ProvisionedProductDetails.model_validate(item)
                     provisioned_products[pp.id] = pp
 
                 page_token = result.get("NextPageToken", None)

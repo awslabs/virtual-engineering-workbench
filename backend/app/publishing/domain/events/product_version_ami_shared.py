@@ -1,17 +1,15 @@
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from app.shared.adapters.message_bus import message_bus
 
 
 class ProductVersionAmiShared(message_bus.Message):
-    event_name: str = Field("ProductVersionAmiShared", alias="eventName", const=True)
+    event_name: Literal["ProductVersionAmiShared"] = Field("ProductVersionAmiShared", alias="eventName")
     product_id: str = Field(..., alias="productId")
     version_id: str = Field(..., alias="versionId")
     aws_account_id: str = Field(..., alias="awsAccountId")
     previous_event_name: str = Field(..., alias="previousEventName")
     old_version_id: Optional[str] = Field(None, alias="oldVersionId")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

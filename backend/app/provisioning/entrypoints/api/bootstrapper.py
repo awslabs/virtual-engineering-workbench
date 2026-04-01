@@ -4,7 +4,7 @@ from aws_lambda_powertools import logging
 from aws_lambda_powertools.utilities import parameters
 from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_ssm import client as ssm_client
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.provisioning.adapters.query_services import (
     aws_networking_query_service,
@@ -93,9 +93,7 @@ class Dependencies(BaseModel):
     virtual_targets_domain_qry_srv: provisioned_products_domain_query_service.ProvisionedProductsDomainQueryService
     user_profile_domain_qry_srv: user_profile_domain_query_service.UserProfileDomainQueryService
     prov_infra_qry_srv: provisioning_infrastructure_domain_query_service.ProvisioningInfrastructureDomainQueryService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

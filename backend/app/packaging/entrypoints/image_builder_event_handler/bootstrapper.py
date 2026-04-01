@@ -1,6 +1,6 @@
 import boto3
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.packaging.adapters.query_services import (
     dynamodb_component_version_query_service,
@@ -33,9 +33,7 @@ class Dependencies(BaseModel):
     image_query_srv: dynamodb_image_query_service.DynamoDBImageQueryService
     pipeline_query_srv: dynamodb_pipeline_query_service.DynamoDBPipelineQueryService
     recipe_version_query_srv: dynamodb_recipe_version_query_service.DynamoDBRecipeVersionQueryService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(

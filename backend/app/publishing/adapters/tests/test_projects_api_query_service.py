@@ -85,7 +85,7 @@ def test_get_aws_account_by_id_returns_correct_account(mock_api):
         query_params={"pageSize": "100", "projectId": "proj-id-1"},
     )
     assertpy.assert_that(account).is_not_none()
-    assertpy.assert_that(account.dict()).is_equal_to(
+    assertpy.assert_that(account.model_dump()).is_equal_to(
         {
             "id": "111",
             "awsAccountId": "000000000000",
@@ -132,7 +132,7 @@ def test_get_aws_accounst_by_status_returns_correct_account(mock_api):
     )
     assertpy.assert_that(accounts).is_not_none()
     assertpy.assert_that(accounts).is_length(1)
-    assertpy.assert_that(accounts[0].dict()).is_equal_to(
+    assertpy.assert_that(accounts[0].model_dump()).is_equal_to(
         {
             "id": "000",
             "awsAccountId": "0012345678900",

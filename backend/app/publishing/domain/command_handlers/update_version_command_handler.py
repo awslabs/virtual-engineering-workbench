@@ -6,7 +6,6 @@ from app.publishing.domain.exceptions import domain_exception
 from app.publishing.domain.model import product, version
 from app.publishing.domain.ports import amis_query_service, iac_service, template_service, versions_query_service
 from app.publishing.domain.query_services import template_domain_query_service
-from app.publishing.domain.read_models import component_version_detail
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -114,10 +113,7 @@ def __prepare_additional_attributes(command, product_entity, amis_qry_srv):
             raise domain_exception.DomainException(f"AMI {command.amiId.value} not found")
         additional_attributes["originalAmiId"] = command.amiId.value
         additional_attributes["componentVersionDetails"] = (
-            [
-                component_version_detail.ComponentVersionDetail.parse_obj(component_version).dict()
-                for component_version in ami.componentVersionDetails
-            ]
+            [component_version.model_dump() for component_version in ami.componentVersionDetails]
             if ami.componentVersionDetails
             else None
         )
@@ -143,7 +139,7 @@ def __update_version(
                 versionName=new_version_name,
                 versionDescription=command.versionDescription.value,
                 draftTemplateLocation=template_path,
-                parameters=[param.dict() for param in parameters],
+                parameters=[param.model_dump() for param in parameters],
                 status=version.VersionStatus.Updating,
                 **additional_attributes,
             )

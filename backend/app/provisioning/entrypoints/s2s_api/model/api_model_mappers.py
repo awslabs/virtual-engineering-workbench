@@ -11,7 +11,7 @@ SENSITIVE_OUTPUT_PARAMETERS = {
 def map_provisioned_product(
     provisioned_product_entity: provisioned_product.ProvisionedProduct,
 ) -> api_model.ProvisionedProduct:
-    provisioned_product_response = api_model.ProvisionedProduct.parse_obj(provisioned_product_entity)
+    provisioned_product_response = api_model.ProvisionedProduct.model_validate(provisioned_product_entity.model_dump())
     provisioned_product_response.sshEnabled = provisioned_product_entity.sshKeyPath is not None
     provisioned_product_response.usernamePasswordLoginEnabled = (
         provisioned_product_entity.userCredentialName is not None

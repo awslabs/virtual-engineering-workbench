@@ -37,7 +37,7 @@ class DynamoDBMandatoryComponentsListQueryService(
         )
 
         if "Item" in result:
-            return mandatory_components_list.MandatoryComponentsList.parse_obj(result["Item"])
+            return mandatory_components_list.MandatoryComponentsList.model_validate(result["Item"])
         else:
             return None
 
@@ -53,4 +53,6 @@ class DynamoDBMandatoryComponentsListQueryService(
             query_result = self._dynamodb_client.query(**query_kwargs)
             mandatory_components_lists.extend(query_result.get("Items", []))
 
-        return [mandatory_components_list.MandatoryComponentsList.parse_obj(obj) for obj in mandatory_components_lists]
+        return [
+            mandatory_components_list.MandatoryComponentsList.model_validate(obj) for obj in mandatory_components_lists
+        ]

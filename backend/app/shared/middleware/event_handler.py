@@ -71,9 +71,9 @@ class EventResolver(ABC):
             if isinstance(event_raw_payload, self._event_constructors[event_name]):
                 evt = event_raw_payload
             else:
-                # Only try parse_obj if the constructor is a Pydantic model
-                if hasattr(self._event_constructors[event_name], "parse_obj"):
-                    evt = self._event_constructors[event_name].parse_obj(event_raw_payload)
+                # Only try model_validate if the constructor is a Pydantic model
+                if hasattr(self._event_constructors[event_name], "model_validate"):
+                    evt = self._event_constructors[event_name].model_validate(event_raw_payload)
                 else:
                     # Fallback to constructor if not a Pydantic model
                     evt = self._event_constructors[event_name](event_raw_payload)

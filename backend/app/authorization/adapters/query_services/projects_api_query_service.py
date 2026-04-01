@@ -63,7 +63,7 @@ class ProjectsApiQueryService(projects_query_service.ProjectsQueryService):
 
         return paging_utils.PagedResponse[project_assignment.Assignment](
             items=[
-                project_assignment.Assignment.parse_obj({**resp, "projectId": project_id})
+                project_assignment.Assignment.model_validate({**resp, "projectId": project_id})
                 for resp in get_project_assignments_response.get("assignments")
             ],
             page_token=get_project_assignments_response.get("nextToken", None),

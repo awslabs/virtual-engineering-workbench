@@ -25,21 +25,32 @@ class Entity(pydantic.BaseModel):
     def __init__(self, **data):
         super().__init__(**data)
         # this could also be done with default_factory
-        self._original_value = self.dict()
+        self._original_value = self.model_dump()
         self._sequence_no = data.get(ATTRIBUTE_NAME_SEQUENCE_NO, None)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare entities by public fields only, excluding private attributes.
+        Pydantic v2 includes PrivateAttr in __eq__ by default, which breaks
+        equality for mutated entities (e.g. _original_value differs)."""
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return self.model_dump() == other.model_dump()
+
+    def __hash__(self) -> int:
+        return id(self)
 
     @property
     def has_changes(self) -> bool:
         """
         Returns True if the entity has been modified.
         """
-        return self._original_value != self.dict()
+        return self._original_value != self.model_dump()
 
     def refresh_changes(self) -> None:
         """
         Refreshes the entity changes.
         """
-        self._original_value = self.dict()
+        self._original_value = self.model_dump()
 
 
 T = TypeVar("T", bound=Entity)

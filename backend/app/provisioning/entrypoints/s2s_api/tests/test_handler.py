@@ -48,6 +48,7 @@ TEST_COMPONENT_VERSION_DETAILS = [
         softwareVersion="1.87.0",
     )
 ]
+TEST_COMPONENT_VERSION_DETAILS_DUMPED = [cvd.model_dump() for cvd in TEST_COMPONENT_VERSION_DETAILS]
 
 
 @pytest.fixture()
@@ -221,7 +222,7 @@ def test_get_available_products(products_domain_qs, lambda_context, authenticate
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAvailableProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProducts).is_not_none()
     assertpy.assert_that(len(response.availableProducts)).is_equal_to(5)
@@ -263,7 +264,7 @@ def test_launch_product(
         userName="TestUser",
     )
     minimal_event = authenticated_event(
-        request.json(),
+        request.model_dump_json(),
         f"/projects/{project_id}/products/provisioned",
         "POST",
     )
@@ -274,7 +275,7 @@ def test_launch_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(202)
-    response = api_model.LaunchProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.LaunchProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProductId).is_equal_to("pp-123")
     mocked_launch_provisioned_product_handler.assert_called_once()
@@ -321,11 +322,11 @@ def test_get_available_product_version(versions_domain_qs, lambda_context, authe
         region=region_value_object.from_str("us-east-1"),
         return_technical_params=False,
     )
-    response = api_model.GetAvailableProductVersionsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductVersionsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_length(2)
-    assertpy.assert_that(response.availableProductVersions[0].dict()).is_equal_to(
+    assertpy.assert_that(response.availableProductVersions[0].model_dump()).is_equal_to(
         {
             "isRecommendedVersion": True,
             "parameters": [
@@ -418,7 +419,7 @@ def test_get_provisioned_product(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProvisionedProductResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProvisionedProductResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProduct).is_equal_to(
         api_model.ProvisionedProduct(
@@ -437,7 +438,7 @@ def test_get_provisioned_product(
             versionRetiredDate=None,
             stage=provisioned_product.ProvisionedProductStage.QA,
             region="us-east-1",
-            provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key")],
+            provisioningParameters=[provisioning_parameter.ProvisioningParameter(key="mock-param-key").model_dump()],
             createDate="2023-09-01T00:00:00+00:00",
             lastUpdateDate="2023-09-01T00:00:00+00:00",
             outputs=[
@@ -446,18 +447,18 @@ def test_get_provisioned_product(
                     outputValue="outputs-value",
                     description=None,
                     outputType=None,
-                )
+                ).model_dump()
             ],
             sshEnabled=True,
             usernamePasswordLoginEnabled=True,
             experimental=True,
-            componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS,
+            componentVersionDetails=TEST_COMPONENT_VERSION_DETAILS_DUMPED,
             osVersion=TEST_OS_VERSION,
             awsAccountId="12345678912",
         )
     )
     assertpy.assert_that(response.versionMetadata).is_not_none()
-    assertpy.assert_that(response.versionMetadata.dict()).is_equal_to(
+    assertpy.assert_that(response.versionMetadata.model_dump()).is_equal_to(
         {
             "isRecommendedVersion": True,
             "parameters": [
@@ -709,7 +710,7 @@ def test_get_project_provisioned_products_paginated(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetPaginatedProvisionedProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetPaginatedProvisionedProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.provisionedProducts).is_length(5)
 

@@ -49,7 +49,7 @@ def test_reonboard_project_account_should_publish_event(
     assertpy.assert_that(event_obj).is_instance_of(
         project_account_on_boarding_restarted.ProjectAccountOnBoardingRestarted
     )
-    event_obj_dict = event_obj.dict(by_alias=True)
+    event_obj_dict = event_obj.model_dump(by_alias=True)
 
     assertpy.assert_that(event_obj_dict).contains_entry({"accountId": "001234567890"})
     assertpy.assert_that(event_obj_dict).contains_entry({"accountType": "workbench-user"})
@@ -109,7 +109,7 @@ def test_can_onboard_new_account_to_existing_project(
     # ASSERT
     mock_uow_2.commit.assert_called_once()
     (key, ent) = mock_account_repo.update_entity.call_args.args
-    assertpy.assert_that(key).is_equal_to(
+    assertpy.assert_that(key.model_dump()).is_equal_to(
         {
             "projectId": "123",
             "id": "321",

@@ -88,7 +88,7 @@ def test_get_components_should_return_all_components(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentsResponse.parse_obj(body)
+    response = api_model.GetComponentsResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.components).is_not_none()
@@ -121,7 +121,7 @@ def test_get_components_versions_should_return_all_components_versions(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentsVersionsResponse.parse_obj(body)
+    response = api_model.GetComponentsVersionsResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.components_versions_summary).is_not_none()
@@ -235,7 +235,7 @@ def test_get_component_should_return_a_specific_component(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentResponse.parse_obj(body)
+    response = api_model.GetComponentResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.component).is_not_none()
@@ -435,7 +435,7 @@ def test_get_component_versions_should_return_all_component_versions(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentVersionsResponse.parse_obj(body)
+    response = api_model.GetComponentVersionsResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.component_versions).is_not_none()
@@ -458,7 +458,7 @@ def test_get_component_version_should_return_a_specific_component_version(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentVersionResponse.parse_obj(body)
+    response = api_model.GetComponentVersionResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.component_version).is_not_none()
@@ -686,7 +686,7 @@ def test_get_component_version_test_executions_should_return_all_component_versi
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentVersionTestExecutionsResponse.parse_obj(body)
+    response = api_model.GetComponentVersionTestExecutionsResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.component_version_test_execution_summaries).is_not_none()
@@ -714,7 +714,7 @@ def test_get_component_version_test_execution_should_return_logs_url_for_a_speci
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetComponentVersionTestExecutionLogsUrlResponse.parse_obj(body)
+    response = api_model.GetComponentVersionTestExecutionLogsUrlResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.logs_url).is_not_none()
@@ -830,7 +830,7 @@ def test_get_recipes_should_return_all_recipes(lambda_context, authenticated_eve
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetRecipesResponse.parse_obj(body)
+    response = api_model.GetRecipesResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.recipes).is_not_none()
@@ -851,7 +851,7 @@ def test_get_recipe_should_return_a_specific_recipe(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetRecipeResponse.parse_obj(body)
+    response = api_model.GetRecipeResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.recipe).is_not_none()
@@ -947,7 +947,7 @@ def test_get_recipe_versions_should_return_all_recipe_versions(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetRecipeVersionsResponse.parse_obj(body)
+    response = api_model.GetRecipeVersionsResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.recipe_versions).is_not_none()
@@ -990,7 +990,7 @@ def test_get_recipe_version_should_return_a_specific_recipe_version(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetRecipeVersionResponse.parse_obj(body)
+    response = api_model.GetRecipeVersionResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.recipe_version).is_not_none()
@@ -1009,7 +1009,7 @@ def test_get_recipe_version_should_return_a_specific_recipe_version(
                     componentVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
                     componentVersionType=GlobalVariables.TEST_COMPONENT_VERSION_TYPE.value,
                     order=1,
-                )
+                ).model_dump()
             ],
             recipeVersionIntegrations=[],
             parentImageUpstreamId=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value,
@@ -1111,7 +1111,7 @@ def test_get_recipe_version_test_executions_should_return_all_recipe_version_tes
         recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
         version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
     )
-    response = api_model.GetRecipeVersionTestExecutionsResponse.parse_obj(body)
+    response = api_model.GetRecipeVersionTestExecutionsResponse.model_validate(body)
     # ASSERT
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
@@ -1136,7 +1136,7 @@ def test_get_recipe_version_test_execution_should_return_logs_url_of_a_specific_
         version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
         execution_id=GlobalVariables.TEST_RECIPE_VERSION_TEST_EXECUTION_ID.value,
     )
-    response = api_model.GetRecipeVersionTestExecutionLogsUrlResponse.parse_obj(body)
+    response = api_model.GetRecipeVersionTestExecutionLogsUrlResponse.model_validate(body)
     # ASSERT
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
@@ -1157,7 +1157,7 @@ def test_get_mandatory_components_list_should_return_list(
 
     handler.dependencies = mocked_dependencies
     status_code, body = get_mandatory_component_list()
-    response = api_model.GetMandatoryComponentsListResponse.parse_obj(body)
+    response = api_model.GetMandatoryComponentsListResponse.model_validate(body)
 
     # ASSERT
     assertpy.assert_that(body).is_not_none()
@@ -1257,7 +1257,7 @@ def test_get_mandatory_components_lists_should_return_all_lists(
 
     handler.dependencies = mocked_dependencies
     status_code, body = list_mandatory_components_list()
-    response = api_model.GetMandatoryComponentsListsResponse.parse_obj(body)
+    response = api_model.GetMandatoryComponentsListsResponse.model_validate(body)
 
     # ASSERT
     assertpy.assert_that(body).is_not_none()
@@ -1342,7 +1342,7 @@ def test_get_pipelines_should_return_all_pipelines(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetPipelinesResponse.parse_obj(body)
+    response = api_model.GetPipelinesResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.pipelines).is_not_none()
@@ -1362,7 +1362,7 @@ def test_get_pipeline_should_return_a_specific_pipeline(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetPipelineResponse.parse_obj(body)
+    response = api_model.GetPipelineResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.pipeline).is_not_none()
@@ -1576,7 +1576,7 @@ def test_get_recipes_versions_should_return_all_recipes_versions(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetRecipesVersionsResponse.parse_obj(body)
+    response = api_model.GetRecipesVersionsResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.recipes_versions_summary).is_not_none()
@@ -1594,7 +1594,7 @@ def test_get_all_images_for_project(lambda_context, authenticated_event, mocked_
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetImagesResponse.parse_obj(body)
+    response = api_model.GetImagesResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.images).is_not_none()
@@ -1602,7 +1602,7 @@ def test_get_all_images_for_project(lambda_context, authenticated_event, mocked_
         api_model.Image(
             projectId=GlobalVariables.TEST_PROJECT_ID.value,
             imageId=GlobalVariables.TEST_IMAGE_ID.value,
-            imageBuildVersion=GlobalVariables.TEST_IMAGE_BUILD_VERSION.value,
+            imageBuildVersion=str(GlobalVariables.TEST_IMAGE_BUILD_VERSION.value),
             imageBuildVersionArn=GlobalVariables.TEST_IMAGE_BUILD_VERSION_ARN.value,
             pipelineId=GlobalVariables.TEST_PIPELINE_ID.value,
             pipelineName=GlobalVariables.TEST_PIPELINE_NAME.value,
@@ -1631,7 +1631,7 @@ def test_get_image_for_project(lambda_context, authenticated_event, mocked_depen
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetImageResponse.parse_obj(body)
+    response = api_model.GetImageResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.image).is_not_none()
@@ -1639,7 +1639,7 @@ def test_get_image_for_project(lambda_context, authenticated_event, mocked_depen
         api_model.Image(
             projectId=GlobalVariables.TEST_PROJECT_ID.value,
             imageId=GlobalVariables.TEST_IMAGE_ID.value,
-            imageBuildVersion=GlobalVariables.TEST_IMAGE_BUILD_VERSION.value,
+            imageBuildVersion=str(GlobalVariables.TEST_IMAGE_BUILD_VERSION.value),
             imageBuildVersionArn=GlobalVariables.TEST_IMAGE_BUILD_VERSION_ARN.value,
             pipelineId=GlobalVariables.TEST_PIPELINE_ID.value,
             pipelineName=GlobalVariables.TEST_PIPELINE_NAME.value,
@@ -1671,7 +1671,7 @@ def test_get_pipelines_allowed_build_types(
     assertpy.assert_that(body).is_not_none()
     assertpy.assert_that(status_code).is_equal_to(200)
 
-    response = api_model.GetPipelinesAllowedBuildTypesResponse.parse_obj(body)
+    response = api_model.GetPipelinesAllowedBuildTypesResponse.model_validate(body)
 
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.pipelines_allowed_build_types).is_not_none()

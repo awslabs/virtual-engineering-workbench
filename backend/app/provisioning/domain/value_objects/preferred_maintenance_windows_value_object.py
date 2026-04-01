@@ -33,4 +33,6 @@ def from_list(value) -> PreferredPreferredMaintenanceWindowsValueObject:
             if not item.endTime:
                 raise domain_exception.DomainException(f"Maintenance Window end time cannot be empty for {item.day}")
 
-    return PreferredPreferredMaintenanceWindowsValueObject(value=[MaintenanceWindow.parse_obj(mw) for mw in value])
+    return PreferredPreferredMaintenanceWindowsValueObject(
+        value=[MaintenanceWindow.model_validate(mw if isinstance(mw, dict) else mw.model_dump()) for mw in value]
+    )

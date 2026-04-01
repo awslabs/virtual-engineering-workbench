@@ -1,3 +1,5 @@
+from pydantic import ConfigDict
+
 from app.provisioning.domain.value_objects import (
     network_value_object,
     preferred_maintenance_windows_value_object,
@@ -14,6 +16,4 @@ class UpdateUserProfileCommand(command_bus.Command):
     preferred_maintenance_windows: (
         preferred_maintenance_windows_value_object.PreferredPreferredMaintenanceWindowsValueObject
     )
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

@@ -12,5 +12,10 @@ class AdditionalConfigurationsValueObject(value_object.ValueObject):
 
 def from_list(value: typing.Optional[list[dict[str, list[dict[str, str]]]]]) -> AdditionalConfigurationsValueObject:
     return AdditionalConfigurationsValueObject(
-        value=[additional_configuration.AdditionalConfiguration.parse_obj(c) for c in (value or [])]
+        value=[
+            additional_configuration.AdditionalConfiguration.model_validate(
+                c if isinstance(c, dict) else c.model_dump()
+            )
+            for c in (value or [])
+        ]
     )

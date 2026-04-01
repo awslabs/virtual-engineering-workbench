@@ -5,6 +5,7 @@ import boto3
 from mypy_boto3_servicecatalog import client
 
 from app.publishing.adapters.query_services import service_catalog_query_service
+from app.publishing.domain.model import version as version_model
 
 
 def test_does_portfolio_exist_in_sc_returns_true_if_portfolio_exists(mock_moto_calls, mock_logger):
@@ -371,9 +372,9 @@ def test_get_provisioning_parameters_returns_generic_version_metadata(mock_moto_
     assertpy.assert_that(meta).contains("InstalledTools", "ReleaseNotes", "MainSoftware")
     assertpy.assert_that(meta).contains_entry(
         {
-            "InstalledTools": {
-                "label": "Installed Tools",
-                "value": ["https://example.com"],
-            }
+            "InstalledTools": version_model.ProductVersionMetadataItem(
+                label="Installed Tools",
+                value=["https://example.com"],
+            )
         }
     )

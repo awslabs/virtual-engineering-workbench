@@ -64,9 +64,9 @@ class DynamoDBVersionsQueryService(versions_query_service.VersionsQueryService):
         versions: list[version.Version] = []
         while DDB_RESPONSE_PAGING_PARAM in (result := self._dynamodb_client.query(**query_params)):
             query_params[DDB_REQUEST_PAGING_PARAM] = result.get(DDB_RESPONSE_PAGING_PARAM)
-            versions.extend([version.Version.parse_obj(item) for item in result["Items"]])
+            versions.extend([version.Version.model_validate(item) for item in result["Items"]])
 
-        versions.extend([version.Version.parse_obj(item) for item in result["Items"]])
+        versions.extend([version.Version.model_validate(item) for item in result["Items"]])
 
         return versions
 
@@ -86,7 +86,7 @@ class DynamoDBVersionsQueryService(versions_query_service.VersionsQueryService):
         )
 
         if "Item" in result:
-            return version.Version.parse_obj(result["Item"])
+            return version.Version.model_validate(result["Item"])
         else:
             return None
 
@@ -104,7 +104,7 @@ class DynamoDBVersionsQueryService(versions_query_service.VersionsQueryService):
             raise adapter_exception.AdapterException(f"More than 1 versions found for {sc_provisioning_artifact_id}")
 
         if result.get("Items"):
-            return version.Version.parse_obj(result["Items"][0])
+            return version.Version.model_validate(result["Items"][0])
 
         return None
 

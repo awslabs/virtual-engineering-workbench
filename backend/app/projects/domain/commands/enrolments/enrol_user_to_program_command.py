@@ -1,5 +1,7 @@
 from typing import Optional
 
+from pydantic import ConfigDict
+
 from app.projects.domain.value_objects import (
     enrolment_id_value_object,
     project_id_value_object,
@@ -16,6 +18,4 @@ class EnrolUserToProgramCommand(command_bus.Command):
     user_email: user_email_value_object.UserEmailValueObject
     source_system: source_system_value_object.SourceSystemValueObject
     enrolment_id: Optional[enrolment_id_value_object.EnrolmentIdValueObject] = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

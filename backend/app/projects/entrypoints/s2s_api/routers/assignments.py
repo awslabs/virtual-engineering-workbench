@@ -33,7 +33,9 @@ def init(dependencies: bootstrapper.Dependencies) -> Router:
         return api_gateway.Response(
             status_code=HTTPStatus.OK,
             body=api_model.GetProjectAssignmentsResponse(
-                assignments=[api_model.GetProjectAssignmentsResponseItem.parse_obj(a.dict()) for a in assignments],
+                assignments=[
+                    api_model.GetProjectAssignmentsResponseItem.model_validate(a.model_dump()) for a in assignments
+                ],
             ),
             content_type=content_types.APPLICATION_JSON,
         )

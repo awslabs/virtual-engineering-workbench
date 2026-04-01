@@ -2,7 +2,7 @@ import typing
 
 import boto3
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.authorization.adapters.repository import dynamo_entity_config
 from app.authorization.domain.integration_event_handlers.projects import (
@@ -27,9 +27,7 @@ class Dependencies(BaseModel):
     user_assigned_handler: typing.Callable[[user_assigned.UserAssigned], None]
     user_reassigned_handler: typing.Callable[[user_reassigned.UserReAssigned], None]
     user_unassigned_handler: typing.Callable[[user_unassigned.UserUnAssigned], None]
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

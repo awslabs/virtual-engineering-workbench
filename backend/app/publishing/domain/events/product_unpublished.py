@@ -1,12 +1,12 @@
-from pydantic import Field
+from typing import Literal
+
+from pydantic import ConfigDict, Field
 
 from app.shared.adapters.message_bus import message_bus
 
 
 class ProductUnpublished(message_bus.Message):
-    event_name: str = Field("ProductUnpublished", alias="eventName", const=True)
+    event_name: Literal["ProductUnpublished"] = Field("ProductUnpublished", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     product_id: str = Field(..., alias="productId")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

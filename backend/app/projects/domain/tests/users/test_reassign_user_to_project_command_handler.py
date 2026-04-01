@@ -84,7 +84,7 @@ def test_reassign_user_from_admin_to_user(
     # Assert
     message_bus_mock.publish.assert_called_once()
     event_obj = message_bus_mock.publish.call_args.args[0]
-    event_dict = event_obj.dict()
+    event_dict = event_obj.model_dump()
 
     mock_assignments_repo.update_entity.assert_called_once()
     pk, ent = mock_assignments_repo.update_entity.call_args.kwargs.values()

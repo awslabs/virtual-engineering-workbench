@@ -5,7 +5,7 @@ from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_ecs import client as ecs_client
 from mypy_boto3_servicecatalog import client
 from mypy_boto3_ssm import client as ssm_client
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.provisioning.adapters.query_services import (
     dynamodb_products_query_service,
@@ -57,9 +57,7 @@ class Dependencies(BaseModel):
     command_bus: command_bus.CommandBus
     products_service: sc_products_service.ServiceCatalogProductsService
     provisioned_products_query_service: provisioned_products_query_service.ProvisionedProductsQueryService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

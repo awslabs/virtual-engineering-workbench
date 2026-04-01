@@ -120,7 +120,8 @@ class ECSContainerManagementService(container_management_service.ContainerManage
         tags = task_details.get("tags", [])
         self._logger.debug(f"Task tags: {tags}")
         return [
-            container_details.ContainerTag.parse_obj({"Key": tag.get("key"), "Value": tag.get("value")}) for tag in tags
+            container_details.ContainerTag.model_validate({"Key": tag.get("key"), "Value": tag.get("value")})
+            for tag in tags
         ]
 
     def __set_service_desired_count(

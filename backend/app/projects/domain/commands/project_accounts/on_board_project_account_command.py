@@ -1,3 +1,5 @@
+from pydantic import ConfigDict
+
 from app.projects.domain.model import project_account
 from app.projects.domain.value_objects import (
     account_description_value_object,
@@ -20,6 +22,4 @@ class OnBoardProjectAccountCommand(command_bus.Command):
     stage: project_account.ProjectAccountStageEnum
     technology: account_technology_id_value_object.AccountTechnologyIdValueObject
     region: region_value_object.RegionValueObject
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

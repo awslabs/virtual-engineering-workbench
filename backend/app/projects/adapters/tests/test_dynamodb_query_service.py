@@ -176,21 +176,21 @@ def fill_db_with_entities(backend_app_dynamodb_table, projects=None, assignments
                 "PK": f"PROJECT#{proj.projectId}",
                 "SK": f"PROJECT#{proj.projectId}",
                 "entity": "PROJECT",
-                **proj.dict(),
+                **proj.model_dump(),
             }
         )
     if not assignments:
         assignments = []
     for assign in assignments:
         backend_app_dynamodb_table.put_item(
-            Item={"PK": f"USER#{assign.userId}", "SK": f"PROJECT#{assign.projectId}", **assign.dict()}
+            Item={"PK": f"USER#{assign.userId}", "SK": f"PROJECT#{assign.projectId}", **assign.model_dump()}
         )
 
     if not users:
         users = []
     for _user in users:
         backend_app_dynamodb_table.put_item(
-            Item={"PK": f"USER#{_user.userId}", "SK": f"USER#{_user.userId}", **_user.dict()}
+            Item={"PK": f"USER#{_user.userId}", "SK": f"USER#{_user.userId}", **_user.model_dump()}
         )
 
 
@@ -987,7 +987,7 @@ def test_can_list_technologies_for_project(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.TECHNOLOGY}#{tech.id}",
-                **tech.dict(),
+                **tech.model_dump(),
             }
         )
 
@@ -1048,7 +1048,7 @@ def test_can_list_project_accounts_by_aws_account(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
     sample_pa = sample_pa_accounts.pop()
@@ -1085,7 +1085,7 @@ def test_list_all_accounts_all_types_all_projects(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
 
@@ -1121,7 +1121,7 @@ def test_list_all_accounts_all_types_all_projects_paging(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
 
@@ -1165,7 +1165,7 @@ def test_list_all_accounts_specific_types_all_projects(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
     for pa in sample_pa_tool_accounts:
@@ -1173,7 +1173,7 @@ def test_list_all_accounts_specific_types_all_projects(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
 
@@ -1212,7 +1212,7 @@ def test_list_all_accounts_specific_types_all_projects_paging(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
     for pa in sample_pa_tool_accounts:
@@ -1220,7 +1220,7 @@ def test_list_all_accounts_specific_types_all_projects_paging(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.ACCOUNT}#{pa.id}",
-                **pa.dict(),
+                **pa.model_dump(),
             }
         )
 
@@ -1263,7 +1263,7 @@ def test_enrolment_query_service_can_return_enrolment_for_userid_and_project_id(
         Item={
             "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
             "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
-            **sample_enrolment.dict(),
+            **sample_enrolment.model_dump(),
         }
     )
 
@@ -1296,7 +1296,7 @@ def test_enrolment_query_service_can_return_none_for_userid_without_enrolment_in
         Item={
             "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
             "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
-            **sample_enrolment.dict(),
+            **sample_enrolment.model_dump(),
         }
     )
 
@@ -1329,7 +1329,7 @@ def test_enrolment_query_service_can_return_none_for_invalid_project_id(
         Item={
             "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_project.projectId}",
             "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
-            **sample_enrolment.dict(),
+            **sample_enrolment.model_dump(),
         }
     )
 
@@ -1360,7 +1360,7 @@ def test_get_enrolment_by_id(
         Item={
             "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_projects[0].projectId}",
             "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
-            **sample_enrolment.dict(),
+            **sample_enrolment.model_dump(),
         }
     )
 
@@ -1394,7 +1394,7 @@ def test_list_enrolments_by_project(
                 Item={
                     "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{proj.projectId}",
                     "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
-                    **sample_enrolment.dict(),
+                    **sample_enrolment.model_dump(),
                 }
             )
 
@@ -1432,7 +1432,7 @@ def test_list_enrolments_by_user_id(
                     "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{proj.projectId}",
                     "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
                     "QPK": f"{dynamo_entity_config.DBPrefix.USER}#{user}",
-                    **sample_enrolment.dict(),
+                    **sample_enrolment.model_dump(),
                 }
             )
 
@@ -1469,7 +1469,7 @@ def test_list_enrolments_by_project_should_filter_by_status(
                     "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{proj.projectId}",
                     "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{sample_enrolment.id}",
                     "QSK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#Approved#{sample_enrolment.id}",
-                    **sample_enrolment.dict(),
+                    **sample_enrolment.model_dump(),
                 }
             )
 
@@ -1479,7 +1479,7 @@ def test_list_enrolments_by_project_should_filter_by_status(
             "PK": f"{dynamo_entity_config.DBPrefix.PROJECT}#{sample_projects[0].projectId}",
             "SK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#{pending_enrolment.id}",
             "QSK": f"{dynamo_entity_config.DBPrefix.ENROLMENT}#Pending#{pending_enrolment.id}",
-            **pending_enrolment.dict(),
+            **pending_enrolment.model_dump(),
         }
     )
 

@@ -114,7 +114,7 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
         if not (instances := reservations[0].get("Instances", None)):
             return None
 
-        return instance_details.InstanceDetails.parse_obj(instances[0])
+        return instance_details.InstanceDetails.model_validate(instances[0])
 
     def start_instance(self, user_id: str, aws_account_id: str, region: str, instance_id: str) -> str:
         """Starts the given EC2 instance by calling the EC2 API.
@@ -396,7 +396,7 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
 
         route_tables.extend(response.get("RouteTables"))
 
-        return [network_route_table.NetworkRouteTable.parse_obj(rt) for rt in route_tables]
+        return [network_route_table.NetworkRouteTable.model_validate(rt) for rt in route_tables]
 
     def describe_vpc_subnets(
         self, user_id: str, aws_account_id: str, region: str, vpc_id: str
@@ -416,7 +416,7 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
 
         subnets.extend(response.get("Subnets"))
 
-        return [network_subnet.NetworkSubnet.parse_obj(s) for s in subnets]
+        return [network_subnet.NetworkSubnet.model_validate(s) for s in subnets]
 
     def detach_instance_volume(
         self, user_id: str, aws_account_id: str, region: str, instance_id: str, volume_id: str
@@ -436,7 +436,7 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
     ) -> list[network_interface.NetworkInterface]:
         ec2_client = self._ec2_boto_client_provider(aws_account_id, region, user_id)
         return [
-            network_interface.NetworkInterface.parse_obj(r)
+            network_interface.NetworkInterface.model_validate(r)
             for r in ec2_client.describe_network_interfaces(Filters=[{"Name": "subnet-id", "Values": [subnet_id]}]).get(
                 "NetworkInterfaces", []
             )
@@ -447,4 +447,4 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
     ) -> network_subnet.NetworkSubnet | None:
         ec2_client = self._ec2_boto_client_provider(aws_account_id, region, user_id)
         sub = ec2_client.describe_subnets(SubnetIds=[subnet_id]).get("Subnets")
-        return network_subnet.NetworkSubnet.parse_obj(sub[0]) if sub else None
+        return network_subnet.NetworkSubnet.model_validate(sub[0]) if sub else None

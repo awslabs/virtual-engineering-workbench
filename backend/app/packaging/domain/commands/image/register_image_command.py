@@ -12,5 +12,5 @@ from app.shared.adapters.message_bus import command_bus
 class RegisterImageCommand(command_bus.Command):
     imageBuildVersionArn: image_build_version_arn_value_object.ImageBuildVersionArnValueObject
     imageStatus: image_status_value_object.ImageStatusStatusValueObject
-    imageUpstreamId: Optional[image_upstream_id_value_object.ImageUpstreamIdValueObject]
+    imageUpstreamId: Optional[image_upstream_id_value_object.ImageUpstreamIdValueObject] = None
     pipelineId: pipeline_id_value_object.PipelineIdValueObject

@@ -1,12 +1,12 @@
 import json
 from http import HTTPStatus
+from typing import Annotated
 from urllib.parse import unquote
 
 from aws_lambda_powertools import logging, tracing
 from aws_lambda_powertools.event_handler import api_gateway, content_types
 from aws_lambda_powertools.event_handler.openapi.models import Server
 from aws_lambda_powertools.event_handler.openapi.params import Query
-from aws_lambda_powertools.shared.types import Annotated
 from aws_lambda_powertools.utilities import typing
 from aws_xray_sdk.core import patch_all
 
@@ -91,7 +91,7 @@ def get_available_products(
         product_id_filter=product_id_value_object.from_list(filter) if filter else None,
     )
 
-    products_parsed = [api_model.AvailableProduct.parse_obj(product) for product in products]
+    products_parsed = [api_model.AvailableProduct.model_validate(product.model_dump()) for product in products]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -115,7 +115,7 @@ def launch_product(
         product_id=product_id_value_object.from_str(launch_product_request.productId),
         version_id=product_version_id_value_object.from_str(launch_product_request.versionId),
         provisioning_parameters=provisioning_parameters_value_object.from_list(
-            [p.dict() for p in launch_product_request.provisioningParameters]
+            [p.model_dump() for p in launch_product_request.provisioningParameters]
         ),
         additional_configurations=additional_configurations_value_object.from_list(
             launch_product_request.additionalConfigurations
@@ -162,7 +162,9 @@ def get_available_product_versions(
         return_technical_params=False,
     )
 
-    versions_parsed = [api_model.AvailableVersionDistribution.parse_obj(version) for version in versions]
+    versions_parsed = [
+        api_model.AvailableVersionDistribution.model_validate(version.model_dump()) for version in versions
+    ]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -185,14 +187,14 @@ def get_provisioned_product(
         provisioned_product_id=provisioned_product_id_value_object.from_str(provisioned_product_id),
         return_technical_params=False,
     )
-    provisioned_product_parsed = api_model.ProvisionedProduct.parse_obj(
-        api_model_mappers.map_provisioned_product(provisioned_product_entity)
+    provisioned_product_parsed = api_model.ProvisionedProduct.model_validate(
+        api_model_mappers.map_provisioned_product(provisioned_product_entity).model_dump()
     )
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetProvisionedProductResponse(
             provisionedProduct=provisioned_product_parsed,
-            versionMetadata=version_metadata,
+            versionMetadata=version_metadata.model_dump() if version_metadata else None,
         ),
         content_type=content_types.APPLICATION_JSON,
     )

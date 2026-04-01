@@ -535,7 +535,7 @@ def test_create_product(
     )
 
     project_id = "proj-12345"
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/products", "POST")
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/products", "POST")
 
     # ACT
     result = handler.handler(minimal_event, lambda_context)
@@ -587,7 +587,7 @@ def test_archive_product(
 
 @pytest.mark.parametrize(
     "major_version_name",
-    (None, "1"),
+    (None, 1),
 )
 def test_create_product_version(
     lambda_context,
@@ -612,7 +612,7 @@ def test_create_product_version(
     project_id = "proj-12345"
     product_id = "prod-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions",
         "POST",
     )
@@ -656,7 +656,7 @@ def test_validate_product_version(
     project_id = "proj-12345"
     product_id = "prod-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions/validate",
         "POST",
     )
@@ -696,7 +696,7 @@ def test_update_product_version(
     product_id = "prod-12345"
     version_id = "ver-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions/{version_id}",
         "PUT",
     )
@@ -736,7 +736,7 @@ def test_retry_product_version(
     product_id = "prod-12345"
     version_id = "ver-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions/{version_id}",
         "PATCH",
     )
@@ -777,7 +777,7 @@ def test_promote_product_version(
     product_id = "prod-12345"
     version_id = "ver-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions/{version_id}",
         "POST",
     )
@@ -832,7 +832,7 @@ def test_restore_product_version(
             restoredBy=user_id_value_object.from_str("T00123122"),
         )
     )
-    response = api_model.RestoreProductVersionResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.RestoreProductVersionResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.restoredVersionName).is_equal_to("2.4.0-rc.1")
 
@@ -852,7 +852,7 @@ def test_get_products(lambda_context, authenticated_event, mocked_dependencies):
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.products).is_not_none()
     assertpy.assert_that(len(response.products)).is_equal_to(5)
@@ -886,7 +886,7 @@ def test_can_get_a_single_product_for_a_program(lambda_context, authenticated_ev
     # ASSERT
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
     try:
-        response = api_model.GetProductResponse.parse_obj(json.loads(result["body"]))
+        response = api_model.GetProductResponse.model_validate(json.loads(result["body"]))
         assertpy.assert_that(response.product.technologyId).is_equal_to(sample_prod.technologyId)
         assertpy.assert_that(response.product.productId).is_equal_to(sample_prod.productId)
         assertpy.assert_that(response.product.versions).is_length(1)
@@ -909,7 +909,7 @@ def test_get_amis(lambda_context, authenticated_event, mocked_dependencies):
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAmisResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAmisResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.amis).is_not_none()
     assertpy.assert_that(len(response.amis)).is_equal_to(5)
@@ -936,7 +936,7 @@ def test_get_available_product_versions(lambda_context, authenticated_event, moc
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAvailableProductVersionsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductVersionsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_not_none()
     assertpy.assert_that(len(response.availableProductVersions)).is_equal_to(1)
@@ -965,7 +965,7 @@ def test_get_product_version_returns_summary_distributions_and_template(
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result.get("statusCode")).is_equal_to(200)
     body = json.loads(result.get("body"))
-    prd = api_model.Product.parse_obj(body["product"])
+    prd = api_model.Product.model_validate(body["product"])
     assertpy.assert_that(prd).is_equal_to(
         api_model.Product(
             projectId="proj-12345",
@@ -981,7 +981,7 @@ def test_get_product_version_returns_summary_distributions_and_template(
             lastUpdatedBy="T0012AB",
         ),
     )
-    summary = api_model.VersionSummary.parse_obj(body["version"])
+    summary = api_model.VersionSummary.model_validate(body["version"])
     assertpy.assert_that(summary).is_equal_to(
         api_model.VersionSummary(
             versionId=TEST_VERSION_ID,
@@ -997,7 +997,7 @@ def test_get_product_version_returns_summary_distributions_and_template(
             originalAmiId="ami-123",
         )
     )
-    distributions = [api_model.VersionDistribution.parse_obj(dist) for dist in body["distributions"]]
+    distributions = [api_model.VersionDistribution.model_validate(dist) for dist in body["distributions"]]
     assertpy.assert_that(distributions).is_equal_to(
         [
             api_model.VersionDistribution(
@@ -1037,7 +1037,7 @@ def test_retire_product_version(
     product_id = "prod-12345"
     version_id = "ver-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions/{version_id}",
         "DELETE",
     )
@@ -1079,7 +1079,7 @@ def test_get_available_products(lambda_context, authenticated_event, mocked_depe
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAvailableProductsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProducts).is_not_none()
     assertpy.assert_that(len(response.availableProducts)).is_equal_to(5)
@@ -1102,7 +1102,7 @@ def test_set_recommended_product_version(
     product_id = "prod-12345"
     version_id = "ver-12345"
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/products/{product_id}/versions/{version_id}/set-recommended",
         "PUT",
     )
@@ -1160,7 +1160,7 @@ def test_get_latest_template(version_id, lambda_context, authenticated_event, mo
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetLatestTemplateResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetLatestTemplateResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.template).is_equal_to("Latest product template")
 
@@ -1185,7 +1185,7 @@ def test_get_available_product_versions_internal(lambda_context, authenticated_e
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAvailableProductVersionsInternalResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductVersionsInternalResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_not_none()
     assertpy.assert_that(len(response.availableProductVersions)).is_equal_to(1)
@@ -1212,7 +1212,7 @@ def test_get_available_product_version_internal(lambda_context, authenticated_ev
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetAvailableProductVersionsInternalResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetAvailableProductVersionsInternalResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.availableProductVersions).is_not_none()
     assertpy.assert_that(len(response.availableProductVersions)).is_equal_to(1)
@@ -1240,11 +1240,11 @@ def test_get_product_version_distribution_internal(lambda_context, authenticated
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProductVersionInternalResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProductVersionInternalResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.version).is_not_none()
     assertpy.assert_that(response.version).is_equal_to(
-        api_model.AvailableVersionDistributionEnriched.parse_obj(
+        api_model.AvailableVersionDistributionEnriched.model_validate(
             {
                 "projectId": "proj-123",
                 "productId": TEST_PRODUCT_ID,
@@ -1295,7 +1295,7 @@ def test_get_latest_major_versions(lambda_context, authenticated_event, mocked_d
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result.get("statusCode")).is_equal_to(200)
     body = json.loads(result.get("body"))
-    sumaries = [api_model.VersionSummary.parse_obj(summary) for summary in body["versions"]]
+    sumaries = [api_model.VersionSummary.model_validate(summary) for summary in body["versions"]]
     assertpy.assert_that(sumaries).is_equal_to(
         [
             api_model.VersionSummary(
@@ -1338,6 +1338,6 @@ def test_get_published_amis_internal(lambda_context, authenticated_event, mocked
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetPublishedAmisResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetPublishedAmisResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.amis).is_length(5)
