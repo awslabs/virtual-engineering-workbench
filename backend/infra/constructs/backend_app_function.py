@@ -10,6 +10,7 @@ from aws_cdk import aws_ec2, aws_iam, aws_lambda, aws_sqs
 from jsii import implements, member
 
 from infra import constants
+from infra.constructs.bundling import DOCKER_STRIP_CMD, strip_bundle
 
 
 def _validate_path(path: str) -> None:
@@ -36,7 +37,7 @@ class LocalBundler:
         try:
             if requirements_file.is_file():
                 subprocess.run(
-                    ["pip", "install", "-r", str(requirements_file), "-t", output_dir],
+                    ["pip", "install", "-r", str(requirements_file), "-t", output_dir, "--no-compile"],
                     check=True,
                     shell=False,
                     capture_output=True,
@@ -55,6 +56,8 @@ class LocalBundler:
                 capture_output=True,
                 timeout=60,
             )
+
+            strip_bundle(Path(output_dir))
         except subprocess.CalledProcessError as e:
             print(f"Bundle command failed: {e.stderr if e.stderr else ''}")
             return False
@@ -111,7 +114,7 @@ class BackendAppFunction(constructs.Construct):
                 command=[
                     "bash",
                     "-c",
-                    f"rsync -r {lambda_root} /asset-output/{app_root}/",
+                    f"rsync -r {lambda_root} /asset-output/{app_root}/ && {DOCKER_STRIP_CMD}",
                 ],
                 local=(
                     LocalBundler(
