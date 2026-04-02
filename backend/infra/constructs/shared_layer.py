@@ -7,6 +7,7 @@ from aws_cdk import aws_lambda
 from jsii import implements, member
 
 from infra import constants
+from infra.constructs.bundling import DOCKER_STRIP_CMD, strip_bundle
 
 
 def _validate_path(path: str) -> None:
@@ -29,19 +30,16 @@ class MyLocalBundler:
         entry_dir = python_dir / self._entry
 
         try:
-            # Install requirements
             subprocess.run(
-                ["pip", "install", "-r", f"{self._entry}/requirements.txt", "-t", str(python_dir)],
+                ["pip", "install", "-r", f"{self._entry}/requirements.txt", "-t", str(python_dir), "--no-compile"],
                 check=True,
                 shell=False,
                 capture_output=True,
                 timeout=300,
             )
 
-            # Create directory
             entry_dir.mkdir(parents=True, exist_ok=True)
 
-            # Rsync entry code
             subprocess.run(
                 ["rsync", "-r", f"{self._entry}/", str(entry_dir)],
                 check=True,
@@ -49,6 +47,8 @@ class MyLocalBundler:
                 capture_output=True,
                 timeout=60,
             )
+
+            strip_bundle(Path(output_dir))
         except subprocess.CalledProcessError as e:
             print(f"Bundle command failed: {e.stderr if e.stderr else ''}")
             return False
@@ -94,7 +94,10 @@ class SharedLayer(constructs.Construct):
                 command=[
                     "bash",
                     "-c",
-                    f"pip install -r {entry}/requirements.txt -t /asset-output/python/ && mkdir -p /asset-output/python/{entry} && rsync -r {entry}/ /asset-output/python/{entry}",
+                    f"pip install --no-compile -r {entry}/requirements.txt -t /asset-output/python/"
+                    f" && mkdir -p /asset-output/python/{entry}"
+                    f" && rsync -r {entry}/ /asset-output/python/{entry}"
+                    f" && {DOCKER_STRIP_CMD}",
                 ],
                 local=MyLocalBundler(
                     entry=entry,
