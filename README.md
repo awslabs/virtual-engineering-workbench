@@ -112,6 +112,7 @@ See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/REA
 | AWS CDK | v2 | Infrastructure deployment |
 | Node.js | 24+ | Frontend build, CDK (TypeScript) |
 | Python | 3.13+ | Backend application, CDK (Python) |
+| uv | 0.11+ | Python dependency management |
 | Yarn | 4.x | Frontend package management |
 | jq | any | JSON processing in deploy script |
 | Docker | any | Required on macOS/Windows for Lambda bundling and ECS image builds. On Linux, only needed for ECS task image builds. |
@@ -140,6 +141,9 @@ sudo apt install -y nodejs
 sudo npm install -g aws-cdk
 sudo corepack enable
 corepack prepare yarn@4.13.0 --activate
+
+# uv (Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # AWS CLI v2
 cd /tmp
@@ -193,7 +197,7 @@ chmod +x deploy.sh
 
 The script prompts for all required parameters interactively, then executes 10 phases:
 
-1. Validates prerequisites (`aws`, `cdk`, `node`, `python`, `jq`, `yarn`)
+1. Validates prerequisites (`aws`, `cdk`, `node`, `python`, `uv`, `jq`, `yarn`)
 1. Patches source configuration files with your org/app prefix and region
 1. CDK bootstraps the target account (and `us-east-1` if deploying to another region)
 1. Creates prerequisite resources (SSM parameters, VPC, service-linked roles)

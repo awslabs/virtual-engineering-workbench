@@ -1,6 +1,6 @@
 {
-  "name": "federated-infrastructure",
-  "version": "0.1.0",
+  "name": "vew-frontend-infrastructure",
+  "version": "1.0.0",
   "private": true,
   "bin": {
     "infrastructure": "bin/infrastructure.js"

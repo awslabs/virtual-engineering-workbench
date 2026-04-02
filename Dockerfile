@@ -20,10 +20,12 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp
     && /tmp/aws/install \
     && rm -rf /tmp/aws /tmp/awscliv2.zip
 
-# CDK + Yarn 4
+# CDK + Yarn 4 + uv
 RUN npm install -g aws-cdk \
     && corepack enable \
-    && corepack prepare yarn@4.9.4 --activate
+    && corepack prepare yarn@4.13.0 --activate
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
 
 WORKDIR /app
 ENTRYPOINT ["./deploy.sh"]

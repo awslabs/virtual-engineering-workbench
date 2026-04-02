@@ -1,0 +1,99 @@
+[project]
+name = "vew-backend"
+version = "1.0.0"
+description = "Virtual Engineering Workbench — Backend"
+requires-python = ">=3.13"
+dependencies = [
+    # --- CDK & infrastructure ---
+    "aws-cdk-lib~=2.234.1",
+    "aws-cdk.aws-glue-alpha~=2.234.1a0",
+    "aws-cdk.aws-lambda-python-alpha~=2.234.1a0",
+    "aws-cdk.aws-pipes-alpha~=2.234.1a0",
+    "aws-cdk.aws-pipes-sources-alpha~=2.234.1a0",
+    "aws-cdk.aws-pipes-targets-alpha~=2.234.1a0",
+    "cdk-monitoring-constructs~=9.2.0",
+    "cdk-nag~=2.35.54",
+    "constructs~=10.4.2",
+    "typeguard~=2.13.3",
+    # --- Core runtime ---
+    "aws-lambda-powertools[all]~=3.26",
+    "aws-requests-auth~=0.4",
+    "aws-xray-sdk~=2.12",
+    "jinja2~=3.1",
+    "natsort~=8.4",
+    "nest-asyncio~=1.5",
+    "pendulum~=3.0.0",
+    "pydantic~=2.12",
+    "pyjwt[crypto]~=2.9",
+    "pyyaml~=6.0.1",
+    "requests~=2.31",
+    "retry2~=0.9",
+    "semver~=3.0.1",
+    # --- boto3 type stubs (runtime) ---
+    "mypy-boto3-cloudformation~=1.42",
+    "mypy-boto3-cloudwatch~=1.42",
+    "mypy-boto3-codecommit~=1.42",
+    "mypy-boto3-dynamodb~=1.42",
+    "mypy-boto3-ec2~=1.42",
+    "mypy-boto3-ecs~=1.42",
+    "mypy-boto3-events~=1.42",
+    "mypy-boto3-iam~=1.42",
+    "mypy-boto3-imagebuilder~=1.42",
+    "mypy-boto3-lambda~=1.42",
+    "mypy-boto3-logs~=1.42",
+    "mypy-boto3-ram~=1.42",
+    "mypy-boto3-route53~=1.42",
+    "mypy-boto3-s3~=1.42",
+    "mypy-boto3-secretsmanager~=1.42",
+    "mypy-boto3-servicecatalog~=1.42",
+    "mypy-boto3-ssm~=1.42",
+    "mypy-boto3-stepfunctions~=1.42",
+    "mypy-boto3-sts~=1.42",
+    "mypy-boto3-verifiedpermissions~=1.42",
+]
+
+[dependency-groups]
+dev = [
+    "assertpy>=1.1",
+    "aws-durable-execution-sdk-python-testing~=1.1.0",
+    "bandit~=1.7",
+    "black~=26.3.1",
+    "boto3-stubs[essential]~=1.42",
+    "datamodel-code-generator==0.31.2",
+    "distlib~=0.3",
+    "flake8~=7.0",
+    "freezegun~=1.2",
+    "git-remote-codecommit~=1.16",
+    "gitpython~=3.1.44",
+    "hypothesis~=6.151.9",
+    "isort~=5.12",
+    "joserfc~=1.6.3",
+    "moto==5.1.1",
+    "mypy~=1.15",
+    "openapi-spec-validator~=0.7.1",
+    "pre-commit~=4.2",
+    "pygments~=2.20.0",
+    "pytest~=9.0.2",
+    "pytest-cov~=4.1",
+    "pytest-mock~=3.11",
+    "pytest-xdist~=3.3",
+    "requests-mock~=1.11",
+    "setuptools>=76.2.0",
+    "types-requests~=2.31",
+]
+test = [
+    "pyspark[sql]~=3.5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.uv]
+override-dependencies = [
+    "asteval>=1.0.6",
+    "urllib3>=2.6.3",
+]

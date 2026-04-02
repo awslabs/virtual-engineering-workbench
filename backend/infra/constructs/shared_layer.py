@@ -15,6 +15,12 @@ def _validate_path(path: str) -> None:
         raise ValueError(f"Path traversal detected: {path}")
 
 
+def _resolve_requirements(entry: str) -> str:
+    """Return the lockfile path if it exists, otherwise the requirements.txt path."""
+    lockfile = f"{entry}/requirements.lock"
+    return lockfile if Path(lockfile).is_file() else f"{entry}/requirements.txt"
+
+
 @implements(aws_cdk.ILocalBundling)
 class MyLocalBundler:
     def __init__(self, entry: str) -> None:
@@ -28,10 +34,11 @@ class MyLocalBundler:
 
         python_dir = Path(output_dir) / "python"
         entry_dir = python_dir / self._entry
+        reqfile = _resolve_requirements(self._entry)
 
         try:
             subprocess.run(
-                ["pip", "install", "-r", f"{self._entry}/requirements.txt", "-t", str(python_dir), "--no-compile"],
+                ["uv", "pip", "install", "-r", reqfile, "-t", str(python_dir), "--no-compile"],
                 check=True,
                 shell=False,
                 capture_output=True,
@@ -86,6 +93,7 @@ class SharedLayer(constructs.Construct):
         )
 
         current_dir = "."
+        reqfile = _resolve_requirements(entry)
         code = aws_lambda.Code.from_asset(
             path=current_dir,
             bundling=aws_cdk.BundlingOptions(
@@ -94,7 +102,8 @@ class SharedLayer(constructs.Construct):
                 command=[
                     "bash",
                     "-c",
-                    f"pip install --no-compile -r {entry}/requirements.txt -t /asset-output/python/"
+                    "curl -LsSf https://astral.sh/uv/0.11.3/install.sh | sh"
+                    f" && /root/.local/bin/uv pip install --no-compile -r {reqfile} -t /asset-output/python/"
                     f" && mkdir -p /asset-output/python/{entry}"
                     f" && rsync -r {entry}/ /asset-output/python/{entry}"
                     f" && {DOCKER_STRIP_CMD}",

@@ -94,9 +94,10 @@ backend/
 ## Setup
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
+uv venv .venv --python 3.13
+source .venv/bin/activate        # macOS/Linux
+cd backend
+UV_PROJECT_ENVIRONMENT="../.venv" uv sync --group dev --group test
 ```
 
 ## Tests
@@ -224,6 +225,8 @@ app/{context_name}/
 └── libraries/
     └── requirements.txt
 ```
+
+> **Important**: remember to append `app/{context_name}/libraries/requirements.txt` to the `REQUIREMENTS_FILES` variable in `scripts/compile.sh`
 
 Then implement the three layers:
 

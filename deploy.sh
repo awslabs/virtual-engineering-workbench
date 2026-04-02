@@ -8,7 +8,7 @@
 # Usage: ./deploy.sh [--config <path>] [--dry-run] [--destroy]
 #   --config <path>  Load inputs from a config file instead of prompting
 #
-# Prerequisites: aws-cli v2, cdk v2, node 18+, python 3.13+, jq, yarn 4+
+# Prerequisites: aws-cli v2, cdk v2, node 18+, python 3.13+, uv, jq, yarn 4+
 # =============================================================================
 set -euo pipefail
 export AWS_PAGER=""
@@ -113,7 +113,7 @@ fi
 # ---------------------------------------------------------------------------
 step 0 "Validating prerequisites (CLI tools, AWS credentials, AWS Organization)"
 
-for cmd in aws cdk node python jq yarn; do
+for cmd in aws cdk node python uv jq yarn; do
   if ! command -v "$cmd" &>/dev/null; then
     err "Required command not found: $cmd"
   fi
@@ -127,6 +127,7 @@ NODE_VERSION=$(node --version)
 NODE_MAJOR=$(node --version | tr -d 'v' | cut -d. -f1)
 PYTHON_VERSION=$(python --version)
 PYTHON_MINOR=$(python --version | grep -oE '[0-9]+\.[0-9]+' | head -1 | cut -d. -f2)
+UV_VERSION=$(uv --version 2>&1 | head -1)
 YARN_VERSION=$(COREPACK_ENABLE_DOWNLOAD_PROMPT=0 yarn --version 2>&1)
 YARN_MAJOR=$(echo "$YARN_VERSION" | cut -d. -f1)
 
@@ -134,6 +135,7 @@ log "aws-cli:  $AWS_CLI_VERSION"
 log "cdk:      $CDK_VERSION"
 log "node:     $NODE_VERSION"
 log "python:   $PYTHON_VERSION"
+log "uv:       $UV_VERSION"
 log "yarn:     $YARN_VERSION"
 
 [[ "$AWS_CLI_MAJOR" -ge 2 ]] 2>/dev/null || err "aws-cli v2 or higher is required (found: $AWS_CLI_VERSION)"
@@ -483,10 +485,10 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   fi
   log "Deploying VPC via CDK"
   if [ ! -d "$BACKEND_DIR/.venv" ]; then
-    python -m venv "$BACKEND_DIR/.venv"
+    uv venv "$BACKEND_DIR/.venv" --python 3.13
   fi
   source "$BACKEND_DIR/.venv/bin/activate"
-  pip install -q -r "$BACKEND_DIR/requirements.txt" 2>&1 | tail -1 | tee -a "$LOG_FILE"
+  UV_PROJECT_ENVIRONMENT="$BACKEND_DIR/.venv" uv sync --project "$BACKEND_DIR" --group dev --group test 2>&1 | tail -1 | tee -a "$LOG_FILE"
   (
     cd "$BACKEND_DIR"
     cp cdk-vpc.json cdk.json
@@ -575,10 +577,10 @@ step 7 "Deploying backend CDK stacks (Lambda, API Gateway, DynamoDB, EventBridge
 
 log "Installing backend Python dependencies"
 if [ ! -d "$BACKEND_DIR/.venv" ]; then
-  python3 -m venv "$BACKEND_DIR/.venv"
+  uv venv "$BACKEND_DIR/.venv" --python 3.13
 fi
 source "$BACKEND_DIR/.venv/bin/activate"
-pip install -q -r "$BACKEND_DIR/requirements.txt" 2>&1 | tail -1 | tee -a "$LOG_FILE"
+UV_PROJECT_ENVIRONMENT="$BACKEND_DIR/.venv" uv sync --project "$BACKEND_DIR" --group dev --group test 2>&1 | tail -1 | tee -a "$LOG_FILE"
 
 BE_CDK_CONTEXT=(
   -c "environment=$ENVIRONMENT"
