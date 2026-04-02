@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NetworkSubnetTag(BaseModel):
@@ -13,6 +13,4 @@ class NetworkSubnet(BaseModel):
     tags: list[NetworkSubnetTag] = Field([], alias="Tags")
     cidr_block: str = Field(..., alias="CidrBlock")
     vpc_id: str = Field(..., alias="VpcId")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

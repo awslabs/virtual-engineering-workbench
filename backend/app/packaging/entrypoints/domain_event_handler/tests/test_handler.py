@@ -103,7 +103,7 @@ def test_handler_component_version_creation_started_event(
             ),
             componentsVersionDependencies=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(dependency)
+                    component_version_entry.ComponentVersionEntry.model_validate(dependency)
                     for dependency in component_version_creation_started_event_payload.get(
                         "componentVersionDependencies"
                     )
@@ -163,13 +163,13 @@ def test_handler_component_update_creation_started_event(
             ),
             componentsVersionDependencies=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(dependency)
+                    component_version_entry.ComponentVersionEntry.model_validate(dependency)
                     for dependency in component_version_update_started_event_payload.get("componentVersionDependencies")
                 ]
             ),
             previousComponentsVersionDependencies=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(dependency)
+                    component_version_entry.ComponentVersionEntry.model_validate(dependency)
                     for dependency in component_version_update_started_event_payload.get(
                         "previousComponentVersionDependencies"
                     )
@@ -230,7 +230,7 @@ def test_handler_recipe_version_retirement_started_event(
             componentsVersionsList=components_versions_list_value_object.from_list(list()),
             previousComponentsVersionsList=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(recipe_component_version)
+                    component_version_entry.ComponentVersionEntry.model_validate(recipe_component_version)
                     for recipe_component_version in recipe_version_retirement_started_payload.get(
                         "recipeComponentsVersions"
                     )
@@ -285,7 +285,7 @@ def test_handler_component_version_retirement_started_event(
             componentsVersionDependencies=components_versions_list_value_object.from_list(list()),
             previousComponentsVersionDependencies=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(dependency)
+                    component_version_entry.ComponentVersionEntry.model_validate(dependency)
                     for dependency in component_version_retirement_started_payload.get("componentVersionDependencies")
                 ]
             ),
@@ -323,7 +323,7 @@ def test_handler_component_release_completed_event(
             ),
             componentsVersionDependencies=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(dependency)
+                    component_version_entry.ComponentVersionEntry.model_validate(dependency)
                     for dependency in component_version_release_completed_event_payload.get(
                         "componentVersionDependencies"
                     )
@@ -453,7 +453,7 @@ def test_handler_recipe_version_release_completed_event(
             ),
             componentsVersionsList=components_versions_list_value_object.from_list(
                 [
-                    component_version_entry.ComponentVersionEntry.parse_obj(component_version)
+                    component_version_entry.ComponentVersionEntry.model_validate(component_version)
                     for component_version in recipe_version_release_completed_event_payload.get(
                         "recipeComponentsVersions"
                     )

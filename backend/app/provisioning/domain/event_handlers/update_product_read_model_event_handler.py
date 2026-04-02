@@ -69,7 +69,7 @@ def handle(
                         versionId=version_entity_from_event.versionId,
                         awsAccountId=version_entity_from_event.awsAccountId,
                     ),
-                    **version_entity_from_event.dict(),
+                    **version_entity_from_event.model_dump(),
                 )
             # Remove versions in repo if not present in the event
             for vers_key in versions_keys_only_in_repo:
@@ -99,6 +99,6 @@ def handle(
             else:
                 uow.get_repository(product.ProductPrimaryKey, product.Product).update_attributes(
                     product.ProductPrimaryKey(projectId=product_obj.projectId, productId=product_obj.productId),
-                    **product_obj.dict(),
+                    **product_obj.model_dump(),
                 )
             uow.commit()

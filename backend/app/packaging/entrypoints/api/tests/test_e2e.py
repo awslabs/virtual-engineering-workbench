@@ -22,9 +22,9 @@ def test_create_and_list_components_should_return_http_200(
 
     # ASSERT
 
-    assertpy.assert_that(api_model.CreateComponentResponse.parse_obj(json.loads(create_body)).componentId).is_equal_to(
-        "comp-11111111"
-    )
+    assertpy.assert_that(
+        api_model.CreateComponentResponse.model_validate(json.loads(create_body)).componentId
+    ).is_equal_to("comp-11111111")
     assertpy.assert_that(create_status_code).is_equal_to(200)
     assertpy.assert_that(list_status_code).is_equal_to(200)
     assertpy.assert_that(len(list_body)).is_equal_to(1)

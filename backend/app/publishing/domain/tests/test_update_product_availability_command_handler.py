@@ -94,7 +94,7 @@ def get_test_version():
                         minLength="100",
                         minValue="0",
                     ),
-                ).dict()
+                ).model_dump()
                 for i in range(5)
             ],
             metadata={"GenericMetadata": version.ProductVersionMetadataItem(label="Test", value=["Line items"])},
@@ -274,7 +274,7 @@ def test_update_product_availability_command_handler_publish_product_availabilit
     version_id = 0
     for stage in stages:
         for region in regions:
-            versions.append(get_test_version(version_id=version_id, stage=stage, region=region))
+            versions.append(get_test_version(version_id=str(version_id), stage=stage, region=region))
             version_id += 1
     versions_query_service_mock.get_product_version_distributions.side_effect = [
         [],

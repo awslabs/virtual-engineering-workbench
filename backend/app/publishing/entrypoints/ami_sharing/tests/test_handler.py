@@ -17,7 +17,7 @@ def test_handle_decide_action(mock_dependencies, lambda_context):
     )
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -27,7 +27,7 @@ def test_handle_decide_action(mock_dependencies, lambda_context):
             originalAmiId="ami-12345",
             copiedAmiId="ami-54321",
             region="eu-west-3",
-        ).dict(by_alias=True)
+        ).model_dump(by_alias=True)
     )
 
 
@@ -49,7 +49,7 @@ def test_handle_decide_action_for_container_product(mock_dependencies, lambda_co
     )
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -59,7 +59,7 @@ def test_handle_decide_action_for_container_product(mock_dependencies, lambda_co
             originalAmiId="",
             copiedAmiId="",
             region="eu-west-3",
-        ).dict(by_alias=True)
+        ).model_dump(by_alias=True)
     )
 
 
@@ -71,12 +71,12 @@ def test_handle_copy_ami(mock_dependencies, lambda_context):
     request = step_function_model.CopyAmiRequest(originalAmiId="ami-12345", region="eu-west-3")
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(
-        step_function_model.CopyAmiResponse(copiedAmiId="ami-54321").dict(by_alias=True)
+        step_function_model.CopyAmiResponse(copiedAmiId="ami-54321").model_dump(by_alias=True)
     )
 
 
@@ -90,11 +90,11 @@ def test_handle_share_ami(mock_dependencies, lambda_context):
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
-    assertpy.assert_that(response).is_equal_to(step_function_model.ShareAmiResponse().dict(by_alias=True))
+    assertpy.assert_that(response).is_equal_to(step_function_model.ShareAmiResponse().model_dump(by_alias=True))
 
 
 def test_handle_verify_copy(mock_dependencies, lambda_context):
@@ -106,12 +106,12 @@ def test_handle_verify_copy(mock_dependencies, lambda_context):
     request = step_function_model.VerifyCopyRequest(region="eu-west-3", copiedAmiId="copy-12345")
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(
-        step_function_model.VerifyCopyResponse(isCopyVerified=True).dict(by_alias=True)
+        step_function_model.VerifyCopyResponse(isCopyVerified=True).model_dump(by_alias=True)
     )
 
 
@@ -147,11 +147,11 @@ def test_handle_succeed_ami_sharing_handle_various_inputs(
     # ACT & ASSERT
     if should_raise_error:
         with pytest.raises(ValueError, match="copiedAmiId must be provided unless productType is 'Container'"):
-            handler.handler(request.dict(by_alias=True), lambda_context)
+            handler.handler(request.model_dump(by_alias=True), lambda_context)
     else:
-        response = handler.handler(request.dict(by_alias=True), lambda_context)
+        response = handler.handler(request.model_dump(by_alias=True), lambda_context)
         assert_that(response).is_not_none()
-        assert_that(response).is_equal_to(SucceedAmiSharingResponse().dict(by_alias=True))
+        assert_that(response).is_equal_to(SucceedAmiSharingResponse().model_dump(by_alias=True))
 
 
 def test_handle_fail_ami_sharing(mock_dependencies, lambda_context):
@@ -164,8 +164,8 @@ def test_handle_fail_ami_sharing(mock_dependencies, lambda_context):
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
-    assertpy.assert_that(response).is_equal_to(step_function_model.FailAmiSharingResponse().dict(by_alias=True))
+    assertpy.assert_that(response).is_equal_to(step_function_model.FailAmiSharingResponse().model_dump(by_alias=True))

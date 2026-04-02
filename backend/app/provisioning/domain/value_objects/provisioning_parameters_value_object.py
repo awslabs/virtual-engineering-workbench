@@ -15,5 +15,5 @@ class ProvisioningParametersValueObject(value_object.ValueObject):
 
 
 def from_list(value: typing.Optional[list[dict[str, str]]]) -> ProvisioningParametersValueObject:
-    params = [ProvisioningParameter.parse_obj(p) for p in (value or [])]
+    params = [ProvisioningParameter.model_validate(p if isinstance(p, dict) else p.model_dump()) for p in (value or [])]
     return ProvisioningParametersValueObject(value=params)

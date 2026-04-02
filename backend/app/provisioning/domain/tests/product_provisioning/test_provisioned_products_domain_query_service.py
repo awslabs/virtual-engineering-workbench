@@ -24,6 +24,7 @@ from app.provisioning.domain.query_services import (
 from app.provisioning.domain.read_models import version
 from app.provisioning.domain.tests.product_provisioning.conftest import (
     TEST_COMPONENT_VERSION_DETAILS,
+    TEST_COMPONENT_VERSION_DETAILS_DUMPED,
     TEST_OS_VERSION,
 )
 from app.provisioning.domain.value_objects import (
@@ -214,7 +215,7 @@ def test_get_provisioned_virtual_target_should_return_virtual_target(
     )
     # ASSERT
     provisioned_product_query_service_mock.get_provisioned_product.assert_called_once_with("proj-12345", "vt-1")
-    assertpy.assert_that(vt.dict()).is_equal_to(
+    assertpy.assert_that(vt.model_dump()).is_equal_to(
         {
             "accountId": "0987654321",
             "amiId": "mock-ami-id",
@@ -279,7 +280,7 @@ def test_get_provisioned_virtual_target_should_return_virtual_target(
             "newProvisioningParameters": None,
             "additionalConfigurations": None,
             "experimental": None,
-            "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS,
+            "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS_DUMPED,
             "osVersion": TEST_OS_VERSION,
             "blockDeviceMappings": None,
             "availabilityZonesTriggered": None,
@@ -296,7 +297,7 @@ def test_get_provisioned_virtual_target_should_return_virtual_target(
             "keyPairId": None,
         }
     )
-    assertpy.assert_that(vers_meta.dict()).is_equal_to(
+    assertpy.assert_that(vers_meta.model_dump()).is_equal_to(
         {
             "accountId": "account-id-12345",
             "amiId": "ami-123",
@@ -315,7 +316,7 @@ def test_get_provisioned_virtual_target_should_return_virtual_target(
             "versionId": "vers-123",
             "versionName": "1.0.0",
             "metadata": None,
-            "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS,
+            "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS_DUMPED,
             "osVersion": TEST_OS_VERSION,
         }
     )
@@ -410,7 +411,7 @@ def test_get_provisioned_product_secret_returns_user_credentials_from_parameter_
     )
     # ASSERT
     assertpy.assert_that(creds).is_equal_to(
-        user_credential.UserCredential.parse_obj({"username": "a", "password": "b"})
+        user_credential.UserCredential.model_validate({"username": "a", "password": "b"})
     )
     parameter_service_mock.get_secret_value.assert_called_with(
         secret_name="SecretId-123",

@@ -1,5 +1,5 @@
-aws-lambda-powertools[all] ~= 2.33
-mypy-boto3-dynamodb ~= 1.35
-mypy-boto3-verifiedpermissions ~= 1.35
+aws-lambda-powertools[all] ~= 3.26
+mypy-boto3-dynamodb ~= 1.42
+mypy-boto3-verifiedpermissions ~= 1.42
 pyjwt[crypto] ~= 2.9
 requests ~= 2.31

@@ -1,8 +1,8 @@
 Jinja2 ~= 3.1
-mypy-boto3-cloudformation ~= 1.35
-mypy-boto3-codecommit ~= 1.35
-mypy-boto3-dynamodb ~= 1.35
-mypy-boto3-ec2 ~=1.35
-mypy-boto3-s3 ~= 1.35
-mypy-boto3-servicecatalog ~= 1.35
+mypy-boto3-cloudformation ~= 1.42
+mypy-boto3-codecommit ~= 1.42
+mypy-boto3-dynamodb ~= 1.42
+mypy-boto3-ec2 ~=1.42
+mypy-boto3-s3 ~= 1.42
+mypy-boto3-servicecatalog ~= 1.42
 natsort ~= 8.4

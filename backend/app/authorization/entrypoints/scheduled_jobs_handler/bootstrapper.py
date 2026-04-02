@@ -3,7 +3,7 @@ from urllib import parse
 import boto3
 from aws_lambda_powertools import logging
 from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.authorization.adapters.query_services import (
     assignments_dynamodb_query_service,
@@ -28,9 +28,7 @@ from app.shared.middleware import event_handler
 
 class Dependencies(BaseModel):
     command_bus: command_bus.CommandBus
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901
@@ -58,7 +56,7 @@ def bootstrap(  # noqa: C901
             path=app_config.get_policy_store_ssm_param_prefix(), force_fetch=True
         )
         for _, val in api_policy_stores_params.items():
-            api_cfg_item = authorizer.APIAuthConfig.parse_raw(val)
+            api_cfg_item = authorizer.APIAuthConfig.model_validate_json(val)
             api_policy_stores[api_cfg_item.api_id] = api_cfg_item
 
     def __projects_qs_provider() -> projects_api_query_service.ProjectsApiQueryService:

@@ -87,7 +87,7 @@ def test_get_projects(lambda_context, authenticated_event, get_mock_dependencies
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projects)).is_equal_to(5)
     assertpy.assert_that(((response.assignments or [])[0].roles or [])[0]).is_equal_to(
@@ -103,7 +103,7 @@ def test_create_project(lambda_context, authenticated_event, mock_command_handle
 
     request = api_model.CreateProjectRequest(name="Highline", description="Highline project", isActive=True)
 
-    minimal_event = authenticated_event(json.dumps(request.dict()), "/projects", "POST")
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), "/projects", "POST")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -128,7 +128,7 @@ def test_get_project(lambda_context, authenticated_event, get_mock_dependencies)
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.project).is_not_none()
     assertpy.assert_that(response.project.projectId).is_equal_to(project_id)
@@ -143,7 +143,7 @@ def test_update_project(lambda_context, authenticated_event, get_mock_dependenci
     project_id = "proj-12345"
     request = api_model.UpdateProjectRequest(name="Highline", description="Highline project", isActive=True)
 
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}", "PUT")
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}", "PUT")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -167,7 +167,7 @@ def test_get_project_accounts(lambda_context, authenticated_event, get_mock_depe
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAccountsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectAccountsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projectAccounts)).is_equal_to(2)
 
@@ -192,7 +192,7 @@ def test_get_project_accounts_user_account_type(lambda_context, authenticated_ev
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAccountsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectAccountsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projectAccounts)).is_equal_to(1)
     assertpy.assert_that(response.projectAccounts[0].accountType).is_equal_to(account_type)
@@ -207,7 +207,7 @@ def test_add_project_account_when_account_is_not_associated_should_associate(
     handler.dependencies = get_mock_dependencies
 
     project_id = "project-id"
-    request = api_model.OnBoardProjectAccountRequest.parse_obj(
+    request = api_model.OnBoardProjectAccountRequest.model_validate(
         {
             "awsAccountId": "001234567890",
             "accountType": "USER",
@@ -218,7 +218,7 @@ def test_add_project_account_when_account_is_not_associated_should_associate(
             "region": "us-east-1",
         }
     )
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/accounts", "POST")
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/accounts", "POST")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -237,10 +237,10 @@ def test_assign_user_should_create_assignment(
     handler.dependencies = get_mock_dependencies
 
     project_id = "project-id"
-    request = api_model.AssignUserRequest.parse_obj(
+    request = api_model.AssignUserRequest.model_validate(
         {"userId": "T0000AA", "roles": [project_assignment.Role.PLATFORM_USER.value]}
     )
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/users", "POST")
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/users", "POST")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -259,8 +259,8 @@ def test_assign_user_should_return_error_when_role_name_invalid(
     handler.dependencies = get_mock_dependencies
 
     project_id = "project-id"
-    request = api_model.AssignUserRequest.parse_obj({"userId": "T0000AA", "roles": ["UNKNOWN_ROLE"]})
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/users", "POST")
+    request = api_model.AssignUserRequest.model_validate({"userId": "T0000AA", "roles": ["UNKNOWN_ROLE"]})
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/users", "POST")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -279,8 +279,8 @@ def test_reassign_user_should_update_assignment(
     handler.dependencies = get_mock_dependencies
 
     project_id = "project-id"
-    request = api_model.ReAssignUsersRequest.parse_obj({"roles": [project_assignment.Role.PLATFORM_USER.value]})
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/users", "PUT")
+    request = api_model.ReAssignUsersRequest.model_validate({"roles": [project_assignment.Role.PLATFORM_USER.value]})
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/users", "PUT")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -299,8 +299,8 @@ def test_reassign_user_should_return_error_when_role_name_invalid(
     handler.dependencies = get_mock_dependencies
 
     project_id = "project-id"
-    request = api_model.ReAssignUsersRequest.parse_obj({"roles": ["UNKNOWN_ROLE"]})
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/users", "PUT")
+    request = api_model.ReAssignUsersRequest.model_validate({"roles": ["UNKNOWN_ROLE"]})
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/users", "PUT")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -340,7 +340,7 @@ def test_offboard_multiple_users_should_remove_assignments(
 
     project_id = "project-id"
     user_id = "T0000AA"
-    request = api_model.RemoveUsersRequest(userIds=[user_id]).json()
+    request = api_model.RemoveUsersRequest(userIds=[user_id]).model_dump_json()
     minimal_event = authenticated_event(request, f"/projects/{project_id}/users", "DELETE")
 
     # Act
@@ -401,7 +401,7 @@ def test_get_user_roles(lambda_context, authenticated_event, get_mock_dependenci
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetUserRolesResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetUserRolesResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.roles)).is_equal_to(2)
     assertpy.assert_that(json.loads(result["body"])).is_equal_to(
@@ -433,7 +433,7 @@ def test_list_technologies_for_project(lambda_context, authenticated_event, get_
     assertpy.assert_that(json.loads(result["body"])).is_equal_to(
         {
             "nextToken": None,
-            "technologies": [api_model.Technology.parse_obj(t) for t in expected_techs],
+            "technologies": [api_model.Technology.model_validate(t.model_dump()).model_dump() for t in expected_techs],
         }
     )
 
@@ -445,7 +445,7 @@ def test_add_technology_to_project(lambda_context, authenticated_event, get_mock
     handler.dependencies = get_mock_dependencies
 
     project_id = "project-id"
-    request = api_model.AddTechnologyRequest(id="tech-1", name="sample-tech").json()
+    request = api_model.AddTechnologyRequest(id="tech-1", name="sample-tech").model_dump_json()
     minimal_event = authenticated_event(request, f"/projects/{project_id}/technologies", "POST")
 
     # Act
@@ -462,7 +462,7 @@ def test_update_technology(lambda_context, authenticated_event, get_mock_depende
 
     project_id = "project-id"
     tech_id = "1"
-    request = api_model.UpdateTechnologyRequest(name="sample-tech-new").json()
+    request = api_model.UpdateTechnologyRequest(name="sample-tech-new").model_dump_json()
     minimal_event = authenticated_event(request, f"/projects/{project_id}/technologies/{tech_id}", "PUT")
 
     # Act
@@ -494,7 +494,7 @@ def test_enrol_user_to_project(lambda_context, authenticated_event, get_mock_dep
 
     handler.dependencies = get_mock_dependencies
     project_id = "project-id"
-    request = api_model.EnrolUserRequest().json()
+    request = api_model.EnrolUserRequest().model_dump_json()
     minimal_event = authenticated_event(request, f"/projects/{project_id}/enrolments", "POST")
 
     # Act
@@ -524,7 +524,7 @@ def test_internal_get_project_accounts(lambda_context, authenticated_event, get_
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAccountsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectAccountsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projectAccounts)).is_equal_to(2)
 
@@ -548,7 +548,7 @@ def test_internal_get_user(lambda_context, authenticated_event, get_mock_depende
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetUserResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetUserResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response.user).is_not_none()
 
 
@@ -573,7 +573,7 @@ def test_internal_get_project_accounts_user_account_type(lambda_context, authent
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAccountsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectAccountsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projectAccounts)).is_equal_to(1)
     assertpy.assert_that(response.projectAccounts[0].accountType).is_equal_to(account_type)
@@ -599,7 +599,7 @@ def test_internal_all_accounts_user_account_type(lambda_context, authenticated_e
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAccountsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectAccountsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projectAccounts)).is_equal_to(5)
     for accounts in response.projectAccounts:
@@ -625,7 +625,7 @@ def test_internal_all_accounts_user_all_types(lambda_context, authenticated_even
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAccountsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectAccountsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projectAccounts)).is_equal_to(5)
     for accounts in response.projectAccounts:
@@ -653,7 +653,7 @@ def test_internal_can_return_all_projects(lambda_context, authenticated_event, g
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectsResponse.parse_raw(result["body"])
+    response = api_model.GetProjectsResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projects)).is_equal_to(5)
 
@@ -676,7 +676,7 @@ def test_internal_can_return_project_assignments(lambda_context, authenticated_e
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAssignmentsResponse.parse_raw(result["body"])
+    response = api_model.GetProjectAssignmentsResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.assignments)).is_equal_to(1)
 
@@ -697,7 +697,7 @@ def test_internal_can_return_project_assignments_paged(lambda_context, authentic
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAssignmentsResponse.parse_raw(result["body"])
+    response = api_model.GetProjectAssignmentsResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.assignments)).is_equal_to(1)
 
@@ -722,7 +722,7 @@ def test_internal_get_user_assignment_when_assignment_exists_returns_data(
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAssignmentResponse.parse_raw(result["body"])
+    response = api_model.GetProjectAssignmentResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.assignment.userId).is_equal_to("U0")
 
@@ -749,7 +749,7 @@ def test_internal_get_user_assignment_when_assignment_does_not_exist_returns_non
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectAssignmentResponse.parse_raw(result["body"])
+    response = api_model.GetProjectAssignmentResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.assignment).is_none()
 
@@ -774,7 +774,7 @@ def test_internal_get_user_assignments_count(lambda_context, authenticated_event
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectsResponse.parse_raw(result["body"])
+    response = api_model.GetProjectsResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.assignments)).is_equal_to(1)
 
@@ -798,7 +798,7 @@ def test_list_enrolments_by_project(lambda_context, authenticated_event, get_moc
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectEnrolmentsResponse.parse_raw(result["body"])
+    response = api_model.GetProjectEnrolmentsResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.enrolments)).is_equal_to(1)
 
@@ -809,8 +809,12 @@ def test_approve_enrolments_by_project(lambda_context, authenticated_event, get_
 
     handler.dependencies = get_mock_dependencies
     project_id = "project-id"
-    request = api_model.UpdateEnrolmentsRequest.parse_obj({"enrolmentIds": ["f90a3567-cd73-4ae0-9095-a207ea3b8765"]})
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/enrolments", "PUT", None)
+    request = api_model.UpdateEnrolmentsRequest.model_validate(
+        {"enrolmentIds": ["f90a3567-cd73-4ae0-9095-a207ea3b8765"]}
+    )
+    minimal_event = authenticated_event(
+        json.dumps(request.model_dump()), f"/projects/{project_id}/enrolments", "PUT", None
+    )
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -834,7 +838,7 @@ def test_activate_project_account(command_handler, lambda_context, authenticated
     account_id = "account-id"
     request = api_model.UpdateProjectAccountRequest(accountStatus="Active")
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/accounts/{account_id}",
         "PATCH",
         None,
@@ -863,7 +867,7 @@ def test_deactivate_project_account(command_handler, lambda_context, authenticat
     account_id = "account-id"
     request = api_model.UpdateProjectAccountRequest(accountStatus="Inactive")
     minimal_event = authenticated_event(
-        json.dumps(request.dict()),
+        json.dumps(request.model_dump()),
         f"/projects/{project_id}/accounts/{account_id}",
         "PATCH",
         None,
@@ -888,7 +892,7 @@ def test_reonboard_project_accounts_should_reonboard_user_accounts(
     project_id = "project-id"
     account_ids = ["account-id"]
     request = api_model.ReonboardProjectAccountRequest(accountIds=account_ids)
-    minimal_event = authenticated_event(json.dumps(request.dict()), f"/projects/{project_id}/accounts", "PUT")
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), f"/projects/{project_id}/accounts", "PUT")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -932,7 +936,7 @@ def test_internal_get_all_users(token, response_token, lambda_context, authentic
     # Assert
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetUsersResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetUsersResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.users)).is_equal_to(5)
     assertpy.assert_that(response.nextToken).is_equal_to(response_token)

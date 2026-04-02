@@ -3,7 +3,7 @@ import json
 import boto3
 from aws_lambda_powertools import logging
 from aws_lambda_powertools.utilities import parameters
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.projects.adapters.query_services import dynamodb_query_service
 from app.projects.adapters.repository import dynamo_entity_config
@@ -59,9 +59,7 @@ class Dependencies(BaseModel):
     command_bus: command_bus.CommandBus
     task_context_qry_srv: task_context_query_service.TaskContextQueryService
     step_functions_service: orchestration_service.OrchestrationService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

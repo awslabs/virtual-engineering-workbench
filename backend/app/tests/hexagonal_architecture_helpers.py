@@ -8,7 +8,7 @@ import pydantic
 class AppFileContext(pydantic.BaseModel):
     root: str
     bounded_context: str
-    hexagonal_arch_context: str | None
+    hexagonal_arch_context: str | None = None
     filename: str
     module_imports: list[str]
 

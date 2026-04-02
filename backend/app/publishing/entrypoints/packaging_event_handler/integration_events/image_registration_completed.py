@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +23,7 @@ class ComponentVersionDetail(BaseModel):
 
 
 class ImageRegistrationCompleted(BaseModel):
-    event_name: str = Field("ImageRegistrationCompleted", alias="eventName", const=True)
+    event_name: Literal["ImageRegistrationCompleted"] = Field("ImageRegistrationCompleted", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     ami_description: str = Field(..., alias="amiDescription")
     ami_id: str = Field(..., alias="amiId")

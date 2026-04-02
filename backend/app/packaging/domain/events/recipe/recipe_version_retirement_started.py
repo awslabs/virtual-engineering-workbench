@@ -1,11 +1,13 @@
-from pydantic import Field
+from typing import Literal
+
+from pydantic import ConfigDict, Field
 
 from app.packaging.domain.model.shared import component_version_entry
 from app.shared.adapters.message_bus import message_bus
 
 
 class RecipeVersionRetirementStarted(message_bus.Message):
-    event_name: str = Field("RecipeVersionRetirementStarted", alias="eventName", const=True)
+    event_name: Literal["RecipeVersionRetirementStarted"] = Field("RecipeVersionRetirementStarted", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     recipe_id: str = Field(..., alias="recipeId")
     recipe_name: str = Field(..., alias="recipeName")
@@ -17,6 +19,4 @@ class RecipeVersionRetirementStarted(message_bus.Message):
         ..., alias="recipeComponentsVersions"
     )
     last_updated_by: str = Field(..., alias="lastUpdatedBy")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

@@ -49,7 +49,7 @@ def test_ec2_instance_management_service_should_return_instance_details(mock_ec2
         instance_id=mock_ec2_instance["InstanceId"],
     )
 
-    assertpy.assert_that(inst_dtl.dict(by_alias=True)).is_equal_to(
+    assertpy.assert_that(inst_dtl.model_dump(by_alias=True)).is_equal_to(
         instance_details.InstanceDetails.construct(
             PrivateIpAddress=mock.ANY,
             PublicIpAddress=mock.ANY,
@@ -58,7 +58,7 @@ def test_ec2_instance_management_service_should_return_instance_details(mock_ec2
                 instance_details.InstanceTag(Key="Environment", Value="DEV"),
             ],
             State=instance_details.InstanceState(Name="running"),
-        ).dict(by_alias=True)
+        ).model_dump(by_alias=True)
     )
 
 

@@ -36,7 +36,7 @@ class DynamoDBMaintenanceWindowsQueryService(maintenance_windows_query_service.M
 
         raw_items.extend(result.get("Items", []))
 
-        maintenance_windows = [maintenance_window.MaintenanceWindow.parse_obj(item) for item in raw_items]
+        maintenance_windows = [maintenance_window.MaintenanceWindow.model_validate(item) for item in raw_items]
 
         return maintenance_windows
 
@@ -57,6 +57,6 @@ class DynamoDBMaintenanceWindowsQueryService(maintenance_windows_query_service.M
 
         raw_items.extend(result.get("Items", []))
 
-        maintenance_windows = [maintenance_window.MaintenanceWindow.parse_obj(item) for item in raw_items]
+        maintenance_windows = [maintenance_window.MaintenanceWindow.model_validate(item) for item in raw_items]
 
         return maintenance_windows

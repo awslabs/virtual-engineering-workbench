@@ -1,6 +1,6 @@
 import boto3
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.publishing.adapters.query_services import service_catalog_query_service
 from app.publishing.adapters.repository import dynamo_entity_config
@@ -24,9 +24,7 @@ from app.shared.logging import boto_logger
 
 class Dependencies(BaseModel):
     command_bus: command_bus.CommandBus
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(

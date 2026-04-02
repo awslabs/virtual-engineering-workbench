@@ -1,11 +1,13 @@
-from pydantic import Field
+from typing import Literal
+
+from pydantic import ConfigDict, Field
 
 from app.packaging.domain.model.shared import component_version_entry
 from app.shared.adapters.message_bus import message_bus
 
 
 class ComponentVersionUpdateStarted(message_bus.Message):
-    event_name: str = Field("ComponentVersionUpdateStarted", alias="eventName", const=True)
+    event_name: Literal["ComponentVersionUpdateStarted"] = Field("ComponentVersionUpdateStarted", alias="eventName")
     component_id: str = Field(..., alias="componentId")
     component_version_id: str = Field(..., alias="componentVersionId")
     component_version_description: str = Field(..., alias="componentVersionDescription")
@@ -20,6 +22,4 @@ class ComponentVersionUpdateStarted(message_bus.Message):
     previous_component_version_dependencies: list[component_version_entry.ComponentVersionEntry] = Field(
         list(), alias="previousComponentVersionDependencies"
     )
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

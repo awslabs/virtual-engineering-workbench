@@ -144,7 +144,7 @@ class OrchestratedAggregatePublisherDecorator(IAggregatePublisher):
                     callback_token=event.orchestrator_callback_token,
                     result={
                         "domain-event": event.__class__.__name__,
-                        "result": event.dict(by_alias=True),
+                        "result": event.model_dump(by_alias=True),
                     },
                 )
 

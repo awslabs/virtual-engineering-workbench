@@ -15,7 +15,7 @@ def fill_db_with_test_executions(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.Version}#{test_execution.recipeVersionId}",
                 "SK": "#".join([dynamo_entity_config.DBPrefix.Execution, test_execution.testExecutionId]),
-                **test_execution.dict(),
+                **test_execution.model_dump(),
             }
         )
 

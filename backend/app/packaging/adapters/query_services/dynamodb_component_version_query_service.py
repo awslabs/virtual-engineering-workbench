@@ -72,7 +72,7 @@ class DynamoDBComponentVersionQueryService(component_version_query_service.Compo
 
         component_versions.extend(result.get("Items", []))
 
-        return [component_version.ComponentVersion.parse_obj(obj) for obj in component_versions]
+        return [component_version.ComponentVersion.model_validate(obj) for obj in component_versions]
 
     def get_component_version(self, component_id: str, version_id: str) -> component_version.ComponentVersion | None:
         """Return a specific component version."""
@@ -86,7 +86,7 @@ class DynamoDBComponentVersionQueryService(component_version_query_service.Compo
         )
 
         if "Item" in result:
-            return component_version.ComponentVersion.parse_obj(result["Item"])
+            return component_version.ComponentVersion.model_validate(result["Item"])
         else:
             return None
 
@@ -119,9 +119,9 @@ class DynamoDBComponentVersionQueryService(component_version_query_service.Compo
             dynamodb_result.extend(result.get("Items", []))
         dynamodb_result.extend(result.get("Items", []))
         for _component_version in dynamodb_result:
-            parsed_component_version = component_version.ComponentVersion.parse_obj(_component_version)
+            parsed_component_version = component_version.ComponentVersion.model_validate(_component_version)
             # Pydantic model can parse other objects and extracts only the attributes that it matches for the model.
             component_versions_summary.append(
-                component_version_summary.ComponentVersionSummary.parse_obj(parsed_component_version)
+                component_version_summary.ComponentVersionSummary.model_validate(parsed_component_version.model_dump())
             )
         return component_versions_summary

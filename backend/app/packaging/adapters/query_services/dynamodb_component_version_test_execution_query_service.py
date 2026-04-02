@@ -45,7 +45,7 @@ class DynamoDBComponentVersionTestExecutionQueryService(
         component_version_test_executions.extend(result.get("Items", []))
 
         return [
-            component_version_test_execution.ComponentVersionTestExecution.parse_obj(obj)
+            component_version_test_execution.ComponentVersionTestExecution.model_validate(obj)
             for obj in component_version_test_executions
         ]
 
@@ -63,7 +63,7 @@ class DynamoDBComponentVersionTestExecutionQueryService(
         )
 
         if "Item" in result:
-            return component_version_test_execution.ComponentVersionTestExecution.parse_obj(result["Item"])
+            return component_version_test_execution.ComponentVersionTestExecution.model_validate(result["Item"])
         else:
             return None
 
@@ -89,6 +89,6 @@ class DynamoDBComponentVersionTestExecutionQueryService(
         component_version_test_executions.extend(result.get("Items", []))
 
         return [
-            component_version_test_execution.ComponentVersionTestExecution.parse_obj(obj)
+            component_version_test_execution.ComponentVersionTestExecution.model_validate(obj)
             for obj in component_version_test_executions
         ]

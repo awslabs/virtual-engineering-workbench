@@ -42,7 +42,7 @@ class DynamoDBPipelineQueryService(pipeline_query_service.PipelineQueryService):
 
         pipelines.extend(result.get("Items", []))
 
-        return [pipeline.Pipeline.parse_obj(obj) for obj in pipelines]
+        return [pipeline.Pipeline.model_validate(obj) for obj in pipelines]
 
     def get_pipeline(self, project_id: str, pipeline_id: str) -> pipeline.Pipeline | None:
         """Return pipeline for given pipeline id."""
@@ -56,7 +56,7 @@ class DynamoDBPipelineQueryService(pipeline_query_service.PipelineQueryService):
         )
 
         if "Item" in result:
-            return pipeline.Pipeline.parse_obj(result["Item"])
+            return pipeline.Pipeline.model_validate(result["Item"])
         else:
             return None
 

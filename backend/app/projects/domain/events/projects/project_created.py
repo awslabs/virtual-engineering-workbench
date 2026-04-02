@@ -1,10 +1,12 @@
+from typing import Literal
+
 from pydantic import Field
 
 from app.shared.adapters.message_bus import message_bus
 
 
 class ProjectCreated(message_bus.Message):
-    event_name: str = Field("ProjectCreated", alias="eventName", const=True)
+    event_name: Literal["ProjectCreated"] = Field("ProjectCreated", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     project_name: str = Field(..., alias="projectName")
     project_description: str = Field(..., alias="projectDescription")

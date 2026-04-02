@@ -42,7 +42,7 @@ class ProvisionedProductConfigurationAggregate(aggregate.Aggregate):
         This function is called by the AggregatePublisher class when it wants to store the data in DB.
         Handles create and update entity scenarios.
         """
-        if self._provisioned_product.dict() != self._original_provisioned_product.dict():
+        if self._provisioned_product.model_dump() != self._original_provisioned_product.model_dump():
             # Update
             self._provisioned_product.lastUpdateDate = datetime.now(timezone.utc).isoformat()
 

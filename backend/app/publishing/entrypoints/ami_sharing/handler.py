@@ -43,7 +43,7 @@ def handle_decide_action(event: step_function_model.DecideActionRequest):
     )
     return step_function_model.DecideActionResponse(
         decision=decision.value, originalAmiId=original_ami_id, copiedAmiId=copied_ami_id, region=region
-    ).dict(by_alias=True)
+    ).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.VerifyCopyRequest)
@@ -52,7 +52,7 @@ def handle_verify_copy(event: step_function_model.VerifyCopyRequest):
         region=region_value_object.from_str(event.region),
         copied_ami_id=ami_id_value_object.from_str(event.copied_ami_id),
     )
-    return step_function_model.VerifyCopyResponse(isCopyVerified=is_copy_verified).dict(by_alias=True)
+    return step_function_model.VerifyCopyResponse(isCopyVerified=is_copy_verified).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CopyAmiRequest)
@@ -65,7 +65,7 @@ def handle_copy_ami(event: step_function_model.CopyAmiRequest):
 
     copied_ami_id = dependencies.command_bus.handle(command)
 
-    return step_function_model.CopyAmiResponse(copiedAmiId=copied_ami_id).dict(by_alias=True)
+    return step_function_model.CopyAmiResponse(copiedAmiId=copied_ami_id).model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.ShareAmiRequest)
@@ -80,7 +80,7 @@ def handle_share_ami(event: step_function_model.ShareAmiRequest):
 
     dependencies.command_bus.handle(command)
 
-    return step_function_model.ShareAmiResponse().dict(by_alias=True)
+    return step_function_model.ShareAmiResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.SucceedAmiSharingRequest)
@@ -101,7 +101,7 @@ def handle_succeed_ami_sharing(event: step_function_model.SucceedAmiSharingReque
 
     dependencies.command_bus.handle(command)
 
-    return step_function_model.SucceedAmiSharingResponse().dict(by_alias=True)
+    return step_function_model.SucceedAmiSharingResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.FailAmiSharingRequest)
@@ -115,7 +115,7 @@ def handle_fail_ami_sharing(event: step_function_model.FailAmiSharingRequest):
 
     dependencies.command_bus.handle(command)
 
-    return step_function_model.FailAmiSharingResponse().dict(by_alias=True)
+    return step_function_model.FailAmiSharingResponse().model_dump(by_alias=True)
 
 
 @tracer.capture_lambda_handler  # type: ignore

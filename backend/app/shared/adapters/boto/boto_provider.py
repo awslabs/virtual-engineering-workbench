@@ -38,10 +38,10 @@ class _BotoParameters(BaseModel):
     This class is used to pass parameters to boto3 calls
     """
 
-    region_name: str | None
-    aws_access_key_id: str | None
-    aws_secret_access_key: str | None
-    aws_session_token: str | None
+    region_name: str | None = None
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    aws_session_token: str | None = None
 
 
 class BotoProvider:
@@ -152,7 +152,7 @@ class BotoProvider:
                 return cache[key]
 
             parameters = self._prepare_parameters(_options)
-            cache[key] = self._session.client(client_name, **parameters.dict())
+            cache[key] = self._session.client(client_name, **parameters.model_dump())
             return cache[key]
 
         return _provider
@@ -173,7 +173,7 @@ class BotoProvider:
                 return cache[key]
 
             parameters = self._prepare_parameters(_options)
-            cache[key] = self._session.resource(client_name, **parameters.dict())
+            cache[key] = self._session.resource(client_name, **parameters.model_dump())
             return cache[key]
 
         return _provider

@@ -47,10 +47,12 @@ class DynamoDBComponentQueryService(component_query_service.ComponentQueryServic
         while PagingParams.RESPONSE_PAGING in (result := self._dynamodb_client.query(**query_components_kwargs)):
             query_components_kwargs[PagingParams.REQUEST_PAGING] = result.get(PagingParams.RESPONSE_PAGING)
             components.extend(
-                [component.Component.parse_obj(component_obj) for component_obj in result.get("Items", [])]
+                [component.Component.model_validate(component_obj) for component_obj in result.get("Items", [])]
             )
 
-        components.extend([component.Component.parse_obj(component_obj) for component_obj in result.get("Items", [])])
+        components.extend(
+            [component.Component.model_validate(component_obj) for component_obj in result.get("Items", [])]
+        )
 
         while PagingParams.RESPONSE_PAGING in (result := self._dynamodb_client.query(**query_components_ids_kwargs)):
             query_components_ids_kwargs[PagingParams.REQUEST_PAGING] = result.get(PagingParams.RESPONSE_PAGING)
@@ -76,7 +78,7 @@ class DynamoDBComponentQueryService(component_query_service.ComponentQueryServic
         )
 
         if "Item" in result:
-            return component.Component.parse_obj(result.get("Item"))
+            return component.Component.model_validate(result.get("Item"))
         else:
             return None
 
@@ -105,7 +107,7 @@ class DynamoDBComponentQueryService(component_query_service.ComponentQueryServic
         db_components.extend(result.get("Items", []))
 
         components = [
-            component_project_association.ComponentProjectAssociation.parse_obj(item) for item in db_components
+            component_project_association.ComponentProjectAssociation.model_validate(item) for item in db_components
         ]
 
         return components

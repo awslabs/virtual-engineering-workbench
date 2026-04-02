@@ -123,7 +123,7 @@ def generate_ecs_task_state_change_event():
 @pytest.fixture
 def mock_instance_mgmt_srv():
     instance_mgmt_srv = mock.create_autospec(spec=ec2_instance_management_service.EC2InstanceManagementService)
-    instance_mgmt_srv.get_instance_details.return_value = instance_details.InstanceDetails.parse_obj(
+    instance_mgmt_srv.get_instance_details.return_value = instance_details.InstanceDetails.model_validate(
         {
             "State": {"Name": "running"},
             "Tags": [
@@ -157,21 +157,21 @@ def mock_instance_mgmt_srv():
 def mock_container_mgmt_srv():
     container_mgmt_srv = mock.create_autospec(spec=ecs_container_management_service.ECSContainerManagementService)
     container_mgmt_srv.get_container_tags_from_task_arn.return_value = [
-        container_details.ContainerTag.parse_obj({"Key": "Name", "Value": "taskArn"}),
-        container_details.ContainerTag.parse_obj({"Key": "Environment", "Value": "DEV"}),
-        container_details.ContainerTag.parse_obj(
+        container_details.ContainerTag.model_validate({"Key": "Name", "Value": "taskArn"}),
+        container_details.ContainerTag.model_validate({"Key": "Environment", "Value": "DEV"}),
+        container_details.ContainerTag.model_validate(
             {
                 "Key": "vew:provisionedProduct:productType",
                 "Value": "Container",
             }
         ),
-        container_details.ContainerTag.parse_obj(
+        container_details.ContainerTag.model_validate(
             {
                 "Key": "vew:provisionedProduct:id",
                 "Value": "vt-12345",
             }
         ),
-        container_details.ContainerTag.parse_obj(
+        container_details.ContainerTag.model_validate(
             {
                 "Key": "aws:servicecatalog:provisionedProductArn",
                 "Value": "arn:aws:servicecatalog:us-east-1:001234567890:stack/prod/pp-12345",

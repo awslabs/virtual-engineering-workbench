@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import Field
 
@@ -6,7 +6,7 @@ from app.shared.adapters.message_bus import message_bus
 
 
 class ProvisionedProductUpgraded(message_bus.Message):
-    event_name: str = Field("ProvisionedProductUpgraded", alias="eventName", const=True)
+    event_name: Literal["ProvisionedProductUpgraded"] = Field("ProvisionedProductUpgraded", alias="eventName")
     provisioned_product_id: str = Field(..., alias="provisionedProductId")
     aws_account_id: str = Field(None, alias="awsAccountId")
     region: str = Field(None, alias="Region")

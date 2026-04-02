@@ -10,4 +10,6 @@ class UpdateRecipeVersionAssociationsCommand(command_bus.Command):
     recipeId: recipe_id_value_object.RecipeIdValueObject
     recipeVersionId: recipe_version_id_value_object.RecipeVersionIdValueObject
     componentsVersionsList: components_versions_list_value_object.ComponentsVersionsListValueObject
-    previousComponentsVersionsList: Optional[components_versions_list_value_object.ComponentsVersionsListValueObject]
+    previousComponentsVersionsList: Optional[
+        components_versions_list_value_object.ComponentsVersionsListValueObject
+    ] = None

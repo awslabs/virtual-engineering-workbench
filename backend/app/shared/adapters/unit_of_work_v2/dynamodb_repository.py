@@ -128,7 +128,7 @@ class GenericDynamoDBRepository(unit_of_work.GenericRepository[unit_of_work.TPri
         key = self._dynamodb_repository.cfg.primary_key_to_dict(pk)
         request = self._dynamodb_repository.create_get_request(key)
         item_dict = self._dynamodb_repository.context.get_generic_item(request)
-        return self._dynamodb_repository.cfg.entity_type.parse_obj(item_dict) if item_dict is not None else None
+        return self._dynamodb_repository.cfg.entity_type.model_validate(item_dict) if item_dict is not None else None
 
     def remove(self, pk: unit_of_work.TPrimaryKey) -> None:
         """Removes an entity from the DynamoDB table."""
@@ -161,7 +161,7 @@ class GenericDynamoDBRepository(unit_of_work.GenericRepository[unit_of_work.TPri
             conditions.append(f"{unit_of_work.ATTRIBUTE_NAME_SEQUENCE_NO} = :sequenceNo")
 
         entity_attributes = kwargs
-        entity_arguments = {**kwargs, **pk.dict()}
+        entity_arguments = {**kwargs, **pk.model_dump()}
 
         for modifier in self._dynamodb_repository.cfg.update_modifiers:
             entity_attributes = {**entity_attributes, **modifier(entity_arguments)}
@@ -201,7 +201,7 @@ class GenericDynamoDBRepository(unit_of_work.GenericRepository[unit_of_work.TPri
         """
 
         updated_attrs = {}
-        new_dict = entity.dict()
+        new_dict = entity.model_dump()
         for key, value in new_dict.items():
             if value != entity._original_value.get(key):
                 updated_attrs[key] = value

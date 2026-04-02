@@ -39,6 +39,6 @@ class DynamoDBSharedAMIsQueryService(shared_amis_query_service.SharedAMIsQuerySe
             start_key = result.get("LastEvaluatedKey", None)
             done = start_key is None
             if result.get("Items"):
-                shared_amis.extend([shared_ami.SharedAmi.parse_obj(item) for item in result["Items"]])
+                shared_amis.extend([shared_ami.SharedAmi.model_validate(item) for item in result["Items"]])
 
         return shared_amis

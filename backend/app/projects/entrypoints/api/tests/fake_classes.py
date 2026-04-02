@@ -66,7 +66,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                 lastUpdateDate=current_time,
             )
             projects.append(new_project)
-        projects = [project.Project.parse_obj(item) for item in projects]
+        projects = [project.Project.model_validate(item) for item in projects]
 
         if user_id:
             assignments = [
@@ -230,7 +230,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                     projectId="proj-123",
                 )
             accounts.append(new_account)
-        accounts = [project_account.ProjectAccount.parse_obj(item) for item in accounts]
+        accounts = [project_account.ProjectAccount.model_validate(item) for item in accounts]
         return accounts, {"PK": str(uuid.uuid4()), "SK": str(uuid.uuid4())}
 
     def get_user_assignment(self, project_id: str, user_id: str) -> project_assignment.Assignment:
@@ -266,7 +266,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                 userEmail=f"user-{i}@email.com",
             )
             users.append(new_user)
-        users = [user.User.parse_obj(item) for item in users]
+        users = [user.User.model_validate(item) for item in users]
         mock_token = None if next_token else {"PK": "TEST_PAGING_PK", "SK": "TEST_PAGING_SK"}
         return users, mock_token
 

@@ -1,5 +1,5 @@
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.shared.adapters.message_bus import (
     command_bus,
@@ -14,9 +14,7 @@ from app.usecase.entrypoints.api import config
 
 class Dependencies(BaseModel):
     command_bus: command_bus.CommandBus
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(

@@ -37,7 +37,7 @@ def test_on_board_project_account_when_account_is_not_associated_should_publish_
     event_obj = message_bus_mock.publish.call_args.args[0]
 
     assertpy.assert_that(event_obj).is_instance_of(project_account_on_boarding_started.ProjectAccountOnBoardingStarted)
-    event_obj_dict = event_obj.dict(by_alias=True)
+    event_obj_dict = event_obj.model_dump(by_alias=True)
 
     assertpy.assert_that(event_obj_dict).contains_entry({"accountId": "001234567890"})
     assertpy.assert_that(event_obj_dict).contains_entry({"accountType": "workbench-user"})

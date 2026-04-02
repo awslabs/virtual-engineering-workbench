@@ -91,7 +91,7 @@ def test_assign_user_to_project_should_uppercase_user_name(
         )
     )
 
-    assignment_dict = mock_assignments_repo.add.call_args.args[0].dict()
+    assignment_dict = mock_assignments_repo.add.call_args.args[0].model_dump()
     assertpy.assert_that(assignment_dict["userId"]).is_equal_to("U0AA")
 
 

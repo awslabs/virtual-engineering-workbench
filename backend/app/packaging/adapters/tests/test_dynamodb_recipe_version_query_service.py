@@ -12,7 +12,7 @@ def fill_db_with_versions(backend_app_table, recipe_versions: list[recipe_versio
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.Recipe}#{version.recipeId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.Version}#{version.recipeVersionId}",
-                **version.dict(),
+                **version.model_dump(),
             }
         )
 

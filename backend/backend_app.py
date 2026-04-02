@@ -55,42 +55,42 @@ base_config = config.BaseConfig(
 
 if constants.PRIVATE_API_ENDPOINT:
     prerequisites_app_config = config.AppConfig(
-        **base_config.dict(),
+        **base_config.model_dump(),
         component_name="prerequisites",
         environment_config=config.env_config[environment],
         component_specific=dict(),
     )
 
 packaging_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="packaging",
     environment_config=config.env_config[environment],
     component_specific=config.packaging_app_config[environment],
 )
 
 projects_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="projects",
     environment_config=config.env_config[environment],
     component_specific=config.projects_app_config[environment],
 )
 
 publishing_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="publishing",
     environment_config=config.env_config[environment],
     component_specific=config.publishing_app_config[environment],
 )
 
 provisioning_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="provisioning",
     environment_config=config.env_config[environment],
     component_specific=config.provisioning_app_config[environment],
 )
 
 authorization_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name=constants.AUTH_BC_NAME,
     environment_config=config.env_config[environment],
     component_specific=config.authorization_app_config[environment],
@@ -137,7 +137,7 @@ product_publishing_app_config = config.AppConfig(
 )
 
 oauth_app_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="oauth",
     environment_config=config.env_config[environment],
     component_specific={},
@@ -156,7 +156,7 @@ if constants.PRIVATE_API_ENDPOINT:
     )
 
 shared_deployment_infrastructure_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="dep-infra",
     environment_config=config.env_config[environment],
     component_specific=dict(),
@@ -331,7 +331,7 @@ provisioning_stack.add_dependency(publishing_stack)
 publishing_stack.add_dependency(projects_stack)
 
 security_stack_config = config.AppConfig(
-    **base_config.dict(),
+    **base_config.model_dump(),
     component_name="security",
     environment_config=config.env_config[environment],
     component_specific=dict(),
@@ -378,7 +378,7 @@ if custom_domain and cert_arn:
     )
 
     api_integration_config = config.AppConfig(
-        **base_config.dict(),
+        **base_config.model_dump(),
         component_name="api-integration",
         environment_config=config.env_config[environment],
         component_specific=dict(),

@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.publishing.domain.model import product
 from app.publishing.domain.read_models import component_version_detail
@@ -74,7 +74,7 @@ class Version(BaseModel):
 
 
 class ProductAvailabilityUpdated(message_bus.Message):
-    event_name: str = Field("ProductAvailabilityUpdated", alias="eventName", const=True)
+    event_name: Literal["ProductAvailabilityUpdated"] = Field("ProductAvailabilityUpdated", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     product_id: str = Field(..., alias="productId")
     product_type: str = Field(..., alias="productType")
@@ -87,3 +87,4 @@ class ProductAvailabilityUpdated(message_bus.Message):
     paused_stages: Optional[List[product.ProductStage]] = Field(None, alias="pausedStages")
     paused_regions: Optional[List[str]] = Field(None, alias="pausedRegions")
     last_update_date: str = Field(..., alias="lastUpdateDate")
+    model_config = ConfigDict(populate_by_name=True)

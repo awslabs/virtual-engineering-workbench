@@ -293,7 +293,8 @@ Define your API contract in `entrypoints/api/schema/{context}-api-schema.yaml`, 
 ```bash
 datamodel-codegen \
   --input app/{context}/entrypoints/api/schema/{context}-api-schema.yaml \
-  --output app/{context}/entrypoints/api/model/api_model.py
+  --output app/{context}/entrypoints/api/model/api_model.py \
+  --output-model-type pydantic_v2.BaseModel
 ```
 
 Add schema validation tests in `entrypoints/api/tests/test_schema.py` — see existing contexts for the pattern.

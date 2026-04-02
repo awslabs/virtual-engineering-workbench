@@ -6,7 +6,7 @@ from aws_lambda_powertools.utilities import parameters
 from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_ecs import client as ecs_client
 from mypy_boto3_ssm import client as ssm_client
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.provisioning.adapters.query_services import dynamodb_provisioned_products_query_service
 from app.provisioning.adapters.repository import dynamo_entity_config
@@ -45,9 +45,7 @@ class Dependencies(BaseModel):
     provisioned_product_configuration_domain_qs: (
         provisioned_product_configuration_domain_query_service.ProvisionedProductConfigurationDomainQueryService
     )
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

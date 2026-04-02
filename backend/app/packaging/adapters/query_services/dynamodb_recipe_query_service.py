@@ -40,7 +40,7 @@ class DynamoDBRecipeQueryService(recipe_query_service.RecipeQueryService):
 
         recipes.extend(result.get("Items", []))
 
-        return [recipe.Recipe.parse_obj(obj) for obj in recipes]
+        return [recipe.Recipe.model_validate(obj) for obj in recipes]
 
     def get_recipe(self, project_id: str, recipe_id: str) -> recipe.Recipe | None:
         """Return recipe for given recipe id."""
@@ -54,6 +54,6 @@ class DynamoDBRecipeQueryService(recipe_query_service.RecipeQueryService):
         )
 
         if "Item" in result:
-            return recipe.Recipe.parse_obj(result["Item"])
+            return recipe.Recipe.model_validate(result["Item"])
         else:
             return None

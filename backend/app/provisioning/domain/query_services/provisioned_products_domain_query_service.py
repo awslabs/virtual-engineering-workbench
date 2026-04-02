@@ -207,4 +207,4 @@ class ProvisionedProductsDomainQueryService:
             user_id=user_id.value,
         )
 
-        return user_credential.UserCredential.parse_raw(secret_string)
+        return user_credential.UserCredential.model_validate_json(secret_string)

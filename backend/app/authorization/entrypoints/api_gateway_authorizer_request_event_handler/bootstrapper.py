@@ -4,7 +4,7 @@ import boto3
 from aws_lambda_powertools import Metrics, logging
 from aws_lambda_powertools.utilities import parameters
 from jwt import PyJWKClient
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.authorization.adapters.query_services import assignments_dynamodb_query_service
 from app.authorization.adapters.services import (
@@ -21,9 +21,7 @@ from app.shared.logging import boto_logger
 class Dependencies(BaseModel):
     authorizer: authorizer.Authorizer
     jwk_client: PyJWKClient
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901
@@ -63,7 +61,7 @@ def bootstrap(  # noqa: C901
             path=app_config.get_policy_store_ssm_param_prefix(), force_fetch=True
         )
         for _, val in api_policy_stores_params.items():
-            api_cfg_item = authorizer.APIAuthConfig.parse_raw(val)
+            api_cfg_item = authorizer.APIAuthConfig.model_validate_json(val)
             api_policy_stores[api_cfg_item.api_id] = api_cfg_item
 
     __reload_config_params()

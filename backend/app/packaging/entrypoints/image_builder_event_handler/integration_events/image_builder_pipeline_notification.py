@@ -1,6 +1,6 @@
 import json
 
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.packaging.entrypoints.image_builder_event_handler.model import image_builder_image_status
 from app.shared.middleware import event_handler
@@ -17,7 +17,8 @@ class ImageBuilderPipelineNotificationBody(BaseModel):
     image_status: str = Field(..., alias="ImageStatus")
     output_ami_id: str = Field(..., alias="OutputAmiId")
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def parse_image_builder_pipeline_notification(cls, values) -> dict:
         processed_values = {}
         processed_values["PipelineId"] = values.get("sourcePipelineArn").split("/")[1]
@@ -34,6 +35,7 @@ class ImageBuilderPipelineNotificationBody(BaseModel):
 class ImageBuilderPipelineNotification(event_handler.EventBase):
     message: ImageBuilderPipelineNotificationBody = Field(..., alias="Message")
 
-    @validator("message", pre=True)
+    @field_validator("message", mode="before")
+    @classmethod
     def message_validator(cls, v):
-        return ImageBuilderPipelineNotificationBody.parse_obj(json.loads(v))
+        return ImageBuilderPipelineNotificationBody.model_validate(json.loads(v))

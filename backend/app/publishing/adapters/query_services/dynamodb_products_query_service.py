@@ -67,7 +67,7 @@ class DynamoDBProductsQueryService(products_query_service.ProductsQueryService):
             start_key = result.get("LastEvaluatedKey", None)
             done = start_key is None
             if result.get("Items"):
-                products.extend([product.Product.parse_obj(item) for item in result["Items"]])
+                products.extend([product.Product.model_validate(item) for item in result["Items"]])
 
         return products
 
@@ -83,6 +83,6 @@ class DynamoDBProductsQueryService(products_query_service.ProductsQueryService):
         )
 
         if result.get("Item"):
-            return product.Product.parse_obj(result["Item"])
+            return product.Product.model_validate(result["Item"])
 
         raise adapter_exception.AdapterException(f"Product with id {product_id} not found.")

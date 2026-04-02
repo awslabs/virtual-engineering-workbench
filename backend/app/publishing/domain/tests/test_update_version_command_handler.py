@@ -269,10 +269,12 @@ def test_handle_should_update_version_if_version_in_repository(
                 parameterKey="param-1",
                 defaultValue="12345",
                 description="param description",
-            ),
-            version.VersionParameter(parameterKey="param-2"),
+            ).model_dump(),
+            version.VersionParameter(parameterKey="param-2").model_dump(),
         ],
-        componentVersionDetails=test_ami.componentVersionDetails,
+        componentVersionDetails=(
+            [cvd.model_dump() for cvd in test_ami.componentVersionDetails] if test_ami.componentVersionDetails else None
+        ),
         osVersion=test_ami.osVersion,
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )
@@ -353,8 +355,8 @@ def test_handle_should_update_version_if_version_in_repository_for_container_pro
                 parameterKey="param-1",
                 defaultValue="12345",
                 description="param description",
-            ),
-            version.VersionParameter(parameterKey="param-2"),
+            ).model_dump(),
+            version.VersionParameter(parameterKey="param-2").model_dump(),
         ],
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )
@@ -487,10 +489,12 @@ def test_handle_should_update_version_if_ami_has_no_components_details(
                 parameterKey="param-1",
                 defaultValue="12345",
                 description="param description",
-            ),
-            version.VersionParameter(parameterKey="param-2"),
+            ).model_dump(),
+            version.VersionParameter(parameterKey="param-2").model_dump(),
         ],
-        componentVersionDetails=test_ami.componentVersionDetails,
+        componentVersionDetails=(
+            [cvd.model_dump() for cvd in test_ami.componentVersionDetails] if test_ami.componentVersionDetails else None
+        ),
         osVersion=test_ami.osVersion,
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )

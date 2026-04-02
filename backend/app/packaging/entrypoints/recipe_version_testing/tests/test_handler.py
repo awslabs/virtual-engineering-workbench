@@ -24,11 +24,13 @@ def test_handle_launch_test_environment(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
-    assertpy.assert_that(response).is_equal_to(step_function_model.LaunchTestEnvironmentResponse().dict(by_alias=True))
+    assertpy.assert_that(response).is_equal_to(
+        step_function_model.LaunchTestEnvironmentResponse().model_dump(by_alias=True)
+    )
 
 
 def test_check_test_environment_launch_status(
@@ -49,12 +51,12 @@ def test_check_test_environment_launch_status(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(
-        step_function_model.CheckTestEnvironmentLaunchStatusResponse(instanceStatus=mock_instance_status).dict(
+        step_function_model.CheckTestEnvironmentLaunchStatusResponse(instanceStatus=mock_instance_status).model_dump(
             by_alias=True
         )
     )
@@ -77,11 +79,13 @@ def test_setup_test_environment(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
-    assertpy.assert_that(response).is_equal_to(step_function_model.SetupTestEnvironmentResponse().dict(by_alias=True))
+    assertpy.assert_that(response).is_equal_to(
+        step_function_model.SetupTestEnvironmentResponse().model_dump(by_alias=True)
+    )
 
 
 def test_check_test_environment_setup_status(
@@ -102,12 +106,12 @@ def test_check_test_environment_setup_status(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(
-        step_function_model.CheckTestEnvironmentSetupStatusResponse(setupCommandStatus=mock_command_status).dict(
+        step_function_model.CheckTestEnvironmentSetupStatusResponse(setupCommandStatus=mock_command_status).model_dump(
             by_alias=True
         )
     )
@@ -132,11 +136,13 @@ def test_run_recipe_test(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
-    assertpy.assert_that(response).is_equal_to(step_function_model.RunRecipeVersionTestResponse().dict(by_alias=True))
+    assertpy.assert_that(response).is_equal_to(
+        step_function_model.RunRecipeVersionTestResponse().model_dump(by_alias=True)
+    )
 
 
 def test_check_recipe_test_status(
@@ -157,14 +163,14 @@ def test_check_recipe_test_status(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(
         step_function_model.CheckRecipeVersionTestStatusResponse(
             testCommandStatus=mock_command_status,
-        ).dict(by_alias=True)
+        ).model_dump(by_alias=True)
     )
 
 
@@ -190,12 +196,12 @@ def test_complete_recipe_test(
     )
 
     # ACT
-    response = handler.handler(request.dict(by_alias=True), lambda_context)
+    response = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(
         step_function_model.CompleteRecipeVersionTestResponse(
             recipeVersionTestStatus=mock_recipe_version_test_status,
-        ).dict(by_alias=True)
+        ).model_dump(by_alias=True)
     )

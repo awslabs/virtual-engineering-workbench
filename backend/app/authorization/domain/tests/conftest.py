@@ -94,7 +94,7 @@ def mock_assignment():
 @pytest.fixture
 def mocked_policy_store_provider():
     def __inner(api_id: str = "rest-api-id"):
-        return authorizer.APIAuthConfig.parse_obj(
+        return authorizer.APIAuthConfig.model_validate(
             {
                 "api_id": api_id,
                 "policy_store_id": "policy-store-id",
@@ -109,7 +109,7 @@ def mocked_policy_store_provider():
 @pytest.fixture
 def mocked_policy_store_provider_project_assignment_feature():
     def __inner(api_id: str = "rest-api-id"):
-        return authorizer.APIAuthConfig.parse_obj(
+        return authorizer.APIAuthConfig.model_validate(
             {
                 "api_id": api_id,
                 "policy_store_id": "policy-store-id",
@@ -125,7 +125,7 @@ def mocked_policy_store_provider_project_assignment_feature():
 @pytest.fixture
 def mocked_policy_store_provider_no_policy():
     def __inner(api_id):
-        return authorizer.APIAuthConfig.parse_obj(
+        return authorizer.APIAuthConfig.model_validate(
             {
                 "api_id": api_id,
                 "bounded_context": "projects",

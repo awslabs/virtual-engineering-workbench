@@ -2,7 +2,7 @@ from typing import Callable
 
 import boto3
 from aws_lambda_powertools import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.publishing.adapters.query_services import (
     dynamodb_portfolios_query_service,
@@ -37,9 +37,7 @@ class Dependencies(BaseModel):
     update_ami_read_model_event_handler: Callable
     delete_ami_read_model_event_handler: Callable
     create_automated_version_event_handler: Callable
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(

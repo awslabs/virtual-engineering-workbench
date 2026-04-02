@@ -1,7 +1,7 @@
 import enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -14,11 +14,9 @@ class UserADStatus(enum.StrEnum):
 
 
 class ActiveDirectoryGroup(BaseModel):
-    domain: str = Field(..., field="Domain")
-    groupName: str = Field(..., field="GroupName")
-
-    class Config:
-        frozen = True
+    domain: str = Field(..., title="Domain")
+    groupName: str = Field(..., title="GroupName")
+    model_config = ConfigDict(frozen=True)
 
 
 class UserPrimaryKey(unit_of_work.PrimaryKey):
@@ -30,6 +28,4 @@ class User(unit_of_work.Entity):
     activeDirectoryGroups: list[ActiveDirectoryGroup] = Field(..., title="ActiveDirectoryGroups")
     activeDirectoryGroupStatus: UserADStatus = Field(UserADStatus.UNKNOWN, title="ActiveDirectoryGroupStatus")
     userEmail: Optional[str] = Field(None, title="UserEmail")
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)

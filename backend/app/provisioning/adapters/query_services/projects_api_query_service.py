@@ -110,7 +110,7 @@ class ProjectsApiQueryService(projects_query_service.ProjectsQueryService):
         )
 
         return (
-            project_assignment.ProjectAssignment.parse_obj(response.get("assignment"))
+            project_assignment.ProjectAssignment.model_validate(response.get("assignment"))
             if response and response.get("assignment", None)
             else None
         )

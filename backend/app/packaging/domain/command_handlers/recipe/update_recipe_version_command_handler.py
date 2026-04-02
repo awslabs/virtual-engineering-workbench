@@ -267,7 +267,7 @@ def handle(
             ),
             parentImageUpstreamId=parent_image_upstream_id,
             recipeComponentsVersions=[
-                component_version_entry.ComponentVersionEntry.parse_obj(component_version).dict()
+                component_version_entry.ComponentVersionEntry.model_validate(component_version).model_dump()
                 for component_version in recipe_component_versions
             ],
             recipeVersionName=recipe_version_name_value_object.from_str(update_current_recipe_version).value,

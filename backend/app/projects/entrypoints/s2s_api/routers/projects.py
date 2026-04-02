@@ -24,7 +24,7 @@ def init(dependencies: bootstrapper.Dependencies) -> Router:
             user_id=None,
         )
 
-        projects_parsed = [api_model.Project.parse_obj(p.dict()) for p in projects]
+        projects_parsed = [api_model.Project.model_validate(p.model_dump()) for p in projects]
         return api_model.GetProjectsResponse(
             projects=projects_parsed,
             nextToken=last_evaluated_key,

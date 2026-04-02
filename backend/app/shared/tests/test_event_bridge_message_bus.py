@@ -1,10 +1,11 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Literal
 from unittest import mock
 
 import assertpy
 import pytest
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from app.shared.adapters.message_bus import event_bridge_message_bus, message_bus
 from app.shared.api import aws_events_api, aws_scheduler_api
@@ -14,11 +15,9 @@ BOUNDED_CONTEXT_NAME = "org.virtual-workbench.web-app"
 
 
 class FakeEvent(message_bus.Message):
-    event_name: str = Field("FakeEvent", const=True, alias="eventName")
+    event_name: Literal["FakeEvent"] = Field("FakeEvent", alias="eventName")
     some_param: str = Field(..., alias="someParam")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 def test_message_bus_should_publish_event_to_event_bridge():
@@ -43,7 +42,7 @@ def test_message_bus_should_publish_event_to_event_bridge():
     publish_attributes = aws_events_api_mock.put_event.call_args.kwargs
 
     assertpy.assert_that(publish_attributes["source"]).is_equal_to(BOUNDED_CONTEXT_NAME)
-    assertpy.assert_that(publish_attributes["detail"]).is_equal_to(evt.json(by_alias=True))
+    assertpy.assert_that(publish_attributes["detail"]).is_equal_to(evt.model_dump_json(by_alias=True))
     assertpy.assert_that(publish_attributes["detail_type"]).is_equal_to("FakeEvent")
     assertpy.assert_that(publish_attributes["event_bus"]).is_equal_to(EVENT_BUS_NAME)
 

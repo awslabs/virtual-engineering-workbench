@@ -4,7 +4,7 @@ from app.shared.ddd import value_object
 class ProvisionedCompoundProductIdValueObject(value_object.ValueObject):
     """Value object for provisioned compound product identifiers"""
 
-    value: str | None
+    value: str | None = None
 
 
 def from_string(value: str | None) -> ProvisionedCompoundProductIdValueObject:

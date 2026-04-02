@@ -19,7 +19,7 @@ def fill_db_with_versions(
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.Component}#{version.componentId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.Version}#{version.componentVersionId}",
-                **version.dict(),
+                **version.model_dump(),
             }
         )
 

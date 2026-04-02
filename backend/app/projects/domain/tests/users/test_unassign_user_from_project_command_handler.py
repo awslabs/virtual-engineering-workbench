@@ -50,7 +50,7 @@ def test_unassign_user_from_project_removes_enrolments_assignments_and_publishes
     # Assert
     message_bus_mock.publish.assert_called_once()
     event_obj = message_bus_mock.publish.call_args.args[0]
-    event_dict = event_obj.dict()
+    event_dict = event_obj.model_dump()
 
     assertpy.assert_that(event_dict["userId"]).is_equal_to("u0")
     assertpy.assert_that(event_dict["projectId"]).is_equal_to("p0")

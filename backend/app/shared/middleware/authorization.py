@@ -34,12 +34,12 @@ class Principal(BaseModel):
 
     user_name: str = Field(alias="userName")
     auth_type: AuthType = Field(alias="authType")
-    user_email: Optional[str] = Field(alias="userEmail")
-    user_groups: Optional[Set[str]] = Field(alias="userGroups")
-    stages: Optional[set[str]] = Field(alias="stages")
-    user_roles: Optional[list[VirtualWorkbenchRoles]] = Field(alias="userRoles")
-    user_domains: Optional[list[str]] = Field(alias="userDomains")
-    account_id: Optional[str] = Field(alias="accountId")
+    user_email: Optional[str] = Field(None, alias="userEmail")
+    user_groups: Optional[Set[str]] = Field(None, alias="userGroups")
+    stages: Optional[set[str]] = Field(None, alias="stages")
+    user_roles: Optional[list[VirtualWorkbenchRoles]] = Field(None, alias="userRoles")
+    user_domains: Optional[list[str]] = Field(None, alias="userDomains")
+    account_id: Optional[str] = Field(None, alias="accountId")
 
 
 class APIGatewayProxyEventWithPrincipal(APIGatewayProxyEventModel):
@@ -47,7 +47,7 @@ class APIGatewayProxyEventWithPrincipal(APIGatewayProxyEventModel):
     Extends API Gateway proxy payload with user principal object.
     """
 
-    user_principal: Optional[Principal] = Field(alias="userPrincipal")
+    user_principal: Optional[Principal] = Field(None, alias="userPrincipal")
 
 
 class AuthException(Exception):

@@ -1,4 +1,4 @@
-mypy-boto3-cloudwatch ~= 1.35
-mypy-boto3-ssm ~= 1.35
-mypy-boto3-sts ~= 1.35
-mypy_boto3_secretsmanager ~= 1.35
+mypy-boto3-cloudwatch ~= 1.42
+mypy-boto3-ssm ~= 1.42
+mypy-boto3-sts ~= 1.42
+mypy_boto3_secretsmanager ~= 1.42

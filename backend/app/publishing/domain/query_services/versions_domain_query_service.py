@@ -37,7 +37,7 @@ class VersionsDomainQueryService:
             product_id=product_id.value, version_id=version_id.value, aws_account_id=aws_account_id.value
         )
         if version_distribution:
-            vers_data = version_distribution.dict()
+            vers_data = version_distribution.model_dump()
             vers_data["amiId"] = version_distribution.copiedAmiId
             return vers_data
 
@@ -97,7 +97,7 @@ class VersionsDomainQueryService:
 
         enriched_versions = []
         for vers in distributions:
-            vers_data = vers.dict()
+            vers_data = vers.model_dump()
             vers_data["amiId"] = vers.copiedAmiId
             enriched_versions.append(vers_data)
 

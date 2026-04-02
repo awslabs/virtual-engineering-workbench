@@ -15,8 +15,8 @@ class RemovePipelineCommand(command_bus.Command):
     pipelineId: pipeline_id_value_object.PipelineIdValueObject
     distributionConfigArn: Optional[
         pipeline_distribution_config_arn_value_object.PipelineDistributionConfigArnValueObject
-    ]
+    ] = None
     infrastructureConfigArn: Optional[
         pipeline_infrastructure_config_arn_value_object.PipelineInfrastructureConfigArnValueObject
-    ]
-    pipelineArn: Optional[pipeline_arn_value_object.PipelineArnValueObject]
+    ] = None
+    pipelineArn: Optional[pipeline_arn_value_object.PipelineArnValueObject] = None

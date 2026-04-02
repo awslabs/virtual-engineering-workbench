@@ -1,7 +1,7 @@
 import boto3
 from aws_lambda_powertools import logging
 from mypy_boto3_ssm import client as ssm_client
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.provisioning.adapters.query_services import (
     aws_networking_query_service,
@@ -46,9 +46,7 @@ from app.shared.logging import boto_logger
 class Dependencies(BaseModel):
     command_bus: command_bus.CommandBus
     provisioned_products_domain_qry_srv: provisioned_products_domain_query_service.ProvisionedProductsDomainQueryService
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 def bootstrap(  # noqa: C901

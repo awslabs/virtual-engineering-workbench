@@ -5,7 +5,9 @@ from freezegun import freeze_time
 from app.provisioning.domain.event_handlers import update_recommended_version_handler
 from app.provisioning.domain.read_models import version
 from app.provisioning.domain.tests.product_provisioning.conftest import TEST_OS_VERSION
-from app.provisioning.domain.tests.read_models.conftest import TEST_COMPONENT_VERSION_DETAILS
+from app.provisioning.domain.tests.read_models.conftest import (
+    TEST_COMPONENT_VERSION_DETAILS_DUMPED,
+)
 
 
 @freeze_time("2023-10-25")
@@ -37,7 +39,7 @@ def test_update_recommended_version_updates_recommended_version(
     calls = [
         mock.call(
             pk=version.VersionPrimaryKey(productId="prod-123", versionId="vers-1", awsAccountId="105249321508"),
-            entity=version.Version.parse_obj(
+            entity=version.Version.model_validate(
                 {
                     "projectId": "proj-123",
                     "productId": "prod-123",
@@ -53,7 +55,7 @@ def test_update_recommended_version_updates_recommended_version(
                     "scProductId": "prod-12345",
                     "scProvisioningArtifactId": "pa-12345",
                     "isRecommendedVersion": False,
-                    "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS,
+                    "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                     "osVersion": TEST_OS_VERSION,
                     "parameters": [
                         version.VersionParameter(
@@ -75,7 +77,7 @@ def test_update_recommended_version_updates_recommended_version(
                                 minValue="0",
                             ),
                             isTechnicalParameter=(True if param_index % 2 else False),
-                        ).dict()
+                        ).model_dump()
                         for param_index in range(5)
                     ],
                     "lastUpdateDate": "2023-10-25T00:00:00+00:00",
@@ -85,7 +87,7 @@ def test_update_recommended_version_updates_recommended_version(
         ),
         mock.call(
             pk=version.VersionPrimaryKey(productId="prod-123", versionId="vers-2", awsAccountId="105249321508"),
-            entity=version.Version.parse_obj(
+            entity=version.Version.model_validate(
                 {
                     "projectId": "proj-123",
                     "productId": "prod-123",
@@ -101,7 +103,7 @@ def test_update_recommended_version_updates_recommended_version(
                     "scProductId": "prod-12345",
                     "scProvisioningArtifactId": "pa-12345",
                     "isRecommendedVersion": True,
-                    "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS,
+                    "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                     "osVersion": TEST_OS_VERSION,
                     "parameters": [
                         version.VersionParameter(
@@ -123,7 +125,7 @@ def test_update_recommended_version_updates_recommended_version(
                                 minValue="0",
                             ),
                             isTechnicalParameter=(True if param_index % 2 else False),
-                        ).dict()
+                        ).model_dump()
                         for param_index in range(5)
                     ],
                     "lastUpdateDate": "2023-10-25T00:00:00+00:00",

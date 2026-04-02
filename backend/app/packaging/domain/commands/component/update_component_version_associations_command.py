@@ -14,4 +14,4 @@ class UpdateComponentVersionAssociationsCommand(command_bus.Command):
     componentsVersionDependencies: components_versions_list_value_object.ComponentsVersionsListValueObject
     previousComponentsVersionDependencies: Optional[
         components_versions_list_value_object.ComponentsVersionsListValueObject
-    ]
+    ] = None

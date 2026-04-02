@@ -77,7 +77,7 @@ def test_get_projects(lambda_context, authenticated_event):
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetProjectsResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetProjectsResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.projects)).is_equal_to(5)
 
@@ -99,7 +99,9 @@ def test_can_approve_enrolment_for_new_user(mock_deps, mock_uuid, lambda_context
 
     project_id = "P0"
     user_id = "user"
-    request = api_model.EnrolUserRequest(userId=user_id, userEmail="test@test.de", approverId="testApprover").json()
+    request = api_model.EnrolUserRequest(
+        userId=user_id, userEmail="test@test.de", approverId="testApprover"
+    ).model_dump_json()
     minimal_event = authenticated_event(request, f"/projects/{project_id}/enrolments", "POST")
 
     # Act
@@ -130,7 +132,9 @@ def test_can_approve_enrolment_for_already_enrolled_but_pending_user(
 
     project_id = "P0"
     user_id = "userWithPendingEnrolment"
-    request = api_model.EnrolUserRequest(userId=user_id, userEmail="test@test.de", approverId="testApprover").json()
+    request = api_model.EnrolUserRequest(
+        userId=user_id, userEmail="test@test.de", approverId="testApprover"
+    ).model_dump_json()
     minimal_event = authenticated_event(request, f"/projects/{project_id}/enrolments", "POST")
 
     # Act
@@ -179,7 +183,7 @@ def test_assign_user_should_create_assignment(mock_command_handler, lambda_conte
     importlib.reload(handler)
 
     request = api_model.AssignUserRequest(userId="T0000AA", roles=[project_assignment.Role.PLATFORM_USER.value])
-    minimal_event = authenticated_event(request.json(), "/projects/project-id/users", "POST")
+    minimal_event = authenticated_event(request.model_dump_json(), "/projects/project-id/users", "POST")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -199,8 +203,8 @@ def test_reassign_user_should_update_assignment(mock_command_handler, lambda_con
 
     importlib.reload(handler)
 
-    request = api_model.ReAssignUsersRequest.parse_obj({"roles": [project_assignment.Role.PLATFORM_USER.value]})
-    minimal_event = authenticated_event(json.dumps(request.dict()), "/projects/project-id/users", "PUT")
+    request = api_model.ReAssignUsersRequest.model_validate({"roles": [project_assignment.Role.PLATFORM_USER.value]})
+    minimal_event = authenticated_event(json.dumps(request.model_dump()), "/projects/project-id/users", "PUT")
 
     # Act
     result = handler.handler(minimal_event, lambda_context)
@@ -226,7 +230,7 @@ def test_get_user_roles(projects_qs_mock, lambda_context, authenticated_event):
 
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
-    response = api_model.GetUserRolesResponse.parse_obj(json.loads(result["body"]))
+    response = api_model.GetUserRolesResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(len(response.roles)).is_equal_to(2)
     assertpy.assert_that(json.loads(result["body"])).is_equal_to(
@@ -247,7 +251,7 @@ def test_offboard_multiple_users_should_remove_assignments(mock_command_handler,
     importlib.reload(handler)
 
     user_id = "T0000AA"
-    request = api_model.RemoveUsersRequest(userIds=[user_id]).json()
+    request = api_model.RemoveUsersRequest(userIds=[user_id]).model_dump_json()
     minimal_event = authenticated_event(request, "/projects/project-id/users", "DELETE")
 
     # Act

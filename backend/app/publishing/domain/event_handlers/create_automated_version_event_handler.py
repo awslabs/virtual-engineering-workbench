@@ -175,7 +175,7 @@ def _get_additional_attributes(
         additional_attributes["imageDigest"] = f"sha256:{ami_id}"
     else:
         additional_attributes["originalAmiId"] = ami_id
-        additional_attributes["componentVersionDetails"] = [cmp.dict() for cmp in component_version_details]
+        additional_attributes["componentVersionDetails"] = [cmp.model_dump() for cmp in component_version_details]
         additional_attributes["osVersion"] = os_version
         additional_attributes["platform"] = platform
         additional_attributes["architecture"] = architecture

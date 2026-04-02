@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from app.shared.adapters.message_bus import message_bus
 
 
 class ProductVersionPublished(message_bus.Message):
-    event_name: str = Field("ProductVersionPublished", alias="eventName", const=True)
+    event_name: Literal["ProductVersionPublished"] = Field("ProductVersionPublished", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     project_name: str = Field(..., alias="projectName")
     product_id: str = Field(..., alias="productId")
@@ -16,7 +16,9 @@ class ProductVersionPublished(message_bus.Message):
     stage: str = Field(..., alias="stage")
     region: str = Field(..., alias="region")
     version_name: str = Field(..., alias="versionName")
-    version_description: Optional[str] = Field(..., alias="versionDescription")
+    version_description: Optional[str] = Field(
+        ..., alias="versionDescription"
+    )  # Required but nullable: callers must explicitly pass this field, even if the value is None
     sc_product_id: str = Field(..., alias="scProductId")
     sc_provisioning_artifact_id: str = Field(..., alias="scProvisioningArtifactId")
     ami_id: Optional[str] = Field(None, alias="amiId")
@@ -26,6 +28,4 @@ class ProductVersionPublished(message_bus.Message):
     integrations: list[str] = Field([], alias="integrations")
     image_digest: Optional[str] = Field(None, alias="imageDigest")
     image_tag: Optional[str] = Field(None, alias="imageTag")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

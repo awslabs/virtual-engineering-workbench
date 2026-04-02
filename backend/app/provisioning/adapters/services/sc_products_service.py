@@ -374,6 +374,6 @@ class ServiceCatalogProductsService(products_service.ProductsService):
         if not response or not response.get("ProvisionedProducts"):
             return None
 
-        return provisioned_product_details.ProvisionedProductDetails.parse_obj(
+        return provisioned_product_details.ProvisionedProductDetails.model_validate(
             response.get("ProvisionedProducts").pop()
         )

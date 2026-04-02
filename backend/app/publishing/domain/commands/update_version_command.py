@@ -15,9 +15,9 @@ from app.shared.adapters.message_bus import command_bus
 
 
 class UpdateVersionCommand(command_bus.Command):
-    amiId: Optional[ami_id_value_object.AmiIdValueObject]
-    imageTag: Optional[image_tag_value_object.ImageTagValueObject]
-    imageDigest: Optional[image_digest_value_object.ImageDigestValueObject]
+    amiId: Optional[ami_id_value_object.AmiIdValueObject] = None
+    imageTag: Optional[image_tag_value_object.ImageTagValueObject] = None
+    imageDigest: Optional[image_digest_value_object.ImageDigestValueObject] = None
     versionDescription: version_description_value_object.VersionDescriptionValueObject
     versionTemplateDefinition: version_template_definition_value_object.VersionTemplateDefinitionValueObject
     projectId: project_id_value_object.ProjectIdValueObject

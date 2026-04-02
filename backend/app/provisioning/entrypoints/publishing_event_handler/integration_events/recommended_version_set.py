@@ -1,10 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RecommendedVersionSet(BaseModel):
     project_id: str = Field(..., alias="projectId")
     product_id: str = Field(..., alias="productId")
     version_id: str = Field(..., alias="versionId")
-
-    class Config:
-        allow_population_by_field_name = True
+    model_config = ConfigDict(populate_by_name=True)

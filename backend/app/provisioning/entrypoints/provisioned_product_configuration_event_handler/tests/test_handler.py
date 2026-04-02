@@ -14,7 +14,7 @@ def test_handle_start_provisioned_product_configuration(
     request = step_function_model.StartProvisionedProductConfigurationRequest(provisionedProductId="pp-123")
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -29,7 +29,7 @@ def test_handle_get_provisoned_product_configuration_status(mock_dependencies, l
     request = step_function_model.GetProvisionedProductConfigurationStatusRequest(provisionedProductId="pp-123")
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -51,7 +51,7 @@ def test_handle_fail_provisioned_product_configuration(
     )
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -68,7 +68,7 @@ def test_handle_complete_provisioned_product_configuration(
     request = step_function_model.CompleteProvisionedProductConfigurationRequest(provisionedProductId="pp-123")
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -83,7 +83,7 @@ def test_handle_is_provisioned_product_ready(mock_dependencies, lambda_context):
     request = step_function_model.IsProvisionedProductReadyRequest(provisionedProductId="pp-123")
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()

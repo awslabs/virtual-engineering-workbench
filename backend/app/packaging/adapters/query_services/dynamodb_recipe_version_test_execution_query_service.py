@@ -45,7 +45,7 @@ class DynamoDBRecipeVersionTestExecutionQueryService(
         recipe_version_test_executions.extend(result.get("Items", []))
 
         return [
-            recipe_version_test_execution.RecipeVersionTestExecution.parse_obj(obj)
+            recipe_version_test_execution.RecipeVersionTestExecution.model_validate(obj)
             for obj in recipe_version_test_executions
         ]
 
@@ -63,6 +63,6 @@ class DynamoDBRecipeVersionTestExecutionQueryService(
         )
 
         if "Item" in result:
-            return recipe_version_test_execution.RecipeVersionTestExecution.parse_obj(result.get("Item"))
+            return recipe_version_test_execution.RecipeVersionTestExecution.model_validate(result.get("Item"))
         else:
             return None

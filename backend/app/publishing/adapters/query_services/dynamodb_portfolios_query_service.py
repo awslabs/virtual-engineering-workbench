@@ -42,6 +42,6 @@ class DynamoDBPortfoliosQueryService(portfolios_query_service.PortfoliosQuerySer
             start_key = result.get("LastEvaluatedKey", None)
             done = start_key is None
             if result.get("Items"):
-                portfolios.extend([portfolio.Portfolio.parse_obj(item) for item in result["Items"]])
+                portfolios.extend([portfolio.Portfolio.model_validate(item) for item in result["Items"]])
 
         return portfolios

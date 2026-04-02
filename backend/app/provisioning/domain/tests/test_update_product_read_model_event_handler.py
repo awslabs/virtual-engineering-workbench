@@ -32,6 +32,7 @@ TEST_COMPONENT_VERSION_DETAILS = [
         softwareVersion="0.5.2",
     ),
 ]
+TEST_COMPONENT_VERSION_DETAILS_DUMPED = [cvd.model_dump() for cvd in TEST_COMPONENT_VERSION_DETAILS]
 
 
 @pytest.fixture
@@ -208,7 +209,7 @@ def test_updates_versions_when_version_id_is_in_event_and_repo(
                 "scProductId": "prod-12345",
                 "scProvisioningArtifactId": "pa-12345",
                 "isRecommendedVersion": True,
-                "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS,
+                "componentVersionDetails": TEST_COMPONENT_VERSION_DETAILS_DUMPED,
                 "osVersion": TEST_OS_VERSION,
                 "parameters": [
                     version.VersionParameter(
@@ -228,7 +229,7 @@ def test_updates_versions_when_version_id_is_in_event_and_repo(
                             minValue="0",
                         ),
                         isTechnicalParameter=(True if param_index % 2 else False),
-                    ).dict()
+                    ).model_dump()
                     for param_index in range(5)
                 ],
                 "lastUpdateDate": "2023-10-25T00:00:00+00:00",
@@ -492,7 +493,7 @@ def test_do_not_set_product_available_tools_if_component_version_details_is_none
                             minValue="0",
                         ),
                         isTechnicalParameter=(True if param_index % 2 else False),
-                    ).dict()
+                    ).model_dump()
                     for param_index in range(5)
                 ],
                 "lastUpdateDate": "2023-10-25T00:00:00+00:00",

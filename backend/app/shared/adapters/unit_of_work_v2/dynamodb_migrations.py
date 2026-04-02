@@ -164,9 +164,11 @@ class DynamoDBMigrator:
     def __get_executed_migration_scripts(self) -> DynamoDBMigration | None:
         migration_info = self.__ddb_table.get_item(Key={"PK": MIGRATION_ENTITY_NAME, "SK": MIGRATION_ENTITY_NAME})
 
-        migration_entity = DynamoDBMigration.parse_obj(migration_info["Item"]) if "Item" in migration_info else None
+        migration_entity = (
+            DynamoDBMigration.model_validate(migration_info["Item"]) if "Item" in migration_info else None
+        )
 
-        self.__logger.debug(f"Migrations state: {migration_entity.dict() if migration_entity else None}")
+        self.__logger.debug(f"Migrations state: {migration_entity.model_dump() if migration_entity else None}")
 
         return migration_entity
 
@@ -200,7 +202,7 @@ class DynamoDBMigrator:
                 uow.commit()
                 migrations_meta._sequence_no += 1
 
-        self.__logger.debug(f"Updated migrations state: {migrations_meta.dict() if migrations_meta else None}")
+        self.__logger.debug(f"Updated migrations state: {migrations_meta.model_dump() if migrations_meta else None}")
 
         return migrations_meta
 
@@ -220,6 +222,6 @@ class DynamoDBMigrator:
             uow.get_repository(DynamoDBMigrationPrimaryKey, DynamoDBMigration).add(migrations_meta)
             uow.commit()
 
-        self.__logger.debug(f"Updated migrations state: {migrations_meta.dict() if migrations_meta else None}")
+        self.__logger.debug(f"Updated migrations state: {migrations_meta.model_dump() if migrations_meta else None}")
 
         return migrations_meta

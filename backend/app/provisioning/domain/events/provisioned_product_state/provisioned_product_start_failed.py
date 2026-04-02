@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import Field
 
@@ -12,7 +12,7 @@ class StartFailedReason(StrEnum):
 
 
 class ProvisionedProductStartFailed(message_bus.Message):
-    event_name: str = Field("ProvisionedProductStartFailed", alias="eventName", const=True)
+    event_name: Literal["ProvisionedProductStartFailed"] = Field("ProvisionedProductStartFailed", alias="eventName")
     project_id: str = Field(..., alias="projectId")
     provisioned_product_id: str = Field(..., alias="provisionedProductId")
     product_type: str = Field(..., alias="productType")

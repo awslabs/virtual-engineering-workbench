@@ -184,7 +184,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                     region="us-east-1",
                 )
             accounts.append(new_account)
-        accounts = [project_account.ProjectAccount.parse_obj(item) for item in accounts]
+        accounts = [project_account.ProjectAccount.model_validate(item) for item in accounts]
         return accounts, {"PK": str(uuid.uuid4()), "SK": str(uuid.uuid4())}
 
     def get_user_assignment(self, project_id: str, user_id: str) -> project_assignment.Assignment:
@@ -208,7 +208,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                 lastUpdateDate=current_time,
             )
             projects.append(new_project)
-        return [project.Project.parse_obj(item) for item in projects]
+        return [project.Project.model_validate(item) for item in projects]
 
     def get_accounts(self, account_id: str) -> List[project_account.ProjectAccount]:
         return []
@@ -235,7 +235,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                 userEmail=f"user-{i}@email.com",
             )
             users.append(new_user)
-        users = [user.User.parse_obj(item) for item in users]
+        users = [user.User.model_validate(item) for item in users]
         return users, {"PK": str(uuid.uuid4()), "SK": str(uuid.uuid4())}
 
 

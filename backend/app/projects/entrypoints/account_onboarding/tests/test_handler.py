@@ -17,7 +17,7 @@ def test_handle_setup_prerequisites_resources(mock_dependencies, setup_prerequis
 
     handler.dependencies = mock_dependencies
     request = step_function_model.SetupPrerequisitesResourcesRequest(accountId="123456789012", region="us-east-1")
-    os.environ["EVENT"] = json.dumps(request.dict(by_alias=True))
+    os.environ["EVENT"] = json.dumps(request.model_dump(by_alias=True))
 
     # ACT
     result = handler.main()
@@ -35,7 +35,7 @@ def test_handle_setup_prerequisites_resources_when_raises_should_send_failure(
 
     handler.dependencies = mock_dependencies
     request = step_function_model.SetupPrerequisitesResourcesRequest(accountId="123456789012", region="us-east-1")
-    os.environ["EVENT"] = json.dumps(request.dict(by_alias=True))
+    os.environ["EVENT"] = json.dumps(request.model_dump(by_alias=True))
     os.environ["TASK_TOKEN"] = "test-token"
 
     setup_prerequisites_resources_command_mock.side_effect = Exception("Test Error")
@@ -58,7 +58,7 @@ def test_handle_setup_dynamic_resources(mock_dependencies, lambda_context, setup
     request = step_function_model.SetupDynamicResourcesRequest(accountId="123456789012", region="us-east-1")
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -71,7 +71,7 @@ def test_handle_setup_static_resources(mock_dependencies, setup_static_resources
 
     handler.dependencies = mock_dependencies
     request = step_function_model.SetupStaticResourcesRequest(accountId="123456789012", region="us-east-1")
-    os.environ["EVENT"] = json.dumps(request.dict(by_alias=True))
+    os.environ["EVENT"] = json.dumps(request.model_dump(by_alias=True))
 
     # ACT
     result = handler.main()
@@ -89,7 +89,7 @@ def test_handle_setup_static_resources_when_raises_should_send_failure(
 
     handler.dependencies = mock_dependencies
     request = step_function_model.SetupStaticResourcesRequest(accountId="123456789012", region="us-east-1")
-    os.environ["EVENT"] = json.dumps(request.dict(by_alias=True))
+    os.environ["EVENT"] = json.dumps(request.model_dump(by_alias=True))
     os.environ["TASK_TOKEN"] = "test-token"
 
     setup_static_resources_command_mock.side_effect = Exception("Test Error")
@@ -115,7 +115,7 @@ def test_handle_complete_onboarding(mock_dependencies, complete_onboard_command_
     )
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()
@@ -139,7 +139,7 @@ def test_handle_fail_onboarding(mock_dependencies, fail_onboard_command_mock, la
     )
 
     # ACT
-    result = handler.handler(request.dict(by_alias=True), lambda_context)
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
 
     # ASSERT
     assertpy.assert_that(result).is_not_none()

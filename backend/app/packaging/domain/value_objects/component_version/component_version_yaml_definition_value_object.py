@@ -17,7 +17,7 @@ class ComponentStepYaml(BaseModel):
     timeoutSeconds: Optional[int] = 7200
     onFailure: Optional[Literal["Abort", "Continue", "Failed"]] = "Abort"
     maxAttempts: Optional[int] = 1
-    inputs: Optional[Union[List, Dict]]  # This is not really required for all actions
+    inputs: Optional[Union[List, Dict]] = None  # This is not really required for all actions
 
 
 class ComponentPhaseYaml(BaseModel):
@@ -28,7 +28,7 @@ class ComponentPhaseYaml(BaseModel):
 
 
 class ComponentYaml(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
 
     name: Optional[str] = None
     description: Optional[str] = None

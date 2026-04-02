@@ -66,7 +66,7 @@ def fill_db_with_versions(backend_app_dynamodb_table, versions: list[version.Ver
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.PRODUCT.value}#{v.productId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.VERSION.value}#{v.versionId}#{dynamo_entity_config.DBPrefix.AWS_ACCOUNT.value}#{v.awsAccountId}",
-                **v.dict(),
+                **v.model_dump(),
             }
         )
 

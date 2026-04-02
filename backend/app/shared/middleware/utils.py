@@ -11,7 +11,7 @@ from app.shared.middleware import authorization
 
 def handle_response_type(response: Any) -> Dict[Any, Any]:
     if isinstance(response, pydantic.BaseModel):
-        return response.dict()
+        return response.model_dump()
     return response
 
 

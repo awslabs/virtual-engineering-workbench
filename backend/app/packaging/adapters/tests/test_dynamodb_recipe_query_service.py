@@ -11,7 +11,7 @@ def fill_db_with_recipes(backend_app_table, recipes: list[recipe.Recipe]):
             Item={
                 "PK": f"{dynamo_entity_config.DBPrefix.Project}#{reci.projectId}",
                 "SK": f"{dynamo_entity_config.DBPrefix.Recipe}#{reci.recipeId}",
-                **reci.dict(),
+                **reci.model_dump(),
             }
         )
 

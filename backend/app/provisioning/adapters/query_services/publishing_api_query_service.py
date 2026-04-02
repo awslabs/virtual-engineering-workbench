@@ -25,7 +25,7 @@ class PublishingApiQueryService(publishing_query_service.PublishingQueryService)
             # Call publishing bounded context's internal API gateway to get available product versions
             resp = self._aws_api.call_api(path=f"internal/available-products/{product_id}/versions", http_method="GET")
 
-            parsed_resp = version.GetAvailableProductVersionsInternalResponse.parse_obj(resp)
+            parsed_resp = version.GetAvailableProductVersionsInternalResponse.model_validate(resp)
         except Exception as e:
             raise adapter_exception.AdapterException(
                 f"Unable to fetch product versions for product {product_id}"
@@ -49,7 +49,7 @@ class PublishingApiQueryService(publishing_query_service.PublishingQueryService)
                 },
             )
 
-            parsed_resp = version.GetProductVersionInternalResponse.parse_obj(resp)
+            parsed_resp = version.GetProductVersionInternalResponse.model_validate(resp)
             return parsed_resp.version
         except HTTPError as e:
             raise adapter_exception.AdapterException(

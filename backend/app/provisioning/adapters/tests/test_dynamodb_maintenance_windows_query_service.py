@@ -27,7 +27,7 @@ def fill_db_with_maintenance_windows(
             Item={
                 "PK": f"{DBPrefix.MAINTENANCE_WINDOW.value}#{mw.day.value}#{mw.nearestStartHour}",
                 "SK": f"{DBPrefix.USER.value}#{mw.userId}",
-                **mw.dict(),
+                **mw.model_dump(),
             }
         )
 
@@ -48,7 +48,7 @@ def test_maintenance_windows_query_service_when_user_exists_returns_entity(mock_
     # Assert
     assertpy.assert_that(maintenance_ws).is_not_empty()
     assertpy.assert_that(len(maintenance_ws)).is_equal_to(1)
-    assertpy.assert_that(maintenance_ws[0].dict()).is_equal_to(fake_maintenance_windows[0].dict())
+    assertpy.assert_that(maintenance_ws[0].model_dump()).is_equal_to(fake_maintenance_windows[0].model_dump())
 
 
 def test_maintenance_windows_query_service_when_user_not_exists_returns_none(mock_dynamodb, backend_app_dynamodb_table):
@@ -86,7 +86,7 @@ def test_maintenance_windows_query_service_when_maintenance_windows_exists_retur
     # Assert
     assertpy.assert_that(maintenance_ws).is_not_empty()
     assertpy.assert_that(len(maintenance_ws)).is_equal_to(1)
-    assertpy.assert_that(maintenance_ws[0].dict()).is_equal_to(fake_maintenance_windows[0].dict())
+    assertpy.assert_that(maintenance_ws[0].model_dump()).is_equal_to(fake_maintenance_windows[0].model_dump())
 
 
 def test_maintenance_windows_query_service_when_maintenance_windows_not_exists_returns_empty(

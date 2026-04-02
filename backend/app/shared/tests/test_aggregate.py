@@ -1,3 +1,4 @@
+from typing import Literal
 from unittest import mock
 
 import pydantic
@@ -11,15 +12,15 @@ from app.shared.ddd import aggregate
 
 
 class DomainEvent(message_bus.Message):
-    event_name: str = pydantic.Field("DomainEvent", alias="eventName", const=True)
+    event_name: Literal["DomainEvent"] = pydantic.Field("DomainEvent", alias="eventName")
 
 
 class SuccessEvent(message_bus.SuccessMessage):
-    event_name: str = pydantic.Field("SuccessEvent", alias="eventName", const=True)
+    event_name: Literal["SuccessEvent"] = pydantic.Field("SuccessEvent", alias="eventName")
 
 
 class FailureEvent(message_bus.FailureMessage):
-    event_name: str = pydantic.Field("FailureEvent", alias="eventName", const=True)
+    event_name: Literal["FailureEvent"] = pydantic.Field("FailureEvent", alias="eventName")
 
 
 class TestAggregate(aggregate.Aggregate):

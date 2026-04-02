@@ -43,7 +43,7 @@ def handle_setup_dynamic_resources(event: step_function_model.SetupDynamicResour
     )
 
     dependencies.command_bus.handle(cmd)
-    return step_function_model.SetupDynamicResourcesResponse().dict(by_alias=True)
+    return step_function_model.SetupDynamicResourcesResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.SetupPrerequisitesResourcesRequest)
@@ -56,7 +56,7 @@ def handle_setup_prerequisites_resources(event: step_function_model.SetupPrerequ
 
     dependencies.command_bus.handle(cmd)
 
-    return step_function_model.SetupPrerequisitesResourcesResponse().dict(by_alias=True)
+    return step_function_model.SetupPrerequisitesResourcesResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.SetupStaticResourcesRequest)
@@ -69,7 +69,7 @@ def handle_setup_static_resources(event: step_function_model.SetupStaticResource
 
     dependencies.command_bus.handle(cmd)
 
-    return step_function_model.SetupStaticResourcesResponse().dict(by_alias=True)
+    return step_function_model.SetupStaticResourcesResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.CompleteProjectAccountOnboardingRequest)
@@ -81,7 +81,7 @@ def handle_complete_project_account_onboarding(event: step_function_model.Comple
 
     dependencies.command_bus.handle(cmd)
 
-    return step_function_model.CompleteProjectAccountOnboardingResponse().dict(by_alias=True)
+    return step_function_model.CompleteProjectAccountOnboardingResponse().model_dump(by_alias=True)
 
 
 @app.handle(step_function_model.FailProjectAccountOnboardingRequest)
@@ -94,7 +94,7 @@ def handle_fail_project_account_onboarding(event: step_function_model.FailProjec
 
     dependencies.command_bus.handle(cmd)
 
-    return step_function_model.FailProjectAccountOnboardingResponse().dict(by_alias=True)
+    return step_function_model.FailProjectAccountOnboardingResponse().model_dump(by_alias=True)
 
 
 @tracer.capture_lambda_handler  # type: ignore

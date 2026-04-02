@@ -48,7 +48,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             )
 
         if result.get("Items"):
-            return provisioned_product.ProvisionedProduct.parse_obj(result["Items"][0])
+            return provisioned_product.ProvisionedProduct.model_validate(result["Items"][0])
 
         return None
 
@@ -70,7 +70,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             )
 
         if result.get("Items"):
-            return provisioned_product.ProvisionedProduct.parse_obj(result["Items"][0])
+            return provisioned_product.ProvisionedProduct.model_validate(result["Items"][0])
 
         return None
 
@@ -124,7 +124,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             done = start_key is None
             if result.get("Items"):
                 provisioned_products.extend(
-                    [provisioned_product.ProvisionedProduct.parse_obj(item) for item in result["Items"]]
+                    [provisioned_product.ProvisionedProduct.model_validate(item) for item in result["Items"]]
                 )
 
         return provisioned_products
@@ -147,7 +147,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             )
 
         if result.get("Items"):
-            return provisioned_product.ProvisionedProduct.parse_obj(result["Items"][0])
+            return provisioned_product.ProvisionedProduct.model_validate(result["Items"][0])
 
         return None
 
@@ -173,7 +173,9 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
 
         result = self._dynamodb_client.scan(**scan_kwargs)
         start_key = result.get(PagingParams.RESPONSE_PAGING, None)
-        return [provisioned_product.ProvisionedProduct.parse_obj(item) for item in result.get("Items", [])], start_key
+        return [
+            provisioned_product.ProvisionedProduct.model_validate(item) for item in result.get("Items", [])
+        ], start_key
 
     def get_all_provisioned_products(
         self,
@@ -219,7 +221,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
                 done = start_key is None
 
                 for item in result.get("Items", []):
-                    yield provisioned_product.ProvisionedProduct.parse_obj(item)
+                    yield provisioned_product.ProvisionedProduct.model_validate(item)
 
     def get_all_provisioned_products_by_status(
         self,
@@ -235,7 +237,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
 
         for page in pages:
             for item in page.get("Items", []):
-                yield provisioned_product.ProvisionedProduct.parse_obj(item)
+                yield provisioned_product.ProvisionedProduct.model_validate(item)
 
     def get_provisioned_products_by_project_id_paginated(
         self,
@@ -290,12 +292,12 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
                 last_evaluated_item = current_page_items[-1]
                 start_key = self.__build_exclusive_start_key(last_evaluated_item)
                 provisioned_products.extend(
-                    [provisioned_product.ProvisionedProduct.parse_obj(item) for item in current_page_items]
+                    [provisioned_product.ProvisionedProduct.model_validate(item) for item in current_page_items]
                 )
                 done = True
             else:
                 provisioned_products.extend(
-                    [provisioned_product.ProvisionedProduct.parse_obj(item) for item in result.get("Items")]
+                    [provisioned_product.ProvisionedProduct.model_validate(item) for item in result.get("Items")]
                 )
                 start_key = result.get(PagingParams.RESPONSE_PAGING, None)
                 done = start_key is None
@@ -355,7 +357,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             done = start_key is None
             if result.get("Items"):
                 provisioned_products.extend(
-                    [provisioned_product.ProvisionedProduct.parse_obj(item) for item in result["Items"]]
+                    [provisioned_product.ProvisionedProduct.model_validate(item) for item in result["Items"]]
                 )
 
         return provisioned_products
@@ -399,7 +401,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             done = start_key is None
 
             for item in result.get("Items", []):
-                yield provisioned_product.ProvisionedProduct.parse_obj(item)
+                yield provisioned_product.ProvisionedProduct.model_validate(item)
 
     def get_active_provisioned_products_by_project_id(
         self,
@@ -440,7 +442,7 @@ class DynamoDBProvisionedProductsQueryService(provisioned_products_query_service
             done = start_key is None
             if result.get("Items"):
                 provisioned_products.extend(
-                    [provisioned_product.ProvisionedProduct.parse_obj(item) for item in result["Items"]]
+                    [provisioned_product.ProvisionedProduct.model_validate(item) for item in result["Items"]]
                 )
 
         return provisioned_products

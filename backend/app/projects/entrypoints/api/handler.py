@@ -1,12 +1,12 @@
 import json
 from http import HTTPStatus
+from typing import Annotated
 from urllib.parse import unquote
 
 from aws_lambda_powertools import logging, tracing
 from aws_lambda_powertools.event_handler import api_gateway, content_types
 from aws_lambda_powertools.event_handler.openapi.models import Server
 from aws_lambda_powertools.event_handler.openapi.params import Query
-from aws_lambda_powertools.shared.types import Annotated
 from aws_lambda_powertools.utilities import typing
 from aws_xray_sdk.core import patch_all
 
@@ -110,9 +110,9 @@ def get_projects(
         status=enrolment.EnrolmentStatus.Pending,
     )
 
-    projects_parsed = [api_model.Project.parse_obj(p.dict()) for p in projects]
-    assignments_parsed = [api_model.ProjectAssignment.parse_obj(a.dict()) for a in assignments]
-    enrolments_parsed = [api_model.ProjectEnrolment.parse_obj(e.dict()) for e in enrolments]
+    projects_parsed = [api_model.Project.model_validate(p.model_dump()) for p in projects]
+    assignments_parsed = [api_model.ProjectAssignment.model_validate(a.model_dump()) for a in assignments]
+    enrolments_parsed = [api_model.ProjectEnrolment.model_validate(e.model_dump()) for e in enrolments]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -166,7 +166,7 @@ def get_project(
     """Returns a project."""
 
     project = dependencies.projects_query_service.get_project_by_id(id=project_id)
-    project_parsed = api_model.Project.parse_obj(project.dict())
+    project_parsed = api_model.Project.model_validate(project.model_dump())
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -213,7 +213,7 @@ def get_project_accounts(
         account_type=account_type.pop() if account_type else None,
         stage=stage.pop() if stage else None,
     )
-    project_accounts_parsed = [api_model.ProjectAccount.parse_obj(p) for p in project_accounts]
+    project_accounts_parsed = [api_model.ProjectAccount.model_validate(p.model_dump()) for p in project_accounts]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -348,7 +348,9 @@ def get_project_users(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetProjectAssignmentsResponse(
-            assignments=[api_model.GetProjectAssignmentsResponseItem.parse_obj(a.dict()) for a in assignments],
+            assignments=[
+                api_model.GetProjectAssignmentsResponseItem.model_validate(a.model_dump()) for a in assignments
+            ],
         ),
         content_type=content_types.APPLICATION_JSON,
     )
@@ -455,7 +457,7 @@ def list_technologies_for_project(
         project_id=project_id, page_size=page_size.pop() if page_size else 0
     )
 
-    techs_response = [api_model.Technology.parse_obj(t) for t in techs]
+    techs_response = [api_model.Technology.model_validate(t.model_dump()) for t in techs]
 
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -606,7 +608,8 @@ def list_enrolments_by_project(
     )
 
     enrolments_response = [
-        api_model.GetProjectEnrolmentsResponseItem.parse_obj(enrolment_item) for enrolment_item in enrolments
+        api_model.GetProjectEnrolmentsResponseItem.model_validate(enrolment_item.model_dump())
+        for enrolment_item in enrolments
     ]
 
     return api_gateway.Response(
@@ -646,10 +649,10 @@ def get_project_accounts_internal() -> dict:
             technology_id=technology_id,
         )
 
-    project_accounts_parsed = [api_model.ProjectAccount.parse_obj(p.dict()) for p in project_accounts]
+    project_accounts_parsed = [api_model.ProjectAccount.model_validate(p.model_dump()) for p in project_accounts]
     return api_model.GetProjectAccountsResponse(
         projectAccounts=project_accounts_parsed, nextToken=last_evaluated_key
-    ).dict()
+    ).model_dump()
 
 
 @tracer.capture_method
@@ -665,9 +668,9 @@ def get_project_internal() -> dict:
         user_id=None,
     )
 
-    projects_parsed = [api_model.Project.parse_obj(p.dict()) for p in projects]
+    projects_parsed = [api_model.Project.model_validate(p.model_dump()) for p in projects]
     response = api_model.GetProjectsResponse(projects=projects_parsed, nextToken=last_evaluated_key, assignments=None)
-    return response.dict()
+    return response.model_dump()
 
 
 @tracer.capture_method
@@ -696,14 +699,14 @@ def get_project_assignments_internal(
         )
 
     response = api_model.GetProjectAssignmentsResponse(
-        assignments=[api_model.GetProjectAssignmentsResponseItem.parse_obj(a.dict()) for a in assignments],
+        assignments=[api_model.GetProjectAssignmentsResponseItem.model_validate(a.model_dump()) for a in assignments],
         nextToken=(
             json.dumps(assignments_response.page_token)
             if assignments_response and assignments_response.page_token
             else None
         ),
     )
-    return response.dict()
+    return response.model_dump()
 
 
 @tracer.capture_method
@@ -716,7 +719,9 @@ def get_project_user_assignment_internal(
     assignment = dependencies.projects_query_service.get_user_assignment(project_id=project_id, user_id=user_id.upper())
 
     response = api_model.GetProjectAssignmentResponse(
-        assignment=(api_model.GetProjectAssignmentResponseItem.parse_obj(assignment) if assignment else None)
+        assignment=(
+            api_model.GetProjectAssignmentResponseItem.model_validate(assignment.model_dump()) if assignment else None
+        )
     )
 
     return api_gateway.Response(
@@ -740,14 +745,14 @@ def get_user_assignments_internal() -> dict:
         user_id=user_id,
     )
 
-    projects_parsed = [api_model.Project.parse_obj(p.dict()) for p in projects]
-    assignments_parsed = [api_model.ProjectAssignment.parse_obj(a.dict()) for a in assignments]
+    projects_parsed = [api_model.Project.model_validate(p.model_dump()) for p in projects]
+    assignments_parsed = [api_model.ProjectAssignment.model_validate(a.model_dump()) for a in assignments]
     response = api_model.GetProjectsResponse(
         projects=projects_parsed,
         nextToken=last_evaluated_key,
         assignments=assignments_parsed,
     )
-    return response.dict()
+    return response.model_dump()
 
 
 @tracer.capture_method
@@ -757,9 +762,9 @@ def get_user() -> dict:
     user_id = app.current_event.get_query_string_value("userId")
 
     user_entity = dependencies.projects_query_service.get_user(user_id=user_id)
-    user_response = api_model.User.parse_obj(user_entity.dict())
+    user_response = api_model.User.model_validate(user_entity.model_dump())
     response = api_model.GetUserResponse(user=user_response)
-    return response.dict()
+    return response.model_dump()
 
 
 @tracer.capture_method
@@ -780,7 +785,7 @@ def get_all_users_internal(
     )
     last_evaluated_key = json.dumps(last_evaluated_key) if last_evaluated_key else None
 
-    users_parsed = [api_model.User.parse_obj(p.dict()) for p in users]
+    users_parsed = [api_model.User.model_validate(p.model_dump()) for p in users]
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetUsersResponse(users=users_parsed, nextToken=last_evaluated_key),

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.publishing.domain.value_objects import (
     aws_account_id_value_object,
@@ -15,7 +15,5 @@ class PublishVersionCommand(BaseModel):
     versionId: version_id_value_object.VersionIdValueObject
     awsAccountId: aws_account_id_value_object.AWSAccountIDValueObject
     previousEventName: event_name_value_object.EventNameValueObject
-    oldVersionId: Optional[str]
-
-    class Config:
-        arbitrary_types_allowed = True
+    oldVersionId: Optional[str] = None
+    model_config = ConfigDict(arbitrary_types_allowed=True)

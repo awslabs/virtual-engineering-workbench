@@ -94,7 +94,7 @@ def test_get_product_version_when_exists_should_aggregate_distributions_into_a_s
     # ASSERT
     assertpy.assert_that(summary).is_not_none()
     assertpy.assert_that(summary).is_equal_to(
-        version_summary.VersionSummary.construct(
+        version_summary.VersionSummary.model_construct(
             versionId=TEST_VERSION_ID,
             name=TEST_VERSION_NAME,
             description="Test Description",
@@ -143,7 +143,7 @@ def test_get_product_version_when_not_distributed_should_not_contain_a_stage(get
     # ASSERT
     assertpy.assert_that(summary).is_not_none()
     assertpy.assert_that(summary).is_equal_to(
-        version_summary.VersionSummary.construct(
+        version_summary.VersionSummary.model_construct(
             versionId=TEST_VERSION_ID,
             name="1.0.0-rc.1",
             description="Test Description",
@@ -259,7 +259,7 @@ def test_get_version_distribution_should_return_version(get_test_version, file_s
         version_qry_srv=mock_qs, file_srv=file_service_mock, default_original_ami_region=TEST_ORIGINAL_AMI_REGION
     )
 
-    expected_enriched_version = get_test_version(stage=version.VersionStage.QA).dict()
+    expected_enriched_version = get_test_version(stage=version.VersionStage.QA).model_dump()
     expected_enriched_version["amiId"] = get_test_version(stage=version.VersionStage.QA).copiedAmiId
 
     # ACT

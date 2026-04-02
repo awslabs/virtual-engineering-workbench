@@ -36,7 +36,7 @@ class EventBridgeMessageBus(message_bus.MessageBus):
             self._logger.debug(message)
             self._events_api.put_event(
                 source=self._bounded_context_name,
-                detail=message.json(by_alias=True),
+                detail=message.model_dump_json(by_alias=True),
                 resources=[],
                 detail_type=message.event_name,
                 event_bus=self._event_bus_name,
@@ -75,5 +75,5 @@ class EventBridgeMessageBus(message_bus.MessageBus):
             "Source": self._bounded_context_name,
             "Resources": [],
             "DetailType": message.event_name,
-            "Detail": message.dict(by_alias=True),
+            "Detail": message.model_dump(by_alias=True),
         }
