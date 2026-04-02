@@ -5,8 +5,11 @@
 # Deploys the Virtual Engineering Workbench to a single AWS account with
 # optional spoke account onboarding. Standard public deployment.
 #
-# Usage: ./deploy.sh [--config <path>] [--dry-run] [--destroy]
+# Usage: ./deploy.sh [--config <path>] [--dry-run] [--destroy] [--yes]
 #   --config <path>  Load inputs from a config file instead of prompting
+#   --dry-run        Validate prerequisites and config without deploying
+#   --destroy        Tear down all VEW stacks and orphaned resources
+#   --yes            Auto-confirm interactive prompts (for CI/CD)
 #
 # Prerequisites: aws-cli v2, cdk v2, node 18+, python 3.13+, uv, jq, yarn 4+
 # =============================================================================
@@ -45,11 +48,13 @@ run_cmd() {
 # ---------------------------------------------------------------------------
 DESTROY_MODE=false
 DRY_RUN=false
+AUTO_CONFIRM=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --config)  CONFIG_FILE="$2"; shift 2 ;;
     --destroy) DESTROY_MODE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --yes)     AUTO_CONFIRM=true; shift ;;
     *) err "Unknown argument: $1" ;;
   esac
 done
@@ -64,7 +69,11 @@ if [ "$DESTROY_MODE" = "true" ]; then
   source "$CONFIG_FILE"
   PREFIX="${ORG_PREFIX}-${APP_PREFIX}"
   warn "This will delete ALL VEW stacks and orphaned resources with prefix '$PREFIX' in $AWS_REGION"
-  read -r -p "$(echo -e "${YELLOW}Type 'destroy' to confirm: ${NC}")" CONFIRM
+  if [ "$AUTO_CONFIRM" = "true" ]; then
+    CONFIRM="destroy"
+  else
+    read -r -p "$(echo -e "${YELLOW}Type 'destroy' to confirm: ${NC}")" CONFIRM
+  fi
   [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
 
   activate_hub_credentials 2>/dev/null || true
@@ -178,12 +187,17 @@ step 1 "Collecting deployment parameters"
 
 prompt() {
   local var_name="$1" prompt_text="$2" default="$3" is_secret="${4:-false}"
-  if [ -n "${!var_name:-}" ]; then
-    if [ "$is_secret" = "true" ]; then
+  if declare -p "$var_name" &>/dev/null; then
+    if [ "$is_secret" = "true" ] && [ -n "${!var_name}" ]; then
       log "$prompt_text: ********"
-    else
-      log "$prompt_text: ${!var_name}"
+    elif [ "$is_secret" != "true" ]; then
+      log "$prompt_text: ${!var_name:-<empty>}"
     fi
+    return
+  fi
+  if [ "$AUTO_CONFIRM" = "true" ]; then
+    printf -v "$var_name" '%s' "$default"
+    log "$prompt_text: ${default:-<empty>}"
     return
   fi
   if [ -n "$default" ]; then
@@ -479,7 +493,11 @@ EXISTING_VPC=$(aws ec2 describe-vpcs \
 if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   warn "VPC '$VPC_NAME' not found in $AWS_REGION"
   warn "A development VPC will be created. This is intended for dev/testing only — not for production use."
-  read -r -p "$(echo -e "${YELLOW}Proceed with VPC creation? [y/N]: ${NC}")" VPC_CONFIRM
+  if [ "$AUTO_CONFIRM" = "true" ]; then
+    VPC_CONFIRM="y"
+  else
+    read -r -p "$(echo -e "${YELLOW}Proceed with VPC creation? [y/N]: ${NC}")" VPC_CONFIRM
+  fi
   if [[ ! "$VPC_CONFIRM" =~ ^[Yy]$ ]]; then
     err "VPC creation declined. Create a VPC named '$VPC_NAME' manually and re-run."
   fi
@@ -598,6 +616,9 @@ if [ -n "$API_CUSTOM_DOMAIN" ]; then
 fi
 if [ -n "$CERT_ARN" ]; then
   BE_CDK_CONTEXT+=(-c "cert-arn=$CERT_ARN")
+fi
+if [ -n "${CI_COMMIT_SHA:-}" ]; then
+  BE_CDK_CONTEXT+=(-c "ci-commit-sha=$CI_COMMIT_SHA")
 fi
 
 FE_STACK_NAME="${APP_NAME}-${ENVIRONMENT}"

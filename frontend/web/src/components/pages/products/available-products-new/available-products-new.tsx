@@ -14,9 +14,6 @@ import {
   SpaceBetween,
   Select,
   FormField,
-  Tabs,
-  Container,
-  Input,
   Spinner,
   Table,
   TextFilter,
@@ -115,8 +112,6 @@ export const AvailableProductsNew: FC<AvailableProductsProps> = ({
     setSelectedStage,
     availableStages,
     canListOnlyProd,
-    messages,
-    setMessages,
     selectedVersionStage,
     setSelectedVersionStage,
     selectedProduct,
@@ -211,15 +206,6 @@ export const AvailableProductsNew: FC<AvailableProductsProps> = ({
 
   const regionOptions = availableRegions.map(getDropdownOption);
   const stageOptions = availableStages.map(getDropdownOption);
-
-  const [inputValue, setInputValue] = useState<string>('');
-
-  const sendMessage = (): void => {
-    if (inputValue.trim()) {
-      setMessages(prevMessages => [...prevMessages, { text: inputValue, from: 'user' }]);
-      setInputValue('');
-    }
-  };
 
   function displayToolsPanel() {
     return toolsOpen && selectedProduct && isFeatureEnabled(Feature.ProductMetadata);
@@ -517,63 +503,9 @@ export const AvailableProductsNew: FC<AvailableProductsProps> = ({
   }
   function renderToolsDefault(): ReactNode {
     return (
-      <HelpPanel
-      >
-        <Tabs
-          tabs={[
-            {
-              label: 'Info',
-              id: 'first',
-              content: <>
-                <h2>{i18n.helpPanelHeader}</h2><p>
-                  {i18n.helpPanelDetails}
-                </p>
-              </>
-            },
-            {
-              label: 'Chatbot',
-              id: 'second',
-              content: <Container header={<Header variant="h3">Ask any question about VEW!</Header>}>
-                <SpaceBetween size="s">
-                  {messages.map((msg) =>
-                    <SpaceBetween size="xl">
-                      <Container>
-                        {
-                          msg.from === 'bot' ?
-                            <div>
-                              <b>VEW GPT</b>
-                              <div>{msg.text}</div>
-                              <small>{msg.references}
-                                <a href={msg.referenceLink} target="_blank" rel="noopener noreferrer">
-                                  {msg.referenceLink}
-                                </a>
-                              </small>
-                            </div>
-                            :
-                            <div>
-                              <b>You</b>
-                              <div>{msg.text}</div>
-                            </div>
-                        }
-
-                      </Container>
-                    </SpaceBetween>
-                  )}
-                  <FormField>
-                    <SpaceBetween size="s">
-                      <Input
-                        value={inputValue}
-                        onChange={event => setInputValue(event.detail.value)}
-                        placeholder="Type your message here..."
-                      />
-                      <Button onClick={sendMessage} disabled={messages.length % 2 === 1}>Send</Button>
-                    </SpaceBetween>
-                  </FormField>
-                </SpaceBetween>
-              </Container>
-            },
-          ]}
-        />
+      <HelpPanel>
+        <h2>{i18n.helpPanelHeader}</h2>
+        <p>{i18n.helpPanelDetails}</p>
       </HelpPanel>
     );
   }
