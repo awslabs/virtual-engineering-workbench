@@ -25,7 +25,9 @@ class LocalBundler:
         _validate_path(lambda_root)
         self.__app_root = app_root
         self.__lambda_root = lambda_root
-        self.__requirements_file = f"{self.__lambda_root}/requirements.txt"
+        lockfile = Path(f"{self.__lambda_root}/requirements.lock")
+        txtfile = Path(f"{self.__lambda_root}/requirements.txt")
+        self.__requirements_file = str(lockfile if lockfile.is_file() else txtfile)
 
     @member(jsii_name="tryBundle")
     def try_bundle(self, output_dir: str, options: aws_cdk.BundlingOptions) -> bool:
@@ -37,7 +39,7 @@ class LocalBundler:
         try:
             if requirements_file.is_file():
                 subprocess.run(
-                    ["pip", "install", "-r", str(requirements_file), "-t", output_dir, "--no-compile"],
+                    ["uv", "pip", "install", "-r", str(requirements_file), "-t", output_dir, "--no-compile"],
                     check=True,
                     shell=False,
                     capture_output=True,
