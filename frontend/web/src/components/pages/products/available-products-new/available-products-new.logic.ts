@@ -25,12 +25,6 @@ enum Stages {
   PROD = 'PROD'
 }
 
-interface Message {
-  text: string,
-  from: 'user' | 'bot',
-  references?: string,
-  referenceLink?: string,
-}
 
 interface Version {
   versionId: string,
@@ -84,9 +78,6 @@ export function useAvailableProducts({
     setSelectedRegion] = useState<string>(i18n.firstRegionDropdownOption);
   const [selectedStage,
     setSelectedStage] = useState<string>(i18n.firstStageDropdownOption);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [conversationId] = useState<string>('');
-  const [parentMessageId] = useState<string>('');
   const isFeatureAccessible = useRoleAccessToggle();
   const [selectedProduct, setSelectedProduct] = useState<AvailableProduct | null>(null);
   const [selectedVersionRegion,
@@ -264,10 +255,6 @@ export function useAvailableProducts({
     setSelectedStage,
     availableStages,
     canListOnlyProd,
-    conversationId,
-    parentMessageId,
-    messages,
-    setMessages,
     selectedProduct,
     setSelectedProduct,
     availableProductVersions,
