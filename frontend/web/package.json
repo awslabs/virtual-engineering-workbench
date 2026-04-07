@@ -56,7 +56,9 @@
     "flatted": "^3.4.2",
     "picomatch": "^4.0.4",
     "file-type": "^21.3.2",
-    "yauzl": "^3.2.1"
+    "yauzl": "^3.2.1",
+    "vite": "^7.3.2",
+    "@nestjs/core": "^11.1.18"
   },
   "scripts": {
     "dev": "vite --port 3000",
@@ -121,7 +123,7 @@
     "proper-lockfile": "^4.1.2",
     "sass": "^1.97.3",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
+    "vite": "^7.3.2",
     "vitest": "^4.0.18"
   },
   "packageManager": "yarn@4.13.0"
