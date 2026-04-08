@@ -7,6 +7,7 @@
 * Dominik Goby ([@gobydo](https://github.com/gobydo))
 * Stanislav Kruglov ([@vorgashore](https://github.com/vorgashore))
 * Christoph Kappey ([@kappeych](https://github.com/kappeych))
+* Piotr Srebniak ([@psrebniak](https://github.com/psrebniak))
 
 ## Past Contributors
 
@@ -15,3 +16,4 @@ Special thanks to the following authors for their contributions
 * Daniel Krumpholz
 * Furkan Oruc
 * Balachandar Raju
+* José Alfredo De Castro Nunes
