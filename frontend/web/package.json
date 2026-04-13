@@ -16,7 +16,7 @@
     "ace-diff": "^4.0.0",
     "amazon-cognito-identity-js": "^6.3.16",
     "aws-amplify": "^6.16.2",
-    "axios": "^1.13.5",
+    "axios": "^1.15.0",
     "chart.js": "^4.5.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "cronstrue": "^3.13.0",
@@ -39,7 +39,7 @@
   },
   "resolutions": {
     "@cloudscape-design/component-toolkit": "^1.0.0-beta.90",
-    "axios": "^1.13.5",
+    "axios": "^1.15.0",
     "basic-ftp": "^5.2.2",
     "cross-spawn": "^7.0.6",
     "diff": "^8.0.3",
