@@ -24,3 +24,52 @@ The workflow is the same as the [FreeRTOS tutorial](../freertos/) — create a c
 - The recipe includes both components, with qemu-kvm listed before android-cuttlefish
 - Use `c8i.2xlarge` or `m8i.2xlarge` as the build instance type (nested virtualization requires Intel)
 - The product template uses a 500 GB volume (Android images are large)
+
+## Connect to the device
+
+Once your virtual target is running, get its public IP and SSH key by following the same steps as [Step 6 of the FreeRTOS tutorial](../freertos/README.md#step-6-connect):
+
+1. Go to **My virtual targets** in the side navigation.
+2. Select your Android Cuttlefish instance and choose **Log in**.
+3. Confirm — VEW downloads an SSH key file named `connect_vew-pp-<UUID>.key`.
+4. Lock down the key permissions:
+
+   ```bash
+   chmod 0600 connect_vew-pp-<UUID>.key
+   ```
+
+5. Get the public IP from **View details** → **General configuration** → **Public IP**.
+
+### Cuttlefish operator (browser)
+
+Open the device's public IP in your browser:
+
+```
+https://<public-ip>:8443
+```
+
+This opens the Cuttlefish operator web UI, which gives you a virtual screen, controls, and logs for the Android device directly in the browser.
+
+### ADB over SSH tunnel
+
+To use ADB from your local machine, establish an SSH tunnel that forwards the Cuttlefish ADB port:
+
+1. Open the tunnel:
+
+   ```bash
+   ssh -i connect_vew-pp-<UUID>.key -L 6520:localhost:6520 ubuntu@<public-ip>
+   ```
+
+2. In a separate terminal, connect ADB through the tunnel:
+
+   ```bash
+   adb connect localhost:6520
+   ```
+
+3. Verify the device is visible:
+
+   ```bash
+   adb devices
+   ```
+
+   You should see `localhost:6520` listed as an attached device.
