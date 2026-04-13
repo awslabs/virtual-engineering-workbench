@@ -52,7 +52,7 @@
     "aws-cdk": "2.1114.1",
     "aws-cdk-lib": "2.243.0",
     "aws-lambda": "^1.0.7",
-    "axios": "^1.13.5",
+    "axios": "^1.15.0",
     "cognito-at-edge": "^1.5.4",
     "constructs": "^10.5.1",
     "global": "^4.4.0",
@@ -63,7 +63,7 @@
   },
   "resolutions": {
     "ajv": "^6.14.0",
-    "axios": "^1.13.5",
+    "axios": "^1.15.0",
     "bn.js": "^5.2.3",
     "diff": "^8.0.3",
     "fast-xml-parser": "^5.5.9",
