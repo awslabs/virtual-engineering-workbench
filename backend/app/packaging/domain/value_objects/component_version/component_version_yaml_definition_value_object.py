@@ -27,12 +27,29 @@ class ComponentPhaseYaml(BaseModel):
     steps: List[ComponentStepYaml]
 
 
+class ComponentConstantYaml(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["string"]
+    value: Optional[str] = None
+
+
+class ComponentParameterYaml(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["string"]
+    default: Optional[str] = None
+    description: Optional[str] = None
+
+
 class ComponentYaml(BaseModel):
     model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
 
     name: Optional[str] = None
     description: Optional[str] = None
     schemaVersion: str
+    constants: Optional[List[Dict[str, ComponentConstantYaml]]] = None
+    parameters: Optional[List[Dict[str, ComponentParameterYaml]]] = None
     phases: List[ComponentPhaseYaml]
 
 
