@@ -17,3 +17,4 @@ Special thanks to the following authors for their contributions
 * Furkan Oruc
 * Balachandar Raju
 * José Alfredo De Castro Nunes
+* Srujan Deodhar ([@srujan2401](https://github.com/srujan2401))
