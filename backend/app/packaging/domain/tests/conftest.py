@@ -283,6 +283,15 @@ def get_test_component_yaml_definition():
         name: LinuxBin
         description: Download and run a custom Linux binary file.
         schemaVersion: 1.0
+        constants:
+          - AppName:
+              type: string
+              value: "test-app"
+        parameters:
+          - AppVersion:
+              type: string
+              default: "1.0.0"
+              description: Version of the application to install
         phases:
           - name: build
             steps:
