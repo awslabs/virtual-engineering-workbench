@@ -31,7 +31,7 @@
     "react-showdown": "^2.3.1",
     "recoil": "^0.7.7",
     "semver": "^7.7.4",
-    "swagger-ui-react": "^5.31.2",
+    "swagger-ui-react": "^5.32.4",
     "swr": "^2.4.0",
     "uuid": "^13.0.0",
     "web-vitals": "^5.1.0",
@@ -58,7 +58,8 @@
     "file-type": "^21.3.2",
     "yauzl": "^3.2.1",
     "vite": "^7.3.2",
-    "@nestjs/core": "^11.1.18"
+    "@nestjs/core": "^11.1.18",
+    "follow-redirects": "^1.16.0"
   },
   "scripts": {
     "dev": "vite --port 3000",
