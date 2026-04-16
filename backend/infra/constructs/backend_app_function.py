@@ -106,7 +106,14 @@ class BackendAppFunction(constructs.Construct):
         if not hash_path.startswith("./"):
             hash_path = f"./{hash_path}"
 
-        asset_hash = aws_cdk.FileSystem.fingerprint(hash_path)
+        asset_hash = aws_cdk.FileSystem.fingerprint(
+            hash_path,
+            exclude=[
+                "**/__pycache__",
+                "**/__pycache__/**",
+                "**/*.pyc",
+            ],
+        )
 
         current_dir = "."
         code = aws_lambda.Code.from_asset(
