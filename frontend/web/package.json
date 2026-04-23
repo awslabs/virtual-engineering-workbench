@@ -59,7 +59,8 @@
     "yauzl": "^3.2.1",
     "vite": "^7.3.2",
     "@nestjs/core": "^11.1.18",
-    "follow-redirects": "^1.16.0"
+    "follow-redirects": "^1.16.0",
+    "uuid": "^14.0.0"
   },
   "scripts": {
     "dev": "vite --port 3000",
