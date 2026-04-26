@@ -4,9 +4,9 @@ mypy-boto3-dynamodb==1.42.73 \
     --hash=sha256:2df84f71ff41fba5f12e803be19c4483daa64ba030fc9d62ba5e5f9f09a4def8 \
     --hash=sha256:3fd9e093a8c982a53d55f6ac3d109d89957fe82b5c7ece65f27b772ed7a5ca9b
     # via -r app/projects/libraries/requirements.txt
-mypy-boto3-ec2==1.42.85 \
-    --hash=sha256:6187ee026bd54b820a9ea44ea02cd48ddd8ed0acac8609d5210d2705487c2a14 \
-    --hash=sha256:ec39260ce9e8caf4d0dcf1a3d06bc05875930a9988fdbb7aa56cc54e7206adf0
+mypy-boto3-ec2==1.42.94 \
+    --hash=sha256:75fd9778db9ad52e23144e9e98d81d274e293e1f6c19a8ae79ef62b7c922daed \
+    --hash=sha256:a013ee4532229ef197426dcf0c1b7aa2a0b8dcf33eb16d82dbe24b108df67fb7
     # via -r app/projects/libraries/requirements.txt
 mypy-boto3-route53==1.42.6 \
     --hash=sha256:afba8dc333ddcb901882b652cd8bea61aa57367cd45f2e1bdd96fa50aed257e9 \
@@ -185,7 +185,7 @@ time-machine==3.2.0 \
     --hash=sha256:e0d90bee170b219e1d15e6a58164aa808f5170090e4f090bd0670303e34181b1 \
     --hash=sha256:f09abeb8f03f044d72712207e0489a62098ad3ad16dac38927fcf80baca4d6a7
     # via pendulum
-tzdata==2026.1 \
-    --hash=sha256:4b1d2be7ac37ceafd7327b961aa3a54e467efbdb563a23655fbfe0d39cfc42a9 \
-    --hash=sha256:67658a1903c75917309e753fdc349ac0efd8c27db7a0cb406a25be4840f87f98
+tzdata==2026.2 \
+    --hash=sha256:9173fde7d80d9018e02a662e168e5a2d04f87c41ea174b139fbef642eda62d10 \
+    --hash=sha256:bbe9af844f658da81a5f95019480da3a89415801f6cc966806612cc7169bffe7
     # via pendulum

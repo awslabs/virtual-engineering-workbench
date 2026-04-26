@@ -28,7 +28,6 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.13.1",
-    "react-showdown": "^2.3.1",
     "recoil": "^0.7.7",
     "semver": "^7.7.4",
     "swagger-ui-react": "^5.32.4",
