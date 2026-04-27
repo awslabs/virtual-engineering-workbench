@@ -8,13 +8,13 @@ mypy-boto3-dynamodb==1.42.73 \
     --hash=sha256:2df84f71ff41fba5f12e803be19c4483daa64ba030fc9d62ba5e5f9f09a4def8 \
     --hash=sha256:3fd9e093a8c982a53d55f6ac3d109d89957fe82b5c7ece65f27b772ed7a5ca9b
     # via -r app/provisioning/libraries/requirements.txt
-mypy-boto3-ec2==1.42.85 \
-    --hash=sha256:6187ee026bd54b820a9ea44ea02cd48ddd8ed0acac8609d5210d2705487c2a14 \
-    --hash=sha256:ec39260ce9e8caf4d0dcf1a3d06bc05875930a9988fdbb7aa56cc54e7206adf0
+mypy-boto3-ec2==1.42.94 \
+    --hash=sha256:75fd9778db9ad52e23144e9e98d81d274e293e1f6c19a8ae79ef62b7c922daed \
+    --hash=sha256:a013ee4532229ef197426dcf0c1b7aa2a0b8dcf33eb16d82dbe24b108df67fb7
     # via -r app/provisioning/libraries/requirements.txt
-mypy-boto3-ecs==1.42.85 \
-    --hash=sha256:4ce3fd9dd14ba7b1bd8445e73cdc6fc6f3e7beb4fab5c36ef8f1fa69ea428379 \
-    --hash=sha256:9e3838724da81df136919adb9f537938ce4d5f17fe0238474a667c8756193721
+mypy-boto3-ecs==1.42.94 \
+    --hash=sha256:9af4082ae37ace16fb9e64b891e8dda6ff5081d1eb3c243746ee87d272e75497 \
+    --hash=sha256:d6ff09475f87dad727c01b97df73e0a5c44293c94a7c2032d25bceb8162f2ce9
     # via -r app/provisioning/libraries/requirements.txt
 mypy-boto3-secretsmanager==1.42.8 \
     --hash=sha256:50c891a88e725a8dba7444018e47590ea63d8e938abe2b1c0b25e5413f39d51d \
@@ -28,9 +28,9 @@ mypy-boto3-ssm==1.42.54 \
     --hash=sha256:dfd70aa5f60be70437b53482fa6e183bafe922598a50fc6c51f6ad3bd70d8c04 \
     --hash=sha256:f4bc19a08635757808b66ef94a5b52c3729da998587745962626e60606a1be2c
     # via -r app/provisioning/libraries/requirements.txt
-mypy-boto3-sts==1.42.3 \
-    --hash=sha256:0e02603e0867da61acfe4d01422ac1ea9687313036001ea89d4ee2fcd33d352d \
-    --hash=sha256:3857c5ba3f3a5c0417edc47f5ad4e45891e3babc32d56c6b27c5d4167f9f5ba7
+mypy-boto3-sts==1.42.91 \
+    --hash=sha256:4e141e7d1f14a4a2f8a83462ffb33b11a271fb4d351a5591d73469e742df989f \
+    --hash=sha256:f22da0a91c193441924aa5e24c574abe7ca6cb2131a90caeb74256fa14a06878
     # via -r app/provisioning/libraries/requirements.txt
 semver==3.0.4 \
     --hash=sha256:9c824d87ba7f7ab4a1890799cec8596f15c1241cb473404ea1cb0c55e4b04746 \

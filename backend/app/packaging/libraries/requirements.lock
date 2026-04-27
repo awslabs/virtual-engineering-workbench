@@ -99,21 +99,21 @@ mypy-boto3-dynamodb==1.42.73 \
     --hash=sha256:2df84f71ff41fba5f12e803be19c4483daa64ba030fc9d62ba5e5f9f09a4def8 \
     --hash=sha256:3fd9e093a8c982a53d55f6ac3d109d89957fe82b5c7ece65f27b772ed7a5ca9b
     # via -r app/packaging/libraries/requirements.txt
-mypy-boto3-ec2==1.42.85 \
-    --hash=sha256:6187ee026bd54b820a9ea44ea02cd48ddd8ed0acac8609d5210d2705487c2a14 \
-    --hash=sha256:ec39260ce9e8caf4d0dcf1a3d06bc05875930a9988fdbb7aa56cc54e7206adf0
+mypy-boto3-ec2==1.42.94 \
+    --hash=sha256:75fd9778db9ad52e23144e9e98d81d274e293e1f6c19a8ae79ef62b7c922daed \
+    --hash=sha256:a013ee4532229ef197426dcf0c1b7aa2a0b8dcf33eb16d82dbe24b108df67fb7
     # via -r app/packaging/libraries/requirements.txt
 mypy-boto3-iam==1.42.64 \
     --hash=sha256:d01308ad4a197f8c465aed8002502793802f10fa0a01323b5efda4e2fbd937a5 \
     --hash=sha256:d138d8f41e719d9bbfc4aa3d2095030202f0c0642b37d038d21a153814198582
     # via -r app/packaging/libraries/requirements.txt
-mypy-boto3-imagebuilder==1.42.83 \
-    --hash=sha256:48aaa1bdf1cf9a138e60b9ebecb9130a5076941ff78901ea71e7dbb15b2f93ad \
-    --hash=sha256:5dad966080065cc7678a739927658fdae6b3bde28a10a33b686fb5cd83e79ad8
+mypy-boto3-imagebuilder==1.42.91 \
+    --hash=sha256:cef88144c0acd6eda239000077e6ae66a9ddc0517e8c438dae5e4fb5b498638a \
+    --hash=sha256:f9efdfc7902918a1e008e730c336dff2e16d9f0379460379fe1484066992f6b0
     # via -r app/packaging/libraries/requirements.txt
-mypy-boto3-s3==1.42.85 \
-    --hash=sha256:401e3a184ac0973bc08b556cc3b2655d8f2e56570b6ed87ce635210df4f666fb \
-    --hash=sha256:b2cad995ea733b16ae3be5510fd6a0038aa44400c22d010d4def9286cf6eaf82
+mypy-boto3-s3==1.42.94 \
+    --hash=sha256:1d92d722cf00573b8111e98493ab386e0c1b59a1530b7fee4af77f2d9a1c477d \
+    --hash=sha256:d7c2111396d7ae344b241958b7df8ed33d478d746721202715f5c197f9cd0c83
     # via -r app/packaging/libraries/requirements.txt
 mypy-boto3-ssm==1.42.54 \
     --hash=sha256:dfd70aa5f60be70437b53482fa6e183bafe922598a50fc6c51f6ad3bd70d8c04 \
