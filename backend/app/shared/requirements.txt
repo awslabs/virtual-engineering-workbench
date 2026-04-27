@@ -1,4 +1,4 @@
-aws-lambda-powertools[all] ~= 3.26
+aws-lambda-powertools[all] >= 3.26, < 3.28
 aws-requests-auth ~= 0.4
 aws-xray-sdk ~= 2.12
 mypy-boto3-cloudwatch ~= 1.42

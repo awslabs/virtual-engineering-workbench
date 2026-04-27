@@ -12,9 +12,9 @@ aws-encryption-sdk==4.0.5 \
     --hash=sha256:3e6b76afb94c28730487dee71fa1bfc217fcdbab061733c220ff87b88630e40e \
     --hash=sha256:a36136181a4d63cbf0d7347d29786c80a4d74a07c79c88a8799e27b27a9c3fc1
     # via aws-lambda-powertools
-aws-lambda-powertools==3.28.0 \
-    --hash=sha256:6db5996784913b4b3a7ff04943cefaef4089440569ecbc2180ce07f08dd87659 \
-    --hash=sha256:8849bc4fb01562aa13f1530a456626192256081ce2cfdf0cb0836ad6cba3c6b1
+aws-lambda-powertools==3.27.0 \
+    --hash=sha256:3bd3c3bcd12ddd2d01b9ff2389c2b049bb0e182de017437500e175a4fa72cf5c \
+    --hash=sha256:544dc90603f1dc98ec6f75c85b4b4b6b893a6c30af4a86ed1b8e08ec3c3be433
     # via -r app/shared/requirements.txt
 aws-requests-auth==0.4.3 \
     --hash=sha256:33593372018b960a31dbbe236f89421678b885c35f0b6a7abfae35bb77e069b2 \
