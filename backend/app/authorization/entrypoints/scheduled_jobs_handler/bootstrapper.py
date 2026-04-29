@@ -1,5 +1,3 @@
-from urllib import parse
-
 import boto3
 from aws_lambda_powertools import logging
 from aws_lambda_powertools.utilities import parameters
@@ -20,7 +18,7 @@ from app.shared.adapters.message_bus import (
     in_memory_command_bus,
 )
 from app.shared.adapters.unit_of_work_v2 import dynamodb_unit_of_work
-from app.shared.api import aws_api
+from app.shared.api import bounded_contexts, service_registry
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
 from app.shared.middleware import event_handler
@@ -49,6 +47,12 @@ def bootstrap(  # noqa: C901
         logger=logger,
     )
 
+    registry = service_registry.ServiceRegistry.from_config(
+        app_config=app_config,
+        ssm_client=boto3.client("ssm", region_name=app_config.get_default_region()),
+        logger=logger,
+    )
+
     api_policy_stores: dict[str, authorizer.APIAuthConfig] = {}
 
     def __reload_config_params():
@@ -61,17 +65,9 @@ def bootstrap(  # noqa: C901
 
     def __projects_qs_provider() -> projects_api_query_service.ProjectsApiQueryService:
         __reload_config_params()
-        projects_api_url = next(
-            (cfg.api_url for _, cfg in api_policy_stores.items() if cfg.bounded_context == "projects"),
-            None,
+        return projects_api_query_service.ProjectsApiQueryService(
+            api=registry.api_for(bounded_contexts.BoundedContext.PROJECTS)
         )
-        if not projects_api_url:
-            raise Exception("Projects BC does not have API url in it's config.")
-
-        aws_api_instance = aws_api.AWSAPI(
-            api_url=parse.urlparse(projects_api_url), region=app_config.get_default_region(), logger=logger
-        )
-        return projects_api_query_service.ProjectsApiQueryService(api=aws_api_instance)
 
     assignments_qs = assignments_dynamodb_query_service.AssignmentsDynamoDBQueryService(
         table_name=app_config.get_table_name(),

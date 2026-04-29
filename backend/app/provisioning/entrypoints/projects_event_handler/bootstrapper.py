@@ -37,7 +37,7 @@ from app.shared.adapters.unit_of_work_v2 import (
     dynamodb_migrations,
     dynamodb_unit_of_work,
 )
-from app.shared.api import aws_api, aws_events_api, ssm_parameter_service
+from app.shared.api import aws_events_api, bounded_contexts, service_registry, ssm_parameter_service
 from app.shared.ddd import aggregate
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
@@ -158,11 +158,11 @@ def bootstrap(  # noqa: C901
             user_id=user_id,
         )
 
-    aws_api_instance = aws_api.AWSAPI(
-        api_url=app_config.get_projects_api_url(),
-        region=app_config.get_default_region(),
+    aws_api_instance = service_registry.ServiceRegistry.from_config(
+        app_config=app_config,
+        ssm_client=boto3.client("ssm", region_name=app_config.get_default_region()),
         logger=logger,
-    )
+    ).api_for(bounded_contexts.BoundedContext.PROJECTS)
 
     parameter_srv = ssm_parameter_service_v2.AWSParameterService(
         ssm_boto_client_provider=_get_ssm_boto_client,
@@ -180,12 +180,6 @@ def bootstrap(  # noqa: C901
         table_name=app_config.get_table_name(),
         dynamodb_client=dynamodb.meta.client,
         gsi_inverted_primary_key=app_config.get_gsi_name_inverted_primary_key(),
-    )
-
-    aws_api_instance = aws_api.AWSAPI(
-        api_url=app_config.get_projects_api_url(),
-        region=app_config.get_default_region(),
-        logger=logger,
     )
 
     projects_api_qs = projects_api_query_service.ProjectsApiQueryService(api=aws_api_instance)

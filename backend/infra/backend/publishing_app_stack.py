@@ -1,3 +1,4 @@
+import enum
 import typing
 
 import aws_cdk
@@ -14,8 +15,10 @@ from aws_cdk import (
 )
 
 from app.publishing import domain
+from app.shared.api import bounded_contexts
 from infra import config, constants
 from infra.auth import publishing_auth, publishing_auth_schema
+from infra.backend import vew_bounded_context_stack
 from infra.constructs import (
     backend_app_api_auth,
     backend_app_entrypoints,
@@ -29,7 +32,6 @@ from infra.constructs.eventbridge import l3_event_bus
 from infra.helpers import ops_monitoring
 
 # Global variables
-VEW_NAMESPACE = "VirtualEngineeringWorkbench"
 VEW_SERVICE = "Publishing"
 
 PRODUCT_PUBLISHING_ADMIN_ROLE = constants.PRODUCT_PUBLISHING_ADMIN_ROLE
@@ -52,19 +54,27 @@ GSI_NAME_CUSTOM_QUERY_BY_STATUS = "gsi_custom_query_by_status"
 RESOURCE_UPDATE_CONSTRAINT_VALUE = "ALLOWED"
 
 
-class PublishingAppStack(aws_cdk.Stack):
+class Entrypoint(enum.StrEnum):
+    API = "api"
+    DOMAIN_EVENTS = "domain-events"
+    PROJECTS_EVENTS = "projects-events"
+    AMI_SHARING = "ami-sharing"
+    PACKAGING_EVENTS = "packaging-events"
+    PRODUCT_VERSION_SYNC_EVENTS = "product-version-sync-events"
+
+
+class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
     def __init__(
         self,
         scope: constructs.Construct,
         id: str,
         app_config: config.AppConfig,
         custom_api_domain: typing.Optional[str],
-        lambda_exec_api_arns: list[str],
         provision_private_endpoint: bool = False,
         vpc_endpoint: aws_ec2.IVpcEndpoint | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, id, app_config=app_config, **kwargs)
 
         self._tools_account_id = None
         self._image_service_account_id = None
@@ -98,13 +108,6 @@ class PublishingAppStack(aws_cdk.Stack):
             parameter_name=f"/{app_config.format_resource_name('api')}/product-limit-rc-version",
             string_value=str(app_config.component_specific["product-limit-rc-version"]),
         )
-
-        # Read projects api url
-        projects_api_url = aws_ssm.StringParameter.from_string_parameter_name(
-            self,
-            "ProjectsApiUrl",
-            f"/{app_config.format_resource_name_with_component('projects', 'api')}/api/url",
-        ).string_value
 
         # EventBridge scheduler group
         self._scheduler_group = aws_scheduler.CfnScheduleGroup(
@@ -146,20 +149,22 @@ class PublishingAppStack(aws_cdk.Stack):
             entry="app/shared",
         )
 
-        log_level = "DEBUG" if app_config.environment in ["dev", "qa"] else "INFO"
-
-        domain_event_handler_name = app_config.format_resource_name("domain-events")
-        projects_event_handler_name = app_config.format_resource_name("projects-events")
-        ami_sharing_handler_name = app_config.format_resource_name("ami-sharing")
-        packaging_event_handler_name = app_config.format_resource_name("packaging-events")
-        self._product_sync_events = app_config.format_resource_name("product-version-sync-events")
+        domain_event_handler_name = app_config.format_resource_name(Entrypoint.DOMAIN_EVENTS)
+        projects_event_handler_name = app_config.format_resource_name(Entrypoint.PROJECTS_EVENTS)
+        ami_sharing_handler_name = app_config.format_resource_name(Entrypoint.AMI_SHARING)
+        packaging_event_handler_name = app_config.format_resource_name(Entrypoint.PACKAGING_EVENTS)
+        self._product_sync_events = app_config.format_resource_name(Entrypoint.PRODUCT_VERSION_SYNC_EVENTS)
 
         self._backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
             "PublishingApp",
+            app_config=app_config,
+            global_env_vars={
+                "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
+            },
             app_entry_points=[
                 backend_app_entrypoints.AppEntryPoint(
-                    name=app_config.format_resource_name("api"),
+                    name=app_config.format_resource_name(Entrypoint.API),
                     app_root="app",
                     lambda_root="app/publishing",
                     entry="app/publishing/entrypoints/api",
@@ -167,11 +172,7 @@ class PublishingAppStack(aws_cdk.Stack):
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "GSI_NAME_CUSTOM_QUERY_BY_STATUS": GSI_NAME_CUSTOM_QUERY_BY_STATUS,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PUBLISHING,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_API_PATH_PUBLISHING,
@@ -220,13 +221,6 @@ class PublishingAppStack(aws_cdk.Stack):
                                 ],
                             )
                         ),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                actions=["execute-api:Invoke"],
-                                effect=aws_iam.Effect.ALLOW,
-                                resources=lambda_exec_api_arns,
-                            )
-                        ),
                     ],
                     reserved_concurrency=app_config.component_specific["api-lambda-reserved-concurrency"],
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
@@ -241,11 +235,7 @@ class PublishingAppStack(aws_cdk.Stack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         # Only string values allowed - Converting to comma-separeted list
                         "TECHNICAL_PARAMETERS_NAMES": ",".join(TECHNICAL_PARAMETERS_NAMES),
                         "TOOLS_AWS_ACCOUNT_ID": self.get_tools_account_id(app_config),
@@ -260,7 +250,6 @@ class PublishingAppStack(aws_cdk.Stack):
                         "NOTIFICATION_CONSTRAINT_ARN": app_config.component_specific[
                             "notification-constraint-arn"
                         ].format(tools_account_id=self.get_tools_account_id(app_config)),
-                        "PROJECTS_API_URL": projects_api_url,
                         "WORKBENCH_TEMPLATE_FILE_PATH": WORKBENCH_PRODUCT_TEMPLATE_NAME,
                         "VIRTUAL_TARGET_TEMPLATE_FILE_PATH": VIRTUAL_TARGET_TEMPLATE_NAME,
                         "CONTAINER_TEMPLATE_NAME_FILE_PATH": CONTAINER_TEMPLATE_NAME,
@@ -284,19 +273,18 @@ class PublishingAppStack(aws_cdk.Stack):
                             )
                         ),
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                actions=["execute-api:Invoke"],
-                                effect=aws_iam.Effect.ALLOW,
-                                resources=lambda_exec_api_arns,
-                            )
-                        ),
                     ],
                     reserved_concurrency=None,
                     provisioned_concurrency=None,
                     timeout=aws_cdk.Duration.seconds(30),
                     memory_size=1792,
                     asynchronous=True,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/projects"),
+                            ("GET", "/internal/accounts"),
+                        ],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=projects_event_handler_name,
@@ -306,10 +294,6 @@ class PublishingAppStack(aws_cdk.Stack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "ADMIN_ROLE": PRODUCT_PUBLISHING_ADMIN_ROLE,
                         "USE_CASE_ROLE": PRODUCT_PUBLISHING_USE_CASE_ROLE,
@@ -347,13 +331,6 @@ class PublishingAppStack(aws_cdk.Stack):
                             )
                         ),
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                actions=["execute-api:Invoke"],
-                                effect=aws_iam.Effect.ALLOW,
-                                resources=lambda_exec_api_arns,
-                            )
-                        ),
                     ],
                     reserved_concurrency=None,
                     provisioned_concurrency=None,
@@ -369,10 +346,6 @@ class PublishingAppStack(aws_cdk.Stack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "IMAGE_SERVICE_ROLE": PRODUCT_PUBLISHING_IMAGE_SERVICE_ROLE,
                         "IMAGE_SERVICE_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
@@ -399,13 +372,6 @@ class PublishingAppStack(aws_cdk.Stack):
                             )
                         ),
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                actions=["execute-api:Invoke"],
-                                effect=aws_iam.Effect.ALLOW,
-                                resources=lambda_exec_api_arns,
-                            )
-                        ),
                     ],
                     reserved_concurrency=None,
                     provisioned_concurrency=None,
@@ -420,10 +386,6 @@ class PublishingAppStack(aws_cdk.Stack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "TOOLS_AWS_ACCOUNT_ID": self.get_tools_account_id(app_config),
                         "ADMIN_ROLE": PRODUCT_PUBLISHING_ADMIN_ROLE,
@@ -455,13 +417,6 @@ class PublishingAppStack(aws_cdk.Stack):
                                 ],
                             )
                         ),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                actions=["execute-api:Invoke"],
-                                effect=aws_iam.Effect.ALLOW,
-                                resources=lambda_exec_api_arns,
-                            )
-                        ),
                     ],
                     reserved_concurrency=None,
                     provisioned_concurrency=None,
@@ -476,12 +431,7 @@ class PublishingAppStack(aws_cdk.Stack):
                     entry="app/publishing/entrypoints/product_sync_event_handler",
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
-                        "PROJECTS_API_URL": projects_api_url,
                     },
                     permissions=[
                         lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
@@ -504,6 +454,9 @@ class PublishingAppStack(aws_cdk.Stack):
                     timeout=aws_cdk.Duration.minutes(6),
                     memory_size=1792,
                     asynchronous=True,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [("GET", "/internal/projects")],
+                    },
                 ),
             ],
             app_layers=[
@@ -525,7 +478,7 @@ class PublishingAppStack(aws_cdk.Stack):
             self,
             "PublishingAppOpenApi",
             app_config,
-            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name("api")],
+            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name(Entrypoint.API)],
             schema_directory="app/publishing/entrypoints/api/schema/",
             schema="proserve-workbench-publishing-api-schema.yaml",
             api_version="v1",
@@ -634,7 +587,9 @@ class PublishingAppStack(aws_cdk.Stack):
             ],
         )
 
-        # Cloudformation outputs for internal API endpoints
+        # --- Legacy export: kept for backward compatibility during migration. ---
+        # --- Was consumed by integration_permissions_stack.py (now replaced by ServiceDiscoveryStack). ---
+        # --- Safe to remove once the old CloudFormation stack is deleted. ---
         aws_cdk.CfnOutput(
             self,
             "PublishingApiInternalProductVersions",
@@ -683,6 +638,7 @@ class PublishingAppStack(aws_cdk.Stack):
             value=self._backend_app.app_entries_functions[self._product_sync_events].role.role_arn,
             export_name=f"{app_config.component_name}-product-sync-events-handler-name",
         )
+        # --- End legacy exports ---
 
         self.__configure_ops(app_config)
 
@@ -737,7 +693,7 @@ class PublishingAppStack(aws_cdk.Stack):
             ops_monitoring.OpsMonitoringBuilder(
                 self,
                 app_config.format_resource_name("ops-dashboard"),
-                VEW_NAMESPACE,
+                constants.VEW_NAMESPACE,
                 VEW_SERVICE,
                 app_config,
             )
@@ -749,6 +705,18 @@ class PublishingAppStack(aws_cdk.Stack):
             .with_domain_event_monitoring(domain_module=domain)
             .build()
         )
+
+    @property
+    def backend_app(self) -> backend_app_entrypoints.BackendAppEntrypoints:
+        return self._backend_app
+
+    @property
+    def internal_api(self) -> backend_app_openapi.BackendAppOpenApi | None:
+        return self._open_api
+
+    @property
+    def table(self) -> aws_dynamodb.ITable | None:
+        return self._storage.table
 
     @property
     def api(self) -> backend_app_openapi.BackendAppOpenApi:

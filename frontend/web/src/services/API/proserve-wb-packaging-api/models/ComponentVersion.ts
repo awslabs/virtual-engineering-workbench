@@ -19,6 +19,12 @@ import {
     ComponentVersionEntryFromJSONTyped,
     ComponentVersionEntryToJSON,
 } from './ComponentVersionEntry';
+import type { RecipeVersionEntry } from './RecipeVersionEntry';
+import {
+    RecipeVersionEntryFromJSON,
+    RecipeVersionEntryFromJSONTyped,
+    RecipeVersionEntryToJSON,
+} from './RecipeVersionEntry';
 
 /**
  * 
@@ -56,6 +62,18 @@ export interface ComponentVersion {
      * @memberof ComponentVersion
      */
     componentVersionDependencies?: Array<ComponentVersionEntry>;
+    /**
+     * List of component versions that reference this component version as a dependency
+     * @type {Array<ComponentVersionEntry>}
+     * @memberof ComponentVersion
+     */
+    associatedComponentsVersions?: Array<ComponentVersionEntry>;
+    /**
+     * List of recipe versions that include this component version
+     * @type {Array<RecipeVersionEntry>}
+     * @memberof ComponentVersion
+     */
+    associatedRecipesVersions?: Array<RecipeVersionEntry>;
     /**
      * The software vendor name e.g. Vector
      * @type {string}
@@ -147,6 +165,8 @@ export function ComponentVersionFromJSONTyped(json: any, ignoreDiscriminator: bo
         'componentVersionDescription': json['componentVersionDescription'],
         'componentVersionName': json['componentVersionName'],
         'componentVersionDependencies': !exists(json, 'componentVersionDependencies') ? undefined : ((json['componentVersionDependencies'] as Array<any>).map(ComponentVersionEntryFromJSON)),
+        'associatedComponentsVersions': !exists(json, 'associatedComponentsVersions') ? undefined : ((json['associatedComponentsVersions'] as Array<any>).map(ComponentVersionEntryFromJSON)),
+        'associatedRecipesVersions': !exists(json, 'associatedRecipesVersions') ? undefined : ((json['associatedRecipesVersions'] as Array<any>).map(RecipeVersionEntryFromJSON)),
         'softwareVendor': json['softwareVendor'],
         'softwareVersion': json['softwareVersion'],
         'licenseDashboard': !exists(json, 'licenseDashboard') ? undefined : json['licenseDashboard'],
@@ -173,6 +193,8 @@ export function ComponentVersionToJSON(value?: ComponentVersion | null): any {
         'componentVersionDescription': value.componentVersionDescription,
         'componentVersionName': value.componentVersionName,
         'componentVersionDependencies': value.componentVersionDependencies === undefined ? undefined : ((value.componentVersionDependencies as Array<any>).map(ComponentVersionEntryToJSON)),
+        'associatedComponentsVersions': value.associatedComponentsVersions === undefined ? undefined : ((value.associatedComponentsVersions as Array<any>).map(ComponentVersionEntryToJSON)),
+        'associatedRecipesVersions': value.associatedRecipesVersions === undefined ? undefined : ((value.associatedRecipesVersions as Array<any>).map(RecipeVersionEntryToJSON)),
         'softwareVendor': value.softwareVendor,
         'softwareVersion': value.softwareVersion,
         'licenseDashboard': value.licenseDashboard,

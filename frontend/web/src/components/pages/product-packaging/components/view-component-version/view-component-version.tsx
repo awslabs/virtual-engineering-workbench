@@ -14,6 +14,8 @@ import { ViewComponentVersionOverview } from './view-component-version-overview.
 import { ComponentVersionEntriesView, RetireVersionModal, ReleaseVersionModal } from '../../shared';
 import { ViewComponentVersionYaml } from './view-component-version-yaml.tsx';
 import { ViewComponentVersionTests } from './view-component-version-tests.tsx';
+import { ViewComponentVersionAssociatedComponents } from './view-component-version-associated-components';
+import { ViewComponentVersionAssociatedRecipes } from './view-component-version-associated-recipes';
 
 
 export const ViewComponentVersion = () => {
@@ -83,6 +85,22 @@ export const ViewComponentVersion = () => {
       content: <ViewComponentVersionTests
         componentId={componentId}
         versionId={versionId}
+      />
+    },
+    {
+      label: i18n.associatedComponentsHeader,
+      id: 'associated-components',
+      content: <ViewComponentVersionAssociatedComponents
+        associatedComponentsVersions={componentVersion?.associatedComponentsVersions}
+        isLoading={componentVersionLoading}
+      />
+    },
+    {
+      label: i18n.associatedRecipesHeader,
+      id: 'associated-recipes',
+      content: <ViewComponentVersionAssociatedRecipes
+        associatedRecipesVersions={componentVersion?.associatedRecipesVersions}
+        isLoading={componentVersionLoading}
       />
     },
   ];

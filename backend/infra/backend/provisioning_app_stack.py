@@ -1,3 +1,4 @@
+import enum
 import json
 import typing
 
@@ -25,8 +26,10 @@ from app.provisioning.domain.commands.provisioned_product_state import (
 from app.provisioning.domain.events.provisioned_product_sync import (
     provisioned_product_status_out_of_sync,
 )
+from app.shared.api import bounded_contexts
 from infra import config, constants
 from infra.auth import provisioning_auth, provisioning_auth_schema
+from infra.backend import vew_bounded_context_stack
 from infra.constructs import (
     backend_app_api_auth,
     backend_app_entrypoints,
@@ -44,7 +47,6 @@ from infra.constructs.provisioned_product_configuration import (
 from infra.helpers import ops_monitoring
 
 # Global variables
-VEW_NAMESPACE = "VirtualEngineeringWorkbench"
 VEW_SERVICE = "Provisioning"
 GSI_ATTRIBUTE_NAME_ENTITY = "entity"
 GSI_NAME_ENTITIES = "gsi_entities"
@@ -59,21 +61,32 @@ PRODUCT_PROVISIONING_ROLE = constants.PRODUCT_PROVISIONING_ROLE
 DEFAULT_PAGE_SIZE = "100"
 
 
-class ProvisioningAppStack(aws_cdk.Stack):
+class Entrypoint(enum.StrEnum):
+    API = "api"
+    S2S_API = "s2s-api"
+    PUBLISHING_EVENTS = "publishing-events"
+    PP_EVENTS = "pp-events"
+    PP_STATE_EVENTS = "pp-state-events"
+    PROJECTS_EVENTS = "projects-events"
+    DOMAIN_EVENTS = "domain-events"
+    SCHEDULED_JOBS = "scheduled-jobs"
+    PP_CONFIGURATION_EVENTS = "pp-configuration-events"
+
+
+class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
     def __init__(
         self,
         scope: constructs.Construct,
         id: str,
         app_config: config.AppConfig,
         custom_api_domain: typing.Optional[str],
-        lambda_exec_api_arns: list[str],
         catalog_service_topics: list[aws_sns.ITopic],
         organization_id: str,
         provision_private_endpoint: bool = False,
         vpc_endpoint: aws_ec2.IVpcEndpoint | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, id, app_config=app_config, **kwargs)
 
         self._tools_account_id = None
         self.configure_event_buses(app_config, catalog_service_topics, organization_id)
@@ -164,20 +177,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                 app_config.component_specific["provisioned-product-configuration-document-mapping"]
             ),
         )
-
-        # Read projects api url
-        projects_api_url = aws_ssm.StringParameter.from_string_parameter_name(
-            self,
-            "ProjectsApiUrl",
-            f"/{app_config.format_resource_name_with_component('projects', 'api')}/api/url",
-        ).string_value
-
-        # Read publishing api url
-        publishing_api_url = aws_ssm.StringParameter.from_string_parameter_name(
-            self,
-            "Publishing",
-            f"/{app_config.format_resource_name_with_component('publishing', 'api')}/api/url",
-        ).string_value
 
         # EventBridge scheduler group
         self._scheduler_group = aws_scheduler.CfnScheduleGroup(
@@ -273,18 +272,17 @@ class ProvisioningAppStack(aws_cdk.Stack):
             managed_policies=[scheduler_managed_policy],
         )
 
-        log_level = "DEBUG" if app_config.environment in ["dev", "qa"] else "INFO"
-
-        self._api_event_handler_name = app_config.format_resource_name("api")
-        self._s2s_api_event_handler_name = app_config.format_resource_name("s2s-api")
-        self._publishing_event_handler_name = app_config.format_resource_name("publishing-events")
-        self._pp_evt_handler_name = app_config.format_resource_name("pp-events")
-        self._pp_state_events_evt_handler_name = app_config.format_resource_name("pp-state-events")
-        self._projects_events_handler_name = app_config.format_resource_name("projects-events")
-        self._domain_events_handler_name = app_config.format_resource_name("domain-events")
-        self._scheduled_jobs_handler_name = app_config.format_resource_name("scheduled-jobs")
-        self._pp_configuration_evt_handler_name = app_config.format_resource_name("pp-configuration-events")
+        self._api_event_handler_name = app_config.format_resource_name(Entrypoint.API)
+        self._s2s_api_event_handler_name = app_config.format_resource_name(Entrypoint.S2S_API)
+        self._publishing_event_handler_name = app_config.format_resource_name(Entrypoint.PUBLISHING_EVENTS)
+        self._pp_evt_handler_name = app_config.format_resource_name(Entrypoint.PP_EVENTS)
+        self._pp_state_events_evt_handler_name = app_config.format_resource_name(Entrypoint.PP_STATE_EVENTS)
+        self._projects_events_handler_name = app_config.format_resource_name(Entrypoint.PROJECTS_EVENTS)
+        self._domain_events_handler_name = app_config.format_resource_name(Entrypoint.DOMAIN_EVENTS)
+        self._scheduled_jobs_handler_name = app_config.format_resource_name(Entrypoint.SCHEDULED_JOBS)
+        self._pp_configuration_evt_handler_name = app_config.format_resource_name(Entrypoint.PP_CONFIGURATION_EVENTS)
         common_env_vars_ddb = {
+            "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
             "TABLE_NAME": self._storage.table.table_name,
             "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
             "GSI_NAME_CUSTOM_QUERY_BY_ALT_KEY": GSI_NAME_CUSTOM_QUERY_BY_ALT_KEY,
@@ -293,16 +291,12 @@ class ProvisioningAppStack(aws_cdk.Stack):
             "GSI_NAME_CUSTOM_QUERY_BY_ALT_KEYS_3": GSI_NAME_CUSTOM_QUERY_BY_ALT_KEYS_3,
             "GSI_NAME_CUSTOM_QUERY_BY_ALT_KEYS_4": GSI_NAME_CUSTOM_QUERY_BY_ALT_KEYS_4,
             "GSI_NAME_CUSTOM_QUERY_BY_ALT_KEYS_5": GSI_NAME_CUSTOM_QUERY_BY_ALT_KEYS_5,
-            "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-            "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
-            "LOG_LEVEL": log_level,
             "SPOKE_ACCOUNT_VPC_ID_PARAM_NAME": app_config.environment_config["spoke-account-vpc-id-param-name"],
             "PROVISIONING_SUBNET_SELECTOR": app_config.component_specific.get("provisioning-subnet-selector"),
             "PROVISIONING_SUBNET_SELECTOR_TAG": app_config.component_specific.get("provisioning-subnet-selector-tag"),
             "AUTHORIZE_USER_IP_ADDRESS_PARAM_VALUE": str(
                 app_config.component_specific["authorize-user-ip-address-param-value"]
             ),
-            "BOUNDED_CONTEXT": app_config.bounded_context_name,
             "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
             "PRODUCT_PROVISIONING_ROLE": PRODUCT_PROVISIONING_ROLE,
         }
@@ -310,6 +304,8 @@ class ProvisioningAppStack(aws_cdk.Stack):
         self._backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
             "ProvisioningApp",
+            app_config=app_config,
+            global_env_vars=common_env_vars_ddb,
             app_entry_points=[
                 backend_app_entrypoints.AppEntryPoint(
                     name=self._api_event_handler_name,
@@ -317,7 +313,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/api",
                     environment={
-                        **common_env_vars_ddb,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PROVISIONING,
                         "STRIP_PREFIXES": f"{constants.CUSTOM_DNS_API_PATH_PROVISIONING},{constants.CUSTOM_DNS_IAM_API_PATH_PROVISIONING}",
@@ -331,8 +326,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                         "CUSTOM_DNS": custom_api_domain,
                         "FEATURE_SAAS_WORKBENCH": "true",
                         "EXPERIMENTAL_PROVISIONED_PRODUCT_PER_PROJECT_LIMIT_PARAMETER_NAME": experimental_provisioned_product_per_project_limit_param.parameter_name,
-                        "PROJECTS_API_URL": projects_api_url,
-                        "PUBLISHING_API_URL": publishing_api_url,
                         "LAMBDA_IAM_ROLE": f"{scheduler_role.role_arn}",
                         "LAYER_VERSION": self._shared_app_layer.layer.layer_version_arn,
                     },
@@ -380,23 +373,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                                 ],
                             )
                         ),
-                        lambda lambda_f: (
-                            lambda_f.add_to_role_policy(
-                                statement=(
-                                    (
-                                        (
-                                            aws_iam.PolicyStatement(
-                                                actions=["execute-api:Invoke"],
-                                                effect=aws_iam.Effect.ALLOW,
-                                                resources=lambda_exec_api_arns,
-                                            )
-                                        )
-                                    )
-                                )
-                            )
-                            if lambda_exec_api_arns
-                            else None
-                        ),
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
                                 actions=[
@@ -424,6 +400,11 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
                     timeout=aws_cdk.Duration.seconds(10),
                     memory_size=1792,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/projects/*/users/*"),
+                        ],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=self._s2s_api_event_handler_name,
@@ -431,7 +412,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/s2s_api",
                     environment={
-                        **common_env_vars_ddb,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_S2S_API_PATH_PROVISIONING,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_S2S_API_PATH_PROVISIONING,
@@ -439,8 +419,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                         "AVAILABLE_NETWORKS_SSM_PARAMETER_NAME": available_networks_param.parameter_name,
                         "CUSTOM_DNS": custom_api_domain,
                         "EXPERIMENTAL_PROVISIONED_PRODUCT_PER_PROJECT_LIMIT_PARAMETER_NAME": experimental_provisioned_product_per_project_limit_param.parameter_name,
-                        "PROJECTS_API_URL": projects_api_url,
-                        "PUBLISHING_API_URL": publishing_api_url,
                     },
                     permissions=[
                         lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
@@ -452,6 +430,11 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     provisioned_concurrency=None,
                     timeout=aws_cdk.Duration.seconds(10),
                     memory_size=1792,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/projects/*/users/*"),
+                        ],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=self._publishing_event_handler_name,
@@ -459,9 +442,7 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/publishing_event_handler",
                     environment={
-                        **common_env_vars_ddb,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
-                        "PUBLISHING_API_URL": publishing_api_url,
                     },
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
@@ -484,6 +465,11 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     timeout=aws_cdk.Duration.seconds(30),
                     memory_size=256,
                     asynchronous=True,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PUBLISHING: [
+                            ("GET", "/internal/available-products/*/versions"),
+                        ],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=self._domain_events_handler_name,
@@ -491,8 +477,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/domain_event_handler",
                     environment={
-                        **common_env_vars_ddb,
-                        "PUBLISHING_API_URL": publishing_api_url,
                         "LAMBDA_IAM_ROLE": f"{scheduler_role.role_arn}",
                     },
                     permissions=[
@@ -544,10 +528,7 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     app_root="app",
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/provisioned_product_event_handlers",
-                    environment={
-                        **common_env_vars_ddb,
-                        "PUBLISHING_API_URL": publishing_api_url,
-                    },
+                    environment={},
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
@@ -577,10 +558,7 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     app_root="app",
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/provisioned_product_state_event_handler",
-                    environment={
-                        **common_env_vars_ddb,
-                        "PUBLISHING_API_URL": publishing_api_url,
-                    },
+                    environment={},
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
@@ -609,8 +587,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/projects_event_handler",
                     environment={
-                        **common_env_vars_ddb,
-                        "PROJECTS_API_URL": projects_api_url,
                         "AVAILABLE_NETWORKS_SSM_PARAMETER_NAME": available_networks_param.parameter_name,
                     },
                     permissions=[
@@ -623,6 +599,11 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     timeout=aws_cdk.Duration.seconds(30),
                     memory_size=256,
                     asynchronous=True,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/user/assignments"),
+                        ],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=self._scheduled_jobs_handler_name,
@@ -630,8 +611,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/scheduled_jobs_handler",
                     environment={
-                        **common_env_vars_ddb,
-                        "PROJECTS_API_URL": projects_api_url,
                         "AVAILABLE_NETWORKS_SSM_PARAMETER_NAME": available_networks_param.parameter_name,
                         "PROVISIONED_PRODUCT_CLEANUP_CONFIG": json.dumps(
                             app_config.component_specific["pp-cleanup-config"]
@@ -659,6 +638,11 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     timeout=aws_cdk.Duration.minutes(7),
                     memory_size=1792,
                     asynchronous=True,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/projects"),
+                        ],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=self._pp_configuration_evt_handler_name,
@@ -666,7 +650,6 @@ class ProvisioningAppStack(aws_cdk.Stack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/provisioned_product_configuration_event_handler",
                     environment={
-                        **common_env_vars_ddb,
                         "PROVISIONED_PRODUCT_CONFIGURATION_DOCUMENT_MAPPING_PARAM_NAME": provisioned_product_configuration_document_mapping_param.parameter_name,
                     },
                     permissions=[
@@ -893,7 +876,9 @@ class ProvisioningAppStack(aws_cdk.Stack):
             rule_name=app_config.format_resource_name("pp-batch-stop"),
         )
 
-        # Add CloudFormation outputs for event handler names
+        # --- Legacy export: kept for backward compatibility during migration. ---
+        # --- Was consumed by integration_permissions_stack.py (now replaced by ServiceDiscoveryStack). ---
+        # --- Safe to remove once the old CloudFormation stack is deleted. ---
         aws_cdk.CfnOutput(
             self,
             "ProvisioningApiEventHandlerName",
@@ -998,6 +983,7 @@ class ProvisioningAppStack(aws_cdk.Stack):
             ),
             export_name=f"{app_config.component_name}-api-internal-all-products-provisioned",
         )
+        # --- End legacy exports ---
 
         self.suppress_cdk_nag(app_config=app_config)
 
@@ -1274,7 +1260,7 @@ class ProvisioningAppStack(aws_cdk.Stack):
             ops_monitoring.OpsMonitoringBuilder(
                 self,
                 app_config.format_resource_name("ops-dashboard"),
-                VEW_NAMESPACE,
+                constants.VEW_NAMESPACE,
                 VEW_SERVICE,
                 app_config,
             )
@@ -1294,6 +1280,18 @@ class ProvisioningAppStack(aws_cdk.Stack):
             )
             .build()
         )
+
+    @property
+    def backend_app(self) -> backend_app_entrypoints.BackendAppEntrypoints:
+        return self._backend_app
+
+    @property
+    def internal_api(self) -> backend_app_openapi.BackendAppOpenApi | None:
+        return self._open_api
+
+    @property
+    def table(self) -> aws_dynamodb.ITable | None:
+        return self._storage.table
 
     @property
     def api(self) -> backend_app_openapi.BackendAppOpenApi:

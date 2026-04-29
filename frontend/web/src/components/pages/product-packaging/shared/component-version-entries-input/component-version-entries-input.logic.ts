@@ -17,6 +17,10 @@ const INSERT_ABOVE = 'ABOVE';
 const INSERT_BELOW = 'BELOW';
 const MOVE_TO_TOP = 'TOP';
 const MOVE_TO_BOTTOM = 'BOTTOM';
+const DEFAULT_ORDER = 0;
+
+const orderOf = (entry: ComponentVersionEntry): number =>
+  entry.order ?? DEFAULT_ORDER;
 
 interface ServiceAPI {
   getComponentsVersions: (
@@ -252,7 +256,7 @@ export const useComponentVersionsEntriesInput = ({
     setComponentVersionEntries(
       componentVersionEntries
         .filter((x) => x.order !== order)
-        .sort((a, b) => a.order - b.order)
+        .sort((a, b) => orderOf(a) - orderOf(b))
         .map((x, i) => ({ ...x, order: i + 1 } as ComponentVersionEntry))
     );
   }
@@ -296,23 +300,23 @@ export const useComponentVersionsEntriesInput = ({
       const updatedComponentVersionEntry = {
         ...currentComponentVersionEntry,
         order: direction === INSERT_ABOVE
-          ? currentComponentVersionEntry.order + 1
-          : currentComponentVersionEntry.order
+          ? orderOf(currentComponentVersionEntry) + 1
+          : orderOf(currentComponentVersionEntry)
       };
 
       const componentVersionEntriesAbove: ComponentVersionEntry[] = componentVersionEntries
-        .filter((x) => x.order < currentComponentVersionEntry.order)
+        .filter((x) => orderOf(x) < orderOf(currentComponentVersionEntry))
         .map((x) => x);
 
 
       const componentVersionEntriesBelow: ComponentVersionEntry[] = componentVersionEntries
-        .filter((x) => x.order > currentComponentVersionEntry.order)
-        .map((x) => ({ ...x, order: x.order + 1 }));
+        .filter((x) => orderOf(x) > orderOf(currentComponentVersionEntry))
+        .map((x) => ({ ...x, order: orderOf(x) + 1 }));
 
       const newComponentVersionEntry = getNewComponentVersionEntry(
         direction === INSERT_ABOVE
-          ? currentComponentVersionEntry.order
-          : currentComponentVersionEntry.order + 1
+          ? orderOf(currentComponentVersionEntry)
+          : orderOf(currentComponentVersionEntry) + 1
       );
 
       setComponentVersionEntries([
@@ -336,12 +340,12 @@ export const useComponentVersionsEntriesInput = ({
       };
 
       const componentVersionEntriesAbove: ComponentVersionEntry[] = componentVersionEntries
-        .filter((x) => x.order < currentComponentVersionEntry.order)
-        .map((x) => ({ ...x, order: direction === MOVE_TO_TOP ? x.order + 1 : x.order }));
+        .filter((x) => orderOf(x) < orderOf(currentComponentVersionEntry))
+        .map((x) => ({ ...x, order: direction === MOVE_TO_TOP ? orderOf(x) + 1 : x.order }));
 
       const componentVersionEntriesBelow: ComponentVersionEntry[] = componentVersionEntries
-        .filter((x) => x.order > currentComponentVersionEntry.order)
-        .map((x) => ({ ...x, order: direction === MOVE_TO_TOP ? x.order : x.order - 1 }));
+        .filter((x) => orderOf(x) > orderOf(currentComponentVersionEntry))
+        .map((x) => ({ ...x, order: direction === MOVE_TO_TOP ? x.order : orderOf(x) - 1 }));
 
       setComponentVersionEntries([
         ...componentVersionEntriesAbove,

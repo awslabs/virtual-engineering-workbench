@@ -140,7 +140,7 @@ curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs
 sudo npm install -g aws-cdk
 sudo corepack enable
-corepack prepare yarn@4.13.0 --activate
+corepack prepare yarn@4.14.1 --activate
 
 # uv (Python package manager)
 curl -LsSf https://astral.sh/uv/install.sh | sh

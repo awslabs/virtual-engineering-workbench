@@ -80,6 +80,9 @@ export class WebUserPool extends Construct {
       [{
         id: 'AwsSolutions-COG2',
         reason: 'Users will authenticate using Identity Federation. There is no need for MFA.'
+      }, {
+        id: 'AwsSolutions-COG8',
+        reason: 'Self-signup is disabled and authentication is via OIDC federation. Advanced security is enabled via userPoolAddOns escape hatch.'
       }]
     );
 

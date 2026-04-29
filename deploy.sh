@@ -734,7 +734,8 @@ aws dynamodb put-item \
     \"lastUpdateDate\": {\"S\": \"${NOW}\"},
     \"projectDescription\": {\"S\": \"Default program\"},
     \"projectId\": {\"S\": \"${PROGRAM_ID}\"},
-    \"projectName\": {\"S\": \"$(echo "${ENVIRONMENT}" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') Program\"}
+    \"projectName\": {\"S\": \"$(echo "${ENVIRONMENT}" | awk '{print toupper(substr($0,1,1)) substr($0,2)}') Program\"},
+    \"sequenceNo\": {\"N\": \"0\"}
   }" 2>&1 | tee -a "$LOG_FILE"
 
 log "Creating admin user: $ADMIN_USER_ID ($ADMIN_EMAIL)"
@@ -769,7 +770,8 @@ aws dynamodb put-item \
     \"roles\": {\"L\": [{\"S\": \"ADMIN\"}]},
     \"userEmail\": {\"S\": \"${ADMIN_EMAIL}\"},
     \"activeDirectoryGroups\": {\"L\": []},
-    \"groupMemberships\": {\"L\": [{\"S\": \"VEW_USERS\"}]}
+    \"groupMemberships\": {\"L\": [{\"S\": \"VEW_USERS\"}]},
+    \"sequenceNo\": {\"N\": \"0\"}
   }" 2>&1 | tee -a "$LOG_FILE"
 
 log "DynamoDB seeding complete"

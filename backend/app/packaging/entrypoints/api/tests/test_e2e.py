@@ -1221,3 +1221,145 @@ def test_migration_and_backward_compatibility_should_succeed(
     assertpy.assert_that(recipe_components[2].get("componentId")).is_equal_to(components_details[2]["component_id"])
     assertpy.assert_that(recipe_components[2].get("position")).is_none()
     assertpy.assert_that(recipe_components[2].get("order")).is_equal_to(3)
+
+
+def test_get_component_version_should_return_associated_components_and_recipes(
+    authenticated_event,
+    lambda_context,
+    backend_app_dynamodb_table,
+    mock_s3,
+    create_component,
+    list_components,
+    create_component_version,
+    get_component_versions,
+    get_component_version,
+    update_component_version_status,
+    create_recipe,
+    list_recipes,
+    create_recipe_version,
+    list_recipe_versions,
+):
+    # ARRANGE
+    # Create component A and its version
+    create_component(component_name="component-a")
+    _, list_body_a = list_components()
+    component_a_id = list_body_a.get("components")[0].get("componentId")
+    create_component_version(component_a_id)
+    _, versions_a_body = get_component_versions(component_a_id)
+    component_version_a = versions_a_body.get("component_versions")[0]
+    component_version_a_id = component_version_a.get("componentVersionId")
+
+    # Update component A version to VALIDATED so it can be used as a dependency
+    update_component_version_status(component_a_id, component_version_a_id, "VALIDATED")
+
+    # Create component B with A as dependency
+    create_component(component_name="component-b")
+    _, list_body_b = list_components()
+    # The second component in the list (component-b)
+    components = list_body_b.get("components")
+    component_b = next(c for c in components if c.get("componentId") != component_a_id)
+    component_b_id = component_b.get("componentId")
+
+    create_component_version(
+        component_b_id,
+        component_version_dependencies=[
+            api_model.ComponentVersionEntry(
+                componentId=component_a_id,
+                componentName="component-a",
+                componentVersionId=component_version_a_id,
+                componentVersionName=component_version_a.get("componentVersionName"),
+                order=1,
+            ),
+        ],
+    )
+    _, versions_b_body = get_component_versions(component_b_id)
+    component_version_b = versions_b_body.get("component_versions")[0]
+    component_version_b_id = component_version_b.get("componentVersionId")
+
+    # Create recipe and recipe version including component A
+    create_recipe()
+    _, list_recipes_body = list_recipes()
+    recipe_id = list_recipes_body.get("recipes")[0].get("recipeId")
+    recipe_name = list_recipes_body.get("recipes")[0].get("recipeName")
+
+    create_recipe_version(
+        recipe_id=recipe_id,
+        recipe_version_components_versions=[
+            api_model.RecipeComponentVersion(
+                componentId=component_a_id,
+                componentName="component-a",
+                componentVersionId=component_version_a_id,
+                componentVersionName=component_version_a.get("componentVersionName"),
+                componentVersionType="MAIN",
+                order=1,
+            ),
+        ],
+    )
+    _, list_rv_body = list_recipe_versions(recipe_id=recipe_id)
+    recipe_version = list_rv_body.get("recipe_versions")[0]
+    recipe_version_id = recipe_version.get("recipeVersionId")
+    recipe_version_name = recipe_version.get("recipeVersionName")
+
+    # Simulate domain event handler: update component A's associations in DynamoDB
+    # and set the S3 URI for the YAML definition (required by get_component_version)
+    s3_key = f"components/{component_a_id}/{component_version_a_id}/definition.yaml"
+    s3_uri = f"s3://fake-bucket/{s3_key}"
+
+    mock_s3.create_bucket(Bucket="fake-bucket")
+    mock_s3.put_object(
+        Bucket="fake-bucket",
+        Key=s3_key,
+        Body=GlobalVariables.TEST_COMPONENT_VERSION_YAML_DEFINITION.value.encode(),
+    )
+
+    backend_app_dynamodb_table.update_item(
+        Key={
+            "PK": f"COMPONENT#{component_a_id}",
+            "SK": f"VERSION#{component_version_a_id}",
+        },
+        UpdateExpression=(
+            "SET associatedComponentsVersions = :acv,"
+            " associatedRecipesVersions = :arv,"
+            " componentVersionS3Uri = :s3uri"
+        ),
+        ExpressionAttributeValues={
+            ":acv": [
+                {
+                    "componentId": component_b_id,
+                    "componentName": "component-b",
+                    "componentVersionId": component_version_b_id,
+                    "componentVersionName": component_version_b.get("componentVersionName"),
+                    "order": 1,
+                },
+            ],
+            ":arv": [
+                {
+                    "recipeId": recipe_id,
+                    "recipeName": recipe_name,
+                    "recipeVersionId": recipe_version_id,
+                    "recipeVersionName": recipe_version_name,
+                },
+            ],
+            ":s3uri": s3_uri,
+        },
+    )
+
+    # ACT
+    status_code, body = get_component_version(component_a_id, component_version_a_id)
+
+    # ASSERT
+    assertpy.assert_that(status_code).is_equal_to(200)
+    cv = body.get("component_version")
+    assertpy.assert_that(cv).is_not_none()
+
+    acv = cv.get("associatedComponentsVersions")
+    assertpy.assert_that(acv).is_not_none()
+    assertpy.assert_that(acv).is_length(1)
+    assertpy.assert_that(acv[0].get("componentId")).is_equal_to(component_b_id)
+    assertpy.assert_that(acv[0].get("componentVersionId")).is_equal_to(component_version_b_id)
+
+    arv = cv.get("associatedRecipesVersions")
+    assertpy.assert_that(arv).is_not_none()
+    assertpy.assert_that(arv).is_length(1)
+    assertpy.assert_that(arv[0].get("recipeId")).is_equal_to(recipe_id)
+    assertpy.assert_that(arv[0].get("recipeVersionId")).is_equal_to(recipe_version_id)

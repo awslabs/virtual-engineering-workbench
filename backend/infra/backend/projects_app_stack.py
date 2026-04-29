@@ -1,3 +1,4 @@
+import enum
 import typing
 
 import aws_cdk
@@ -17,6 +18,7 @@ from aws_cdk import (
 from app.projects import domain
 from infra import config, constants
 from infra.auth import projects_auth, projects_auth_schema
+from infra.backend import vew_bounded_context_stack
 from infra.constructs import (
     backend_app_api_auth,
     backend_app_ecs_cluster,
@@ -40,11 +42,18 @@ GSI_NAME_AWS_ACCOUNTS = "gsi_aws_accounts"
 GSI_NAME_ENTITIES = "gsi_entities"
 GSI_NAME_QPK = "gsi_query_pk"
 GSI_NAME_QSK = "gsi_query_sk"
-VEW_NAMESPACE = "VirtualEngineeringWorkbench"
 VEW_SERVICE = "Projects"
 
 
-class ProjectsAppStack(aws_cdk.Stack):
+class Entrypoint(enum.StrEnum):
+    API = "api"
+    DOMAIN_EVENT_HANDLER = "domain-event-handler"
+    S2S_API = "s2s-api"
+    SCHEDULED_METRIC_PRODUCER = "scheduled-metric-producer"
+    ACCOUNT_ONBOARDING = "account-onboarding"
+
+
+class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
     def __init__(
         self,
         scope: constructs.Construct,
@@ -60,7 +69,7 @@ class ProjectsAppStack(aws_cdk.Stack):
         vpc_endpoint: aws_ec2.IVpcEndpoint | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, id, app_config=app_config, **kwargs)
 
         self.configure_event_buses(app_config)
 
@@ -139,22 +148,17 @@ class ProjectsAppStack(aws_cdk.Stack):
             entry="app/shared",
         )
 
-        scheduled_metric_producer_name = app_config.format_resource_name("scheduled-metric-producer")
-        account_onboarding_handler_name = app_config.format_resource_name("account-onboarding")
-
-        log_level = "DEBUG" if app_config.environment in ["dev", "qa"] else "INFO"
+        scheduled_metric_producer_name = app_config.format_resource_name(Entrypoint.SCHEDULED_METRIC_PRODUCER)
+        account_onboarding_handler_name = app_config.format_resource_name(Entrypoint.ACCOUNT_ONBOARDING)
 
         environment_vars = {
             "TABLE_NAME": self._storage.table.table_name,
-            "BOUNDED_CONTEXT": app_config.bounded_context_name,
             "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
-            "LOG_LEVEL": log_level,
             "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
             "GSI_NAME_AWS_ACCOUNTS": GSI_NAME_AWS_ACCOUNTS,
             "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
             "GSI_NAME_QPK": GSI_NAME_QPK,
             "GSI_NAME_QSK": GSI_NAME_QSK,
-            "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
             "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
         }
         environment_vars_acct_onboard = {
@@ -181,14 +185,15 @@ class ProjectsAppStack(aws_cdk.Stack):
         self._backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
             "ProjectsApp",
+            app_config=app_config,
+            global_env_vars=environment_vars,
             app_entry_points=[
                 backend_app_entrypoints.AppEntryPoint(
-                    name=app_config.format_resource_name("api"),
+                    name=app_config.format_resource_name(Entrypoint.API),
                     app_root="app",
                     lambda_root="app/projects",
                     entry="app/projects/entrypoints/api",
                     environment={
-                        **environment_vars,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PROJECTS,
                         "STRIP_PREFIXES": f"{constants.CUSTOM_DNS_API_PATH_PROJECTS},{constants.CUSTOM_DNS_IAM_API_PATH_PROJECTS}",
@@ -230,23 +235,14 @@ class ProjectsAppStack(aws_cdk.Stack):
                     memory_size=1792,
                 ),
                 backend_app_entrypoints.AppEntryPoint(
-                    name=app_config.format_resource_name("domain-event-handler"),
+                    name=app_config.format_resource_name(Entrypoint.DOMAIN_EVENT_HANDLER),
                     app_root="app",
                     lambda_root="app/projects",
                     entry="app/projects/entrypoints/domain_event_handler",
                     environment={
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
-                        "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "ENABLED_WORKBENCH_REGIONS": ",".join(
                             app_config.environment_config["enabled-workbench-regions"]
                         ),
-                        "GSI_NAME_AWS_ACCOUNTS": GSI_NAME_AWS_ACCOUNTS,
-                        "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
-                        "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
-                        "TABLE_NAME": self._storage.table.table_name,
                     },
                     permissions=[
                         lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
@@ -260,12 +256,11 @@ class ProjectsAppStack(aws_cdk.Stack):
                     vpc_name=app_config.environment_config["vpc-name"],
                 ),
                 backend_app_entrypoints.AppEntryPoint(
-                    name=app_config.format_resource_name("s2s-api"),
+                    name=app_config.format_resource_name(Entrypoint.S2S_API),
                     app_root="app",
                     lambda_root="app/projects",
                     entry="app/projects/entrypoints/s2s_api",
                     environment={
-                        **environment_vars,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_S2S_API_PATH_PROJECTS,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_S2S_API_PATH_PROJECTS,
@@ -296,7 +291,7 @@ class ProjectsAppStack(aws_cdk.Stack):
                     app_root="app",
                     lambda_root="app/projects",
                     entry="app/projects/entrypoints/scheduled_metric_producer",
-                    environment=environment_vars,
+                    environment={},
                     permissions=[
                         lambda lambda_f: self._storage.table.grant_read_data(lambda_f),
                     ],
@@ -311,7 +306,6 @@ class ProjectsAppStack(aws_cdk.Stack):
                     lambda_root="app/projects",
                     entry="app/projects/entrypoints/account_onboarding",
                     environment={
-                        **environment_vars,
                         **environment_vars_acct_onboard,
                         "SPOKE_ACCOUNT_SECRETS_SCOPE": constants.PROJECTS_SPOKE_ACCOUNT_SECRETS_SCOPE,
                         "ZONE_NAME": app_config.component_specific["zone-name"],
@@ -387,6 +381,7 @@ class ProjectsAppStack(aws_cdk.Stack):
             container_name=app_config.format_resource_name("usecase-cdk-app"),
             cpu_task=4096,
             environment={
+                **backend_app_entrypoints.BackendAppEntrypoints.build_global_env_vars(app_config),
                 **environment_vars,
                 **environment_vars_acct_onboard,
                 "TOOLKIT_STACK_NAME": constants.PROJECTS_TOOLKIT_STACK_NAME,
@@ -522,7 +517,7 @@ class ProjectsAppStack(aws_cdk.Stack):
             self,
             "ProjectsAppOpenApi",
             app_config,
-            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name("api")],
+            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name(Entrypoint.API)],
             schema_directory="app/projects/entrypoints/api/schema/",
             schema="proserve-workbench-projects-api-schema.yaml",
             api_version="v1",
@@ -565,7 +560,7 @@ class ProjectsAppStack(aws_cdk.Stack):
             self,
             "ServiceIntegrationProjectsOpenApi",
             app_config,
-            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name("s2s-api")],
+            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name(Entrypoint.S2S_API)],
             schema_directory="app/projects/entrypoints/s2s_api/schema/",
             schema="proserve-workbench-s2s-projects-api-schema.yaml",
             api_version="v1",
@@ -594,9 +589,12 @@ class ProjectsAppStack(aws_cdk.Stack):
                     self._backend_app.app_entries_functions[scheduled_metric_producer_name]
                 )
             ],
-            rule_name=app_config.format_resource_name("scheduled-metric-producer"),
+            rule_name=app_config.format_resource_name(Entrypoint.SCHEDULED_METRIC_PRODUCER),
         )
 
+        # --- Legacy export: kept for backward compatibility during migration. ---
+        # --- Was consumed by integration_permissions_stack.py (now replaced by ServiceDiscoveryStack). ---
+        # --- Safe to remove once the old CloudFormation stack is deleted. ---
         aws_cdk.CfnOutput(
             self,
             "ProjectsApiInternalUserAssignments",
@@ -663,13 +661,7 @@ class ProjectsAppStack(aws_cdk.Stack):
             export_name=f"{app_config.component_name}-api-internal-project-assignment",
         )
 
-        # TODO! Remove after deployed to QA
-        aws_cdk.CfnOutput(
-            self,
-            "ExportsOutputRefProjectsAppStorageBackendAppStorage82ED59EB040A2D43",
-            value=self._storage.table_name,
-            export_name=f"{aws_cdk.Stack.of(self).stack_name}:ExportsOutputRefProjectsAppStorageBackendAppStorage82ED59EB040A2D43",
-        )
+        # --- End legacy exports ---
 
         # Stack based suppressions
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(
@@ -694,7 +686,7 @@ class ProjectsAppStack(aws_cdk.Stack):
         self._event_bus.l3_event_bus.subscribe_to_events(
             name="packaging-domain-events-rule",
             lambda_function=self._backend_app.app_entries_functions[
-                app_config.format_resource_name("domain-event-handler")
+                app_config.format_resource_name(Entrypoint.DOMAIN_EVENT_HANDLER)
             ],
             events=[
                 "EnrolmentApproved",
@@ -735,7 +727,7 @@ class ProjectsAppStack(aws_cdk.Stack):
             ops_monitoring.OpsMonitoringBuilder(
                 self,
                 app_config.format_resource_name("ops-dashboard"),
-                VEW_NAMESPACE,
+                constants.VEW_NAMESPACE,
                 VEW_SERVICE,
                 app_config,
             )
@@ -748,6 +740,18 @@ class ProjectsAppStack(aws_cdk.Stack):
             .with_domain_event_monitoring(domain_module=domain)
             .build()
         )
+
+    @property
+    def backend_app(self) -> backend_app_entrypoints.BackendAppEntrypoints:
+        return self._backend_app
+
+    @property
+    def internal_api(self) -> backend_app_openapi.BackendAppOpenApi | None:
+        return self._open_api
+
+    @property
+    def table(self) -> aws_dynamodb.ITable | None:
+        return self._storage.table
 
     @property
     def api(self) -> backend_app_openapi.BackendAppOpenApi:

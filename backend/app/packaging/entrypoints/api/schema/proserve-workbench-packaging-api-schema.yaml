@@ -3363,6 +3363,18 @@ components:
           items:
             $ref: "#/components/schemas/ComponentVersionEntry"
           description: List of component versions that are required by the new component version
+        associatedComponentsVersions:
+          title: AssociatedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: List of component versions that reference this component version as a dependency
+        associatedRecipesVersions:
+          title: AssociatedRecipesVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeVersionEntry"
+          description: List of recipe versions that include this component version
         softwareVendor:
           title: SoftwareVendor
           type: string
@@ -3487,7 +3499,6 @@ components:
         - componentName
         - componentVersionId
         - componentVersionName
-        - order
       properties:
         componentId:
           title: ComponentId
@@ -3517,6 +3528,31 @@ components:
           title: Position
           type: string
           description: Position of the component (PREPEND|APPEND)
+    RecipeVersionEntry:
+      title: RecipeVersionEntry
+      type: object
+      required:
+        - recipeId
+        - recipeName
+        - recipeVersionId
+        - recipeVersionName
+      properties:
+        recipeId:
+          title: RecipeId
+          type: string
+          description: Recipe ID
+        recipeName:
+          title: RecipeName
+          type: string
+          description: Recipe Name
+        recipeVersionId:
+          title: RecipeVersionId
+          type: string
+          description: Recipe Version ID
+        recipeVersionName:
+          title: RecipeVersionName
+          type: string
+          description: Recipe Version Name
     ComponentMetadata:
       title: ComponentMetadata
       type: object
@@ -3903,6 +3939,18 @@ components:
           items:
             $ref: "#/components/schemas/ComponentVersionEntry"
           description: List of component versions that are required by the new component version
+        associatedComponentsVersions:
+          title: AssociatedComponentsVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          description: List of component versions that reference this component version as a dependency
+        associatedRecipesVersions:
+          title: AssociatedRecipesVersions
+          type: array
+          items:
+            $ref: "#/components/schemas/RecipeVersionEntry"
+          description: List of recipe versions that include this component version
         softwareVendor:
           title: SoftwareVendor
           type: string

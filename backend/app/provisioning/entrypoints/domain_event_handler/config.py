@@ -1,21 +1,14 @@
 import os
-from urllib import parse
 
-from pydantic import BaseModel
+from app.shared import config
 
 
-class AppConfig(BaseModel):
-    def get_default_region(self) -> str:
-        return os.environ.get("AWS_DEFAULT_REGION")
-
+class AppConfig(config.VEWBaseConfig):
     def get_table_name(self) -> str:
         return os.environ.get("TABLE_NAME", "")
 
     def get_domain_event_bus_name(self) -> str:
         return os.environ.get("DOMAIN_EVENT_BUS_ARN", "")
-
-    def get_bounded_context_name(self) -> str:
-        return os.environ.get("BOUNDED_CONTEXT", "")
 
     def get_gsi_name_inverted_primary_key(self) -> str:
         return os.environ.get("GSI_NAME_INVERTED_PK")
@@ -52,9 +45,6 @@ class AppConfig(BaseModel):
 
     def get_authorize_user_ip_address_param_value(self) -> bool:
         return os.environ.get("AUTHORIZE_USER_IP_ADDRESS_PARAM_VALUE", "").lower() == "true"
-
-    def get_publishing_api_url(self) -> parse.ParseResult:
-        return parse.urlparse(os.environ.get("PUBLISHING_API_URL"))
 
     def get_lambda_iam_role(self) -> str:
         return os.environ.get("LAMBDA_IAM_ROLE", "")

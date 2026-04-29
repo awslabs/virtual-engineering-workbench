@@ -500,6 +500,11 @@ def mock_dynamodb():
         yield boto3.resource("dynamodb", region_name=GlobalVariables.TEST_REGION.value)
 
 
+@pytest.fixture
+def mock_s3(mock_dynamodb):
+    yield boto3.client("s3", region_name=GlobalVariables.TEST_REGION.value)
+
+
 @pytest.fixture(autouse=True)
 def backend_app_dynamodb_table(mock_dynamodb):
     table = mock_dynamodb.create_table(**GlobalVariables.TEST_DDB_TABLE_DEFINITION.value)
