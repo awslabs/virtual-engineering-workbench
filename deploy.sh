@@ -506,7 +506,7 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
     uv venv "$BACKEND_DIR/.venv" --python 3.13
   fi
   source "$BACKEND_DIR/.venv/bin/activate"
-  UV_PROJECT_ENVIRONMENT="$BACKEND_DIR/.venv" uv sync --project "$BACKEND_DIR" --group dev --group test 2>&1 | tail -1 | tee -a "$LOG_FILE"
+  UV_PROJECT_ENVIRONMENT="$BACKEND_DIR/.venv" uv sync --project "$BACKEND_DIR" --group dev 2>&1 | tail -1 | tee -a "$LOG_FILE"
   (
     cd "$BACKEND_DIR"
     cp cdk-vpc.json cdk.json
@@ -598,7 +598,7 @@ if [ ! -d "$BACKEND_DIR/.venv" ]; then
   uv venv "$BACKEND_DIR/.venv" --python 3.13
 fi
 source "$BACKEND_DIR/.venv/bin/activate"
-UV_PROJECT_ENVIRONMENT="$BACKEND_DIR/.venv" uv sync --project "$BACKEND_DIR" --group dev --group test 2>&1 | tail -1 | tee -a "$LOG_FILE"
+UV_PROJECT_ENVIRONMENT="$BACKEND_DIR/.venv" uv sync --project "$BACKEND_DIR" --group dev 2>&1 | tail -1 | tee -a "$LOG_FILE"
 
 BE_CDK_CONTEXT=(
   -c "environment=$ENVIRONMENT"
