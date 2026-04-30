@@ -22,7 +22,6 @@ dependencies = [
     "jinja2~=3.1",
     "natsort~=8.4",
     "nest-asyncio~=1.5",
-    "pendulum~=3.0.0",
     "pydantic~=2.12",
     "pyjwt[crypto]~=2.9",
     "pyyaml~=6.0.1",
@@ -80,9 +79,6 @@ dev = [
     "requests-mock~=1.11",
     "setuptools>=76.2.0",
     "types-requests~=2.31",
-]
-test = [
-    "pyspark[sql]~=3.5",
 ]
 
 [build-system]

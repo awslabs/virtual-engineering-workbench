@@ -97,7 +97,7 @@ backend/
 uv venv .venv --python 3.13
 source .venv/bin/activate        # macOS/Linux
 cd backend
-UV_PROJECT_ENVIRONMENT="../.venv" uv sync --group dev --group test
+UV_PROJECT_ENVIRONMENT="../.venv" uv sync --group dev
 ```
 
 ## Tests
