@@ -3,7 +3,6 @@ import uuid
 from typing import List, Optional
 
 import assertpy
-import pendulum
 import pytest
 from botocore.stub import Stubber
 
@@ -25,12 +24,12 @@ from app.shared.adapters.boto import paging_utils
 
 @pytest.fixture()
 def create_date():
-    return pendulum.datetime(year=2022, month=4, day=1, hour=12)
+    return datetime.datetime(2022, 4, 1, 12, tzinfo=datetime.timezone.utc)
 
 
 @pytest.fixture()
 def last_updated_date():
-    return pendulum.datetime(year=2022, month=4, day=1, hour=13)
+    return datetime.datetime(2022, 4, 1, 13, tzinfo=datetime.timezone.utc)
 
 
 @pytest.fixture()
@@ -44,8 +43,8 @@ def sample_projects(create_date, last_updated_date):
             projectName="test-name",
             projectDescription="test-description",
             isActive=True,
-            createDate=current_time.to_iso8601_string(),
-            lastUpdateDate=update_time.to_iso8601_string(),
+            createDate=current_time.isoformat(),
+            lastUpdateDate=update_time.isoformat(),
         )
         for i in range(project_count)
     ]

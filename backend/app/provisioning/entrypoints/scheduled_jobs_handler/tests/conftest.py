@@ -86,6 +86,9 @@ def aws_credentials(monkeypatch, mock_table_name):
     )
     monkeypatch.setenv("BOUNDED_CONTEXT", "provisioning")
     monkeypatch.setenv("PROJECTS_API_URL", "projects-api-url")
+    monkeypatch.setenv("VEW_ORGANIZATION_PREFIX", "proserve")
+    monkeypatch.setenv("VEW_APPLICATION_PREFIX", "wb")
+    monkeypatch.setenv("APP_ENVIRONMENT", "dev")
     monkeypatch.setenv(
         "PROVISIONED_PRODUCT_CLEANUP_CONFIG",
         '{"pp-cleanup-alert": 23,"pp-cleanup": 28,"pp-experimental-cleanup-alert": 5,"pp-experimental-cleanup": 7}',

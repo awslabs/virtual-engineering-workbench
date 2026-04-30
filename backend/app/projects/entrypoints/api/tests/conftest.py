@@ -12,6 +12,9 @@ from openapi_spec_validator.readers import read_from_filename
 from app.shared.api import secrets_manager_api
 
 TEST_REGION = "us-east-1"
+TEST_ORG_PREFIX = "proserve"
+TEST_APP_PREFIX = "wb"
+TEST_ENVIRONMENT = "dev"
 TEST_SECRET_NAME = "audit-logging-key"
 TEST_TABLE_NAME = "TEST"
 GSI_NAME = "gsi_inverted_primary_key"
@@ -91,6 +94,9 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("GSI_NAME_QPK", GSI_QPK)
     monkeypatch.setenv("GSI_NAME_QSK", GSI_QSK)
     monkeypatch.setenv("TOOLCHAIN_ACCOUNTS_IDS_PARAMETER_NAME", "/test/param-accounts")
+    monkeypatch.setenv("VEW_ORGANIZATION_PREFIX", TEST_ORG_PREFIX)
+    monkeypatch.setenv("VEW_APPLICATION_PREFIX", TEST_APP_PREFIX)
+    monkeypatch.setenv("APP_ENVIRONMENT", TEST_ENVIRONMENT)
 
 
 @pytest.fixture(autouse=True)

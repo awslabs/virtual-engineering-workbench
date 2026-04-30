@@ -1,11 +1,18 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Mapping, Optional, Self, Sequence
 
 import aws_cdk
 import constructs
 from aws_cdk import aws_iam, aws_lambda, aws_sqs
 
+from app.shared.api import bounded_contexts
+from infra import config, constants
 from infra.constructs import backend_app_function
+
+# (HTTP method, API path)
+ApiRoute = tuple[str, str]
+# Target BC → list of routes this entrypoint needs to invoke
+CrossBcApiAccess = dict[bounded_contexts.BoundedContext, list[ApiRoute]]
 
 
 @dataclass
@@ -26,13 +33,21 @@ class AppEntryPoint:
     vpc_name: Optional[str] = None
     durable_execution_enabled: bool = False
     is_enabled: bool = True
+    cross_bc_api_access: CrossBcApiAccess = field(default_factory=dict)
 
 
 class AppEntryFunctionsAttributes:
-    def __init__(self, alias: aws_lambda.Alias, function: aws_lambda.IFunction, app_name: str):
+    def __init__(
+        self,
+        alias: aws_lambda.Alias,
+        function: aws_lambda.IFunction,
+        app_name: str,
+        cross_bc_api_access: CrossBcApiAccess | None = None,
+    ):
         self.alias = alias
         self.function = function
         self.app_name = app_name
+        self.cross_bc_api_access: CrossBcApiAccess = cross_bc_api_access or {}
 
 
 class BackendAppEntrypoints(constructs.Construct):
@@ -40,15 +55,20 @@ class BackendAppEntrypoints(constructs.Construct):
         self,
         scope: constructs.Construct,
         id: str,
+        app_config: config.AppConfig,
         app_layers: Sequence[aws_lambda.ILayerVersion],
         app_entry_points: Sequence[AppEntryPoint],
         runtime: aws_lambda.Runtime = aws_lambda.Runtime.PYTHON_3_13,
+        global_env_vars: Optional[Mapping[str, str]] = None,
     ) -> None:
         super().__init__(scope, id)
+
+        base_env_vars = {**self.build_global_env_vars(app_config), **(global_env_vars or {})}
 
         response = {}
 
         for app in (a for a in app_entry_points if a.is_enabled):
+            env = {**base_env_vars, **(app.environment or {})}
             func = backend_app_function.BackendAppFunction(
                 self,
                 app.name,
@@ -60,7 +80,7 @@ class BackendAppEntrypoints(constructs.Construct):
                 layers=app_layers,
                 reserved_concurrency=app.reserved_concurrency,
                 provisioned_concurrency=app.provisioned_concurrency,
-                environment=app.environment,
+                environment=env,
                 permissions=app.permissions or [],
                 timeout=app.timeout,
                 memory_size=app.memory_size,
@@ -72,7 +92,10 @@ class BackendAppEntrypoints(constructs.Construct):
             )
 
             response[app.name] = AppEntryFunctionsAttributes(
-                alias=func.function_alias, function=func.function, app_name=app.name
+                alias=func.function_alias,
+                function=func.function,
+                app_name=app.name,
+                cross_bc_api_access=app.cross_bc_api_access,
             )
 
         self._app_entry_functions: dict[str, AppEntryFunctionsAttributes] = response
@@ -88,6 +111,18 @@ class BackendAppEntrypoints(constructs.Construct):
 
         return self
 
+    @staticmethod
+    def build_global_env_vars(app_config: config.AppConfig) -> dict[str, str]:
+        log_level = "DEBUG" if app_config.environment in ["dev", "qa"] else "INFO"
+        return {
+            "BOUNDED_CONTEXT": app_config.bounded_context_name,
+            "LOG_LEVEL": log_level,
+            "POWERTOOLS_METRICS_NAMESPACE": constants.VEW_NAMESPACE,
+            "VEW_ORGANIZATION_PREFIX": app_config.get_organization_prefix(),
+            "VEW_APPLICATION_PREFIX": app_config.get_application_prefix(),
+            "APP_ENVIRONMENT": app_config.environment,
+        }
+
     @property
     def app_entries_function_aliases(self) -> dict[str, aws_lambda.Alias]:
         response = {}
@@ -101,6 +136,13 @@ class BackendAppEntrypoints(constructs.Construct):
         self,
     ) -> dict[str, AppEntryFunctionsAttributes]:
         return self._app_entry_functions
+
+    def entrypoint(self, full_name: str) -> AppEntryFunctionsAttributes:
+        """Return the AppEntryFunctionsAttributes for a named entrypoint."""
+        entry = self._app_entry_functions.get(full_name)
+        if entry is None:
+            raise ValueError(f"Entrypoint '{full_name}' not found")
+        return entry
 
     @property
     def app_entries_functions(

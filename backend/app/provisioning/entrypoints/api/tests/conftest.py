@@ -10,6 +10,9 @@ from openapi_spec_validator.readers import read_from_filename
 from app.shared.api import secrets_manager_api
 
 TEST_REGION = "us-east-1"
+TEST_ORG_PREFIX = "proserve"
+TEST_APP_PREFIX = "wb"
+TEST_ENVIRONMENT = "dev"
 TEST_SECRET_NAME = "audit-logging-key"
 
 
@@ -57,6 +60,9 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("SPOKE_ACCOUNT_VPC_ID_PARAM_NAME", "/workbench/vpc/vpc-id")
     monkeypatch.setenv("PROVISIONING_SUBNET_SELECTOR", "PrivateSubnetWithTransitGateway")
     monkeypatch.setenv("DEFAULT_PAGE_SIZE", "100")
+    monkeypatch.setenv("VEW_ORGANIZATION_PREFIX", TEST_ORG_PREFIX)
+    monkeypatch.setenv("VEW_APPLICATION_PREFIX", TEST_APP_PREFIX)
+    monkeypatch.setenv("APP_ENVIRONMENT", TEST_ENVIRONMENT)
 
 
 @pytest.fixture()
@@ -105,6 +111,24 @@ def mock_experimental_provisioned_product_per_project_limit(ssm_mock):
     ssm_mock.put_parameter(
         Name="/proserve-wb-provisioning-api/experimental-provisioned-product-per-project-limit",
         Value="3",
+        Type="String",
+    )
+
+
+@pytest.fixture(autouse=True)
+def mock_ssm_projects_api_url(ssm_mock):
+    ssm_mock.put_parameter(
+        Name=f"/{TEST_ORG_PREFIX}-{TEST_APP_PREFIX}-projects-api-{TEST_ENVIRONMENT}/api/url",
+        Value="https://projects.example.com/",
+        Type="String",
+    )
+
+
+@pytest.fixture(autouse=True)
+def mock_ssm_publishing_api_url(ssm_mock):
+    ssm_mock.put_parameter(
+        Name=f"/{TEST_ORG_PREFIX}-{TEST_APP_PREFIX}-publishing-api-{TEST_ENVIRONMENT}/api/url",
+        Value="https://publishing.example.com/",
         Type="String",
     )
 

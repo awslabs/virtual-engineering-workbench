@@ -43,6 +43,7 @@ models/Pipeline.ts
 models/Recipe.ts
 models/RecipeComponentVersion.ts
 models/RecipeVersion.ts
+models/RecipeVersionEntry.ts
 models/RecipeVersionSummary.ts
 models/RecipeVersionTestExecutionSummary.ts
 models/ShareComponentRequest.ts

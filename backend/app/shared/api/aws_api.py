@@ -1,3 +1,4 @@
+import abc
 import http
 from typing import Optional
 from urllib import parse
@@ -14,7 +15,31 @@ class RetryableServiceException(Exception):
     pass
 
 
-class AWSAPI:
+class AWSAPIBase(abc.ABC):
+    """Interface for API Gateway clients."""
+
+    @abc.abstractmethod
+    def call_api(
+        self,
+        path: str,
+        http_method: str,
+        user_token: Optional[str] = None,
+        body: Optional[dict] = None,
+        query_params: Optional[dict] = None,
+        service: Optional[str] = "execute-api",
+        auth: Optional[requests.auth.AuthBase] = None,
+    ) -> dict: ...
+
+    @property
+    @abc.abstractmethod
+    def region(self) -> str: ...
+
+    @property
+    @abc.abstractmethod
+    def api_url(self) -> parse.ParseResult: ...
+
+
+class AWSAPI(AWSAPIBase):
     """Wrapper class for making API Gateway calls."""
 
     def __init__(self, api_url: parse.ParseResult, region: str, logger: logging.Logger):
@@ -65,7 +90,7 @@ class AWSAPI:
             http.HTTPStatus.GATEWAY_TIMEOUT,
         ]:
             self._logger.error(f"Error calling external API. HTTP Status: {response.status_code}. Retrying")
-            raise RetryableServiceException
+            raise RetryableServiceException(f"HTTP {response.status_code} from {url}")
 
         self._logger.info(
             f"Received response from the API. URL: {url}, HTTP Method: {http_method}, HTTP Status: {response.status_code}"

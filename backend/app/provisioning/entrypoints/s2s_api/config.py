@@ -1,10 +1,11 @@
 import os
-from urllib import parse
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.shared import config
 
 
-class AppConfig(BaseModel):
+class AppConfig(config.VEWBaseConfig):
     cors_config: dict = Field(..., title="CORS configuration")
 
     def get_api_base_path(self) -> str:
@@ -15,17 +16,11 @@ class AppConfig(BaseModel):
 
         return [f"/{p.strip()}" for p in prefixes.split(",") if p.strip()]
 
-    def get_default_region(self) -> str:
-        return os.environ.get("AWS_DEFAULT_REGION")
-
     def get_table_name(self) -> str:
         return os.environ.get("TABLE_NAME", "")
 
     def get_domain_event_bus_name(self) -> str:
         return os.environ.get("DOMAIN_EVENT_BUS_ARN", "")
-
-    def get_bounded_context_name(self) -> str:
-        return os.environ.get("BOUNDED_CONTEXT", "")
 
     def get_audit_logging_key_name(self) -> str:
         return os.environ.get("AUDIT_LOGGING_KEY_NAME", "")
@@ -59,9 +54,6 @@ class AppConfig(BaseModel):
 
     def get_experimental_provisioned_product_per_project_limit_param_name(self) -> str:
         return os.environ.get("EXPERIMENTAL_PROVISIONED_PRODUCT_PER_PROJECT_LIMIT_PARAMETER_NAME", "")
-
-    def get_projects_api_url(self) -> parse.ParseResult:
-        return parse.urlparse(os.environ.get("PROJECTS_API_URL"))
 
     def get_network_ip_map_param_name(self) -> str:
         return os.environ.get("NETWORK_IP_MAP_SSM_PARAMETER_NAME", "")

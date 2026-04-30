@@ -29,6 +29,9 @@ const PREPEND_PRIORITY = 1;
 const USER_PRIORITY = 2;
 const APPEND_PRIORITY = 3;
 
+const orderOf = (entry: ComponentVersionEntry): number =>
+  entry.order ?? DEFAULT_ORDER;
+
 const getPositionPriority = (position?: string): number => {
   if (position === 'PREPEND') { return PREPEND_PRIORITY; }
   if (position === 'APPEND') { return APPEND_PRIORITY; }
@@ -195,35 +198,35 @@ export const ComponentVersionEntriesInput: FC<ComponentVersionEntriesInputProps>
         <Button
           iconName='remove'
           ariaLabel={i18n.buttonRemove}
-          onClick={() => removeComponentVersionEntry(componentVersionEntry.order)}
+          onClick={() => removeComponentVersionEntry(orderOf(componentVersionEntry))}
           disabled={preventRemoveComponentVersionEntry()}
         />
         <Button
           iconName='caret-up-filled'
           ariaLabel={i18n.buttonMoveUp}
-          onClick={() => moveComponentVersionEntry(componentVersionEntry.order, MOVE_UP)}
-          disabled={preventMoveComponentVersionEntry(componentVersionEntry.order, MOVE_UP)}
+          onClick={() => moveComponentVersionEntry(orderOf(componentVersionEntry), MOVE_UP)}
+          disabled={preventMoveComponentVersionEntry(orderOf(componentVersionEntry), MOVE_UP)}
         />
         <Button
           iconName='caret-down-filled'
           ariaLabel={i18n.buttonMoveDown}
-          onClick={() => moveComponentVersionEntry(componentVersionEntry.order, MOVE_DOWN)}
-          disabled={preventMoveComponentVersionEntry(componentVersionEntry.order, MOVE_DOWN)}
+          onClick={() => moveComponentVersionEntry(orderOf(componentVersionEntry), MOVE_DOWN)}
+          disabled={preventMoveComponentVersionEntry(orderOf(componentVersionEntry), MOVE_DOWN)}
         />
         <ButtonDropdown
           variant='icon'
-          onItemClick={({ detail }) => handleAdditionalActions(detail.id, componentVersionEntry.order)}
+          onItemClick={({ detail }) => handleAdditionalActions(detail.id, orderOf(componentVersionEntry))}
           ariaLabel={i18n.buttonMore}
           items={[
             {
               id: 'move-to-top',
               text: i18n.buttonMoveToTop,
-              disabled: preventMoveComponentVersionEntry(componentVersionEntry.order, MOVE_UP),
+              disabled: preventMoveComponentVersionEntry(orderOf(componentVersionEntry), MOVE_UP),
             },
             {
               id: 'move-to-bottom',
               text: i18n.buttonMoveToBottom,
-              disabled: preventMoveComponentVersionEntry(componentVersionEntry.order, MOVE_DOWN),
+              disabled: preventMoveComponentVersionEntry(orderOf(componentVersionEntry), MOVE_DOWN),
             },
             {
               id: 'insert-above',
@@ -265,24 +268,24 @@ export const ComponentVersionEntriesInput: FC<ComponentVersionEntriesInputProps>
           <Button
             iconName='remove'
             ariaLabel={i18n.buttonRemove}
-            onClick={() => removeComponentVersionEntry(componentVersionView.order)}
+            onClick={() => removeComponentVersionEntry(orderOf(componentVersionView))}
             disabled={true}
           />
           <Button
             iconName='caret-up-filled'
             ariaLabel={i18n.buttonMoveUp}
-            onClick={() => moveComponentVersionEntry(componentVersionView.order, MOVE_UP)}
+            onClick={() => moveComponentVersionEntry(orderOf(componentVersionView), MOVE_UP)}
             disabled={true}
           />
           <Button
             iconName='caret-down-filled'
             ariaLabel={i18n.buttonMoveDown}
-            onClick={() => moveComponentVersionEntry(componentVersionView.order, MOVE_DOWN)}
+            onClick={() => moveComponentVersionEntry(orderOf(componentVersionView), MOVE_DOWN)}
             disabled={true}
           />
           <ButtonDropdown
             variant='icon'
-            onItemClick={({ detail }) => handleAdditionalActions(detail.id, componentVersionView.order)}
+            onItemClick={({ detail }) => handleAdditionalActions(detail.id, orderOf(componentVersionView))}
             ariaLabel={i18n.buttonMore}
             items={[
               {
@@ -323,7 +326,7 @@ export const ComponentVersionEntriesInput: FC<ComponentVersionEntriesInputProps>
       ...componentVersionView ?? [],
       ...componentVersionEntries
     ])
-    : componentVersionEntries.sort((a, b) => a.order - b.order);
+    : componentVersionEntries.sort((a, b) => orderOf(a) - orderOf(b));
 
   const prependedComponents = allComponents.filter(c => c.position === 'PREPEND');
   const userComponents = allComponents.filter(c => !c.position);

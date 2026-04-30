@@ -42,6 +42,7 @@ export * from './Pipeline';
 export * from './Recipe';
 export * from './RecipeComponentVersion';
 export * from './RecipeVersion';
+export * from './RecipeVersionEntry';
 export * from './RecipeVersionSummary';
 export * from './RecipeVersionTestExecutionSummary';
 export * from './ShareComponentRequest';

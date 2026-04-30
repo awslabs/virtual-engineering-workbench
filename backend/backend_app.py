@@ -2,6 +2,7 @@
 import aws_cdk
 import cdk_nag
 
+from app.shared.api import bounded_contexts
 from infra import config, constants
 from infra.backend import (
     authorization_app_stack,
@@ -9,7 +10,6 @@ from infra.backend import (
     image_key_app_stack,
     image_sharing_app_stack,
     integration_oauth_stack,
-    integration_permissions_stack,
     integration_stack,
     packaging_app_stack,
     prerequisites_app_stack,
@@ -19,6 +19,7 @@ from infra.backend import (
     provisioning_app_stack,
     publishing_app_stack,
     security_stack,
+    service_discovery_stack,
     shared_deployment_infrastructure,
 )
 
@@ -63,35 +64,35 @@ if constants.PRIVATE_API_ENDPOINT:
 
 packaging_app_config = config.AppConfig(
     **base_config.model_dump(),
-    component_name="packaging",
+    component_name=bounded_contexts.BoundedContext.PACKAGING,
     environment_config=config.env_config[environment],
     component_specific=config.packaging_app_config[environment],
 )
 
 projects_app_config = config.AppConfig(
     **base_config.model_dump(),
-    component_name="projects",
+    component_name=bounded_contexts.BoundedContext.PROJECTS,
     environment_config=config.env_config[environment],
     component_specific=config.projects_app_config[environment],
 )
 
 publishing_app_config = config.AppConfig(
     **base_config.model_dump(),
-    component_name="publishing",
+    component_name=bounded_contexts.BoundedContext.PUBLISHING,
     environment_config=config.env_config[environment],
     component_specific=config.publishing_app_config[environment],
 )
 
 provisioning_app_config = config.AppConfig(
     **base_config.model_dump(),
-    component_name="provisioning",
+    component_name=bounded_contexts.BoundedContext.PROVISIONING,
     environment_config=config.env_config[environment],
     component_specific=config.provisioning_app_config[environment],
 )
 
 authorization_app_config = config.AppConfig(
     **base_config.model_dump(),
-    component_name=constants.AUTH_BC_NAME,
+    component_name=bounded_contexts.BoundedContext.AUTHORIZATION,
     environment_config=config.env_config[environment],
     component_specific=config.authorization_app_config[environment],
 )
@@ -174,7 +175,6 @@ projects_stack = projects_app_stack.ProjectsAppStack(
     app,
     "ProjectsAppStack",
     app_config=projects_app_config,
-    stack_name=base_config.format_base_resource_name("projects"),
     env=aws_cdk.Environment(account=projects_app_config.account, region=projects_app_config.region),
     custom_api_domain=custom_domain if custom_domain else "",
     organization_id=organization_id,
@@ -245,7 +245,6 @@ packaging_stack = packaging_app_stack.PackagingAppStack(
     app,
     "PackagingAppStack",
     app_config=packaging_app_config,
-    stack_name=base_config.format_base_resource_name("packaging"),
     env=aws_cdk.Environment(account=packaging_app_config.account, region=packaging_app_config.region),
     product_packaging_topic=product_packaging_stack.product_packaging_topic,
     custom_api_domain=custom_domain if custom_domain else "",
@@ -257,15 +256,7 @@ publishing_stack = publishing_app_stack.PublishingAppStack(
     app,
     "PublishingAppStack",
     app_config=publishing_app_config,
-    stack_name=base_config.format_base_resource_name("publishing"),
     env=aws_cdk.Environment(account=publishing_app_config.account, region=publishing_app_config.region),
-    lambda_exec_api_arns=[
-        projects_stack.api.api.arn_for_execute_api(
-            method="GET",
-            path="/internal/projects",
-            stage=projects_stack.api.api.deployment_stage.stage_name,
-        ),
-    ],
     custom_api_domain=custom_domain if custom_domain else "",
     provision_private_endpoint=constants.PRIVATE_API_ENDPOINT,
     vpc_endpoint=(prerequisites_app_stack.vpc_endpoint if constants.PRIVATE_API_ENDPOINT else None),
@@ -301,9 +292,7 @@ provisioning_stack = provisioning_app_stack.ProvisioningAppStack(
     app,
     "ProvisioningAppStack",
     app_config=provisioning_app_config,
-    stack_name=base_config.format_base_resource_name("provisioning"),
     env=aws_cdk.Environment(account=provisioning_app_config.account, region=provisioning_app_config.region),
-    lambda_exec_api_arns=[],
     catalog_service_topics=catalog_service_topics,
     organization_id=organization_id,
     custom_api_domain=custom_domain if custom_domain else "",
@@ -399,19 +388,18 @@ if custom_domain and cert_arn:
     api_integration_stack.add_dependency(provisioning_stack)
 
 
-api_integration_permissions_stack = integration_permissions_stack.ApiIntegrationPermissionsStack(
+discovery = service_discovery_stack.ServiceDiscoveryStack(
     scope=app,
-    id="ApiIntegrationPermissionsStack",
-    stack_name=base_config.format_base_resource_name("api-integration-permissions"),
+    id="ServiceDiscoveryStack",
+    app_config=config.AppConfig(
+        **base_config.model_dump(),
+        component_name="service-discovery",
+        environment_config=config.env_config[environment],
+        component_specific=dict(),
+    ),
+    stack_name=base_config.format_base_resource_name("service-discovery"),
     env=aws_cdk.Environment(account=base_config.account, region=base_config.region),
 )
-
-api_integration_permissions_stack.add_dependency(packaging_stack)
-api_integration_permissions_stack.add_dependency(projects_stack)
-api_integration_permissions_stack.add_dependency(publishing_stack)
-api_integration_permissions_stack.add_dependency(provisioning_stack)
-if api_integration_stack:
-    api_integration_permissions_stack.add_dependency(api_integration_stack)
 
 oauth_integration_stack = integration_oauth_stack.IntegrationOauthStack(
     scope=app,
@@ -433,11 +421,18 @@ authorization_stack = authorization_app_stack.AuthorizationAppStack(
     app,
     "AuthorizationAppStack",
     authorization_app_config,
-    stack_name=base_config.format_base_resource_name(constants.AUTH_BC_NAME),
     env=aws_cdk.Environment(account=authorization_app_config.account, region=authorization_app_config.region),
 )
 
 projects_stack.add_dependency(authorization_stack)
+
+discovery.register(
+    projects_stack,
+    publishing_stack,
+    packaging_stack,
+    provisioning_stack,
+    authorization_stack,
+).apply_permissions()
 
 aws_cdk.Aspects.of(app).add(cdk_nag.AwsSolutionsChecks(reports=True, verbose=True))
 aws_cdk.Aspects.of(app).add(cdk_nag.NIST80053R4Checks(reports=True, verbose=True))

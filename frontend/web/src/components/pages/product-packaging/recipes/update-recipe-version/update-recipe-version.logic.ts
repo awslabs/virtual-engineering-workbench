@@ -26,7 +26,7 @@ interface ComponentVersionEntry {
   componentVersionName: string,
   componentName: string,
   componentVersionId: string,
-  order: number,
+  order?: number,
   position?: string,
 }
 interface RecipeData {

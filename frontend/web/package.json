@@ -22,7 +22,7 @@
     "cronstrue": "^3.13.0",
     "cross-spawn": "^7.0.6",
     "date-fns": "^4.1.0",
-    "fast-xml-parser": "^5.7.0",
+    "fast-xml-parser": "^5.4.1",
     "jquery": "^4.0.0",
     "js-confetti": "^0.13.1",
     "react": "^18.3.1",
@@ -32,7 +32,7 @@
     "semver": "^7.7.4",
     "swagger-ui-react": "^5.32.4",
     "swr": "^2.4.0",
-    "uuid": "^14.0.0",
+    "uuid": "^13.0.0",
     "web-vitals": "^5.1.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
@@ -58,8 +58,7 @@
     "yauzl": "^3.2.1",
     "vite": "^7.3.2",
     "@nestjs/core": "^11.1.18",
-    "follow-redirects": "^1.16.0",
-    "uuid": "^14.0.0"
+    "follow-redirects": "^1.16.0"
   },
   "scripts": {
     "dev": "vite --port 3000",
@@ -127,5 +126,37 @@
     "vite": "^7.3.2",
     "vitest": "^4.0.18"
   },
-  "packageManager": "yarn@4.13.0"
+  "dependenciesMeta": {
+    "@nestjs/core": {
+      "built": true
+    },
+    "@openapitools/openapi-generator-cli": {
+      "built": true
+    },
+    "@parcel/watcher": {
+      "built": true
+    },
+    "@scarf/scarf": {
+      "built": true
+    },
+    "@tree-sitter-grammars/tree-sitter-yaml": {
+      "built": true
+    },
+    "core-js-pure": {
+      "built": true
+    },
+    "cypress": {
+      "built": true
+    },
+    "esbuild": {
+      "built": true
+    },
+    "tree-sitter": {
+      "built": true
+    },
+    "tree-sitter-json": {
+      "built": true
+    }
+  },
+  "packageManager": "yarn@4.14.1"
 }

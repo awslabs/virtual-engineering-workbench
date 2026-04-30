@@ -60,6 +60,8 @@ class BackendAppOpenApi(constructs.Construct):
 
         authorization_bc_handler_arn = self.__get_auth_arn(cedar_policy_config, app_config)
 
+        self._api_url_ssm_parameter_name = f"/{app_config.format_resource_name(name)}/api/url"
+
         access_log_group = self._create_log_group(app_config, name)
         api_role = self._create_api_role(app_config, handler, authorization_bc_handler_arn, name)
         handler_arn = handler.function_arn
@@ -342,7 +344,7 @@ class BackendAppOpenApi(constructs.Construct):
         aws_ssm.StringParameter(
             self,
             f"{stack.stack_name}-ApiUrl",
-            parameter_name=f"/{app_config.format_resource_name(name)}/api/url",
+            parameter_name=self._api_url_ssm_parameter_name,
             description=f"{app_config.component_name} API url",
             string_value=self._api.url_for_path(),
         )
@@ -795,6 +797,10 @@ class BackendAppOpenApi(constructs.Construct):
     @property
     def api(self) -> aws_apigateway.SpecRestApi:
         return self._api
+
+    @property
+    def api_url_ssm_parameter_name(self) -> str:
+        return self._api_url_ssm_parameter_name
 
     @property
     def iam_api(self) -> typing.Optional[aws_apigateway.SpecRestApi]:

@@ -17,7 +17,7 @@ from app.shared.adapters.message_bus import (
     in_memory_command_bus,
     message_bus_metrics,
 )
-from app.shared.api import aws_api, aws_events_api
+from app.shared.api import aws_events_api, bounded_contexts, service_registry
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
 
@@ -57,9 +57,11 @@ def bootstrap(
         gsi_name_entities=app_config.get_gsi_name_entities(),
     )
 
-    aws_api_instance = aws_api.AWSAPI(
-        api_url=app_config.get_projects_api_url(), region=app_config.get_default_region(), logger=logger
-    )
+    aws_api_instance = service_registry.ServiceRegistry.from_config(
+        app_config=app_config,
+        ssm_client=boto3.client("ssm", region_name=app_config.get_default_region()),
+        logger=logger,
+    ).api_for(bounded_contexts.BoundedContext.PROJECTS)
 
     projects_api_qry_srv = projects_api_query_service.ProjectsApiQueryService(api=aws_api_instance)
 

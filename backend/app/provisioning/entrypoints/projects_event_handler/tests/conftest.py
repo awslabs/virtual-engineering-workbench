@@ -50,6 +50,9 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("DOMAIN_EVENT_BUS_ARN", "arn:aws:events:us-east-1:001234567890:event-bus/projects-events")
     monkeypatch.setenv("BOUNDED_CONTEXT", "products")
     monkeypatch.setenv("PROJECTS_API_URL", "projects-api-url")
+    monkeypatch.setenv("VEW_ORGANIZATION_PREFIX", "proserve")
+    monkeypatch.setenv("VEW_APPLICATION_PREFIX", "wb")
+    monkeypatch.setenv("APP_ENVIRONMENT", "dev")
 
 
 @pytest.fixture

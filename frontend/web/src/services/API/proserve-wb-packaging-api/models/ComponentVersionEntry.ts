@@ -54,7 +54,7 @@ export interface ComponentVersionEntry {
      * @type {number}
      * @memberof ComponentVersionEntry
      */
-    order: number;
+    order?: number;
     /**
      * Position of the component (PREPEND|APPEND)
      * @type {string}
@@ -72,7 +72,6 @@ export function instanceOfComponentVersionEntry(value: object): boolean {
     isInstance = isInstance && "componentName" in value;
     isInstance = isInstance && "componentVersionId" in value;
     isInstance = isInstance && "componentVersionName" in value;
-    isInstance = isInstance && "order" in value;
 
     return isInstance;
 }
@@ -92,7 +91,7 @@ export function ComponentVersionEntryFromJSONTyped(json: any, ignoreDiscriminato
         'componentVersionId': json['componentVersionId'],
         'componentVersionName': json['componentVersionName'],
         'componentVersionType': !exists(json, 'componentVersionType') ? undefined : json['componentVersionType'],
-        'order': json['order'],
+        'order': !exists(json, 'order') ? undefined : json['order'],
         'position': !exists(json, 'position') ? undefined : json['position'],
     };
 }

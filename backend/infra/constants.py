@@ -8,6 +8,8 @@ ARM_ARCH_KEY = aws_lambda.Architecture.ARM_64
 
 LAMBDA_ARCHITECTURE = ARM_ARCH_KEY
 
+VEW_NAMESPACE = "VirtualEngineeringWorkbench"
+
 ARTIFACTS_STORAGE_RESOURCE_NAME = "artifacts-storage"
 AUDIT_LOGGING_KEY_ARN_SSM_PARAM_NAME = "/virtual-workbench/{environment}/audit-logging-secret-arn"
 AUDIT_LOGGING_KEY_NAME_SSM_PARAM_NAME = "/virtual-workbench/{environment}/audit-logging-secret-name"

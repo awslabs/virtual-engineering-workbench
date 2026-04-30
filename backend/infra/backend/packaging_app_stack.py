@@ -1,3 +1,4 @@
+import enum
 import json
 from typing import Optional
 
@@ -18,6 +19,7 @@ from aws_cdk import (
 from app.packaging import domain
 from infra import config, constants
 from infra.auth import packaging_auth, packaging_auth_schema
+from infra.backend import vew_bounded_context_stack
 from infra.constructs import (
     backend_app_api_auth,
     backend_app_entrypoints,
@@ -92,11 +94,18 @@ PIPELINES_CONFIGURATION_MAPPING = {
         "arm64": {"allowed_build_instance_types": ["m8g.2xlarge", "m8g.4xlarge"]},
     }
 }
-VEW_NAMESPACE = "VirtualEngineeringWorkbench"
 VEW_SERVICE = "Packaging"
 
 
-class PackagingAppStack(aws_cdk.Stack):
+class Entrypoint(enum.StrEnum):
+    API = "api"
+    DOMAIN_EVENTS = "domain-events"
+    IMAGE_BUILDER_EVENTS = "image-builder-events"
+    COMPONENT_VERSION_TESTING = "component-version-testing"
+    RECIPE_VERSION_TESTING = "recipe-version-testing"
+
+
+class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
     def __init__(
         self,
         scope: constructs.Construct,
@@ -108,7 +117,7 @@ class PackagingAppStack(aws_cdk.Stack):
         vpc_endpoint: Optional[aws_ec2.IVpcEndpoint] = None,
         **kwargs,
     ) -> None:
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, id, app_config=app_config, **kwargs)
 
         self._tools_account_id = None
         self._image_service_account_id = None
@@ -200,19 +209,21 @@ class PackagingAppStack(aws_cdk.Stack):
             entry="app/shared",
         )
 
-        log_level = "DEBUG" if app_config.environment in ["dev", "qa"] else "INFO"
-
-        domain_event_handler_name = app_config.format_resource_name("domain-events")
-        image_builder_event_handler_name = app_config.format_resource_name("image-builder-events")
-        component_version_testing_handler_name = app_config.format_resource_name("component-version-testing")
-        recipe_version_testing_handler_name = app_config.format_resource_name("recipe-version-testing")
+        domain_event_handler_name = app_config.format_resource_name(Entrypoint.DOMAIN_EVENTS)
+        image_builder_event_handler_name = app_config.format_resource_name(Entrypoint.IMAGE_BUILDER_EVENTS)
+        component_version_testing_handler_name = app_config.format_resource_name(Entrypoint.COMPONENT_VERSION_TESTING)
+        recipe_version_testing_handler_name = app_config.format_resource_name(Entrypoint.RECIPE_VERSION_TESTING)
 
         self._backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
             "PackagingApp",
+            app_config=app_config,
+            global_env_vars={
+                "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
+            },
             app_entry_points=[
                 backend_app_entrypoints.AppEntryPoint(
-                    name=app_config.format_resource_name("api"),
+                    name=app_config.format_resource_name(Entrypoint.API),
                     app_root="app",
                     lambda_root="app/packaging",
                     entry="app/packaging/entrypoints/api",
@@ -224,7 +235,6 @@ class PackagingAppStack(aws_cdk.Stack):
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PACKAGING,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_API_PATH_PACKAGING,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "COMPONENT_S3_BUCKET_NAME": app_config.component_specific["component-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
@@ -247,9 +257,6 @@ class PackagingAppStack(aws_cdk.Stack):
                         ),
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -301,15 +308,11 @@ class PackagingAppStack(aws_cdk.Stack):
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
                         "AMI_FACTORY_SUBNET_NAMES": ami_factory_subnet_names,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -359,14 +362,10 @@ class PackagingAppStack(aws_cdk.Stack):
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
                         "AMI_FACTORY_SUBNET_NAMES": ami_factory_subnet_names,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -412,7 +411,6 @@ class PackagingAppStack(aws_cdk.Stack):
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
                         "AMI_FACTORY_SUBNET_NAMES": ami_factory_subnet_names,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "COMPONENT_S3_BUCKET_NAME": app_config.component_specific["component-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
@@ -431,9 +429,6 @@ class PackagingAppStack(aws_cdk.Stack):
                         ),
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "RECIPE_S3_BUCKET_NAME": app_config.component_specific["recipe-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
@@ -474,7 +469,6 @@ class PackagingAppStack(aws_cdk.Stack):
                     entry="app/packaging/entrypoints/image_builder_event_handler",
                     environment={
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
-                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
@@ -482,9 +476,6 @@ class PackagingAppStack(aws_cdk.Stack):
                         "GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION": GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION,
                         "GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY": GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY,
                         "GSI_NAME_IMAGE_UPSTREAM_ID": GSI_NAME_IMAGE_UPSTREAM_ID,
-                        "LOG_LEVEL": log_level,
-                        "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "TABLE_NAME": self._storage.table.table_name,
                         "TOPIC_NAME": PRODUCT_PACKAGING_TOPIC_NAME,
                     },
@@ -682,7 +673,7 @@ class PackagingAppStack(aws_cdk.Stack):
             ops_monitoring.OpsMonitoringBuilder(
                 self,
                 app_config.format_resource_name("ops-dashboard"),
-                VEW_NAMESPACE,
+                constants.VEW_NAMESPACE,
                 VEW_SERVICE,
                 app_config,
             )
@@ -737,7 +728,7 @@ class PackagingAppStack(aws_cdk.Stack):
                 source=aws_events.Match.prefix("Workbench Image Service"),
             ),
             lambda_function=self._backend_app.app_entries_functions[
-                app_config.format_resource_name("image-builder-events")
+                app_config.format_resource_name(Entrypoint.IMAGE_BUILDER_EVENTS)
             ],
             max_retries=3,
             name="image-builder-event-rule",
@@ -756,6 +747,18 @@ class PackagingAppStack(aws_cdk.Stack):
             ).string_value
 
         return self._image_service_account_id
+
+    @property
+    def backend_app(self) -> backend_app_entrypoints.BackendAppEntrypoints:
+        return self._backend_app
+
+    @property
+    def internal_api(self) -> backend_app_openapi.BackendAppOpenApi | None:
+        return self._open_api
+
+    @property
+    def table(self) -> aws_dynamodb.ITable | None:
+        return self._storage.table
 
     @property
     def api(self) -> backend_app_openapi.BackendAppOpenApi:

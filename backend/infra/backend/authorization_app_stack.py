@@ -1,3 +1,4 @@
+import enum
 import json
 
 import aws_cdk
@@ -6,17 +7,24 @@ from aws_cdk import aws_dynamodb, aws_events, aws_events_targets, aws_iam, aws_s
 
 from app.authorization import domain
 from app.authorization.domain.commands import sync_assignments_command
+from app.shared.api import bounded_contexts
 from infra import config, constants
-from infra.constructs import backend_app_entrypoints, backend_app_storage, shared_layer
+from infra.backend import vew_bounded_context_stack
+from infra.constructs import backend_app_entrypoints, backend_app_openapi, backend_app_storage, shared_layer
 from infra.constructs.eventbridge import l3_event_bus
 from infra.helpers import ops_monitoring
 
-VEW_NAMESPACE = "VirtualEngineeringWorkbench"
 VEW_SERVICE = "Authorization"
 GSI_NAME_INVERTED_PK = "gsi_inverted_primary_key"
 
 
-class AuthorizationAppStack(aws_cdk.Stack):
+class Entrypoint(enum.StrEnum):
+    AUTHORIZER_REQUEST_EVENTS = "authorizer-request-events"
+    PROJECTS_EVENTS = "projects-events"
+    SCHEDULED_JOBS = "scheduled-jobs"
+
+
+class AuthorizationAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
     def __init__(
         self,
         scope: constructs.Construct,
@@ -24,7 +32,7 @@ class AuthorizationAppStack(aws_cdk.Stack):
         app_config: config.AppConfig,
         **kwargs,
     ) -> None:
-        super().__init__(scope, id, **kwargs)
+        super().__init__(scope, id, app_config=app_config, **kwargs)
 
         # Lambda layers
         self.__authorization_app_layer = shared_layer.SharedLayer(
@@ -39,8 +47,6 @@ class AuthorizationAppStack(aws_cdk.Stack):
             layer_version_name="shared_app_libraries",
             entry="app/shared",
         )
-
-        log_level = "DEBUG" if app_config.environment in ["dev", "qa"] else "INFO"
 
         parsed_user_role_stage_access = app_config.environment_config["user-role-stage-access"]
         user_role_stage_access_param_name = app_config.format_ssm_parameter_name("user-role-stage-access")
@@ -63,9 +69,9 @@ class AuthorizationAppStack(aws_cdk.Stack):
             sort_key=aws_dynamodb.Attribute(name="PK", type=aws_dynamodb.AttributeType.STRING),
         )
 
-        authorizer_function_name = app_config.format_resource_name("authorizer-request-events")
-        projects_events_handler_name = app_config.format_resource_name("projects-events")
-        scheduled_jobs_handler_name = app_config.format_resource_name("scheduled-jobs")
+        authorizer_function_name = app_config.format_resource_name(Entrypoint.AUTHORIZER_REQUEST_EVENTS)
+        projects_events_handler_name = app_config.format_resource_name(Entrypoint.PROJECTS_EVENTS)
+        scheduled_jobs_handler_name = app_config.format_resource_name(Entrypoint.SCHEDULED_JOBS)
 
         user_pool_url = aws_ssm.StringParameter.value_for_string_parameter(
             self,
@@ -86,20 +92,17 @@ class AuthorizationAppStack(aws_cdk.Stack):
 
         user_pool_region = app_config.environment_config["cognito-region"]
 
-        common_env_vars = {
-            "BOUNDED_CONTEXT": app_config.bounded_context_name,
-            "LOG_LEVEL": log_level,
-            "POWERTOOLS_METRICS_NAMESPACE": VEW_NAMESPACE,
-            "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
-            "TABLE_NAME": storage.table.table_name,
-            "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
-            "POLICY_STORE_SSM_PARAM_PREFIX": policy_param_prefix,
-        }
-
         # Create shared authorizer function using BackendAppEntrypoints
         self.__backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
             "AuthorizationApp",
+            app_config=app_config,
+            global_env_vars={
+                "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
+                "TABLE_NAME": storage.table.table_name,
+                "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
+                "POLICY_STORE_SSM_PARAM_PREFIX": policy_param_prefix,
+            },
             app_entry_points=[
                 backend_app_entrypoints.AppEntryPoint(
                     name=authorizer_function_name,
@@ -107,8 +110,6 @@ class AuthorizationAppStack(aws_cdk.Stack):
                     lambda_root="app/authorization",
                     entry="app/authorization/entrypoints/api_gateway_authorizer_request_event_handler",
                     environment={
-                        **common_env_vars,
-                        "APP_ENVIRONMENT": app_config.environment,
                         "USER_POOL_URL": f"https://{user_pool_url}",
                         "USER_POOL_ID": user_pool_id,
                         "USER_POOL_CLIENT_IDS": user_pool_client_id,
@@ -156,7 +157,7 @@ class AuthorizationAppStack(aws_cdk.Stack):
                     app_root="app",
                     lambda_root="app/authorization",
                     entry="app/authorization/entrypoints/projects_event_handler",
-                    environment=common_env_vars,
+                    environment={},
                     permissions=[
                         lambda lambda_f: storage.table.grant_read_write_data(lambda_f),
                     ],
@@ -171,7 +172,7 @@ class AuthorizationAppStack(aws_cdk.Stack):
                     app_root="app",
                     lambda_root="app/authorization",
                     entry="app/authorization/entrypoints/scheduled_jobs_handler",
-                    environment=common_env_vars,
+                    environment={},
                     permissions=[
                         lambda lambda_f: storage.table.grant_read_write_data(lambda_f),
                         lambda lambda_f: lambda_f.add_to_role_policy(
@@ -191,6 +192,12 @@ class AuthorizationAppStack(aws_cdk.Stack):
                     timeout=aws_cdk.Duration.minutes(15),
                     memory_size=1792,
                     asynchronous=True,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/projects"),
+                            ("GET", "/internal/projects/*/users"),
+                        ],
+                    },
                 ),
             ],
             app_layers=[
@@ -201,7 +208,7 @@ class AuthorizationAppStack(aws_cdk.Stack):
 
         # Subscribe to integration events
         projects_event_bus = l3_event_bus.from_bounded_context(
-            self, "projects-bus", app_config=app_config, bounded_context_name="projects"
+            self, "projects-bus", app_config=app_config, bounded_context_name=bounded_contexts.BoundedContext.PROJECTS
         )
         projects_event_bus.subscribe_to_events(
             name="projects-events-rule",
@@ -244,6 +251,9 @@ class AuthorizationAppStack(aws_cdk.Stack):
             description="Authorization BC Lambda function role ARN to be used to grant API access to Bounded Contexts",
         )
 
+        # --- Legacy export: kept for backward compatibility during migration. ---
+        # --- Was consumed by integration_permissions_stack.py (now replaced by ServiceDiscoveryStack). ---
+        # --- Safe to remove once the old CloudFormation stack is deleted. ---
         aws_cdk.CfnOutput(
             self,
             "APIGatewayAuthorizerRequestEventHandlerName",
@@ -264,15 +274,30 @@ class AuthorizationAppStack(aws_cdk.Stack):
             value=self.__backend_app.app_entries_functions[scheduled_jobs_handler_name].role.role_arn,
             export_name=constants.AUTH_BC_SCHEDULED_JOB_HANDLER_ROLE_ARN_EXPORT_NAME,
         )
+        # --- End legacy exports ---
+
+        self._storage = storage
 
         self.__configure_ops(app_config, storage)
+
+    @property
+    def backend_app(self) -> backend_app_entrypoints.BackendAppEntrypoints:
+        return self.__backend_app
+
+    @property
+    def internal_api(self) -> backend_app_openapi.BackendAppOpenApi | None:
+        return None
+
+    @property
+    def table(self) -> aws_dynamodb.ITable | None:
+        return self._storage.table
 
     def __configure_ops(self, app_config: config.AppConfig, storage: backend_app_storage.BackendAppStorage):
         (
             ops_monitoring.OpsMonitoringBuilder(
                 self,
                 app_config.format_resource_name("ops-dashboard"),
-                VEW_NAMESPACE,
+                constants.VEW_NAMESPACE,
                 VEW_SERVICE,
                 app_config,
             )

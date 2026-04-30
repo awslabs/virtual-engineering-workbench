@@ -37,7 +37,7 @@ from app.shared.adapters.unit_of_work_v2 import (
     dynamodb_migrations,
     dynamodb_unit_of_work,
 )
-from app.shared.api import aws_api, aws_events_api
+from app.shared.api import aws_events_api, bounded_contexts, service_registry
 from app.shared.ddd import aggregate
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
@@ -114,11 +114,11 @@ def bootstrap(  # noqa: C901
         uow=shared_uow,
     )
 
-    aws_api_instance = aws_api.AWSAPI(
-        api_url=app_config.get_publishing_api_url(),
-        region=app_config.get_default_region(),
+    aws_api_instance = service_registry.ServiceRegistry.from_config(
+        app_config=app_config,
+        ssm_client=boto3.client("ssm", region_name=app_config.get_default_region()),
         logger=logger,
-    )
+    ).api_for(bounded_contexts.BoundedContext.PUBLISHING)
 
     publishing_api_qs = publishing_api_query_service.PublishingApiQueryService(api=aws_api_instance, logger=logger)
 
