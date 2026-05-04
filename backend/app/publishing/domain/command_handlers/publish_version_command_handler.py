@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 import jinja2
+from jinja2.sandbox import SandboxedEnvironment
 
 from app.publishing.domain.commands import publish_version_command
 from app.publishing.domain.events import (
@@ -294,8 +295,8 @@ def _handle_ami_product(
         )
     ami_ids_per_region = {ami.region: ami.copiedAmiId for ami in shared_amis}
 
-    # Replace fields using the Jinja template
-    jinja_template = jinja2.Template(template.decode())
+    env = SandboxedEnvironment(loader=jinja2.BaseLoader())
+    jinja_template = env.from_string(template.decode())
 
     rendered_text = jinja_template.render(
         product_name=prod.productName,
