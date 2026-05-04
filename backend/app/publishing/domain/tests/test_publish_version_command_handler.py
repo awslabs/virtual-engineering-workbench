@@ -2,8 +2,10 @@ import logging
 import tempfile
 from unittest import mock
 
+import assertpy
 import pytest
 from freezegun import freeze_time
+from jinja2.exceptions import SecurityError
 
 from app.publishing.domain.command_handlers import publish_version_command_handler
 from app.publishing.domain.commands import publish_version_command
@@ -988,3 +990,50 @@ def test_publish_when_notification_constraint_exists_should_not_assign_notificat
     # ASSERT
     catalog_service_mock.create_notification_constraint.assert_not_called()
     projects_query_service_mock.get_project.assert_called_once()
+
+
+def test_handle_ami_product_should_sandbox_jinja2_ssti_payload(
+    shared_amis_query_service_mock,
+    get_version,
+    get_product,
+):
+    # ARRANGE
+    ssti_payload = b"{{ self.__init__.__globals__['os'].popen('id').read() }}"
+    vers = get_version()
+    prod = get_product()
+
+    # ACT
+    with pytest.raises(SecurityError) as exc_info:
+        publish_version_command_handler._handle_ami_product(
+            template=ssti_payload,
+            shared_amis_qry_srv=shared_amis_query_service_mock,
+            vers=vers,
+            prod=prod,
+        )
+
+    # ASSERT
+    assertpy.assert_that(str(exc_info.value)).is_equal_to(
+        "access to attribute '__init__' of 'TemplateReference' object is unsafe."
+    )
+
+
+def test_handle_ami_product_should_render_legitimate_template(
+    shared_amis_query_service_mock,
+    get_version,
+    get_product,
+):
+    # ARRANGE
+    template = b"Name: {{ product_name }}, Version: {{ product_version }}"
+    vers = get_version()
+    prod = get_product()
+
+    # ACT
+    result = publish_version_command_handler._handle_ami_product(
+        template=template,
+        shared_amis_qry_srv=shared_amis_query_service_mock,
+        vers=vers,
+        prod=prod,
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to(f"Name: {prod.productName}, Version: {vers.versionName}")
