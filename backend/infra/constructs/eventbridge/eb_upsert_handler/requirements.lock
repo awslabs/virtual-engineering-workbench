@@ -22,13 +22,13 @@ aws-xray-sdk==2.15.0 \
     # via
     #   -r infra/constructs/eventbridge/eb_upsert_handler/requirements.txt
     #   aws-lambda-powertools
-boto3==1.42.96 \
-    --hash=sha256:2f4566da2c209a98bdbfc874d813ef231c84ad24e4f815e9bc91de5f63351a24 \
-    --hash=sha256:b38a9e4a3fbbee9017252576f1379780d0a5814768676c08df2f539d31fcdd68
+boto3==1.43.2 \
+    --hash=sha256:796e859cfb5e93c55276ce746f8020f691eda6b68a0ec4ce4f6fd07a1cca6859 \
+    --hash=sha256:be951cc22769fbcda73fac523b031ee38db45c3ae2b0d828c76b8f6e8e683073
     # via aws-encryption-sdk
-botocore==1.42.96 \
-    --hash=sha256:75b3b841ffacaa944f645196655a21ca777591dd8911e732bfb6614545af0250 \
-    --hash=sha256:db2c3e2006628be6fde81a24124a6563c363d6982fb92728837cf174bad9d98a
+botocore==1.43.2 \
+    --hash=sha256:7b2ec87b6d0720bff920451ce930e71c2a99cdea48d0eaa66ccf0b21ea747e03 \
+    --hash=sha256:b823454d751a1c24bb403b5b07ab65007689654abb21787df923684e0743976c
     # via
     #   aws-xray-sdk
     #   boto3
@@ -185,9 +185,9 @@ jsonpath-ng==1.8.0 \
     --hash=sha256:54252968134b5e549ea5b872f1df1168bd7defe1a52fed5a358c194e1943ddc3 \
     --hash=sha256:b8dde192f8af58d646fc031fac9c99fe4d00326afc4148f1f043c601a8cfe138
     # via aws-lambda-powertools
-mypy-boto3-events==1.42.3 \
-    --hash=sha256:b1ed74a02588e6de55087190a5ec4ab9eb3a36ed655c3d3b6337f834492d31b3 \
-    --hash=sha256:ce8245537442d5b816bcafeb4ec00a4685836e5d7e55e86394633db35f21ec58
+mypy-boto3-events==1.43.0 \
+    --hash=sha256:215b8d686e9b745a864090931d1dfcda2e49bec32383f887d580a2c46492dc26 \
+    --hash=sha256:f7f5cd246be4d54f6982d42c8f30da47ef78cd2aea53311d251dc09c3f556f97
     # via -r infra/constructs/eventbridge/eb_upsert_handler/requirements.txt
 pycparser==3.0 \
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
@@ -333,9 +333,9 @@ python-dotenv==1.2.2 \
     --hash=sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a \
     --hash=sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3
     # via pydantic-settings
-s3transfer==0.16.1 \
-    --hash=sha256:61bcd00ccb83b21a0fe7e91a553fff9729d46c83b4e0106e7c314a733891f7c2 \
-    --hash=sha256:8e424355754b9ccb32467bdc568edf55be82692ef2002d934b1311dbb3b9e524
+s3transfer==0.17.0 \
+    --hash=sha256:9edeb6d1c3c2f89d6050348548834ad8289610d886e5bf7b7207728bd43ce33a \
+    --hash=sha256:ce3801712acf4ad3e89fb9990df97b4972e93f4b3b0004d214be5bce12814c20
     # via boto3
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
