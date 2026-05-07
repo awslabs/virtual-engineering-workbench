@@ -16,9 +16,4 @@ def from_str(value: typing.Optional[str]) -> VersionTemplateDefinitionValueObjec
     if not value:
         raise domain_exception.DomainException("Version template definition cannot be empty.")
 
-    if _JINJA2_CONTROL_PATTERN.search(value):
-        raise domain_exception.DomainException(
-            "Version template definition must not contain Jinja2 control sequences ({{, {%, {#)."
-        )
-
     return VersionTemplateDefinitionValueObject(value=value)
