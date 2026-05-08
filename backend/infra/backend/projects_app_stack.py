@@ -151,6 +151,15 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         scheduled_metric_producer_name = app_config.format_resource_name(Entrypoint.SCHEDULED_METRIC_PRODUCER)
         account_onboarding_handler_name = app_config.format_resource_name(Entrypoint.ACCOUNT_ONBOARDING)
 
+        # Cognito user pool ID — needed both by the UI API Lambda (to enrich
+        # newly-assigned members with their email on onboarding) and by the
+        # S2S API's OAuth integration below.
+        cognito_user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(
+            self,
+            app_config.environment_config["cognito-userpool-id-ssm-param"].format(environment=app_config.environment),
+        )
+        cognito_user_pool_arn = f"arn:aws:cognito-idp:{self.region}:{self.account}:userpool/{cognito_user_pool_id}"
+
         environment_vars = {
             "TABLE_NAME": self._storage.table.table_name,
             "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
@@ -203,6 +212,7 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "CATALOG_SERVICE_ACCOUNT_ID": catalog_service_account_id,
                         "CUSTOM_DNS": custom_api_domain,
                         "LAYER_VERSION": self._shared_app_layer.layer.layer_version_arn,
+                        "COGNITO_USER_POOL_ID": cognito_user_pool_id,
                     },
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
@@ -224,6 +234,13 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                 resources=[
                                     "*",
                                 ],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                actions=["cognito-idp:ListUsers"],
+                                effect=aws_iam.Effect.ALLOW,
+                                resources=[cognito_user_pool_arn],
                             )
                         ),
                         lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
@@ -264,6 +281,7 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_S2S_API_PATH_PROJECTS,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_S2S_API_PATH_PROJECTS,
+                        "COGNITO_USER_POOL_ID": cognito_user_pool_id,
                     },
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
@@ -276,6 +294,13 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                 resources=[
                                     audit_logging_key_arn,
                                 ],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                actions=["cognito-idp:ListUsers"],
+                                effect=aws_iam.Effect.ALLOW,
+                                resources=[cognito_user_pool_arn],
                             )
                         ),
                         lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
@@ -551,11 +576,6 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         )
 
         # API Gateway for service to service access
-        user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(
-            self,
-            app_config.environment_config["cognito-userpool-id-ssm-param"].format(environment=app_config.environment),
-        )
-
         self._s2s_open_api = backend_app_openapi_oauth.BackendAppOpenApiOauth(
             self,
             "ServiceIntegrationProjectsOpenApi",
@@ -565,7 +585,7 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             schema="proserve-workbench-s2s-projects-api-schema.yaml",
             api_version="v1",
             version_description="First release of service to service Project API",
-            user_pool_id=user_pool_id,
+            user_pool_id=cognito_user_pool_id,
             cache_enabled=True,
             waf_acl_arn=api_acl_arn if not provision_private_endpoint else None,
             cache_explicit_disable=[
