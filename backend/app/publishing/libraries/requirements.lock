@@ -107,13 +107,13 @@ mypy-boto3-dynamodb==1.43.0 \
     --hash=sha256:60b64d15e86d406a980d96f734d8c7fb1704668d0234dc8dabd2532c902a3ba6 \
     --hash=sha256:f0cea38e058f1d07361ecb55d8f40665d824b42cf4864724c7fccc8bf3946fcd
     # via -r app/publishing/libraries/requirements.txt
-mypy-boto3-ec2==1.43.0 \
-    --hash=sha256:241596b819ba9632b7c5f395bf34c7b9c00ae1754dfca67997cae96518e0c9f5 \
-    --hash=sha256:e38e452ce4111db15147746fa5d69450fe4ceb82e1ac854ffdf5100cb9fbb342
+mypy-boto3-ec2==1.43.6 \
+    --hash=sha256:b57e19331177c3ca802b0a2879af22d008b52b176376ef48f45dc3a6f2944b27 \
+    --hash=sha256:cd856ee6d746436a098c267fffcc7e0d9a300bfadda6fc3bbe9422662c697af5
     # via -r app/publishing/libraries/requirements.txt
-mypy-boto3-s3==1.43.0 \
-    --hash=sha256:3bfb027b1f3df9316ff72ff29f4b2dc0d7d65ed5032d8bcf4892222994228588 \
-    --hash=sha256:aaa7991e7ffafcf8ff4fb23c5fb4cc4554ef5724c889ff016b87e60f27405b5b
+mypy-boto3-s3==1.43.5 \
+    --hash=sha256:7cd836cf3ec384b6a05b108047034ece03bb7dd0bd0890c527673eafc44907bb \
+    --hash=sha256:ba67dbc3da825b6818839db3823722f3b12304dd116e94ed398eb7ade86b0f62
     # via -r app/publishing/libraries/requirements.txt
 mypy-boto3-servicecatalog==1.43.0 \
     --hash=sha256:2755270b4486aa73e5d6a8c687a80368b04b6bc396d98319b46276ef34097263 \

@@ -28,6 +28,7 @@ dependencies = [
     "requests~=2.31",
     "retry2~=0.9",
     "semver~=3.0.1",
+    "urllib3~=2.7.0",
     # --- boto3 type stubs (runtime) ---
     "mypy-boto3-cloudformation~=1.42",
     "mypy-boto3-cloudwatch~=1.42",

@@ -16,3 +16,4 @@ cdk-monitoring-constructs ~= 9.2.0
 cdk-nag ~= 2.35.54
 constructs ~= 10.4.2
 typeguard ~= 2.13.3
+urllib3 ~= 2.7.0
