@@ -242,14 +242,18 @@ export const useProductVersionWizard = ({
     const versions = productData?.product.versions;
     if (!versions?.length) { return; }
 
-    const nonRetired = [...versions.filter(v => v.status === 'RELEASED' || v.status === 'RETIRED')]
+    // Product versions are CREATED (terminal active) or RETIRED — there's no
+    // RELEASED status for products (that's Components/Recipes only). Treating
+    // RELEASED as the active state silently filtered out CREATED versions and
+    // pre-selected the latest RETIRED one as the "base major version".
+    const activeOrRetired = [...versions.filter(v => v.status === 'CREATED' || v.status === 'RETIRED')]
       .sort((a, b) => rcompare(a.name, b.name));
 
     if (isUpdate) {
-      const current = nonRetired.find(v => v.versionId === productVersion.versionId);
-      setSelectedBaseMajorVersion(current ?? nonRetired[0]);
+      const current = activeOrRetired.find(v => v.versionId === productVersion.versionId);
+      setSelectedBaseMajorVersion(current ?? activeOrRetired[0]);
     } else {
-      setSelectedBaseMajorVersion(nonRetired[0]);
+      setSelectedBaseMajorVersion(activeOrRetired[0]);
     }
   }, [productData]);
 
@@ -271,7 +275,7 @@ export const useProductVersionWizard = ({
     const versions = productData?.product.versions;
     if (!versions?.length || versionReleaseType !== versionReleaseTypes[0]) { return; }
     const sorted = [...versions.filter(
-      v => v.status === 'RELEASED' || v.status === 'RETIRED'
+      v => v.status === 'CREATED' || v.status === 'RETIRED'
     )].sort((a, b) => rcompare(a.name, b.name));
     setSelectedBaseMajorVersion(sorted[0]);
   }, [versionReleaseType]);
@@ -283,7 +287,7 @@ export const useProductVersionWizard = ({
 
   const nonRetiredVersions = [...
   productData?.product.versions?.filter(
-    v => v.status === 'RELEASED' || v.status === 'RETIRED'
+    v => v.status === 'CREATED' || v.status === 'RETIRED'
   ) ?? []
   ].sort((a, b) => rcompare(a.name, b.name));
 
