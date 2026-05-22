@@ -20,7 +20,7 @@ This is an infrastructure CDK template for User Interface CloudFormation stack.
    cdk bootstrap aws://12345678900/us-east-1
    ```
 
-2. Deploy `../prerequisites/vew-deployment-account-prerequisites.yml` to the target AWS account. 
+2. Deploy `../prerequisites/vew-deployment-account-prerequisites.yml` to the target AWS account.
 
    If you modify CDK template to use Cognito User Pool authentication instead, make sure that you configure a strong password policy and enable multi factor authentication.
 

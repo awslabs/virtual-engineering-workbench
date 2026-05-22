@@ -10,7 +10,7 @@ const features: FeatureToggleConfigItem[] = [
   {
     version: '1.0.0',
     feature: 'BetaUserInfoText',
-    description: `Shows a warning to the new users that this is a test environment. 
+    description: `Shows a warning to the new users that this is a test environment.
 It is intended to prevent users from uploading production data to the workbenches.`,
     enabled: true,
     environmentOverride: {

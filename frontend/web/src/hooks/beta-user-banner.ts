@@ -8,8 +8,8 @@ import { Feature } from '../components/feature-toggles/feature-toggle.state';
 
 
 const i18n = {
-  betaUserWarning: `Warning! 
-This environment is intended for testing purposes and is not a production environment. 
+  betaUserWarning: `Warning!
+This environment is intended for testing purposes and is not a production environment.
 Please take care not to upload proprietary intellectual property.`
 };
 

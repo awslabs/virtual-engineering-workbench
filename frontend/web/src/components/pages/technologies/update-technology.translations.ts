@@ -14,6 +14,6 @@ export const i18n = {
   technologyUpdateSuccessError: 'Unable to update technology.',
   infoPanelHeader: 'Update technology',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `You can modify the technology name and description. You are unable to modify 
+  infoPanelMessage1: `You can modify the technology name and description. You are unable to modify
   the technology ID.`,
 };

@@ -161,11 +161,11 @@ const Components: FC<ComponentsProps> = ({ serviceApi }) => {
     });
 
   const { onSortingChange } = useCloudscapeTablePersisentState<Component>({
-    key: 'prod-man-component', 
+    key: 'prod-man-component',
     columnDefinitions,
     setSorting: actions.setSorting,
   });
-  
+
   const defaultFunc = collectionProps.onSelectionChange;
   collectionProps.onSelectionChange = selectionChanged;
 

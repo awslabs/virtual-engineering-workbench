@@ -50,7 +50,7 @@ $feedback-btn-variant: (
     background: map.get($feedback-btn-variant, 'default-background') !important;
     color: map.get($feedback-btn-variant, 'default-color') !important;
     border-color: map.get($feedback-btn-variant, 'default-border-color') !important;
-  
+
     &:hover {
       background: map.get($feedback-btn-variant, 'hover-background') !important;
       color: map.get($feedback-btn-variant, 'hover-color') !important;

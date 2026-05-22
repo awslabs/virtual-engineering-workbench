@@ -16,7 +16,7 @@ export const i18n = {
   infoPanelHeader: 'Create product version',
   infoPanelLabel1: 'How do I fill this information in?',
   infoPanelMessage1: 'Enter version description to inform platform users about its purpose.',
-  infoPanelMessage2: `Select the AMI ID that best suits your needs. In the dropdown you may see in how 
+  infoPanelMessage2: `Select the AMI ID that best suits your needs. In the dropdown you may see in how
   many product versions each AMI was used before.`,
   infoPanelMessage3: `Select whether you want this version to be a major, minor or a patch release.
   Note that minor and patch versions must be based on an existing major version.

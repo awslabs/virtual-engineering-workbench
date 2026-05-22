@@ -22,7 +22,7 @@
     "cronstrue": "^3.13.0",
     "cross-spawn": "^7.0.6",
     "date-fns": "^4.1.0",
-    "fast-xml-parser": "^5.4.1",
+    "fast-xml-parser": "^5.7.0",
     "jquery": "^4.0.0",
     "js-confetti": "^0.13.1",
     "react": "^18.3.1",
@@ -43,7 +43,7 @@
     "cross-spawn": "^7.0.6",
     "diff": "^8.0.3",
     "dompurify": "^3.3.2",
-    "fast-xml-parser": "^5.5.9",
+    "fast-xml-parser": "^5.7.0",
     "immutable": "^4.3.8",
     "js-yaml": "^4.1.1",
     "path-to-regexp": "^8.0.0",
@@ -59,7 +59,8 @@
     "vite": "^7.3.2",
     "@nestjs/core": "^11.1.18",
     "follow-redirects": "^1.16.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "qs": "^6.15.2"
   },
   "scripts": {
     "dev": "vite --port 3000",

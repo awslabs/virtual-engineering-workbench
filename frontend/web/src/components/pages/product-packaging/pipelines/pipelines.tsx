@@ -269,8 +269,8 @@ const Pipelines: FC<PipelinesProps> = () => {
                   >
                     {i18n.pipelineActions}
                   </ButtonDropdown>
-                  <Button 
-                    variant='primary' 
+                  <Button
+                    variant='primary'
                     onClick={() => setIsCreateImageModalOpen(true)}
                     disabled={preventAction(PIPELINE_STATES_FOR_CREATE_IMAGE)}
                     data-test='create-image-btn'
@@ -322,7 +322,7 @@ const Pipelines: FC<PipelinesProps> = () => {
           confirmButtonLoading={isRetireInProgress}
           visible={isRetirePipelineModalOpen}
         />}
-        {isCreateImageModalOpen && <UserPrompt 
+        {isCreateImageModalOpen && <UserPrompt
           onConfirm={createImage}
           onCancel={() => setIsCreateImageModalOpen(false)}
           headerText={i18n.createImageHeader}

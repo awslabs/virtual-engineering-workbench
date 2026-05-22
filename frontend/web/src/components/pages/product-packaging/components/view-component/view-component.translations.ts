@@ -51,18 +51,18 @@ export const i18n = {
   infoPanelPoint1: 'Browse',
   infoPanelPoint1Message: 'View existing component versions.',
   infoPanelPoint2: 'Create new versions',
-  infoPanelPoint2Message: `Each new component version is automatically tested once created and must 
+  infoPanelPoint2Message: `Each new component version is automatically tested once created and must
   pass tests before being marked as eligible for release.`,
   infoPanelPoint3: 'Share',
-  infoPanelPoint3Message: `Components can be shared with other programs. Users in both programs will 
+  infoPanelPoint3Message: `Components can be shared with other programs. Users in both programs will
   be able to update the component and its versions.`,
   infoPanelPoint4: 'Release',
-  infoPanelPoint4Message: `You may release a release candidate version of the component if it has passed 
+  infoPanelPoint4Message: `You may release a release candidate version of the component if it has passed
   tests. The version cannot be further updated.`,
   infoPanelPoint5: 'Update',
-  infoPanelPoint5Message: `An update can only be made on release candidate version of the component. 
+  infoPanelPoint5Message: `An update can only be made on release candidate version of the component.
   Once updated, its number is incremented e.g. 1.0.0-rc.2 `,
   infoPanelPoint6: 'Retire',
-  infoPanelPoint6Message: `A component version can be retired if it is still a release candidate. Power users 
+  infoPanelPoint6Message: `A component version can be retired if it is still a release candidate. Power users
   can retire a released component version, provided it is not included in any recipe version.`,
 };

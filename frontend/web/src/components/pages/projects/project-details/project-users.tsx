@@ -60,7 +60,7 @@ const i18n = {
   unassignModalText2: 'If you continue, their assigned roles and access to the program will be revoked.',
   unassignModalText3: 'Do you want to proceed?',
   reassignModalText2: 'members.',
-  reassignModalText3: ` Selecting a new role will apply to all of the members 
+  reassignModalText3: ` Selecting a new role will apply to all of the members
   currently selected and may result in an increase or decrease in permissions.`,
 };
 

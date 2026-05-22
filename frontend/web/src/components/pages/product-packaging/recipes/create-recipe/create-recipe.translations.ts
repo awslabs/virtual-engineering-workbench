@@ -31,7 +31,7 @@ export const i18n = {
   infoPanelHeader: 'Create recipe',
   infoPanelLabel1: 'How do I fill this information in?',
   infoPanelMessage1: 'The form requires inputting recipe related metadata such as name and description.',
-  infoPanelMessage2: `Platform allows you to determine whether the recipe will be used for Windows or 
+  infoPanelMessage2: `Platform allows you to determine whether the recipe will be used for Windows or
   Linux based images. `,
   infoPanelMessage3: 'Select recipe supported architecture and supported OS versions based on the chosen platform.',
 };

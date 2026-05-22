@@ -50,7 +50,7 @@ export const i18n = {
   copyAmiIdError: 'Unable to copy AMI ID',
   infoPanelHeader: 'Images',
   infoPanelLabel1: 'What are images?',
-  infoPanelMessage1: `Images also know as AMIs (Amazon Machine Image) are supported and maintained 
+  infoPanelMessage1: `Images also know as AMIs (Amazon Machine Image) are supported and maintained
   images provided by AWS that provide the information required to launch an instance.`,
   infoPanelLabel2: 'What can I accomplish here?',
   infoPanelMessage2: 'This page allows you to:',
