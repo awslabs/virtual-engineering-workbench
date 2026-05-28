@@ -120,7 +120,7 @@ export class AppCdn extends Construct {
 
     NagSuppressions.addResourceSuppressions(this._frontendS3Bucket, [{
       id: 'NIST.800.53.R4-S3BucketDefaultLockEnabled',
-      reason: `Cannot set object lock for static content, as it would prevent 
+      reason: `Cannot set object lock for static content, as it would prevent
                uploading new web application versions.`
     }, {
       id: 'NIST.800.53.R4-S3BucketReplicationEnabled',
@@ -141,7 +141,7 @@ export class AppCdn extends Construct {
 
     NagSuppressions.addResourceSuppressions(this._frontendErrorsS3Bucket, [{
       id: 'NIST.800.53.R4-S3BucketDefaultLockEnabled',
-      reason: `Cannot set object lock for static content, as it would prevent 
+      reason: `Cannot set object lock for static content, as it would prevent
                uploading new web application versions.`
     }, {
       id: 'NIST.800.53.R4-S3BucketReplicationEnabled',
@@ -162,10 +162,10 @@ export class AppCdn extends Construct {
   }
 
   withLambdaProtection(): AppCdn {
-    /*  
-      Lambda@Edge to check for Cognito JWT in cookies 
-      Lambda@Edge does not support environment variables, 
-      so putting the environment name in a file dynamically... 
+    /*
+      Lambda@Edge to check for Cognito JWT in cookies
+      Lambda@Edge does not support environment variables,
+      so putting the environment name in a file dynamically...
     */
 
     const jsonIndentSpaces = 4;
@@ -290,7 +290,7 @@ export class AppCdn extends Construct {
   }
 
   withLambdaClientIpHandler(): AppCdn {
-    /*  
+    /*
       Lambda@Edge to modify response to add client-ip
     */
 
@@ -460,7 +460,7 @@ export class AppCdn extends Construct {
 
     NagSuppressions.addResourceSuppressions(this._distribution, [{
       id: 'AwsSolutions-CFR4',
-      reason: `Distributions with the default CloudFront viewer 
+      reason: `Distributions with the default CloudFront viewer
                certificate are non-compliant with enforcing TLSv1.1 or TLSv1.2.`,
     }]);
 
@@ -496,9 +496,9 @@ export class AppCdn extends Construct {
 
     userPool.withWebAppClient(callbackUrls, callbackUrlsLogout);
 
-    /*  
-      CloudFront Lambda@Edge does not support environment variables. 
-      For this reason they will be fetched from SSM by the Lambda@Edge during runtime. 
+    /*
+      CloudFront Lambda@Edge does not support environment variables.
+      For this reason they will be fetched from SSM by the Lambda@Edge during runtime.
     */
     const userPoolParam = new ssm.StringParameter(this, 'user-pool-id', {
       parameterName: `/${this._appName}-${this._appEnvironment}/user-pool-id`,

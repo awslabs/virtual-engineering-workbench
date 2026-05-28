@@ -27,30 +27,20 @@ class FrontendFeatureToggles:
 
     def get_feature_configuration(self) -> typing.List[feature.Feature]:
         try:
-            feature_toggles_raw = json.loads(
-                self._parameter_service.get_parameter_value(self._parameter_name)
-            )
+            feature_toggles_raw = json.loads(self._parameter_service.get_parameter_value(self._parameter_name))
         except:
-            self._logger.exception(
-                "Unable to fetch feature toggles form parameter store."
-            )
+            self._logger.exception("Unable to fetch feature toggles form parameter store.")
             feature_toggles_raw = []
 
         try:
-            feature_toggles = [
-                feature.Feature.parse_obj(f) for f in feature_toggles_raw
-            ]
+            feature_toggles = [feature.Feature.parse_obj(f) for f in feature_toggles_raw]
         except:
-            self._logger.exception(
-                "Feature toggle value in parameter store is malformed."
-            )
+            self._logger.exception("Feature toggle value in parameter store is malformed.")
             feature_toggles = []
 
         return feature_toggles
 
-    def get_enabled_features_for_user(
-        self, user_id: str
-    ) -> typing.List[frontend_feature.FrontendFeature]:
+    def get_enabled_features_for_user(self, user_id: str) -> typing.List[frontend_feature.FrontendFeature]:
         features = self.get_feature_configuration()
 
         return [
@@ -65,9 +55,7 @@ class FrontendFeatureToggles:
 
     def add_feature(self, feat: feature.Feature):
         feature_toggles = self.get_feature_configuration()
-        feature_toggles = list(
-            filter(lambda f: f.feature != feat.feature, feature_toggles)
-        )
+        feature_toggles = list(filter(lambda f: f.feature != feat.feature, feature_toggles))
         feature_toggles.append(feat)
 
         self._parameter_service.create_string_parameter(

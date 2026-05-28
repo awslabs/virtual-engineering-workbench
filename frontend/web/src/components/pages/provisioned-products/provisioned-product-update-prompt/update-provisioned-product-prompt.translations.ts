@@ -15,8 +15,8 @@ export const i18n = {
   productVersionsLoading: 'Loading versions...',
   noSupportedInstanceTypesText: 'Only one instance type is configured for this version.',
   noSupportedVersionsText: 'Only one version is configured for this product.',
-  updateVersionModalInfo: `The selected version may have different instance types available than 
-   your current instance type. If this is the case, the instance type will be selected for you. 
+  updateVersionModalInfo: `The selected version may have different instance types available than
+   your current instance type. If this is the case, the instance type will be selected for you.
    If it is not suitable you may update your instance type at any time.`,
   versionLabel: 'Version',
 };

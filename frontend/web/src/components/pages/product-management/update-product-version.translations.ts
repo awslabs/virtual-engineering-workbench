@@ -15,9 +15,9 @@ export const i18n = {
   productDetailsHeaderLabel: 'Product version details',
   infoPanelHeader: 'Update product version',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `As long as the version is in DEV or QA stage, it can be updated. Each update 
-  will increase the release candidate counter e.g. 1.0.0-rc.2 will change to 1.0.0-rc.3. Once a version 
+  infoPanelMessage1: `As long as the version is in DEV or QA stage, it can be updated. Each update
+  will increase the release candidate counter e.g. 1.0.0-rc.2 will change to 1.0.0-rc.3. Once a version
   is in PROD stage it cannot be updated. `,
-  infoPanelMessage2: `Change the AMI ID to select the image that best suits your needs. In the dropdown you 
+  infoPanelMessage2: `Change the AMI ID to select the image that best suits your needs. In the dropdown you
   may see in how many product versions each AMI was used before.`,
 };

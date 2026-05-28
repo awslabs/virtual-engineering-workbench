@@ -56,4 +56,3 @@ export const useMandatoryComponentsLists = ({ serviceApi }:{ serviceApi: Service
     loadMandatoryComponentsLists: fetchData,
   };
 };
-

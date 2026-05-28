@@ -66,4 +66,3 @@ export const useTechnologies = ({ projectId, pageSize }: TechnologyProps) => {
     isLoadingTechnologies,
   };
 };
-

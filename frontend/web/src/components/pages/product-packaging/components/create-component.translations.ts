@@ -30,9 +30,9 @@ export const i18n = {
   infoPanelHeader: 'Create component',
   infoPanelLabel1: 'How do I fill this information in?',
   infoPanelMessage1: 'The form requires inputting component related metadata such as name and description.',
-  infoPanelMessage2: `Platform allows you to determine whether the component will be used for Windows or 
+  infoPanelMessage2: `Platform allows you to determine whether the component will be used for Windows or
   Linux based images. `,
-  infoPanelMessage3: `Select component supported architecture and supported OS versions based on the 
+  infoPanelMessage3: `Select component supported architecture and supported OS versions based on the
   chosen platform.`,
   infoPanelLearnMoreLabel: 'Learn more',
   infoPanelLearnMoreDocPageName: 'Product Packaging user guide'

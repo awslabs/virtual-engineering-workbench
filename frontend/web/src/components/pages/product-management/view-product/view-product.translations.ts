@@ -61,8 +61,8 @@ export const i18n = {
   popoverContent: 'This version is the result of restoring version ',
   infoPanelHeader: 'View product details',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `The product details page provides an overview of the selected product information. 
-  As a product may contain multiple CloudFormation templates, each template is referred to as a product 
+  infoPanelMessage1: `The product details page provides an overview of the selected product information.
+  As a product may contain multiple CloudFormation templates, each template is referred to as a product
   version. A product can also have a recommended version.`,
   infoPanelMessage2: 'This page allows you to:',
   infoPanelPoint1: 'Browse',
@@ -76,11 +76,11 @@ export const i18n = {
   infoPanelPoint4: 'Set version as recommended',
   infoPanelPoint4Message: 'Only possible if the product version is in PROD stage.',
   infoPanelPoint5: 'Update',
-  infoPanelPoint5Message: `Replace a version with another one if the version is in DEV or QA stage. 
+  infoPanelPoint5Message: `Replace a version with another one if the version is in DEV or QA stage.
   Once a version is in PROD stage it cannot be updated. `,
   infoPanelPoint6: 'Retire',
-  infoPanelPoint6Message: `You may retire a version only if it is not yet released to PROD. Power users 
-  can also retire a version in PROD. Once a version is retired, all related version distributions across 
+  infoPanelPoint6Message: `You may retire a version only if it is not yet released to PROD. Power users
+  can also retire a version in PROD. Once a version is retired, all related version distributions across
   all regions and accounts are retired.`
 };
 

@@ -16,9 +16,9 @@ export const i18n = {
   infoPanelHeader: 'Update program',
   infoPanelLabel1: 'What can I accomplish here?',
   infoPanelMessage1: 'Update the name and description of the current program you are in. ',
-  infoPanelMessage2: `By default the program is activated. If the box is unchecked then program 
+  infoPanelMessage2: `By default the program is activated. If the box is unchecked then program
   will not be viewable to users. Only administrators can see inactive programs.`,
-  infoPanelMessage3: `To update the name and description of another program, please switch to that 
+  infoPanelMessage3: `To update the name and description of another program, please switch to that
   program using the program switcher in the the top navigation. `,
   infoPanelMessage4: 'Parts of this information can be modified and updated later.',
 };

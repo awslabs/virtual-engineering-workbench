@@ -28,10 +28,10 @@ export const i18n = {
   infoPanelLabel1: 'What can I accomplish here?',
   infoPanelMessage1: 'This form allows you to update a previously created pipeline. ',
   infoPanelMessage2: 'The name, description, and recipe of this pipeline cannot be updated.',
-  infoPanelMessage3: `Using the cron expression format, define the schedule for the pipeline. For more 
+  infoPanelMessage3: `Using the cron expression format, define the schedule for the pipeline. For more
   information on cron expressions, view the ‘Learn more’ links below.`,
   infoPanelMessage4: 'Select the recipe version. This does not include any versions that have been retired.',
-  infoPanelMessage5: `Select the build instance type. Instance types comprise varying combinations of CPU, 
+  infoPanelMessage5: `Select the build instance type. Instance types comprise varying combinations of CPU,
   memory, storage, and networking capacity to give you flexibility.`,
   infoPanelLearnMore: 'Learn more ',
   infoPanelLink: 'Cron expressions reference'

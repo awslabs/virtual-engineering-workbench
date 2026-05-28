@@ -36,21 +36,21 @@ export const i18n = {
   popoverContent: 'This version is the result of restoring version ',
   infoPanelHeader: 'View product version details',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `Product version, also known as a Provisioning Artifact, is a CloudFormation 
+  infoPanelMessage1: `Product version, also known as a Provisioning Artifact, is a CloudFormation
   template defined under a product. An overview of the version details can be found in the top panel.`,
-  infoPanelMessage2: `This page provides also information about which AWS accounts and regions this 
+  infoPanelMessage2: `This page provides also information about which AWS accounts and regions this
   version has been distributed to.`,
   infoPanelMessage3: 'In this page you may also:',
   infoPanelPoint1: 'Promote',
-  infoPanelPoint1Message: `Product contributors are able to promote a version from DEV to QA, while power 
+  infoPanelPoint1Message: `Product contributors are able to promote a version from DEV to QA, while power
   users are able to promote them from QA to PROD.`,
   infoPanelPoint2: 'Update',
-  infoPanelPoint2Message: `You are able to replace a version with another one if the version is in 
-  DEV or QA stage (i.e. the version is still a release candidate). Once a version is in PROD stage 
+  infoPanelPoint2Message: `You are able to replace a version with another one if the version is in
+  DEV or QA stage (i.e. the version is still a release candidate). Once a version is in PROD stage
   it  cannot be updated. `,
   infoPanelPoint3: 'Retire',
-  infoPanelPoint3Message: `Product contributors may retire a version if it has not yet been released to 
-  PROD. Power users can also retire a version in PROD. Once a version is retired, all related version 
+  infoPanelPoint3Message: `Product contributors may retire a version if it has not yet been released to
+  PROD. Power users can also retire a version in PROD. Once a version is retired, all related version
   distributions across all regions and accounts are retired.`,
   templateDefinition: 'Template definition'
 };

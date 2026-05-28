@@ -31,7 +31,7 @@ export const i18nProvisionedProductDetails = {
   infoPanelLabel1: 'What can I accomplish here?',
   infoPanelMessage1: '',
   infoPanelMessage2: 'An overview of the the provisioned product can be found in the top panel.',
-  infoPanelMessage3: `This page also provides information about the general configuration 
+  infoPanelMessage3: `This page also provides information about the general configuration
   of the provisioned product such as the instance type, instance ID, private IP, and mapped IP.`,
   componentVersionTypeAnyOption: 'Any type',
   emptyInstalledTools: 'No installed tools',
