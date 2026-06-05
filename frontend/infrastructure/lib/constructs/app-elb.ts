@@ -164,7 +164,7 @@ export class AppElb extends Construct {
     this._withALBValidation(appConfig);
     this._withALBCheckForCustomLogoutURL(appConfig);
 
-    const subnetSelector = ec2.SubnetFilter.byCidrRanges([PrivateIPAddressRange.ClassA]);
+    const privateWithEgressSubnets: ec2.SubnetSelection = { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS };
 
     const vpc = ec2.Vpc.fromLookup(this, 'vpc', { vpcName: appConfig.vpcName });
 
@@ -181,10 +181,7 @@ export class AppElb extends Construct {
     const vpcEndpoint = vpc.addInterfaceEndpoint('S3InterfaceEndpoint', {
       securityGroups: [vpcEndpointSecurityGroup],
       service: ec2.InterfaceVpcEndpointAwsService.APIGATEWAY,
-      subnets: {
-        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-        subnetFilters: [subnetSelector]
-      },
+      subnets: privateWithEgressSubnets,
       privateDnsEnabled: false,
     });
 
@@ -197,10 +194,8 @@ export class AppElb extends Construct {
           parameters: {
             NetworkInterfaceIds: vpcEndpoint.vpcEndpointNetworkInterfaceIds,
           },
-          outputPaths: vpc.selectSubnets({
-            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-            subnetFilters: [subnetSelector]
-          }).subnets.map((_, i) => `NetworkInterfaces.${i}.PrivateIpAddress`),
+          outputPaths: vpc.selectSubnets(privateWithEgressSubnets).
+            subnets.map((_, i) => `NetworkInterfaces.${i}.PrivateIpAddress`),
           physicalResourceId: custom_resources.PhysicalResourceId.of('EndpointNics'),
           service: 'EC2'
         },
@@ -252,10 +247,7 @@ export class AppElb extends Construct {
     );
 
     const endpointIps = vpc.
-      selectSubnets({
-        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-        subnetFilters: [subnetSelector]
-      }).
+      selectSubnets(privateWithEgressSubnets).
       subnets.
       map((_, i) => vpcEndpointIps.
         getResponseField(`NetworkInterfaces.${i}.PrivateIpAddress`)
@@ -301,9 +293,7 @@ export class AppElb extends Construct {
         dropInvalidHeaderFields: true,
         securityGroup: albSecurityGroup,
         vpc,
-        vpcSubnets: {
-          subnetFilters: [subnetSelector]
-        },
+        vpcSubnets: privateWithEgressSubnets,
         loadBalancerName: this._resourceName('alb')
       }
     );
@@ -598,6 +588,13 @@ export class AppElb extends Construct {
 
   getCustomDomainName(): string | undefined {
     return this._domainName;
+  }
+
+  getAlbCanonicalHostedZoneId(): string {
+    if (this._alb) {
+      return this._alb.loadBalancerCanonicalHostedZoneId;
+    }
+    throw new Error('No CDN is configured.');
   }
 
   getBucketName(): string {

@@ -49,6 +49,7 @@ class EBUpsert(constructs.Construct):
             lambda_root="infra/constructs/eventbridge/eb_upsert_handler",
             layers=[],
             function_name=format_resource_name("eb-upsert"),
+            install_requirements=True,
             reserved_concurrency=10,
             provisioned_concurrency=None,
             timeout=Duration.seconds(15),

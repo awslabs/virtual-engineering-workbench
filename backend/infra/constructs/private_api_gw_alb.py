@@ -49,6 +49,7 @@ class PrivateApiGwAlb(constructs.Construct):
             vpc=vpc,
             vpc_subnets=aws_ec2.SubnetSelection(),
         )
+        self._alb = alb
         alb_listener = alb.add_listener(
             "ALBHTTPSListener",
             certificates=[certificate],
@@ -118,3 +119,11 @@ class PrivateApiGwAlb(constructs.Construct):
                 ),
             ],
         )
+
+    @property
+    def alb_dns_name(self) -> str:
+        return self._alb.load_balancer_dns_name
+
+    @property
+    def alb_canonical_hosted_zone_id(self) -> str:
+        return self._alb.load_balancer_canonical_hosted_zone_id
