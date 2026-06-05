@@ -348,6 +348,8 @@ Platform engineers define what goes into a workbench image:
 
 Platform engineers make images available to users:
 
+> **One-time setup:** Products publish into a Service Catalog portfolio that is created when you onboard an AWS account to a technology. Do this once per technology before creating products — see [Onboard a technology account](docs/onboard-an-account.md).
+
 1. Create a **product template** — CloudFormation template defining network, security groups, instance type, storage, and the AMI reference
 1. Create a **product** from the template and publish it to the Service Catalog portfolio
 1. Create **product versions** as images evolve
@@ -366,6 +368,7 @@ Developers use the self-service portal to:
 
 If you just deployed VEW and want to see it in action, start here:
 
+- [Onboard a technology account](docs/onboard-an-account.md) — the one-time platform setup that creates the Service Catalog portfolio products publish into. Do this before building your first product.
 - [Build your first product](examples/freertos/README.md) — create a FreeRTOS virtual target from scratch: component, recipe, pipeline, product, and a running instance you can SSH into.
 - [Launch a product](docs/launch-a-product.md) — provision any product from the catalog.
 - [Connect to a product](docs/connect-to-a-product.md) — reach your running product via browser, DCV client, or SSH.
