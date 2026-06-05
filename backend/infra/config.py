@@ -190,12 +190,18 @@ _dev_vpc_config = {
         f"subnet-2-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
         f"subnet-3-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
     ],
+    "nat-gateways": 1,
+}
+
+_ha_vpc_config = {
+    **_dev_vpc_config,
+    "nat-gateways": 3,
 }
 
 vpc_config = {
     "dev": _dev_vpc_config,
-    "qa": _dev_vpc_config,
-    "prod": _dev_vpc_config,
+    "qa": _ha_vpc_config,
+    "prod": _ha_vpc_config,
 }
 
 

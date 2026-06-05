@@ -256,9 +256,24 @@ prompt CERT_ARN           "TLS Certificate ARN (deployment region)" ""
 prompt CUSTOM_DOMAIN      "Custom domain (e.g. dev.workbench.company.com)" ""
 prompt API_CUSTOM_DOMAIN  "API custom domain (e.g. dev.api.workbench.company.com)" ""
 
-# us-east-1 cert needed for Cognito/CloudFront if deploying to another region
-CERT_ARN_US_EAST_1=""
-if [ "$AWS_REGION" != "us-east-1" ] && [ -n "$CERT_ARN" ]; then
+echo ""
+log "Deployment mode:"
+prompt PRIVATE_DEPLOYMENT "Private deployment — internal ALB in a VPC instead of CloudFront (true/false)" "false"
+[[ "$PRIVATE_DEPLOYMENT" =~ ^(true|false)$ ]] || err "PRIVATE_DEPLOYMENT must be 'true' or 'false': $PRIVATE_DEPLOYMENT"
+
+if [ "$PRIVATE_DEPLOYMENT" = "true" ]; then
+  prompt PRIVATE_DNS_AUTOMATE "Automate private Route 53 hosted zone + ALB alias records (true/false)" "true"
+  prompt PRIVATE_DNS_ZONE     "Private hosted zone name (empty = derive from custom domain)" ""
+  [[ -n "$CUSTOM_DOMAIN" ]]     || err "Private deployment requires CUSTOM_DOMAIN."
+  [[ -n "$API_CUSTOM_DOMAIN" ]] || err "Private deployment requires API_CUSTOM_DOMAIN."
+  if [ -z "$CERT_ARN" ]; then
+    warn "No CERT_ARN provided — a self-signed certificate will be generated and imported into ACM. Clients must trust it (distribute it to user trust stores)."
+  fi
+fi
+
+# us-east-1 cert needed for Cognito/CloudFront in public mode when deploying to another region
+CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
+if [ "$PRIVATE_DEPLOYMENT" != "true" ] && [ "$AWS_REGION" != "us-east-1" ] && [ -n "$CERT_ARN" ]; then
   prompt CERT_ARN_US_EAST_1 "TLS Certificate ARN in us-east-1 (for Cognito)" ""
 fi
 
@@ -282,6 +297,7 @@ DEPLOYMENT_QUALIFIER=$(echo -n "$AWS_ACCOUNT_ID" | md5sum | cut -c1-5)
 ADMIN_USER_ID=$(echo "$ADMIN_USER_ID" | tr '[:lower:]' '[:upper:]')
 SPOKE_CDK_QUALIFIER="ioc760get"
 PROJECTS_TABLE="${ORG_PREFIX}-${APP_PREFIX}-projects-table-${ENVIRONMENT}"
+VPC_NAME="vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}"
 
 # Save config for re-runs (excluding secrets)
 CONFIG_OUT="$SCRIPT_DIR/.deploy-config-${ENVIRONMENT}"
@@ -303,6 +319,9 @@ SPOKE_ACCOUNT_ID="${SPOKE_ACCOUNT_ID:-}"
 SPOKE_VPC_ID="${SPOKE_VPC_ID:-}"
 AWS_PROFILE_HUB="${AWS_PROFILE_HUB:-default}"
 AWS_PROFILE_SPOKE="${AWS_PROFILE_SPOKE:-}"
+PRIVATE_DEPLOYMENT="$PRIVATE_DEPLOYMENT"
+PRIVATE_DNS_AUTOMATE="${PRIVATE_DNS_AUTOMATE:-true}"
+PRIVATE_DNS_ZONE="${PRIVATE_DNS_ZONE:-}"
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -359,6 +378,7 @@ if [ "$DRY_RUN" = "true" ]; then
   log "Org ID:        $ORG_ID"
   log "OIDC:          ${OIDC_CLIENT_ID:-not configured}"
   log "Custom domain: ${CUSTOM_DOMAIN:-not configured}"
+  log "Private mode:  $PRIVATE_DEPLOYMENT"
   log "Spoke account: ${SPOKE_ACCOUNT_ID:-not configured}"
   log ""
   log "All prerequisites validated. Ready to deploy."
@@ -412,6 +432,15 @@ if [ "$(uname -s)" != "Linux" ]; then
   rm -f "${BACKEND_CONSTANTS}.bak"
 fi
 
+# Toggle private API endpoint based on deployment mode
+if [ "$PRIVATE_DEPLOYMENT" = "true" ]; then
+  log "Enabling private API endpoint (PRIVATE_API_ENDPOINT = True)"
+  sed -i.bak 's/^PRIVATE_API_ENDPOINT = .*/PRIVATE_API_ENDPOINT = True/' "$BACKEND_CONSTANTS"
+else
+  sed -i.bak 's/^PRIVATE_API_ENDPOINT = .*/PRIVATE_API_ENDPOINT = False/' "$BACKEND_CONSTANTS"
+fi
+rm -f "${BACKEND_CONSTANTS}.bak"
+
 # --- frontend/infrastructure/cdk.json ---
 log "Patching $FE_CDK_JSON"
 
@@ -427,8 +456,10 @@ fi
 jq --arg app_name "$APP_NAME" \
    --arg qualifier "$DEPLOYMENT_QUALIFIER" \
    --arg oidc "$OIDC_NAME" \
+   --arg vpcname "$VPC_NAME" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
-   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login $OIDC_FILTER" \
+   --argjson private "$PRIVATE_DEPLOYMENT" \
+   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname $OIDC_FILTER" \
    "$FE_CDK_JSON" > "${FE_CDK_JSON}.tmp" && mv "${FE_CDK_JSON}.tmp" "$FE_CDK_JSON"
 
 # --- frontend/infrastructure/lib/public-access-deployment-stack.ts ---
@@ -452,7 +483,7 @@ run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${AWS_REGION}" \
   --trust "$AWS_ACCOUNT_ID" \
   --cloudformation-execution-policies "arn:aws:iam::aws:policy/AdministratorAccess"
 
-if [ "$AWS_REGION" != "us-east-1" ]; then
+if [ "$AWS_REGION" != "us-east-1" ] && [ "$PRIVATE_DEPLOYMENT" != "true" ]; then
   log "Bootstrapping us-east-1 for Cognito/CloudFront resources"
   run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/us-east-1" \
     --trust "$AWS_ACCOUNT_ID" \
@@ -483,8 +514,6 @@ put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-backend-${ENVIRONMENT}/image-service-accou
 aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
 
 # --- VPC ---
-VPC_NAME="vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}"
-
 EXISTING_VPC=$(aws ec2 describe-vpcs \
   --filters "Name=tag:Name,Values=$VPC_NAME" \
   --query 'Vpcs[0].VpcId' --output text \
@@ -520,6 +549,58 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   log "VPC created"
 else
   log "VPC '$VPC_NAME' already exists ($EXISTING_VPC)"
+fi
+
+# --- Self-signed TLS certificate (private deployment, no CERT_ARN provided) ---
+if [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+  command -v openssl >/dev/null || err "openssl is required to generate a self-signed certificate (no CERT_ARN provided)."
+  log "Generating self-signed certificate for $CUSTOM_DOMAIN, $API_CUSTOM_DOMAIN"
+
+  CERT_DIR=$(mktemp -d)
+  CERT_CNF="$CERT_DIR/openssl.cnf"
+  CERT_KEY="$CERT_DIR/tls.key"
+  CERT_CRT="$CERT_DIR/tls.crt"
+
+  cat > "$CERT_CNF" <<EOF
+[req]
+distinguished_name = dn
+x509_extensions = v3
+prompt = no
+[dn]
+CN = $CUSTOM_DOMAIN
+[v3]
+subjectAltName = DNS:$CUSTOM_DOMAIN, DNS:$API_CUSTOM_DOMAIN
+basicConstraints = critical, CA:false
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+EOF
+
+  # 397-day validity keeps the certificate under the 398-day browser maximum
+  if ! openssl req -x509 -nodes -newkey rsa:2048 -days 397 \
+      -keyout "$CERT_KEY" -out "$CERT_CRT" -config "$CERT_CNF" 2>>"$LOG_FILE"; then
+    rm -rf "$CERT_DIR"
+    err "Failed to generate self-signed certificate."
+  fi
+
+  if ! CERT_ARN=$(aws acm import-certificate \
+      --certificate "fileb://$CERT_CRT" \
+      --private-key "fileb://$CERT_KEY" \
+      --tags "Key=Name,Value=${ORG_PREFIX}-${APP_PREFIX}-private-${ENVIRONMENT}" \
+      --region "$AWS_REGION" \
+      --query 'CertificateArn' --output text 2>>"$LOG_FILE"); then
+    rm -rf "$CERT_DIR"
+    err "Failed to import self-signed certificate into ACM."
+  fi
+
+  rm -rf "$CERT_DIR"
+  log "Imported self-signed certificate: $CERT_ARN"
+  warn "Self-signed certificate in use — clients must trust it. Distribute the certificate to user trust stores (e.g. via MDM); browsers will otherwise reject it and the web app's API calls will fail."
+
+  # Persist the generated ARN so re-runs reuse it instead of importing a new certificate
+  if grep -q '^CERT_ARN=' "$CONFIG_OUT"; then
+    sed -i.bak "s|^CERT_ARN=.*|CERT_ARN=\"$CERT_ARN\"|" "$CONFIG_OUT"
+    rm -f "${CONFIG_OUT}.bak"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -714,6 +795,83 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Phase 8b: Private DNS (Route 53 private hosted zone + ALB alias records)
+# ---------------------------------------------------------------------------
+if [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ "${PRIVATE_DNS_AUTOMATE:-true}" = "true" ]; then
+  step 8b "Configuring private DNS (Route 53 private hosted zone + ALB alias records)"
+
+  # Derive the hosted zone name by stripping the leftmost label of the custom domain when not provided
+  ZONE_NAME="${PRIVATE_DNS_ZONE:-${CUSTOM_DOMAIN#*.}}"
+  log "Private hosted zone: $ZONE_NAME"
+
+  VPC_ID=$(aws ec2 describe-vpcs \
+    --filters "Name=tag:Name,Values=$VPC_NAME" \
+    --query 'Vpcs[0].VpcId' --output text --region "$AWS_REGION" 2>/dev/null || echo "None")
+  if [ "$VPC_ID" = "None" ] || [ -z "$VPC_ID" ]; then
+    err "Cannot configure private DNS: VPC '$VPC_NAME' not found in $AWS_REGION."
+  fi
+
+  # Find an existing private hosted zone associated with the VPC, else create one
+  ZONE_ID=$(aws route53 list-hosted-zones-by-vpc \
+    --vpc-id "$VPC_ID" --vpc-region "$AWS_REGION" \
+    --query "HostedZoneSummaries[?Name=='${ZONE_NAME}.'].HostedZoneId | [0]" \
+    --output text 2>/dev/null || echo "None")
+
+  if [ "$ZONE_ID" = "None" ] || [ -z "$ZONE_ID" ]; then
+    log "Creating private hosted zone $ZONE_NAME"
+    ZONE_ID=$(aws route53 create-hosted-zone \
+      --name "$ZONE_NAME" \
+      --caller-reference "vew-$(date +%s)" \
+      --hosted-zone-config Comment="VEW private deployment",PrivateZone=true \
+      --vpc VPCRegion="$AWS_REGION",VPCId="$VPC_ID" \
+      --query 'HostedZone.Id' --output text 2>&1 | tee -a "$LOG_FILE")
+  else
+    log "Reusing private hosted zone $ZONE_ID"
+  fi
+  ZONE_ID="${ZONE_ID##*/}"
+
+  # Resolve ALB alias targets from stack outputs
+  WEB_ALB_DNS=$(echo "$FE_OUTPUTS" | jq -r '.[] | select(.OutputKey=="cdnfqdnoutput") | .OutputValue')
+  WEB_ALB_ZONE=$(echo "$FE_OUTPUTS" | jq -r '.[] | select(.OutputKey=="webalbcanonicalzoneoutput") | .OutputValue')
+
+  API_OUTPUTS=$(aws cloudformation describe-stacks \
+    --stack-name "ApiIntegrationStack" \
+    --query 'Stacks[0].Outputs' --output json --region "$AWS_REGION" 2>/dev/null || echo "[]")
+  API_ALB_DNS=$(echo "$API_OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiAlbDnsName") | .OutputValue')
+  API_ALB_ZONE=$(echo "$API_OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiAlbCanonicalHostedZoneId") | .OutputValue')
+
+  upsert_alias() {
+    local name="$1" target_dns="$2" target_zone="$3"
+    if [ -z "$target_dns" ] || [ "$target_dns" = "null" ] || [ -z "$target_zone" ] || [ "$target_zone" = "null" ]; then
+      warn "No ALB target resolved for $name — skipping record"
+      return
+    fi
+    log "Route 53 ALIAS: $name -> $target_dns"
+    aws route53 change-resource-record-sets \
+      --hosted-zone-id "$ZONE_ID" \
+      --change-batch "{
+        \"Changes\": [{
+          \"Action\": \"UPSERT\",
+          \"ResourceRecordSet\": {
+            \"Name\": \"${name}\",
+            \"Type\": \"A\",
+            \"AliasTarget\": {
+              \"HostedZoneId\": \"${target_zone}\",
+              \"DNSName\": \"${target_dns}\",
+              \"EvaluateTargetHealth\": false
+            }
+          }
+        }]
+      }" 2>&1 | tee -a "$LOG_FILE" || warn "Failed to upsert record for $name"
+  }
+
+  upsert_alias "$CUSTOM_DOMAIN" "$WEB_ALB_DNS" "$WEB_ALB_ZONE"
+  upsert_alias "$API_CUSTOM_DOMAIN" "$API_ALB_DNS" "$API_ALB_ZONE"
+
+  log "Private DNS configured"
+fi
+
+# ---------------------------------------------------------------------------
 # Phase 9: Seed DynamoDB (admin user + default program)
 # ---------------------------------------------------------------------------
 step 9 "Seeding DynamoDB (admin user + default program)"
@@ -855,7 +1013,19 @@ echo "  Log file:     $LOG_FILE"
 echo "  Config file:  $CONFIG_OUT"
 echo ""
 
-if [ -n "$CUSTOM_DOMAIN" ]; then
+if [ "$PRIVATE_DEPLOYMENT" = "true" ]; then
+  if [ "${PRIVATE_DNS_AUTOMATE:-true}" = "true" ]; then
+    echo "  Private DNS alias records were created in the private hosted zone:"
+    echo "    $CUSTOM_DOMAIN -> web ALB"
+    echo "    $API_CUSTOM_DOMAIN -> API ALB"
+    echo "  Clients must resolve via this VPC's resolver and reach it over VPN / Direct Connect / Transit Gateway."
+  else
+    echo -e "${YELLOW}  Private DNS records still need to be created (ALIAS/A to the internal ALBs):${NC}"
+    echo "    $CUSTOM_DOMAIN -> web ALB (frontend stack output CdnFqdn / WebAlbCanonicalHostedZoneId)"
+    echo "    $API_CUSTOM_DOMAIN -> API ALB (ApiIntegrationStack outputs ApiAlbDnsName / ApiAlbCanonicalHostedZoneId)"
+  fi
+  echo ""
+elif [ -n "$CUSTOM_DOMAIN" ]; then
   echo -e "${YELLOW}  DNS records still need to be created:${NC}"
   echo "    $CUSTOM_DOMAIN -> CNAME to CloudFront distribution"
   if [ -n "$API_CUSTOM_DOMAIN" ]; then
