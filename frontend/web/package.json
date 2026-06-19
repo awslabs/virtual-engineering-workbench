@@ -56,7 +56,7 @@
     "picomatch": "^4.0.4",
     "file-type": "^21.3.2",
     "yauzl": "^3.2.1",
-    "vite": "^7.3.2",
+    "vite": "^7.3.5",
     "@nestjs/core": "^11.1.18",
     "follow-redirects": "^1.16.0",
     "uuid": "^14.0.0",
@@ -125,7 +125,7 @@
     "proper-lockfile": "^4.1.2",
     "sass": "^1.97.3",
     "typescript": "^5.9.3",
-    "vite": "^7.3.2",
+    "vite": "^7.3.5",
     "vitest": "^4.0.18"
   },
   "dependenciesMeta": {
