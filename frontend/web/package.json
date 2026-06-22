@@ -60,7 +60,8 @@
     "@nestjs/core": "^11.1.18",
     "follow-redirects": "^1.16.0",
     "uuid": "^14.0.0",
-    "qs": "^6.15.2"
+    "qs": "^6.15.2",
+    "esbuild": "^0.28.1"
   },
   "scripts": {
     "dev": "vite --port 3000",
