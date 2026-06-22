@@ -95,9 +95,9 @@ markupsafe==3.0.3 \
     --hash=sha256:f9e130248f4462aaa8e2552d547f36ddadbeaa573879158d721bbd33dfe4743a \
     --hash=sha256:fed51ac40f757d41b7c48425901843666a6677e3e8eb0abcff09e4ba6e664f50
     # via jinja2
-mypy-boto3-cloudformation==1.43.0 \
-    --hash=sha256:5be845bc3dc1b9cdbd8b6b071fad7c42d0221d4087ac0cc7c5b9dd219b324606 \
-    --hash=sha256:bcb2f8b8231f6bd96cc18d17c1c72ea0dfa6dc8156966d8d12495445f5041f4c
+mypy-boto3-cloudformation==1.43.23 \
+    --hash=sha256:20e2417e3b69273b43643063f3430939d5ef68f7857bbb1136728dca2eaa1163 \
+    --hash=sha256:e6e4740a3a96cd31f3b6119633f224a25119e22d8248619bd23a23bbae8ca7a8
     # via -r app/publishing/libraries/requirements.txt
 mypy-boto3-codecommit==1.43.0 \
     --hash=sha256:1e28b7052028dee0d2c04acd2a6d3184e72d6ddf19399248e8357a5810098847 \
@@ -107,13 +107,13 @@ mypy-boto3-dynamodb==1.43.0 \
     --hash=sha256:60b64d15e86d406a980d96f734d8c7fb1704668d0234dc8dabd2532c902a3ba6 \
     --hash=sha256:f0cea38e058f1d07361ecb55d8f40665d824b42cf4864724c7fccc8bf3946fcd
     # via -r app/publishing/libraries/requirements.txt
-mypy-boto3-ec2==1.43.14 \
-    --hash=sha256:405b4630b836e18a5224ff7c4b037cb8500a520ff725efc7e3ff9602cc824dc6 \
-    --hash=sha256:e053e6b55ea968264e437ac95b6f5de794670794e89023b33610a01f4ddc22fa
+mypy-boto3-ec2==1.43.33 \
+    --hash=sha256:322867645cdff71113119ff309d9be8e47423e11be7dd1aea451449e68468350 \
+    --hash=sha256:df919b708afac8d9bcadf3e8438bf56be474017acd29dfc2893fd2d2224bd4e9
     # via -r app/publishing/libraries/requirements.txt
-mypy-boto3-s3==1.43.14 \
-    --hash=sha256:73d54c1d0999c73c403dc9a9a3da4a9722715aba116595af08c0d4675f8bc670 \
-    --hash=sha256:ce77096d6c5f90020c45e34c83d2268ca2bb17726149ce5033751870f7fb4e97
+mypy-boto3-s3==1.43.31 \
+    --hash=sha256:b21c97c0db23cffcf0704625b42cf369366ad4bbdf84a4eb2fa265431c60ae83 \
+    --hash=sha256:fb8674063f3a491f1364c025371c3155077cd780bd04176497f8b31b5a8dd34f
     # via -r app/publishing/libraries/requirements.txt
 mypy-boto3-servicecatalog==1.43.0 \
     --hash=sha256:2755270b4486aa73e5d6a8c687a80368b04b6bc396d98319b46276ef34097263 \
