@@ -1,0 +1,15 @@
+# Code owners for the Virtual Engineering Workbench.
+# These owners are requested for review automatically on matching PRs.
+# Requires branch protection with "Require review from Code Owners" enabled.
+#
+# TODO (before production): replace the placeholder team with the real
+# maintainers team/handle(s) on GitHub (e.g., @awslabs/vew-maintainers).
+
+# Default owners for everything in the repo
+* @awslabs/vew-maintainers
+
+# Area-specific owners (uncomment and adjust as the team grows)
+# /backend/            @awslabs/vew-backend
+# /frontend/           @awslabs/vew-frontend
+# /.github/            @awslabs/vew-maintainers
+# /deploy.sh           @awslabs/vew-maintainers

@@ -40,6 +40,14 @@ jobs:
         # Skip the frontend lint hooks here — they run in the frontend job.
         run: SKIP=frontend-web-lint,frontend-infra-lint uvx pre-commit run --all-files --show-diff-on-failure
 
+      - name: Security scan (bandit — fail on medium+ severity)
+        working-directory: backend
+        run: uv run bandit -r app --ini bandit.ini -ll -q
+
+      - name: Dependency vulnerability audit (pip-audit)
+        working-directory: backend
+        run: uvx pip-audit -r requirements.txt --no-deps
+
       - name: Unit tests
         working-directory: backend
         run: uv run pytest app -n auto -q
@@ -63,6 +71,10 @@ jobs:
       - name: Install
         working-directory: frontend/web
         run: yarn install --immutable
+
+      - name: Dependency vulnerability audit (high+)
+        working-directory: frontend/web
+        run: yarn npm audit --severity high
 
       - name: Generate placeholder aws-exports (offline build)
         working-directory: frontend/web
