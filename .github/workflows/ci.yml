@@ -1,0 +1,81 @@
+name: CI
+
+# No-secrets PR validation running on the CodeBuild-hosted runner (project: vew-ci).
+# Backend: install + static checks (black/isort/flake8/mypy/secret scans) + pytest.
+# Frontend: install + lint + unit tests + build (with a placeholder aws-exports).
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint, type, test)
+    runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Java (Corretto 21, for DynamoDB Local)
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: "21"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --group dev
+
+      - name: Static checks (black, isort, flake8, mypy, secret scans)
+        # Skip the frontend lint hooks here — they run in the frontend job.
+        run: SKIP=frontend-web-lint,frontend-infra-lint uvx pre-commit run --all-files --show-diff-on-failure
+
+      - name: Unit tests
+        working-directory: backend
+        run: uv run pytest app -n auto -q
+
+  frontend:
+    name: Frontend (lint, test, build)
+    runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Enable Yarn 4 (corepack)
+        run: corepack enable
+
+      - name: Install
+        working-directory: frontend/web
+        run: yarn install --immutable
+
+      - name: Generate placeholder aws-exports (offline build)
+        working-directory: frontend/web
+        run: node scripts/gen-stub-aws-exports.mjs
+
+      - name: Lint
+        working-directory: frontend/web
+        run: yarn lint
+
+      - name: Unit tests
+        working-directory: frontend/web
+        run: yarn test:ci
+
+      - name: Build
+        working-directory: frontend/web
+        run: yarn build
