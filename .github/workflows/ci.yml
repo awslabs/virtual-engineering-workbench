@@ -18,13 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
+
+      # setup-python has no Amazon Linux 2 (arm64) build — let uv provide Python
+      # via its OS-agnostic standalone builds (same approach as local dev).
+      - name: Provision Python 3.13 (via uv)
+        run: uv python install 3.13
 
       - name: Set up Java (Corretto 21, for DynamoDB Local)
         uses: actions/setup-java@v4
