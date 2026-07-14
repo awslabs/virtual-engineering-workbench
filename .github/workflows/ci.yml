@@ -3,6 +3,9 @@ name: CI
 # No-secrets PR validation running on the CodeBuild-hosted runner (project: vew-ci).
 # Backend: install + static checks (black/isort/flake8/mypy/secret scans) + pytest.
 # Frontend: install + lint + unit tests + build (with a placeholder aws-exports).
+# IaC scan: checkov over CFN product templates, Dockerfiles, and workflows
+#   (config: .checkov.yaml) — runs on a GitHub-hosted runner, no toolchain needed.
+# Supply-chain hardening: minimal token permissions; actions pinned by commit SHA.
 on:
   push:
   pull_request:
@@ -15,11 +18,13 @@ jobs:
   backend:
     name: Backend (lint, type, test)
     runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
 
       # setup-python has no Amazon Linux 2 (arm64) build — let uv provide Python
       # via its OS-agnostic standalone builds (same approach as local dev).
@@ -27,7 +32,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Set up Java (Corretto 21, for DynamoDB Local)
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
         with:
           distribution: corretto
           java-version: "21"
@@ -55,13 +60,15 @@ jobs:
   frontend:
     name: Frontend (lint, test, build)
     runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
     env:
       COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Node 24
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
 
@@ -91,3 +98,17 @@ jobs:
       - name: Build
         working-directory: frontend/web
         run: yarn build
+
+  iac-scan:
+    name: IaC scan (checkov)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Checkov (CFN templates, Dockerfiles, workflows)
+        run: uvx --from 'checkov==3.3.8' checkov -d . --config-file .checkov.yaml

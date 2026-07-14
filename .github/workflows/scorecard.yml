@@ -1,0 +1,37 @@
+name: OSSF Scorecard
+
+# Supply-chain security posture score (branch protection, pinned deps,
+# SAST, token permissions, ...). Public-repo only — activates at awslabs
+# cut-over. Publishing results enables the README badge and the OSSF
+# REST API for the repo.
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "43 9 * * 2" # weekly, Tuesday
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload SARIF to code scanning
+      id-token: write # publish results (OIDC)
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca8cde # v2.4.2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@02c5e83432fe5497fd85b873b6c9f16a8578e1d9 # v3
+        with:
+          sarif_file: results.sarif
