@@ -15,6 +15,10 @@ permissions: read-all
 jobs:
   analysis:
     name: Scorecard analysis
+    # Scorecard publishing requires a public repo. Guard so the private
+    # staging repo shows no expected-failure noise; activates automatically
+    # on awslabs without edits.
+    if: github.repository_owner == 'awslabs'
     runs-on: ubuntu-latest
     permissions:
       security-events: write # upload SARIF to code scanning

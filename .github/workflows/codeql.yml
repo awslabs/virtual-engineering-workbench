@@ -19,6 +19,10 @@ permissions:
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
+    # Code scanning is only available on public repos (or GHAS). Guard so the
+    # private staging repo shows no expected-failure noise; activates
+    # automatically on awslabs without edits.
+    if: github.repository_owner == 'awslabs'
     runs-on: ubuntu-latest
     permissions:
       contents: read
