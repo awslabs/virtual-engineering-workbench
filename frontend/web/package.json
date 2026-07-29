@@ -43,7 +43,7 @@
     "cross-spawn": "^7.0.6",
     "diff": "^8.0.3",
     "dompurify": "^3.3.2",
-    "fast-xml-parser": "^5.7.0",
+    "fast-xml-parser": "^5.10.1",
     "immutable": "^4.3.9",
     "js-yaml": "^4.3.0",
     "path-to-regexp": "^8.0.0",
