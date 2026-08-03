@@ -26,13 +26,13 @@ export const i18n = {
   step1Header: 'Component details',
   step1infoPanelHeader: 'Enter details',
   step1infoPanelLabel1: 'How do I fill this information in?',
-  step1infoPanelMessage1: `Update the description of your component to better explain 
+  step1infoPanelMessage1: `Update the description of your component to better explain
   what it does and its purpose.`,
   step1infoPanelMessage2: 'Note: The component name cannot be changed after creation.',
   step2Title: 'Review and update',
   step2Description: 'Review your changes before updating',
   step2Header: 'Review changes',
   step2infoPanelHeader: 'Review and update',
-  step2infoPanelMessage1: `Review the updated information before submitting your changes. 
+  step2infoPanelMessage1: `Review the updated information before submitting your changes.
   This allows you to ensure that everything is correct.`,
 };

@@ -48,5 +48,3 @@ export interface UpgradeProvisionedProductWizardProps {
 }
 
 export interface UpgradeWarningProps { translations: UpgradeProvisionedProductTranslations }
-
-

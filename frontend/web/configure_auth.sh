@@ -7,7 +7,7 @@
 #   ENVIRONMENT_NAME: dev
 #   AWS_DEFAULT_REGION: us-east-1
 #   AWS_REGION_BE_API: us-east-1
-#   
+#
 
 set -e
 
@@ -25,7 +25,7 @@ echo_fail() {
 
 fail_if_empty () {
   [ -z $1 ] && echo_fail "$2" && exit 1
-  return 0 
+  return 0
 }
 
 app_name=${1:-$APP_NAME}

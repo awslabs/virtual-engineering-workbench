@@ -6,13 +6,14 @@
 -r infra/constructs/eventbridge/eb_upsert_handler/requirements.txt
 -r app/authorization/libraries/requirements.txt
 -r app/usecase/libraries/requirements.txt
-aws-cdk-lib ~= 2.234.1
-aws-cdk.aws-lambda-python-alpha ~= 2.234.1a0
-aws-cdk.aws-pipes-alpha ~= 2.234.1a0
-aws-cdk.aws-pipes-sources-alpha ~= 2.234.1a0
-aws-cdk.aws-pipes-targets-alpha ~= 2.234.1a0
+aws-cdk-lib ~= 2.260.0
+aws-cdk.aws-lambda-python-alpha ~= 2.260.0a0
+aws-cdk.aws-pipes-alpha ~= 2.260.0a0
+aws-cdk.aws-pipes-sources-alpha ~= 2.260.0a0
+aws-cdk.aws-pipes-targets-alpha ~= 2.260.0a0
 boto3 ~= 1.42
 cdk-monitoring-constructs ~= 9.2.0
 cdk-nag ~= 2.35.54
-constructs ~= 10.4.2
+constructs ~= 10.5.0
 typeguard ~= 2.13.3
+urllib3 ~= 2.7.0

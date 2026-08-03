@@ -1,0 +1,28 @@
+# Checkov configuration for the no-secrets CI gate (job: iac-scan in ci.yml).
+# Scope: CloudFormation product templates, Dockerfiles, GitHub Actions workflows.
+# CDK Python is validated separately by cdk-nag at synth time (credentialed job).
+framework:
+  - cloudformation
+  - dockerfile
+  - github_actions
+
+# examples/ are deliberately simplified illustrative templates; hardening them
+# (IAM constraints, Lambda VPC/DLQ/concurrency) is tracked as a follow-up in
+# OSS-Upstreaming-Program.md. Real product templates remain fully scanned.
+skip-path:
+  - examples/
+
+skip-check:
+  # False positive: flags the IMDSv2 session-token pattern
+  # (X-aws-ec2-metadata-token) in EC2 user data as a hard-coded secret.
+  # IMDSv2 tokens are short-lived, instance-local, and best practice.
+  - CKV_AWS_46
+  # Dockerfiles in this repo are build/dev images (deploy container, usecase
+  # CDK app), not long-running services; HEALTHCHECK adds no value there.
+  - CKV_DOCKER_2
+  # Root Dockerfile runs as root by design for the deploy tooling container.
+  # Adding a non-root user is tracked as a follow-up hardening item.
+  - CKV_DOCKER_3
+
+compact: true
+quiet: true

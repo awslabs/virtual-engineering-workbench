@@ -42,7 +42,7 @@ export const i18n = {
   infoPanelPoint1: 'Onboard',
   infoPanelPoint1Message: 'Onboard new AWS accounts to the technology.',
   infoPanelPoint2: 'Restart onboarding',
-  infoPanelPoint2Message: `If onboarding has previously failed, you can initiate the onboarding process 
+  infoPanelPoint2Message: `If onboarding has previously failed, you can initiate the onboarding process
   again. If this problem persists, please check whether the AWS account ID exists.`,
   infoPanelPoint3: 'Activate',
   infoPanelPoint3Message: 'Activate previously deactivated technology accounts. ',

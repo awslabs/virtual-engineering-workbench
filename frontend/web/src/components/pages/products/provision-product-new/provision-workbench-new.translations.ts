@@ -84,14 +84,14 @@ export const i18nProvisionWorkbench = {
     'vehicles, leading to accidents or harm to occupants.',
   ],
   consentFormRisks3: [
-    `Auditability Issues: The inability to reproduce artifacts once an instance is terminated compromises 
-    auditability, making it difficult to verify the steps taken within the instance with Experimental Mode 
-    enabled to generate an artifact. This can lead to non-compliance with regulatory standards, resulting in 
+    `Auditability Issues: The inability to reproduce artifacts once an instance is terminated compromises
+    auditability, making it difficult to verify the steps taken within the instance with Experimental Mode
+    enabled to generate an artifact. This can lead to non-compliance with regulatory standards, resulting in
     fines and legal penalties.`,
   ],
   consentFormAcknowledgement: [
-    `By checking the box below, you acknowledge understanding and acceptance of these terms 
-    and agree to comply with all outlined responsibilities and policies. 
+    `By checking the box below, you acknowledge understanding and acceptance of these terms
+    and agree to comply with all outlined responsibilities and policies.
     Failure to adhere will result in inability to create a product instance with
     Experimental Mode feature enabled.`
   ],

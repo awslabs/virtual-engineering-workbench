@@ -56,7 +56,7 @@ export const i18n = {
     `ALL DATA STORED ON THE ${productType} WILL BE IRREVOCABLY DELETED.`,
   infoPanelHeader: 'Provisioned Products',
   infoPanelLabel1: 'What is a provisioned product?',
-  infoPanelMessage1: `A provisioned product is one that has been created by the user. 
+  infoPanelMessage1: `A provisioned product is one that has been created by the user.
   This product can be either a workbench or virtual target.`,
   infoPanelLabel2: 'What can I accomplish here?',
   infoPanelMessage2:

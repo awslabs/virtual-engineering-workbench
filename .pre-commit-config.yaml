@@ -1,10 +1,8 @@
-exclude: frontend
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-      - id: requirements-txt-fixer
       - id: end-of-file-fixer
       - id: check-yaml
         args: [--unsafe]
@@ -23,14 +21,22 @@ repos:
               backend/app/authorizer/tests/conftest.py|
               backend/app/pipelines/adapters/tests/conftest.py
           )$
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: requirements-txt-fixer
+        files: ^backend/.*\.txt$
       - id: debug-statements
+        files: ^backend/
       - id: check-ast
+        files: ^backend/
         language: python
         language_version: python3.13
   - repo: https://github.com/psf/black
     rev: 25.1.0
     hooks:
       - id: black
+        files: ^backend/
         language: python
         language_version: python3.13
         args: ["--line-length", "120"]
@@ -38,6 +44,7 @@ repos:
     rev: 6.0.1
     hooks:
       - id: isort
+        files: ^backend/
         language: python
         language_version: python3.13
         args:
@@ -54,6 +61,7 @@ repos:
     rev: 7.3.0
     hooks:
       - id: flake8
+        files: ^backend/
         language_version: python3.13
         additional_dependencies: [flake8-typing-imports==1.16.0]
         args:
@@ -70,8 +78,23 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy
+        files: ^backend/
         language_version: python3.13
         args: ["--config-file", "backend/mypy.ini"]
         additional_dependencies:
           - types-requests
           - boto3-stubs
+  - repo: local
+    hooks:
+      - id: frontend-web-lint
+        name: frontend web lint
+        entry: yarn --cwd frontend/web run lint
+        language: system
+        files: ^frontend/web/src/
+        pass_filenames: false
+      - id: frontend-infra-lint
+        name: frontend infrastructure lint
+        entry: yarn --cwd frontend/infrastructure run lint
+        language: system
+        files: ^frontend/infrastructure/(bin|lib|test)/
+        pass_filenames: false

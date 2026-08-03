@@ -8,8 +8,8 @@ import { DEFAULT_SELECT_ROLE_OPTION } from './project-user-assignment-roles';
 const i18n = {
   assignmentSuccessHeader: 'The user has been successfully onboarded to the program',
 
-  assignmentSuccessContent: `The user will then be informed by email about their 
-  onboarding and the roles assigned to them in the program. 
+  assignmentSuccessContent: `The user will then be informed by email about their
+  onboarding and the roles assigned to them in the program.
   Please refer to the table below to verify the status.`,
   assignmentSuccessError: 'Unable to assign user.'
 };

@@ -71,7 +71,7 @@ class LocalBundler:
 
 
 class BackendAppFunction(constructs.Construct):
-    def __init__(
+    def __init__(  # noqa: C901
         self,
         scope: constructs.Construct,
         id: str,
@@ -94,6 +94,7 @@ class BackendAppFunction(constructs.Construct):
         vpc_id: Optional[str] = None,
         vpc_name: Optional[str] = None,
         local_bundling: bool = True,
+        install_requirements: bool = False,
         durable_execution_enabled: bool = False,
     ) -> None:
         super().__init__(scope, id)
@@ -116,24 +117,37 @@ class BackendAppFunction(constructs.Construct):
         )
 
         current_dir = "."
-        code = aws_lambda.Code.from_asset(
-            path=current_dir,
-            bundling=aws_cdk.BundlingOptions(
+        if install_requirements:
+            reqfile = (
+                f"{lambda_root}/requirements.lock"
+                if Path(f"{lambda_root}/requirements.lock").is_file()
+                else f"{lambda_root}/requirements.txt"
+            )
+            docker_command = (
+                "curl -LsSf https://astral.sh/uv/0.11.2/install.sh | sh"
+                f" && /root/.local/bin/uv pip install --no-compile -r {reqfile} -t /asset-output/"
+                f" && rsync -r {lambda_root} /asset-output/{app_root}/"
+                f" && {DOCKER_STRIP_CMD}"
+            )
+            bundling_options = aws_cdk.BundlingOptions(
+                image=runtime.bundling_image,
+                user="root",
+                command=["bash", "-c", docker_command],
+                local=(LocalBundler(app_root=app_root, lambda_root=lambda_root) if local_bundling else None),
+            )
+        else:
+            bundling_options = aws_cdk.BundlingOptions(
                 image=runtime.bundling_image,
                 command=[
                     "bash",
                     "-c",
                     f"rsync -r {lambda_root} /asset-output/{app_root}/ && {DOCKER_STRIP_CMD}",
                 ],
-                local=(
-                    LocalBundler(
-                        app_root=app_root,
-                        lambda_root=lambda_root,
-                    )
-                    if local_bundling
-                    else None
-                ),
-            ),
+                local=(LocalBundler(app_root=app_root, lambda_root=lambda_root) if local_bundling else None),
+            )
+        code = aws_lambda.Code.from_asset(
+            path=current_dir,
+            bundling=bundling_options,
             asset_hash=asset_hash,
             asset_hash_type=aws_cdk.AssetHashType.CUSTOM,
         )

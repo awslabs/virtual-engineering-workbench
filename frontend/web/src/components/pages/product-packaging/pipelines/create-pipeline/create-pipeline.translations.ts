@@ -27,12 +27,12 @@ export const i18n = {
   infoPanelLabel1: 'What can I accomplish here?',
   infoPanelMessage1: 'This form allows you to create a pipeline.',
   infoPanelMessage2: 'Define the name and description of your pipeline. This does not have to be unique.',
-  infoPanelMessage3: `Using the cron expression format, define the schedule for the pipeline. For more 
+  infoPanelMessage3: `Using the cron expression format, define the schedule for the pipeline. For more
   information on cron expressions, view the learn more links below.`,
-  infoPanelMessage4: `Select the recipe. If you do not see the recipe you are looking for, verify that 
+  infoPanelMessage4: `Select the recipe. If you do not see the recipe you are looking for, verify that
   it has been created in the ‘Recipe’ area in VEW.`,
   infoPanelMessage5: 'Select the recipe version. This does not include any versions that have been retired.',
-  infoPanelMessage6: `Select the build instance type. Instance types comprise varying combinations of CPU, 
+  infoPanelMessage6: `Select the build instance type. Instance types comprise varying combinations of CPU,
   memory, storage, and networking capacity to give you flexibility.`,
   infoPanelMessage7: 'Parts of this information can be modified and updated later.',
   infoPanelLearnMore: 'Learn more ',

@@ -60,4 +60,3 @@ export const useImages = ({ serviceApi }:{ serviceApi: ServiceAPI }) => {
     setSelectedImage,
   };
 };
-

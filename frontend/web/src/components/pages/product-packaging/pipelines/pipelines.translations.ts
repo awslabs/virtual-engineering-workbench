@@ -62,7 +62,7 @@ export const i18n = {
   copyPipelineIdError: 'Unable to copy pipeline ID',
   infoPanelHeader: 'Pipelines',
   infoPanelLabel1: 'What are pipelines?',
-  infoPanelMessage1: `A pipeline is a process that drives software development through a path of building, 
+  infoPanelMessage1: `A pipeline is a process that drives software development through a path of building,
   testing, and deploying code. `,
   infoPanelLabel2: 'What can I accomplish here?',
   infoPanelMessage2: 'This page allows you to:',
@@ -73,7 +73,7 @@ export const i18n = {
   infoPanelPoint3: 'Create image',
   infoPanelPoint3Message: 'Create an image based off of a selected pipeline.',
   infoPanelPoint4: 'Update pipeline',
-  infoPanelPoint4Message: `Modify an existing pipeline. Only the schedule, recipe version, and build 
+  infoPanelPoint4Message: `Modify an existing pipeline. Only the schedule, recipe version, and build
   instance type can be updated.`,
   infoPanelPoint5: 'Retire pipeline',
   infoPanelPoint5Message: 'Retire pipelines that are no longer needed.',

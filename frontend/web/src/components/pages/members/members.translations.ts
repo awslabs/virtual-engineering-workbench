@@ -52,8 +52,8 @@ export const i18n = {
   requiredInfo: 'The field is required',
   infoPanelHeader: 'Members',
   infoPanelLabel1: 'What are members?',
-  infoPanelMessage1: `Members are all of the individuals who are enrolled or requesting to be 
-  enrolled in this program. They can have different roles, which provides them access to different 
+  infoPanelMessage1: `Members are all of the individuals who are enrolled or requesting to be
+  enrolled in this program. They can have different roles, which provides them access to different
   features in the VEW application.`,
   infoPanelLabel2: 'What can I accomplish here?',
   infoPanelMessage2: 'For members already enrolled you can: ',
@@ -65,7 +65,7 @@ export const i18n = {
   infoPanelPoint3Message: 'Remove a member from the program.',
   infoPanelMessage3: 'For members not yet enrolled you can: ',
   infoPanelPoint4: 'Browse enrollment requests',
-  infoPanelPoint4Message: `View requests made to join the specific program. You can also see whether 
+  infoPanelPoint4Message: `View requests made to join the specific program. You can also see whether
   new requests are duplicates of existing members.`,
   infoPanelPoint5: 'Approve requests',
   infoPanelPoint5Message: 'Add new members to the program.',

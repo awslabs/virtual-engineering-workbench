@@ -37,11 +37,11 @@ VEW supports two deployment modes:
 - **Public** — CloudFront + Lambda@Edge + S3 for the frontend, public API Gateway endpoints. Suitable when users access the platform over the internet.
 - **Private** — Application Load Balancer within a VPC for the frontend, private API Gateway endpoints via VPC endpoints. Suitable when the platform must remain within a corporate network.
 
-### Public deployment
+### Public deployment - architecture
 
 ![VEW Public Deployment Architecture](assets/architecture-public.png)
 
-### Private deployment
+### Private deployment - architecture
 
 ![VEW Private Deployment Architecture](assets/architecture-private.png)
 
@@ -102,7 +102,7 @@ See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/REA
 
 ## Deployment
 
-> **Region constraint:** Deploy to **us-east-1** only. WAFv2 WebACLs with `CLOUDFRONT` scope must be created in us-east-1. The frontend CDK stack does not handle cross-region WAF deployment. Deploying to other regions will fail during frontend stack creation.
+> **Region constraint (public deployments only):** Public deployments must use **us-east-1**, because WAFv2 WebACLs with `CLOUDFRONT` scope must be created there and the public frontend stack does not handle cross-region WAF deployment. **Private deployments** (`PRIVATE_DEPLOYMENT=true`) use an internal ALB with no CloudFront/WAF and can be deployed to any region — set `AWS_REGION` to your target region.
 
 ### Prerequisites
 
@@ -115,6 +115,7 @@ See [backend/README.md](backend/README.md) and [frontend/README.md](frontend/REA
 | uv | 0.11+ | Python dependency management |
 | Yarn | 4.x | Frontend package management |
 | jq | any | JSON processing in deploy script |
+| openssl | any | Only for private deployments without `CERT_ARN` (generates the self-signed certificate). Preinstalled on macOS and in the Docker deployer image |
 | Docker | any | Required on macOS/Windows for Lambda bundling and ECS image builds. On Linux, only needed for ECS task image builds. |
 
 You also need:
@@ -128,7 +129,7 @@ You also need:
 
 ```bash
 # System packages
-sudo apt update && sudo apt install -y software-properties-common jq docker.io unzip curl
+sudo apt update && sudo apt install -y software-properties-common jq docker.io unzip curl openssl
 
 # Python 3.13
 sudo add-apt-repository -y ppa:deadsnakes/ppa
@@ -240,18 +241,18 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `CERT_ARN_US_EAST_1` | — | TLS certificate ARN in us-east-1 (required if deploying to another region) |
 | `CUSTOM_DOMAIN` | — | Custom domain for the web app (e.g., `dev.workbench.company.com`) |
 | `API_CUSTOM_DOMAIN` | — | Custom domain for the API (e.g., `dev.api.workbench.company.com`) |
+| `PRIVATE_DEPLOYMENT` | `false` | `true` for an internal ALB-based private deployment (no CloudFront). Requires `CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`; deployable to any `AWS_REGION` |
+| `PRIVATE_DNS_AUTOMATE` | `true` | When private, create a Route 53 private hosted zone (associated with the hub VPC) with alias records to both ALBs |
+| `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
 | `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
 
-Additional configuration not managed by `deploy.sh` (edit manually for private deployments or advanced tuning):
+Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 
 | File | Setting | Default | Description |
 | --- | --- | --- | --- |
-| `frontend/infrastructure/cdk.json` | `PrivateDeployment` | `false` | `true` for ALB-based private access instead of CloudFront |
-| `frontend/infrastructure/cdk.json` | `VPCName` | `default-vpc` | VPC name for ALB placement (private deployment) |
 | `frontend/infrastructure/cdk.json` | `RequireCustomUserLogin2FA` | `true` | Require MFA for Cognito-native users |
 | `frontend/infrastructure/cdk.json` | `CustomLoginDNSEnabled` | `false` | Enable custom DNS for Cognito login page |
-| `backend/infra/constants.py` | `PRIVATE_API_ENDPOINT` | `False` | `True` for private API Gateway via VPC endpoints |
 | `backend/infra/config.py` | `rest-api-cors-origins` | `*` | Restrict to your domain in production |
 | `backend/infra/config.py` | `retain_resources` | `False` | `True` in production to prevent data loss on stack deletion |
 | `backend/infra/config.py` | `backup-resources` | `False` | `True` in production to enable DynamoDB PITR and S3 versioning |
@@ -269,11 +270,29 @@ The deploy script replaces default values in source files before deploying:
 | File | What changes |
 | --- | --- |
 | `backend/infra/config.py` | Org/app prefix, Cognito region, enabled workbench regions |
-| `backend/infra/constants.py` | Lambda architecture (ARM/x86), local bundling flag |
-| `frontend/infrastructure/cdk.json` | App name, deployment qualifier, OIDC secret name |
+| `backend/infra/constants.py` | Lambda architecture (ARM/x86), local bundling flag, private API endpoint toggle |
+| `frontend/infrastructure/cdk.json` | App name, deployment qualifier, OIDC secret name, private deployment flag, VPC name |
 | `frontend/infrastructure/lib/public-access-deployment-stack.ts` | Monitoring resource name prefix |
 
 If you deploy with the defaults (`proserve`/`wb`/`us-east-1`), no patching occurs.
+
+### Private deployment
+
+Set `PRIVATE_DEPLOYMENT=true` (in your config file or the interactive prompt) to deploy behind internal Application Load Balancers in a VPC instead of CloudFront. In this mode the platform is never exposed to the internet; users reach it over a corporate network path (VPN, Direct Connect, or Transit Gateway).
+
+Private mode requires `CUSTOM_DOMAIN` and `API_CUSTOM_DOMAIN`, and a TLS certificate. It is **not** pinned to us-east-1 — set `AWS_REGION` to your target region. The certificate is handled by `CERT_ARN`:
+
+- If `CERT_ARN` is set, the script uses your regional ACM certificate in `AWS_REGION` (issued/imported however your organization manages certificates).
+- If `CERT_ARN` is empty, the script generates a self-signed certificate with SANs for both domains and imports it into ACM, setting `CERT_ARN` automatically. This is free and fully self-contained, but clients must trust the certificate: distribute it to user trust stores (e.g. via MDM), otherwise browsers reject it and the web app's API calls fail. The certificate is valid for 397 days (under the 398-day browser limit); re-run the deploy to rotate it.
+
+The script then:
+
+- Sets `PRIVATE_API_ENDPOINT = True` (backend) and `PrivateDeployment` / `VPCName` (frontend) automatically.
+- Skips the us-east-1 bootstrap and the us-east-1 Cognito certificate (both are CloudFront-only concerns).
+- Provisions private API Gateway endpoints (via VPC interface endpoints) fronted by internal ALBs, and an internal ALB serving the web app.
+- When `PRIVATE_DNS_AUTOMATE=true` (default), creates a Route 53 private hosted zone associated with the hub VPC and alias records pointing `CUSTOM_DOMAIN` and `API_CUSTOM_DOMAIN` at the two ALBs. Set it to `false` to manage DNS externally (the script then prints the records to create).
+
+The deployment uses the VPC named `vpc-{org}-{app}-{env}`. If it does not exist, Phase 4 creates one; for `qa`/`prod` it provisions one NAT gateway per Availability Zone. Tighten `allowed-cidrs-for-private-api-endpoint` in `backend/infra/config.py` from the default RFC 1918 ranges to your corporate CIDRs.
 
 ### Post-deployment
 
@@ -348,6 +367,8 @@ Platform engineers define what goes into a workbench image:
 
 Platform engineers make images available to users:
 
+> **One-time setup:** Products publish into a Service Catalog portfolio that is created when you onboard an AWS account to a technology. Do this once per technology before creating products — see [Onboard a technology account](docs/onboard-an-account.md).
+
 1. Create a **product template** — CloudFormation template defining network, security groups, instance type, storage, and the AMI reference
 1. Create a **product** from the template and publish it to the Service Catalog portfolio
 1. Create **product versions** as images evolve
@@ -366,6 +387,7 @@ Developers use the self-service portal to:
 
 If you just deployed VEW and want to see it in action, start here:
 
+- [Onboard a technology account](docs/onboard-an-account.md) — the one-time platform setup that creates the Service Catalog portfolio products publish into. Do this before building your first product.
 - [Build your first product](examples/freertos/README.md) — create a FreeRTOS virtual target from scratch: component, recipe, pipeline, product, and a running instance you can SSH into.
 - [Launch a product](docs/launch-a-product.md) — provision any product from the catalog.
 - [Connect to a product](docs/connect-to-a-product.md) — reach your running product via browser, DCV client, or SSH.

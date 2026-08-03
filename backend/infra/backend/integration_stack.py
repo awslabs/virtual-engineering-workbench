@@ -67,12 +67,24 @@ class ApiIntegrationStack(aws_cdk.Stack):
 
         # Provision the private endpoint
         if provision_private_endpoint:
-            private_api_gw_alb.PrivateApiGwAlb(
+            api_alb = private_api_gw_alb.PrivateApiGwAlb(
                 self,
                 "PrivateApiGwALB",
                 app_config=app_config,
                 certificate=certificate,
                 vpc_endpoint_ips=vpc_endpoint_ips,
+            )
+            aws_cdk.CfnOutput(
+                scope=self,
+                id="ApiAlbDnsName",
+                value=api_alb.alb_dns_name,
+                description="DNS name of the internal API ALB (private deployment).",
+            )
+            aws_cdk.CfnOutput(
+                scope=self,
+                id="ApiAlbCanonicalHostedZoneId",
+                value=api_alb.alb_canonical_hosted_zone_id,
+                description="Canonical hosted zone ID of the internal API ALB (private deployment).",
             )
 
         if setup_oauth_client:

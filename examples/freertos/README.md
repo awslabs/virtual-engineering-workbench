@@ -7,6 +7,7 @@ Expect about 30 minutes of hands-on time, plus waiting for builds and provisioni
 ## What you'll need
 
 - A deployed VEW platform with product contributor permissions
+- A **technology with an onboarded DEV account**. This is a one-time platform setup that creates the Service Catalog portfolio products are published into. If your platform doesn't have one yet, follow [Onboard a technology account](../../docs/onboard-an-account.md) first — otherwise creating a product version in Step 4 fails with *No portfolio found for DEV stage. Account setup might be incomplete.*
 - The two files in this folder: [`component.yaml`](component.yaml) (the EC2 Image Builder component definition) and [`product.yaml`](product.yaml) (the CloudFormation product template)
 
 ## Step 1: Create the component
@@ -113,7 +114,7 @@ A product is what end users see in the catalog. It ties a CloudFormation templat
    | Name | `FreeRTOS` |
    | Description | `Virtual target running FreeRTOS` |
 
-4. Pick the first technology item from the list.
+4. For **Technology**, choose the technology that has an onboarded DEV account (the one from [What you'll need](#what-youll-need)). The product inherits this technology, and versions are published into its DEV portfolio.
 5. For **Type**, choose **Virtual target**.
 6. From the products list, choose **FreeRTOS**, then choose **Create version**.
 7. For **Description**, enter `Initial FreeRTOS virtual target`.

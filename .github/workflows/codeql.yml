@@ -1,0 +1,51 @@
+name: CodeQL
+
+# Semantic SAST for Python (backend) and JavaScript/TypeScript (frontend).
+# Runs on GitHub-hosted runners (free for public repos) — no VEW toolchain
+# needed. NOTE: code scanning requires a PUBLIC repo (or GHAS); this workflow
+# only activates once the repo lives at awslabs. It is a no-op on the private
+# test fork.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "26 7 * * 1" # weekly, Monday
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    # Code scanning is only available on public repos (or GHAS). Guard so the
+    # private staging repo shows no expected-failure noise; activates
+    # automatically on awslabs without edits.
+    if: github.repository_owner == 'awslabs'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: python
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@02c5e83432fe5497fd85b873b6c9f16a8578e1d9 # v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@02c5e83432fe5497fd85b873b6c9f16a8578e1d9 # v3
+        with:
+          category: "/language:${{ matrix.language }}"

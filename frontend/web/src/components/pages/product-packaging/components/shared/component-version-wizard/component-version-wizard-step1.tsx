@@ -93,7 +93,7 @@ export const ComponentVersionWizardStep1: FC<ComponentVersionWizardStep1Props> =
   }
 
   function getLicenseDashboardError() {
-    return !isLicenseDashboardValid && !isUrl(licenseDashboard) 
+    return !isLicenseDashboardValid && !isUrl(licenseDashboard)
       ? i18n.step1InputLicenseDashboardError
       : '';
   }

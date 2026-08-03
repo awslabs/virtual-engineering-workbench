@@ -25,12 +25,12 @@ export const i18n = {
   infoPanelHeader: 'Create product',
   infoPanelLabel1: 'How do I fill this information in?',
   infoPanelMessage1: 'The form requires inputting product related metadata such as name and description.',
-  infoPanelMessage2: `Technology allows you to assign the product to a technology, an entity that groups 
-  users working on particular technologies, covers role membership and AWS account mapping where the product 
+  infoPanelMessage2: `Technology allows you to assign the product to a technology, an entity that groups
+  users working on particular technologies, covers role membership and AWS account mapping where the product
   will be provisioned.`,
   infoPanelMessage3: 'Available product types are:',
   infoPanelPoint1: 'Workbench',
-  infoPanelPoint1Message: `Predefined use case specific environments that come fully equipped with all 
+  infoPanelPoint1Message: `Predefined use case specific environments that come fully equipped with all
   the tools, integrated development environments (IDEs), and necessary licensing.`,
   infoPanelPoint2: 'Virtual target',
   infoPanelPoint2Message: 'Runtime environments that are abstractions of the target hardware at various levels.',

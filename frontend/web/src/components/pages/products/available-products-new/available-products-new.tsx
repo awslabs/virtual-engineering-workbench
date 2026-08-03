@@ -636,4 +636,3 @@ export const AvailableProductsNew: FC<AvailableProductsProps> = ({
 
 
 };
-

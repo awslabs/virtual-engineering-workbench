@@ -5,15 +5,15 @@ description = "Virtual Engineering Workbench — Backend"
 requires-python = ">=3.13"
 dependencies = [
     # --- CDK & infrastructure ---
-    "aws-cdk-lib~=2.234.1",
-    "aws-cdk.aws-glue-alpha~=2.234.1a0",
-    "aws-cdk.aws-lambda-python-alpha~=2.234.1a0",
-    "aws-cdk.aws-pipes-alpha~=2.234.1a0",
-    "aws-cdk.aws-pipes-sources-alpha~=2.234.1a0",
-    "aws-cdk.aws-pipes-targets-alpha~=2.234.1a0",
+    "aws-cdk-lib~=2.260.0",
+    "aws-cdk.aws-glue-alpha~=2.260.0a0",
+    "aws-cdk.aws-lambda-python-alpha~=2.260.0a0",
+    "aws-cdk.aws-pipes-alpha~=2.260.0a0",
+    "aws-cdk.aws-pipes-sources-alpha~=2.260.0a0",
+    "aws-cdk.aws-pipes-targets-alpha~=2.260.0a0",
     "cdk-monitoring-constructs~=9.2.0",
     "cdk-nag~=2.35.54",
-    "constructs~=10.4.2",
+    "constructs~=10.5.0",
     "typeguard~=2.13.3",
     # --- Core runtime ---
     "aws-lambda-powertools[all]>=3.26,<3.28",
@@ -28,6 +28,7 @@ dependencies = [
     "requests~=2.31",
     "retry2~=0.9",
     "semver~=3.0.1",
+    "urllib3~=2.7.0",
     # --- boto3 type stubs (runtime) ---
     "mypy-boto3-cloudformation~=1.42",
     "mypy-boto3-cloudwatch~=1.42",
@@ -58,12 +59,12 @@ dev = [
     "bandit~=1.7",
     "black~=26.3.1",
     "boto3-stubs[essential]~=1.42",
-    "datamodel-code-generator==0.31.2",
+    "datamodel-code-generator==0.64.0",
     "distlib~=0.3",
     "flake8~=7.0",
     "freezegun~=1.2",
     "git-remote-codecommit~=1.16",
-    "gitpython~=3.1.47",
+    "gitpython~=3.1.54",
     "hypothesis~=6.151.9",
     "isort~=5.12",
     "joserfc~=1.6.3",
@@ -77,7 +78,7 @@ dev = [
     "pytest-mock~=3.11",
     "pytest-xdist~=3.3",
     "requests-mock~=1.11",
-    "setuptools>=76.2.0",
+    "setuptools>=83.0.0",
     "types-requests~=2.31",
 ]
 

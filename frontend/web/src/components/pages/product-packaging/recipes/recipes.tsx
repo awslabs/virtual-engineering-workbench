@@ -84,7 +84,7 @@ const Recipes: FC<RecipesProps> = ({ serviceApi }) => {
       cell: (e) => {
         return <div>
           <Link onFollow={() => {
-            navigateTo(RouteNames.ViewRecipe, { 
+            navigateTo(RouteNames.ViewRecipe, {
               ':recipeId': e.recipeId,
             })
           }}>{e.recipeName}</Link>
@@ -332,7 +332,7 @@ const Recipes: FC<RecipesProps> = ({ serviceApi }) => {
   function viewSelectedItem() {
     const selectedItem = getSelectedItem();
     if (!!selectedItem) {
-      navigateTo(RouteNames.ViewRecipe, { 
+      navigateTo(RouteNames.ViewRecipe, {
         ':recipeId': selectedItem.recipeId,
       })
     }

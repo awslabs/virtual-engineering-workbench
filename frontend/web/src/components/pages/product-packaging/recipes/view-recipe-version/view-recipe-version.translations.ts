@@ -58,22 +58,22 @@ export const i18n = {
   fetchTestLogsErrorContent: 'Logs for this test execution can be found on cloudwatch',
   infoPanelHeader: 'View recipe version details',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `The recipe version details page provides an overview of the selected recipe version 
+  infoPanelMessage1: `The recipe version details page provides an overview of the selected recipe version
   information including recipe and version IDs, status etc.`,
   infoPanelMessage2: 'This page allows you to: ',
   infoPanelPoint1: 'Explore version details',
-  infoPanelPoint1Message: `View included component versions, browse the list of test executions and see 
+  infoPanelPoint1Message: `View included component versions, browse the list of test executions and see
   execution logs of a particular test.`,
   infoPanelPoint2: 'Release',
-  infoPanelPoint2Message: `You may release a release candidate version of the recipe if it has passed tests. 
-  At this point, the release candidate version must contain only released components versions. The released 
+  infoPanelPoint2Message: `You may release a release candidate version of the recipe if it has passed tests.
+  At this point, the release candidate version must contain only released components versions. The released
   recipe version cannot be further updated and and its number changes e.g. from 1.0.0-rc.1 to 1.0.0.`,
   infoPanelPoint3: 'Update',
-  infoPanelPoint3Message: `You may update a recipe version by adding new components, updating existing ones, 
-  and/or editing the description. Update can be made only on release candidate version of the recipe. Once 
+  infoPanelPoint3Message: `You may update a recipe version by adding new components, updating existing ones,
+  and/or editing the description. Update can be made only on release candidate version of the recipe. Once
   updated, its number is incremented  e.g. 1.0.0-rc.2.`,
   infoPanelPoint4: 'Retire',
-  infoPanelPoint4Message: `Recipe version can be retired by product contributors if it is still a release 
-  candidate. Power users can also retire a released recipe version, provided it is not associated with 
+  infoPanelPoint4Message: `Recipe version can be retired by product contributors if it is still a release
+  candidate. Power users can also retire a released recipe version, provided it is not associated with
   any pipeline.`,
 };
