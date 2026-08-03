@@ -17,6 +17,6 @@ export const i18n = {
   infoPanelLabel1: 'What can I accomplish here?',
   infoPanelMessage1: 'This form allows you to add a technology and define it’s name and description',
   infoPanelMessage2: 'Enter a name for the technology.',
-  infoPanelMessage3: `Enter a description for the technology to assist you and others in identifying the 
+  infoPanelMessage3: `Enter a description for the technology to assist you and others in identifying the
   technology more easily.`,
 };

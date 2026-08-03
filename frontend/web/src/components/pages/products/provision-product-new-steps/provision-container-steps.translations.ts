@@ -64,7 +64,7 @@ export const i18nContainerSteps = {
 
   experimentalWarning:
     `The Experimental Mode feature is available only in the QA stage.
-    To set it up, select the QA stage and then designate the Experimental Mode parameter as 'Yes' 
+    To set it up, select the QA stage and then designate the Experimental Mode parameter as 'Yes'
     in the next step. Learn more about the Experimental Mode feature `,
   experimentalWarningLinkText: 'here',
   experimentalWarningLinkUrl: '',
@@ -78,7 +78,7 @@ export const i18nContainerSteps = {
   experimentalOptionNoValue: 'False',
   experimentalOptionNoLabel: 'No, use the existing predefined setup.',
   experimentalDisclaimer:
-    `Experimental Mode is expressly designed for experimentation and must never be used for production 
+    `Experimental Mode is expressly designed for experimentation and must never be used for production
     purposes, therefore all git push and artifact upload requests are forbidden.`,
 
   stepOne: 'Step 1: Configure settings',

@@ -39,12 +39,12 @@ export const i18n = {
   createFailMessageHeader: 'Sorry, something went wrong!',
   infoPanelHeader: 'Components',
   infoPanelLabel1: 'What is a component?',
-  infoPanelMessage1: `A component, also known as Image Builder Component is a building block of a recipe, 
-  representing reusable scripts that install, configure, validate, and test a specific software tool on 
+  infoPanelMessage1: `A component, also known as Image Builder Component is a building block of a recipe,
+  representing reusable scripts that install, configure, validate, and test a specific software tool on
   a workbench instance.`,
   infoPanelLabel2: 'What can I accomplish here?',
-  infoPanelMessage2: `Component management plays a crucial role in the product packaging process, 
-  as it is the starting point to create components and their initial versions 
+  infoPanelMessage2: `Component management plays a crucial role in the product packaging process,
+  as it is the starting point to create components and their initial versions
   (release candidate versions), and release them once they are validated. `,
 };
 

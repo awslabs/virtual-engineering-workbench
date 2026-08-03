@@ -75,6 +75,11 @@ export class PrivateAccessDeploymentStack extends Stack {
       value: cdn.getDomainName(),
     });
 
+    new CfnOutput(this, 'web-alb-canonical-zone-output', {
+      exportName: `${this.stackName}-WebAlbCanonicalHostedZoneId`,
+      value: cdn.getAlbCanonicalHostedZoneId(),
+    });
+
     new CfnOutput(this, 'cdn-custom-fqdn-output', {
       exportName: `${this.stackName}-CustomFqdn`,
       value: cdn.getCustomDomainName() || 'not available',

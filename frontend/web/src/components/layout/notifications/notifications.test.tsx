@@ -13,7 +13,7 @@ describe('Notifications', () => {
 
 
   it('stores error notifications in memory', () => {
-    // ARRANGE 
+    // ARRANGE
     const wrapper = ({ children }: { children: React.ReactNode }) => <RecoilRoot>{children}</RecoilRoot>;
     const { result } = renderHook(() => useNotifications(), {
       wrapper

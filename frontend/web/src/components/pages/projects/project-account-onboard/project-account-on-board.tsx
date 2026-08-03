@@ -56,15 +56,15 @@ const i18n = {
   pageHeader: (projectName?: string) => `Onboard AWS account to ${projectName}`,
   infoPanelHeader: 'Onboard account',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `The account ID is the AWS account ID and should be 12 numbers. This ID can be 
+  infoPanelMessage1: `The account ID is the AWS account ID and should be 12 numbers. This ID can be
   found in the AWS console.`,
-  infoPanelMessage2: `The name refers to the AWS account and should match the following format: 
+  infoPanelMessage2: `The name refers to the AWS account and should match the following format:
   acct-vew-bsn0000000-dev-user. This name can be found in the AWS console.`,
   infoPanelMessage3: 'The account type is set to user. A user account is used to provision workbenches.',
   infoPanelMessage4: 'Provide a description to assist in identifying the account at a later point in time.',
   infoPanelMessage5: 'Select one environment the AWS account will be used for.',
   infoPanelMessage6: 'Select the region this AWS account is based in. Only one region may be available.',
-  infoPanelMessage7: `The technology has been preselected based off of your previous selection. If needed, 
+  infoPanelMessage7: `The technology has been preselected based off of your previous selection. If needed,
   this can be changed using the dropdown.`,
   infoPanelLearnMore: 'Learn more ',
   infoPanelLink: 'View your AWS account ID'

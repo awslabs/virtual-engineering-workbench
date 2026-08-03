@@ -37,14 +37,14 @@ export const i18n = {
   errorFetchTechnology: 'Error fetching technologies',
   infoPanelHeader: 'Technologies',
   infoPanelLabel1: 'What are technologies?',
-  infoPanelMessage1: `Technologies are a way of grouping users and AWS accounts together. A technology 
+  infoPanelMessage1: `Technologies are a way of grouping users and AWS accounts together. A technology
   entity contains an AWS account id, stage (dev, qa, prod) and a program ID attribute.`,
   infoPanelLabel2: 'What can I accomplish here?',
   infoPanelMessage2: 'This page allows you to:',
   infoPanelPoint1: 'Create new technologies',
   infoPanelPoint1Message: 'Compose new technologies.',
   infoPanelPoint2: 'View an existing technology',
-  infoPanelPoint2Message: `View previously created technologies and all of the technology accounts 
+  infoPanelPoint2Message: `View previously created technologies and all of the technology accounts
   associated.`,
   infoPanelPoint3: 'Update existing technologies',
   infoPanelPoint3Message: 'Modify technologies that were previously created.',

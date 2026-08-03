@@ -47,7 +47,7 @@ describe('app-cdn.auth-handler', () => {
   });
 
   test('navigates user to Cognito if path is /login', async () => {
-    // Arrange 
+    // Arrange
     const req: CloudFrontRequestEvent = {
       Records: [{
         cf: {
@@ -87,7 +87,7 @@ describe('app-cdn.auth-handler', () => {
   });
 
   test('returns request as-is if user is unauthenticated', async () => {
-    // Arrange 
+    // Arrange
     const req: CloudFrontRequestEvent = {
       Records: [{
         cf: {
@@ -125,7 +125,7 @@ describe('app-cdn.auth-handler', () => {
   });
 
   test('navigates user to to initial path if auth is successfull', async () => {
-    // Arrange 
+    // Arrange
     const req: CloudFrontRequestEvent = {
       Records: [{
         cf: {
@@ -174,7 +174,7 @@ describe('app-cdn.auth-handler', () => {
   });
 
   test('returns website content if user is authenticated', async () => {
-    // Arrange 
+    // Arrange
     const req: CloudFrontRequestEvent = {
       Records: [{
         cf: {
@@ -216,7 +216,7 @@ describe('app-cdn.auth-handler', () => {
   });
 
   test('throws if there is an unhandled exception', async () => {
-    // Arrange 
+    // Arrange
     const req: CloudFrontRequestEvent = {
       Records: [{
         cf: {
@@ -253,7 +253,7 @@ describe('app-cdn.auth-handler', () => {
   });
 
   test('clears Cognito cookies if there are duplicates', async () => {
-    // Arrange 
+    // Arrange
     const req: CloudFrontRequestEvent = {
       Records: [{
         cf: {

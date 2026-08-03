@@ -45,24 +45,24 @@ export const i18n = {
   retireRecipeVersionFailedMessageHeader: 'Failed to retire version',
   infoPanelHeader: 'View recipe details',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `The recipe details page provides an overview of the selected recipe information 
+  infoPanelMessage1: `The recipe details page provides an overview of the selected recipe information
   dedicated platform, supported architecture and OS versions.`,
   infoPanelMessage2: 'This page allows you to: ',
   infoPanelPoint1: 'Browse',
   infoPanelPoint1Message: 'View existing recipe versions.',
   infoPanelPoint2: 'Create new versions',
-  infoPanelPoint2Message: `Each new recipe version is automatically tested once created, and must 
+  infoPanelPoint2Message: `Each new recipe version is automatically tested once created, and must
   successfully pass tests before being marked as eligible for release (i.e. status - Validated)`,
   infoPanelPoint3: 'Release',
-  infoPanelPoint3Message: `You may release a release candidate version of the recipe if it has passed 
-  tests. At this point, the release candidate version must contain only released components versions. 
+  infoPanelPoint3Message: `You may release a release candidate version of the recipe if it has passed
+  tests. At this point, the release candidate version must contain only released components versions.
   The released recipe version cannot be further updated and and its number changes e.g. from 1.0.0-rc.1 to 1.0.0.`,
   infoPanelPoint4: 'Update',
-  infoPanelPoint4Message: `You may update a recipe version by adding new components, updating existing ones, 
-  and/or editing the description. Update can be made only on release candidate version of the recipe. 
+  infoPanelPoint4Message: `You may update a recipe version by adding new components, updating existing ones,
+  and/or editing the description. Update can be made only on release candidate version of the recipe.
   Once updated, its number is incremented  e.g. 1.0.0-rc.2 `,
   infoPanelPoint5: 'Retire',
-  infoPanelPoint5Message: `Recipe version can be retired by product contributors if it is still a release 
+  infoPanelPoint5Message: `Recipe version can be retired by product contributors if it is still a release
   candidate. Power users can also retire a released recipe version, provided it is not associated with any pipeline.`,
   returnButtonText: 'Return',
 };

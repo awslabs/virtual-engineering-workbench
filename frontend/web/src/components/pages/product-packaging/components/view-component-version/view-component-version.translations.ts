@@ -84,22 +84,22 @@ export const i18n = {
   recipeVersionIdCopyError: 'Unable to copy recipe version ID',
   infoPanelHeader: 'View component version details',
   infoPanelLabel1: 'What can I accomplish here?',
-  infoPanelMessage1: `The component version details page provides an overview of the selected 
+  infoPanelMessage1: `The component version details page provides an overview of the selected
   component version information including component and version IDs, software vendor and version etc.`,
   infoPanelMessage2: 'This page allows you to: ',
   infoPanelPoint1: 'Explore version details',
-  infoPanelPoint1Message: `View Yaml configuration, version dependencies, browse the list of test 
+  infoPanelPoint1Message: `View Yaml configuration, version dependencies, browse the list of test
   executions and see execution logs of a particular test.`,
   infoPanelPoint2: 'Release',
-  infoPanelPoint2Message: `You may release a release candidate version of the component 
-  if it has passed tests. 
+  infoPanelPoint2Message: `You may release a release candidate version of the component
+  if it has passed tests.
   The version cannot be further updated and its number is set, for example, to 1.0.0`,
   infoPanelPoint3: 'Update',
-  infoPanelPoint3Message: `Update can be made only on release candidate version of the component. 
+  infoPanelPoint3Message: `Update can be made only on release candidate version of the component.
   Once updated, its number is incremented  e.g. 1.0.0-rc.2 `,
   infoPanelPoint4: 'Retire',
-  infoPanelPoint4Message: `Component version can be retired by product contributors if it is still a 
-  release candidate. Power users can also retire a released component version, provided it is not 
+  infoPanelPoint4Message: `Component version can be retired by product contributors if it is still a
+  release candidate. Power users can also retire a released component version, provided it is not
   included in any recipe version.`,
   buttonDownloadTestExecution: 'Download logs',
   fetchTestLogsErrorHeader: 'Test execution logs not found',

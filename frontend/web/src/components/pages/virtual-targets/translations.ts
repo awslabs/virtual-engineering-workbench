@@ -88,16 +88,16 @@ export const i18n = {
   errorStop: 'Unable to stop the selected virtual target',
   infoPanelHeader: 'My virtual targets',
   infoPanelLabel1: 'What is a virtual target?',
-  infoPanelMessage1: `Virtual targets are runtime environments that are abstractions of 
+  infoPanelMessage1: `Virtual targets are runtime environments that are abstractions of
   the target hardware at various levels. `,
-  infoPanelMessage2: `Virtual targets should be ephemeral - only created for a few hours and then 
+  infoPanelMessage2: `Virtual targets should be ephemeral - only created for a few hours and then
   deprovisioned.`,
   infoPanelLabel2: 'What can I accomplish here?',
-  infoPanelMessage3: `You can view your provisioned virtual targets, and log in, start or stop your 
+  infoPanelMessage3: `You can view your provisioned virtual targets, and log in, start or stop your
   virtual target. `,
   infoPanelMessage4: '',
   infoPanelMessage5: '',
-  popoverContent: `Stopping a virtual target temporarily shuts down the EC2 instance. All introduced data 
+  popoverContent: `Stopping a virtual target temporarily shuts down the EC2 instance. All introduced data
   is kept, and the virtual target can be restarted later.`,
   mappingInfo: (jobName: string, platformType: string, version: string) =>
     `Configured with ${jobName} ${platformType} platform version ${version}.`,
@@ -107,7 +107,7 @@ export const i18n = {
   versionDescriptionPopoverHeader: 'Version description',
   versionDescriptionPopoverDefaultText: 'No version description available',
   autoUpgradePopoverHeader: 'Auto upgrade',
-  autoUpgradePopoverText: `Your version is retired and will be automatically upgraded 
+  autoUpgradePopoverText: `Your version is retired and will be automatically upgraded
     to a later version after the given time period.`,
   autoUpgradeTimesUp: 'Time is up!',
   autoUgpradeNA: 'N/A'

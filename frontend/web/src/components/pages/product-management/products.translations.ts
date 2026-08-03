@@ -31,13 +31,13 @@ export const i18n = {
   statusOptionArchived: 'Archived',
   infoPanelHeader: 'Products',
   infoPanelLabel1: 'What is a product?',
-  infoPanelMessage1: `A product is a set of AWS cloud resources ready to be provisioned and 
-  defined by CloudFormation templates. A product is a blueprint for either a VEW workbench or 
+  infoPanelMessage1: `A product is a set of AWS cloud resources ready to be provisioned and
+  defined by CloudFormation templates. A product is a blueprint for either a VEW workbench or
   VEW virtual target. `,
   infoPanelLabel2: 'What can I accomplish here?',
-  infoPanelMessage2: `This page is a cornerstone of the product publishing process in VEW i.e. 
+  infoPanelMessage2: `This page is a cornerstone of the product publishing process in VEW i.e.
   distributing the products to use case accounts and making them available for users.`,
-  infoPanelMessage3: `You can browse existing products categorized by type and technology, archive 
+  infoPanelMessage3: `You can browse existing products categorized by type and technology, archive
   a product and create a new one.`,
   statusFirstOptionValue: 'CREATED',
 };

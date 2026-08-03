@@ -1,0 +1,114 @@
+name: CI
+
+# No-secrets PR validation running on the CodeBuild-hosted runner (project: vew-ci).
+# Backend: install + static checks (black/isort/flake8/mypy/secret scans) + pytest.
+# Frontend: install + lint + unit tests + build (with a placeholder aws-exports).
+# IaC scan: checkov over CFN product templates, Dockerfiles, and workflows
+#   (config: .checkov.yaml) — runs on a GitHub-hosted runner, no toolchain needed.
+# Supply-chain hardening: minimal token permissions; actions pinned by commit SHA.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint, type, test)
+    runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      # setup-python has no Amazon Linux 2 (arm64) build — let uv provide Python
+      # via its OS-agnostic standalone builds (same approach as local dev).
+      - name: Provision Python 3.13 (via uv)
+        run: uv python install 3.13
+
+      - name: Set up Java (Corretto 21, for DynamoDB Local)
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: corretto
+          java-version: "21"
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --group dev
+
+      - name: Static checks (black, isort, flake8, mypy, secret scans)
+        # Skip the frontend lint hooks here — they run in the frontend job.
+        run: SKIP=frontend-web-lint,frontend-infra-lint uvx pre-commit run --all-files --show-diff-on-failure
+
+      - name: Security scan (bandit — fail on medium+ severity)
+        working-directory: backend
+        run: uv run bandit -r app --ini bandit.ini -ll -q
+
+      - name: Dependency vulnerability audit (pip-audit)
+        working-directory: backend
+        run: uvx pip-audit -r requirements.txt --no-deps
+
+      - name: Unit tests
+        working-directory: backend
+        run: uv run pytest app -n auto -q
+
+  frontend:
+    name: Frontend (lint, test, build)
+    runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Enable Yarn 4 (corepack)
+        run: corepack enable
+
+      - name: Install
+        working-directory: frontend/web
+        run: yarn install --immutable
+
+      - name: Dependency vulnerability audit (high+)
+        working-directory: frontend/web
+        run: yarn npm audit --severity high
+
+      - name: Generate placeholder aws-exports (offline build)
+        working-directory: frontend/web
+        run: node scripts/gen-stub-aws-exports.mjs
+
+      - name: Lint
+        working-directory: frontend/web
+        run: yarn lint
+
+      - name: Unit tests
+        working-directory: frontend/web
+        run: yarn test:ci
+
+      - name: Build
+        working-directory: frontend/web
+        run: yarn build
+
+  iac-scan:
+    name: IaC scan (checkov)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Checkov (CFN templates, Dockerfiles, workflows)
+        run: uvx --from 'checkov==3.3.8' checkov -d . --config-file .checkov.yaml

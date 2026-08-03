@@ -87,22 +87,22 @@ export const i18n = {
   errorStop: 'Unable to stop the selected provisioned product',
   infoPanelHeader: 'My workbenches',
   infoPanelLabel1: 'What is a workbench?',
-  infoPanelMessage1: `Workbenches are predefined use case specific environments that come 
-  fully equipped with all the tools, integrated development environments (IDEs), and licensing 
-  necessary for you to jump start your work. Whether working on advanced driver assistance 
-  systems or personalized infotainment applications, these specialized environments ensure you 
+  infoPanelMessage1: `Workbenches are predefined use case specific environments that come
+  fully equipped with all the tools, integrated development environments (IDEs), and licensing
+  necessary for you to jump start your work. Whether working on advanced driver assistance
+  systems or personalized infotainment applications, these specialized environments ensure you
   have the right resources to begin your work effectively.`,
   infoPanelMessage2: '',
   infoPanelLabel2: 'What can I accomplish here?',
-  infoPanelMessage3: `You can view your provisioned workbenches and additional details, 
+  infoPanelMessage3: `You can view your provisioned workbenches and additional details,
   stop your workbench, log in to your workbench or remove a workbench.`,
-  infoPanelMessage4: `Please note: stopping a workbench temporarily shuts down the EC2 
-  instance but all introduced data is kept. A stopped workbench can be later restarted. 
-  VEW does not share workbenches under "My workbenches" with other.. Only the user who 
+  infoPanelMessage4: `Please note: stopping a workbench temporarily shuts down the EC2
+  instance but all introduced data is kept. A stopped workbench can be later restarted.
+  VEW does not share workbenches under "My workbenches" with other.. Only the user who
   provisioned the workbench has access.`,
-  infoPanelMessage5: `Removed workbenches are terminated permanently and cannot be restored. 
+  infoPanelMessage5: `Removed workbenches are terminated permanently and cannot be restored.
   Make sure to backup your data before removing a workbench.`,
-  popoverContent: `Stopping a workbench temporarily shuts down the EC2 instance. All introduced data 
+  popoverContent: `Stopping a workbench temporarily shuts down the EC2 instance. All introduced data
   is kept, and the workbench can be restarted later.`,
   mappingInfo: (jobName: string, platformType: string, version: string) =>
     `Configured with ${jobName} ${platformType} platform version ${version}.`,

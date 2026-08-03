@@ -18,13 +18,15 @@ class VpcStack(aws_cdk.Stack):
 
         vpc_name = app_config.environment_config["vpc-name"]
 
+        nat_gateways = app_config.component_specific.get("nat-gateways", 1)
+
         vpc = aws_ec2.Vpc(
             self,
             "Vpc",
             vpc_name=vpc_name,
             ip_addresses=aws_ec2.IpAddresses.cidr("10.0.0.0/16"),
             max_azs=subnet_count,
-            nat_gateways=1,
+            nat_gateways=nat_gateways,
             subnet_configuration=[
                 aws_ec2.SubnetConfiguration(
                     name="public",

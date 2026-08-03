@@ -135,7 +135,7 @@ const Images: FC<ImagesProps> = () => {
       pagination: { defaultPage: PAGE_INDEX, pageSize: PAGE_SIZE }
     }
   );
-  
+
   const { onSortingChange } = useCloudscapeTablePersisentState<Image>({
     key: 'prod-man-images',
     columnDefinitions,
