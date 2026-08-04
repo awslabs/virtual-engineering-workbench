@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from app.projects.adapters.query_services import dynamodb_query_service
 from app.projects.adapters.repository import dynamo_entity_config
 from app.projects.adapters.repository.dynamo_entity_migrations import migrations_config
+from app.projects.adapters.services import cognito_user_directory_service
 from app.projects.domain.command_handlers.enrolments import (
     approve_enrolments_command_handler,
     enrol_user_to_program_command_handler,
@@ -128,6 +129,13 @@ def bootstrap(
         table_name=app_config.get_table_name(), dynamodb_client=dynamodb.meta.client
     )
 
+    cognito_idp_client = session.client("cognito-idp", region_name=app_config.get_default_region())
+    user_directory_svc = cognito_user_directory_service.CognitoUserDirectoryService(
+        cognito_client=cognito_idp_client,
+        user_pool_id=app_config.get_cognito_user_pool_id(),
+        logger=logger,
+    )
+
     events_client = session.client("events", region_name=app_config.get_default_region())
     events_api = aws_events_api.AWSEventsApi(client=events_client)
 
@@ -184,6 +192,7 @@ def bootstrap(
                 unit_of_work=shared_uow_v2,
                 projects_query_service=projects_query_service,
                 message_bus=message_bus,
+                user_directory_service=user_directory_svc,
             ),
         )
         .register_handler(

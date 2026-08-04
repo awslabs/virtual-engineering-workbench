@@ -49,6 +49,7 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("AUDIT_LOGGING_KEY_NAME", TEST_SECRET_NAME)
     monkeypatch.setenv("TABLE_NAME", TEST_TABLE_NAME)
     monkeypatch.setenv("GSI_NAME_ENTITIES", GSI_ENTITIES)
+    monkeypatch.setenv("COGNITO_USER_POOL_ID", "us-east-1_testpool")
 
 
 @pytest.fixture(autouse=True)

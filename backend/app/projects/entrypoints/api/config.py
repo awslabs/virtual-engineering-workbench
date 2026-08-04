@@ -59,6 +59,9 @@ class AppConfig(BaseModel):
     def get_custom_dns_name(self) -> str:
         return os.environ.get("CUSTOM_DNS", "")
 
+    def get_cognito_user_pool_id(self) -> str:
+        return os.environ.get("COGNITO_USER_POOL_ID", "")
+
 
 config = {
     "cors_config": {

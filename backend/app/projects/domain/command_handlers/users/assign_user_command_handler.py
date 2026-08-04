@@ -2,7 +2,7 @@ from app.projects.domain.commands.users import assign_user_command as command
 from app.projects.domain.events.users import user_assigned
 from app.projects.domain.exceptions import domain_exception
 from app.projects.domain.model import project_assignment, user
-from app.projects.domain.ports import projects_query_service
+from app.projects.domain.ports import projects_query_service, user_directory_service
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -12,6 +12,7 @@ def handle_assign_user_command(
     unit_of_work: unit_of_work.UnitOfWork,
     projects_query_service: projects_query_service.ProjectsQueryService,
     message_bus: message_bus.MessageBus,
+    user_directory_service: user_directory_service.UserDirectoryService,
 ):
     project = projects_query_service.get_project_by_id(cmd.project_id.value)
     if not project:
@@ -29,10 +30,17 @@ def handle_assign_user_command(
 
     assigned_roles = [role.value for role in cmd.roles]
 
+    # Look up the user's email in the identity provider so the Members UI
+    # (and downstream notifications) can display it. Best-effort: a missing
+    # email does not block onboarding — the assignment still persists with
+    # userEmail=None, matching the pre-existing fallback behavior.
+    user_email = user_directory_service.get_user_email(to_be_assigned_user_id)
+
     assignment = project_assignment.Assignment(
         userId=to_be_assigned_user_id,
         projectId=cmd.project_id.value,
         roles=assigned_roles,
+        userEmail=user_email,
         activeDirectoryGroups=[],
         activeDirectoryGroupStatus=user.UserADStatus.PENDING,
     )
