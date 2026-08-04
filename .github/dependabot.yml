@@ -1,0 +1,24 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# NOTE: Security updates for all ecosystems continue to be handled automatically
+# by GitHub's Dependabot security updates setting (enabled at the repo level).
+# This file only configures VERSION update PRs (regular bumps for outdated deps),
+# which currently we opt into only for Docker base images.
+
+version: 2
+updates:
+  # Root Dockerfile base image SHA maintenance.
+  # Pinned by SHA to close OpenSSF Scorecard "Pinned-Dependencies" findings;
+  # Dependabot keeps the SHA fresh so security patches to the base image
+  # continue to land automatically as review-able PRs.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
