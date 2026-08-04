@@ -97,6 +97,7 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("VEW_ORGANIZATION_PREFIX", TEST_ORG_PREFIX)
     monkeypatch.setenv("VEW_APPLICATION_PREFIX", TEST_APP_PREFIX)
     monkeypatch.setenv("APP_ENVIRONMENT", TEST_ENVIRONMENT)
+    monkeypatch.setenv("COGNITO_USER_POOL_ID", "us-east-1_testpool")
 
 
 @pytest.fixture(autouse=True)
