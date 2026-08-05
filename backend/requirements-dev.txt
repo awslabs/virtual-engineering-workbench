@@ -5,7 +5,7 @@ black ~= 26.3.1
 boto3 ~= 1.42
 boto3-stubs[essential] ~= 1.42
 cdk-nag ~= 2.29
-cryptography ~= 46.0
+cryptography ~= 50.0
 datamodel-code-generator == 0.64.0
 distlib ~= 0.3
 flake8 ~= 7.0
