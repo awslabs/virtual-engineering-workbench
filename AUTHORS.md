@@ -13,7 +13,7 @@
 
 Special thanks to the following authors for their contributions
 
-* Daniel Krumpholz
+* Daniel Krumpholz ([@dani94k](https://github.com/dani94k))
 * Furkan Oruc
 * Balachandar Raju
 * José Alfredo De Castro Nunes
