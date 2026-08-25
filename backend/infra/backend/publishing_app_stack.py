@@ -508,6 +508,11 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         )
 
         # Subscribe to domain events
+        # Note: ProductAvailabilityUpdated is intentionally not subscribed here.
+        # No handler is registered for it in
+        # app/publishing/entrypoints/domain_event_handler/handler.py, and
+        # subscribing to it caused every publish to generate an
+        # EventResolverException that was then retried and dead-lettered.
         self._event_bus.l3_event_bus.subscribe_to_events(
             name="publishing-domain-events-rule",
             lambda_function=self._backend_app.app_entries_functions[domain_event_handler_name],
@@ -519,7 +524,6 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 "ProductVersionPublished",
                 "ProductVersionUnpublished",
                 "ProductUnpublished",
-                "ProductAvailabilityUpdated",
             ],
         )
 

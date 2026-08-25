@@ -294,6 +294,8 @@ The script then:
 
 The deployment uses the VPC named `vpc-{org}-{app}-{env}`. If it does not exist, Phase 4 creates one; for `qa`/`prod` it provisions one NAT gateway per Availability Zone. Tighten `allowed-cidrs-for-private-api-endpoint` in `backend/infra/config.py` from the default RFC 1918 ranges to your corporate CIDRs.
 
+In private mode, any Lambda that calls a cross-bounded-context API (declared via `cross_bc_api_access` on its `AppEntryPoint`) is automatically attached to that VPC so it can resolve the private API Gateway endpoint through the VPC interface endpoint. Public deployments keep Lambdas outside the VPC to avoid the associated NAT/endpoint cost.
+
 ### Post-deployment
 
 After deployment completes, the script prints:

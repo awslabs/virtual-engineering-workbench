@@ -69,6 +69,17 @@ class BackendAppEntrypoints(constructs.Construct):
 
         for app in (a for a in app_entry_points if a.is_enabled):
             env = {**base_env_vars, **(app.environment or {})}
+
+            # In private-deployment mode (PRIVATE_API_ENDPOINT=True), API Gateway is only
+            # reachable via a VPC interface endpoint. Any Lambda that calls a cross-bounded-
+            # context API therefore needs to be attached to the VPC so it can resolve the
+            # private DNS and route through the endpoint. `cross_bc_api_access` is the
+            # declarative marker of such Lambdas, so auto-attach here unless the stack
+            # already provided an explicit vpc_name/vpc_id. In public mode nothing changes.
+            resolved_vpc_name = app.vpc_name
+            if not app.vpc_id and not resolved_vpc_name and constants.PRIVATE_API_ENDPOINT and app.cross_bc_api_access:
+                resolved_vpc_name = app_config.environment_config.get("vpc-name")
+
             func = backend_app_function.BackendAppFunction(
                 self,
                 app.name,
@@ -87,7 +98,7 @@ class BackendAppEntrypoints(constructs.Construct):
                 asynchronous=app.asynchronous,
                 asynchronous_retries=app.asynchronous_retries,
                 vpc_id=app.vpc_id,
-                vpc_name=app.vpc_name,
+                vpc_name=resolved_vpc_name,
                 durable_execution_enabled=app.durable_execution_enabled,
             )
 
