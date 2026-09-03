@@ -1,0 +1,95 @@
+name: Code Server Workstation
+description: Installs code-server as a local browser IDE for the Ubuntu workstation user
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: InstallDependencies
+        action: ExecuteBash
+        inputs:
+          commands:
+            - apt-get update
+            - apt-get install -y ca-certificates curl git
+      - name: InstallCodeServer
+        action: ExecuteBash
+        timeoutSeconds: 300
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              curl -fsSL https://code-server.dev/install.sh -o /tmp/install-code-server.sh
+              HOME=/root sh /tmp/install-code-server.sh --version=4.133.0
+              rm -f /tmp/install-code-server.sh
+      - name: ConfigureCodeServer
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              install -d -o ubuntu -g ubuntu /home/ubuntu/.config/code-server
+              install -d -o ubuntu -g ubuntu /home/ubuntu/workspace
+
+              cat > /home/ubuntu/.config/code-server/config.yaml <<'EOF'
+              bind-addr: 127.0.0.1:8080
+              auth: none
+              cert: false
+              EOF
+              chown ubuntu:ubuntu /home/ubuntu/.config/code-server/config.yaml
+              chmod 0600 /home/ubuntu/.config/code-server/config.yaml
+            - |
+              cat > /etc/systemd/system/code-server.service <<'EOF'
+              [Unit]
+              Description=code-server browser IDE
+              After=network-online.target
+              Wants=network-online.target
+
+              [Service]
+              Type=simple
+              User=ubuntu
+              Group=ubuntu
+              WorkingDirectory=/home/ubuntu/workspace
+              ExecStart=/usr/bin/code-server --config /home/ubuntu/.config/code-server/config.yaml /home/ubuntu/workspace
+              Restart=on-failure
+              RestartSec=5
+
+              [Install]
+              WantedBy=multi-user.target
+              EOF
+
+              systemctl daemon-reload
+              systemctl enable code-server.service
+  - name: validate
+    steps:
+      - name: VerifyCodeServerInstallation
+        action: ExecuteBash
+        inputs:
+          commands:
+            - code-server --version | head -n 1 | grep -q '^4.133.0'
+            - >-
+              grep -Fxq 'bind-addr: 127.0.0.1:8080'
+              /home/ubuntu/.config/code-server/config.yaml
+            - >-
+              grep -Fxq 'auth: none'
+              /home/ubuntu/.config/code-server/config.yaml
+            - test "$(stat -c '%U:%G' /home/ubuntu/workspace)" = 'ubuntu:ubuntu'
+            - systemctl is-enabled --quiet code-server.service
+            - systemd-analyze verify /etc/systemd/system/code-server.service
+      - name: VerifyCodeServerHealth
+        action: ExecuteBash
+        timeoutSeconds: 60
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              trap 'systemctl stop code-server.service' EXIT
+              systemctl start code-server.service
+
+              for attempt in $(seq 1 15); do
+                if curl -fsS http://127.0.0.1:8080/healthz > /dev/null; then
+                  exit 0
+                fi
+                sleep 2
+              done
+
+              systemctl status code-server.service --no-pager
+              exit 1
