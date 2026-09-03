@@ -1,34 +1,31 @@
-# Amazon DCV Components for the Code-Server POC
+# Amazon DCV Component for the Code-Server POC
 
 ## Goal
 
-Provide direct, browser-based Amazon DCV access to the code-server workstation POC on official Ubuntu Server 22.04 and 24.04 x86_64 AMIs. Keep each image component small and explicit so failures can be diagnosed independently for each Ubuntu release.
+Provide direct, browser-based Amazon DCV access to the code-server workstation POC on official Ubuntu Server 24.04 x86_64 AMIs. Keep the image component small and explicit so failures can be diagnosed without cross-release branching.
 
 This is a public proof of concept, not the final production access architecture. The instance receives a public IPv4 address, while VEW restricts supported connection ports to the current user's observed public IP using `/32` security-group rules. DCV still requires PAM credentials and TLS.
 
 ## Scope
 
-The change adds two EC2 Image Builder components:
+The change adds one EC2 Image Builder component:
 
-- `dcv-ubuntu-2204-component.yaml`
 - `dcv-ubuntu-2404-component.yaml`
 
-The components intentionally duplicate their short installation steps. Each component supports only its named Ubuntu release and x86_64. It must fail before installing packages when used with a different OS release or CPU architecture.
+The component supports only Ubuntu 24.04 on x86_64, which matches VEW's current Linux/amd64 packaging test matrix. It must fail before installing packages when used with a different OS release or CPU architecture. Ubuntu 22.04 support can be added later as a separate component after VEW supports that OS in its packaging and recipe models.
 
 The existing `product.yaml` is extended to provide a public network interface and per-instance credentials. The existing code-server component remains separate and continues binding code-server to `127.0.0.1:8080` with no direct network exposure.
 
 ## Image Component Design
 
-Each component performs the same release-specific sequence:
+The component performs this sequence:
 
 1. Verify `/etc/os-release` identifies Ubuntu and the expected release, and verify `uname -m` is `x86_64`.
 2. Install the Ubuntu graphical environment, GDM3, Xorg, the XDummy video driver, and supporting utilities non-interactively.
 3. Disable Wayland because Amazon DCV console sessions use Xorg.
 4. Configure an XDummy display suitable for a non-GPU `m8i` instance, with a maximum virtual resolution of 4096 by 2160.
-5. Download the release-specific Amazon DCV 2025.0-20103 archive from its versioned AWS CloudFront URL.
-6. Verify the downloaded archive with its pinned SHA-256 digest:
-   - Ubuntu 22.04: `acfc339c9e57be9800f25734cb18dec87da2b0457b3cfd2582fc57f05de7c792`
-   - Ubuntu 24.04: `a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17`
+5. Download the Ubuntu 24.04 Amazon DCV 2025.0-20103 archive from its versioned AWS CloudFront URL.
+6. Verify the downloaded archive with the pinned SHA-256 digest `a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17`.
 7. Install `nice-dcv-server` and `nice-dcv-web-viewer` from the archive. Virtual-session and GPU packages are excluded.
 8. Add the `dcv` service account to the `video` group.
 9. Configure `/etc/dcv/dcv.conf` with `authentication="system"`, automatic console-session creation, and `ubuntu` as the session owner.
@@ -94,10 +91,10 @@ No public CIDR ingress rule is added by the product. The attached VEW user secur
 
 ## Tests and Verification
 
-Repository tests will parse both component documents and assert:
+Repository tests will parse the component document and assert:
 
 - valid EC2 Image Builder phase structure;
-- release-specific guards, URLs, package names, and SHA-256 values;
+- the Ubuntu 24.04 guard, versioned URL, package names, and SHA-256 value;
 - secure authentication and console-owner configuration;
 - installation of the web viewer and non-GPU desktop prerequisites;
 - no unauthenticated DCV configuration.
@@ -112,11 +109,11 @@ Product-template tests will assert:
 - no `0.0.0.0/0` or `::/0` ingress rule;
 - secure password application through standard input rather than command arguments.
 
-Both components will be checked with `awstoe validate`, and all focused Python tests will run locally. Final integration acceptance requires building and launching one image from an official Ubuntu 22.04 x86_64 AMI and one from an official Ubuntu 24.04 x86_64 AMI, then confirming browser DCV login to the `console` session and access to code-server at `http://127.0.0.1:8080` inside the desktop.
+The component will be checked with `awstoe validate`, and all focused Python tests will run locally. Final integration acceptance requires building and launching an image from an official Ubuntu 24.04 x86_64 AMI, then confirming browser DCV login to the `console` session and access to code-server at `http://127.0.0.1:8080` inside the desktop.
 
 ## Out of Scope
 
-- ARM64 and non-Ubuntu distributions
+- Ubuntu 22.04, ARM64, and non-Ubuntu distributions
 - GPU acceleration and `nice-dcv-gl`
 - DCV virtual sessions and `nice-xdcv`
 - Active Directory and external token authentication
