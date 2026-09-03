@@ -22,15 +22,16 @@ The component performs this sequence:
 
 1. Verify `/etc/os-release` identifies Ubuntu and the expected release, and verify `uname -m` is `x86_64`.
 2. Install the Ubuntu graphical environment, GDM3, Xorg, the XDummy video driver, and supporting utilities non-interactively.
-3. Disable Wayland because Amazon DCV console sessions use Xorg.
-4. Configure an XDummy display suitable for a non-GPU `m8i` instance, with a maximum virtual resolution of 4096 by 2160.
-5. Download the Ubuntu 24.04 Amazon DCV 2025.0-20103 archive from its versioned AWS CloudFront URL.
-6. Verify the downloaded archive with the pinned SHA-256 digest `a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17`.
-7. Install `nice-dcv-server` and `nice-dcv-web-viewer` from the archive. Virtual-session and GPU packages are excluded.
-8. Add the `dcv` service account to the `video` group.
-9. Configure `/etc/dcv/dcv.conf` with `authentication="system"`, automatic console-session creation, and `ubuntu` as the session owner.
-10. Set the system's default boot target to `graphical.target` and enable GDM3 and `dcvserver`.
-11. Remove downloaded installation artifacts and package-manager caches.
+3. Install the pinned AWS CLI v2 x86_64 bundle system-wide under `/usr/local`, after verifying its SHA-256 digest. This avoids relying on an `awscli` APT candidate that is absent from some Ubuntu 24.04 image sources.
+4. Disable Wayland because Amazon DCV console sessions use Xorg.
+5. Configure an XDummy display suitable for a non-GPU `m8i` instance, with a maximum virtual resolution of 4096 by 2160.
+6. Download the Ubuntu 24.04 Amazon DCV 2025.0-20103 archive from its versioned AWS CloudFront URL.
+7. Verify the downloaded archive with the pinned SHA-256 digest `a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17`.
+8. Install `nice-dcv-server` and `nice-dcv-web-viewer` from the archive. Virtual-session and GPU packages are excluded.
+9. Add the `dcv` service account to the `video` group.
+10. Configure `/etc/dcv/dcv.conf` with `authentication="system"`, automatic console-session creation, and `ubuntu` as the session owner.
+11. Set the system's default boot target to `graphical.target` and enable GDM3 and `dcvserver`.
+12. Remove downloaded installation artifacts and package-manager caches.
 
 The DCV default permissions remain in effect. They grant the session owner access and do not create a shared session. DCV's generated self-signed TLS certificate is acceptable for this POC, although users will receive a certificate warning. A trusted hostname and certificate are explicitly outside this change.
 

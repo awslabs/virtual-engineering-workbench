@@ -219,7 +219,7 @@ Resources:
           set -euo pipefail
 
           AWS_REGION="${AWS::Region}"
-          secret_json=$(aws secretsmanager get-secret-value \
+          secret_json=$(/usr/local/bin/aws secretsmanager get-secret-value \
             --secret-id '${WorkbenchUserCredentials}' \
             --region "$AWS_REGION" \
             --query SecretString \

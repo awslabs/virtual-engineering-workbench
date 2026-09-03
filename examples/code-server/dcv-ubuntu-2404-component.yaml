@@ -32,8 +32,31 @@ phases:
                 ca-certificates \
                 curl \
                 jq \
-                awscli \
-                iproute2
+                iproute2 \
+                unzip
+      - name: InstallAwsCli
+        action: ExecuteBash
+        timeoutSeconds: 600
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              archive=/tmp/awscliv2.zip
+              install_dir=/tmp/aws-cli-v2
+
+              mkdir -p "$install_dir"
+              curl -fsSL \
+                https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.38.zip \
+                -o "$archive"
+              echo "1056bc30b892f4a80e65b05eac856fbf175d0c5aeda051d782450d2218db6657  $archive" \
+                | sha256sum -c -
+              unzip -q "$archive" -d "$install_dir"
+              cd "$install_dir"
+              ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+              /usr/local/bin/aws --version
+
+              rm -f "$archive"
+              rm -rf "$install_dir"
       - name: ConfigureDisplay
         action: ExecuteBash
         inputs:
@@ -134,6 +157,7 @@ phases:
                 gdm3 \
                 xserver-xorg-video-dummy \
                 | grep -Fxq 'install ok installed'
+              /usr/local/bin/aws --version
               grep -Fxq 'WaylandEnable=false' /etc/gdm3/custom.conf
               grep -Fxq '    Driver "dummy"' /etc/X11/xorg.conf
               grep -Fxq 'authentication="system"' /etc/dcv/dcv.conf

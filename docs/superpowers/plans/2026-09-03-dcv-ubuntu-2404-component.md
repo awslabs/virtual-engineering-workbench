@@ -123,7 +123,7 @@ Expected: FAIL with `FileNotFoundError` for `dcv-ubuntu-2404-component.yaml`.
 
 - [x] **Step 3: Implement the AWSTOE build phase**
 
-Create `examples/code-server/dcv-ubuntu-2404-component.yaml` with `schemaVersion: 1.0`, `build` and `validate` phases. The build phase must use separate `ExecuteBash` steps named `ValidatePlatform`, `InstallDesktop`, `ConfigureDisplay`, `InstallDcv`, and `ConfigureDcv`.
+Create `examples/code-server/dcv-ubuntu-2404-component.yaml` with `schemaVersion: 1.0`, `build` and `validate` phases. The build phase must use separate `ExecuteBash` steps named `ValidatePlatform`, `InstallDesktop`, `InstallAwsCli`, `ConfigureDisplay`, `InstallDcv`, and `ConfigureDcv`.
 
 Use this platform guard:
 
@@ -143,8 +143,10 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 echo "gdm3 shared/default-x-display-manager select gdm3" | debconf-set-selections
 apt-get update
-apt-get install -y ubuntu-desktop-minimal gdm3 xserver-xorg-video-dummy ca-certificates curl jq awscli
+apt-get install -y ubuntu-desktop-minimal gdm3 xserver-xorg-video-dummy ca-certificates curl jq iproute2 unzip
 ```
+
+Install the pinned AWS CLI v2 x86_64 bundle system-wide under `/usr/local`, verifying its SHA-256 digest before running the installer. Do not depend on an `awscli` APT candidate, because it is not available from every Ubuntu 24.04 image's enabled package sources.
 
 Set `WaylandEnable=false` under the existing `[daemon]` section in `/etc/gdm3/custom.conf`, replacing a commented or active `WaylandEnable` entry when present and inserting it when absent. Write `/etc/X11/xorg.conf` with the AWS-recommended dummy device, monitor, and screen:
 

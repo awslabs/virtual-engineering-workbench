@@ -126,7 +126,7 @@ def test_product_explicitly_assigns_a_public_ip_with_both_security_groups() -> N
 def test_product_applies_secret_without_embedding_a_password() -> None:
     rendered = render_product()
 
-    assert "aws secretsmanager get-secret-value" in rendered
+    assert "/usr/local/bin/aws secretsmanager get-secret-value" in rendered
     assert "jq -er '.username'" in rendered
     assert "jq -er '.password'" in rendered
     assert "printf '%s:%s\\n' \"$username\" \"$password\" | chpasswd" in rendered
