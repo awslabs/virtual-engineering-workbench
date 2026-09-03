@@ -35,7 +35,7 @@
 - Consumes: Ubuntu user `ubuntu`; official DCV archive `https://d1uj6qtbmh3dt5.cloudfront.net/2025.0/Servers/nice-dcv-2025.0-20103-ubuntu2404-x86_64.tgz`
 - Produces: enabled `gdm3.service` and `dcvserver.service`, `/etc/dcv/dcv.conf`, `/etc/X11/xorg.conf`, automatic DCV session `console`, TCP listener on 8443
 
-- [ ] **Step 1: Write the component structure and security tests**
+- [x] **Step 1: Write the component structure and security tests**
 
 Create `examples/code-server/test_dcv_component.py` with these helpers and assertions:
 
@@ -111,7 +111,7 @@ def test_component_validates_listener_and_console_session() -> None:
     assert "journalctl -u dcvserver.service" in validate
 ```
 
-- [ ] **Step 2: Run the component tests and confirm the missing file failure**
+- [x] **Step 2: Run the component tests and confirm the missing file failure**
 
 Run:
 
@@ -121,7 +121,7 @@ uv run --project backend pytest examples/code-server/test_dcv_component.py -q
 
 Expected: FAIL with `FileNotFoundError` for `dcv-ubuntu-2404-component.yaml`.
 
-- [ ] **Step 3: Implement the AWSTOE build phase**
+- [x] **Step 3: Implement the AWSTOE build phase**
 
 Create `examples/code-server/dcv-ubuntu-2404-component.yaml` with `schemaVersion: 1.0`, `build` and `validate` phases. The build phase must use separate `ExecuteBash` steps named `ValidatePlatform`, `InstallDesktop`, `ConfigureDisplay`, `InstallDcv`, and `ConfigureDcv`.
 
@@ -214,7 +214,7 @@ systemctl set-default graphical.target
 systemctl enable gdm3.service dcvserver.service
 ```
 
-- [ ] **Step 4: Implement the AWSTOE validation phase**
+- [x] **Step 4: Implement the AWSTOE validation phase**
 
 Add `VerifyDcvConfiguration` and `VerifyDcvRuntime` `ExecuteBash` steps. The configuration step must use `dpkg-query -W` for `nice-dcv-server`, `nice-dcv-web-viewer`, `gdm3`, and `xserver-xorg-video-dummy`; fixed-string `grep` checks for the secure settings; `systemctl is-enabled` for both services; and `systemd-analyze verify` for their units.
 
@@ -226,7 +226,7 @@ journalctl -u gdm3.service -u dcvserver.service --no-pager -n 100 || true
 dcv list-sessions || true
 ```
 
-- [ ] **Step 5: Run the component tests**
+- [x] **Step 5: Run the component tests**
 
 Run:
 
@@ -249,7 +249,7 @@ chmod +x "$validation_dir/awstoe"
 
 Expected: AWSTOE reports a successful document validation.
 
-- [ ] **Step 7: Commit the component**
+- [x] **Step 7: Commit the component**
 
 ```bash
 git add examples/code-server/test_dcv_component.py examples/code-server/dcv-ubuntu-2404-component.yaml
@@ -268,7 +268,7 @@ git commit -m "feat: add Ubuntu 24 DCV component"
 - Consumes: component-created `ubuntu` user, `gdm3.service`, `dcvserver.service`, and `code-server.service`; VEW parameter `UserSecurityGroupId`
 - Produces: CloudFormation outputs `PublicIP` and `UserCredentialsSecret`; one generated secret containing `username` and `password`; a public primary ENI protected by both VEW security groups
 
-- [ ] **Step 1: Write failing product tests for credentials**
+- [x] **Step 1: Write failing product tests for credentials**
 
 Append these tests to `examples/code-server/test_product.py`:
 
@@ -304,7 +304,7 @@ def test_instance_can_read_only_its_generated_credential() -> None:
 
 Update the existing VEW-output assertion to require `PublicIP` and `UserCredentialsSecret`.
 
-- [ ] **Step 2: Write failing product tests for networking and bootstrap**
+- [x] **Step 2: Write failing product tests for networking and bootstrap**
 
 Append:
 
@@ -347,7 +347,7 @@ def test_product_has_no_public_ingress_cidr() -> None:
     assert all(rule.get("CidrIpv6") != "::/0" for rule in ingress)
 ```
 
-- [ ] **Step 3: Run the new product tests and confirm they fail**
+- [x] **Step 3: Run the new product tests and confirm they fail**
 
 Run:
 
@@ -357,7 +357,7 @@ uv run --project backend pytest examples/code-server/test_product.py -q
 
 Expected: FAIL because `WorkbenchUserCredentials`, `PublicIP`, `UserCredentialsSecret`, `NetworkInterfaces`, and `MetadataOptions` do not exist.
 
-- [ ] **Step 4: Add the secret, output, and least-privilege role policy**
+- [x] **Step 4: Add the secret, output, and least-privilege role policy**
 
 Add:
 
@@ -398,7 +398,7 @@ Append this inline policy to `InstanceRole.Properties.Policies`:
         Resource: !Ref WorkbenchUserCredentials
 ```
 
-- [ ] **Step 5: Make the primary interface explicitly public and require IMDSv2**
+- [x] **Step 5: Make the primary interface explicitly public and require IMDSv2**
 
 Remove the top-level `SubnetId` and `SecurityGroupIds` properties from `Workbench.Properties`. Add:
 
@@ -416,7 +416,7 @@ NetworkInterfaces:
     SubnetId: !Ref SubnetId
 ```
 
-- [ ] **Step 6: Apply the secret and start workstation services at first boot**
+- [x] **Step 6: Apply the secret and start workstation services at first boot**
 
 Replace the current user data body with:
 
@@ -441,7 +441,7 @@ systemctl enable --now gdm3.service dcvserver.service code-server.service
 
 Do not add `set -x`, print the secret, or put the password in a process argument.
 
-- [ ] **Step 7: Run all focused tests**
+- [x] **Step 7: Run all focused tests**
 
 Run:
 
@@ -471,7 +471,7 @@ chmod +x "$validation_dir/awstoe"
 
 Expected: `git diff --check` produces no output and AWSTOE validates both documents successfully.
 
-- [ ] **Step 9: Commit the product integration**
+- [x] **Step 9: Commit the product integration**
 
 ```bash
 git add examples/code-server/product.yaml examples/code-server/test_product.py
