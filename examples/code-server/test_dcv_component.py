@@ -19,12 +19,6 @@ def commands_for(phase_name: str) -> str:
     )
 
 
-def commands_for_step(phase_name: str, step_name: str) -> str:
-    phase = next(phase for phase in load_component()["phases"] if phase["name"] == phase_name)
-    step = next(step for step in phase["steps"] if step["name"] == step_name)
-    return "\n".join(step["inputs"]["commands"])
-
-
 def test_component_uses_awstoe_schema() -> None:
     component = load_component()
 
@@ -60,16 +54,11 @@ def test_component_installs_desktop_and_web_viewer() -> None:
     assert 'Driver "dummy"' in build
 
 
-def test_component_installs_aws_cli_v2_without_an_apt_package() -> None:
-    desktop_install = commands_for_step("build", "InstallDesktop")
-    aws_cli_install = commands_for_step("build", "InstallAwsCli")
-    validate = commands_for("validate")
+def test_component_does_not_install_or_validate_aws_cli() -> None:
+    component_commands = commands_for("build") + commands_for("validate")
 
-    assert "awscli" not in desktop_install
-    assert "awscli-exe-linux-x86_64-2.36.38.zip" in aws_cli_install
-    assert "1056bc30b892f4a80e65b05eac856fbf175d0c5aeda051d782450d2218db6657" in aws_cli_install
-    assert "./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli" in aws_cli_install
-    assert "/usr/local/bin/aws --version" in validate
+    assert "awscli" not in component_commands.lower()
+    assert "/usr/local/bin/aws" not in component_commands
 
 
 def test_component_requires_pam_and_owner_only_console_session() -> None:

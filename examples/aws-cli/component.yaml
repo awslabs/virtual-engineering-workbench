@@ -1,0 +1,65 @@
+name: AWS CLI v2 for Ubuntu
+description: Installs a verified AWS CLI v2 release on Ubuntu 22.04 or 24.04 x86_64
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: ValidatePlatform
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              . /etc/os-release
+              test "$ID" = "ubuntu"
+              case "$VERSION_ID" in
+                "22.04"|"24.04") ;;
+                *) echo "Unsupported Ubuntu version: $VERSION_ID" >&2; exit 1 ;;
+              esac
+              test "$(uname -m)" = "x86_64"
+      - name: InstallDependencies
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update
+              apt-get install -y ca-certificates curl unzip
+      - name: InstallAwsCli
+        action: ExecuteBash
+        timeoutSeconds: 600
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              archive=/tmp/awscliv2.zip
+              install_dir=/tmp/aws-cli-v2
+
+              mkdir -p "$install_dir"
+              curl -fsSL \
+                https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.36.38.zip \
+                -o "$archive"
+              echo "1056bc30b892f4a80e65b05eac856fbf175d0c5aeda051d782450d2218db6657  $archive" \
+                | sha256sum -c -
+              unzip -q "$archive" -d "$install_dir"
+              cd "$install_dir"
+              if test -x /usr/local/bin/aws; then
+                ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+              else
+                ./aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+              fi
+
+              rm -f "$archive"
+              rm -rf "$install_dir"
+              apt-get clean
+  - name: validate
+    steps:
+      - name: VerifyAwsCli
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              version=$(/usr/local/bin/aws --version 2>&1)
+              printf '%s\n' "$version" | grep -Fq 'aws-cli/2.36.38 '

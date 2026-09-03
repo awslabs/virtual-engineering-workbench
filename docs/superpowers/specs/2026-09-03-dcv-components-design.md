@@ -8,30 +8,36 @@ This is a public proof of concept, not the final production access architecture.
 
 ## Scope
 
-The change adds one EC2 Image Builder component:
+The change adds two independently composable EC2 Image Builder components:
 
-- `dcv-ubuntu-2404-component.yaml`
+- `examples/aws-cli/component.yaml`
+- `examples/code-server/dcv-ubuntu-2404-component.yaml`
 
-The component supports only Ubuntu 24.04 on x86_64, which matches VEW's current Linux/amd64 packaging test matrix. It must fail before installing packages when used with a different OS release or CPU architecture. Ubuntu 22.04 support can be added later as a separate component after VEW supports that OS in its packaging and recipe models.
+The AWS CLI component supports Ubuntu 22.04 and 24.04 on x86_64. The DCV component supports only Ubuntu 24.04 on x86_64, which matches VEW's current Linux/amd64 packaging test matrix. Each component must fail before installing packages when used with an unsupported OS release or CPU architecture. Ubuntu 22.04 DCV support can be added later as a separate component after VEW supports that OS in its packaging and recipe models.
 
 The existing `product.yaml` is extended to provide a public network interface and per-instance credentials. The existing code-server component remains separate and continues binding code-server to `127.0.0.1:8080` with no direct network exposure.
 
 ## Image Component Design
 
-The component performs this sequence:
+The AWS CLI component performs this sequence:
 
-1. Verify `/etc/os-release` identifies Ubuntu and the expected release, and verify `uname -m` is `x86_64`.
+1. Verify `/etc/os-release` identifies Ubuntu 22.04 or 24.04 and verify `uname -m` is `x86_64`.
+2. Install `ca-certificates`, `curl`, and `unzip` from APT.
+3. Install the pinned AWS CLI v2 x86_64 bundle system-wide under `/usr/local`, after verifying its SHA-256 digest. This avoids relying on an `awscli` APT candidate that is absent from some Ubuntu image sources.
+4. Validate the exact installed AWS CLI version.
+
+The DCV component performs this sequence:
+
+1. Verify `/etc/os-release` identifies Ubuntu 24.04 and verify `uname -m` is `x86_64`.
 2. Install the Ubuntu graphical environment, GDM3, Xorg, the XDummy video driver, and supporting utilities non-interactively.
-3. Install the pinned AWS CLI v2 x86_64 bundle system-wide under `/usr/local`, after verifying its SHA-256 digest. This avoids relying on an `awscli` APT candidate that is absent from some Ubuntu 24.04 image sources.
-4. Disable Wayland because Amazon DCV console sessions use Xorg.
-5. Configure an XDummy display suitable for a non-GPU `m8i` instance, with a maximum virtual resolution of 4096 by 2160.
-6. Download the Ubuntu 24.04 Amazon DCV 2025.0-20103 archive from its versioned AWS CloudFront URL.
-7. Verify the downloaded archive with the pinned SHA-256 digest `a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17`.
-8. Install `nice-dcv-server` and `nice-dcv-web-viewer` from the archive. Virtual-session and GPU packages are excluded.
-9. Add the `dcv` service account to the `video` group.
-10. Configure `/etc/dcv/dcv.conf` with `authentication="system"`, automatic console-session creation, and `ubuntu` as the session owner.
-11. Set the system's default boot target to `graphical.target` and enable GDM3 and `dcvserver`.
-12. Remove downloaded installation artifacts and package-manager caches.
+3. Disable Wayland because Amazon DCV console sessions use Xorg.
+4. Configure an XDummy display suitable for a non-GPU `m8i` instance, with a maximum virtual resolution of 4096 by 2160.
+5. Download and verify the Ubuntu 24.04 Amazon DCV 2025.0-20103 archive from its versioned AWS CloudFront URL using the pinned SHA-256 digest `a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17`.
+6. Install `nice-dcv-server` and `nice-dcv-web-viewer` from the archive. Virtual-session and GPU packages are excluded.
+7. Add the `dcv` service account to the `video` group.
+8. Configure `/etc/dcv/dcv.conf` with `authentication="system"`, automatic console-session creation, and `ubuntu` as the session owner.
+9. Set the system's default boot target to `graphical.target` and enable GDM3 and `dcvserver`.
+10. Remove downloaded installation artifacts and package-manager caches.
 
 The DCV default permissions remain in effect. They grant the session owner access and do not create a shared session. DCV's generated self-signed TLS certificate is acceptable for this POC, although users will receive a certificate warning. A trusted hostname and certificate are explicitly outside this change.
 
@@ -64,6 +70,8 @@ The generated password is 32 characters and excludes characters that make shell 
 The secret is tagged `vew:provisionedProduct:ownerId` with `OwnerTID`. VEW's cross-account provisioning role requires this ownership tag before it can reveal the credential to the provisioned-product owner.
 
 At first boot, user data retrieves the secret in the instance's region, extracts the username and password without printing them, and passes them to `chpasswd` through standard input. It then enables and starts GDM3, DCV, and code-server. Failure causes user data to exit non-zero and leaves diagnostic output that does not include the password.
+
+The image recipe must include the AWS CLI component before launch because this bootstrap calls `/usr/local/bin/aws`. Code-server and DCV remain separate components and do not install or validate AWS CLI themselves.
 
 The CloudFormation output `UserCredentialsSecret` contains the secret ARN returned by `Ref`. VEW already recognizes that output and allows only the provisioned-product owner to reveal the credentials through the existing **Show login credentials** action.
 
@@ -117,7 +125,7 @@ The component will be checked with `awstoe validate`, and all focused Python tes
 
 ## Out of Scope
 
-- Ubuntu 22.04, ARM64, and non-Ubuntu distributions
+- Ubuntu 22.04 DCV, ARM64, and non-Ubuntu distributions
 - GPU acceleration and `nice-dcv-gl`
 - DCV virtual sessions and `nice-xdcv`
 - Active Directory and external token authentication
