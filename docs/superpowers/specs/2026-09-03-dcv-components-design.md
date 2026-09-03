@@ -60,9 +60,11 @@ A validation failure must emit service status and recent journal output before r
 
 The generated password is 32 characters and excludes characters that make shell or JSON handling ambiguous. The instance role receives `secretsmanager:GetSecretValue` only for this secret.
 
+The secret is tagged `vew:provisionedProduct:ownerId` with `OwnerTID`. VEW's cross-account provisioning role requires this ownership tag before it can reveal the credential to the provisioned-product owner.
+
 At first boot, user data retrieves the secret in the instance's region, extracts the username and password without printing them, and passes them to `chpasswd` through standard input. It then enables and starts GDM3, DCV, and code-server. Failure causes user data to exit non-zero and leaves diagnostic output that does not include the password.
 
-The CloudFormation output `UserCredentialsSecret` contains the secret name. VEW already recognizes that output and allows only the provisioned-product owner to reveal the credentials through the existing **Show login credentials** action.
+The CloudFormation output `UserCredentialsSecret` contains the secret ARN returned by `Ref`. VEW already recognizes that output and allows only the provisioned-product owner to reveal the credentials through the existing **Show login credentials** action.
 
 The password is not stored in either AMI and is not embedded in CloudFormation user data.
 
@@ -102,6 +104,7 @@ Repository tests will parse the component document and assert:
 Product-template tests will assert:
 
 - a generated per-instance credential secret and least-privilege read policy;
+- the VEW provisioned-product owner tag on the secret;
 - a `UserCredentialsSecret` output;
 - explicit public-IP association and a `PublicIP` output;
 - IMDSv2 enforcement;
