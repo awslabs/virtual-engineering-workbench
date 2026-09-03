@@ -45,22 +45,20 @@ phases:
               chmod 0755 "$policy_rc"
               echo "gdm3 shared/default-x-display-manager select gdm3" | debconf-set-selections
               apt-get update
-              apt-get install -y \
-                ubuntu-desktop-minimal \
+              apt-get install -y --no-install-recommends \
                 gdm3 \
+                gnome-session \
+                gnome-shell \
+                gnome-terminal \
+                xserver-xorg-core \
+                xserver-xorg-input-libinput \
                 xserver-xorg-video-dummy \
+                x11-xserver-utils \
+                dbus-x11 \
                 ca-certificates \
                 curl \
                 jq \
                 iproute2
-
-              systemctl disable NetworkManager.service \
-                NetworkManager-wait-online.service \
-                NetworkManager-dispatcher.service \
-                2>/dev/null || true
-              systemctl enable systemd-networkd.service \
-                systemd-networkd-wait-online.service
-              systemctl is-active --quiet systemd-networkd.service
 
               restore_policy_rc
               trap - EXIT

@@ -42,11 +42,11 @@ def test_component_verifies_pinned_dcv_archive() -> None:
     assert "sha256sum -c -" in build
 
 
-def test_component_installs_desktop_and_web_viewer() -> None:
+def test_component_installs_minimal_gnome_desktop_and_web_viewer() -> None:
     build = commands_for("build")
 
-    assert "ubuntu-desktop-minimal" in build
     assert "gdm3" in build
+    assert "gnome-session" in build
     assert "xserver-xorg-video-dummy" in build
     assert "nice-dcv-server_2025.0.20103-1_amd64.ubuntu2404.deb" in build
     assert "nice-dcv-web-viewer_2025.0.20103-1_amd64.ubuntu2404.deb" in build
