@@ -1,0 +1,233 @@
+# kics-scan disable=0264093f-6791-4475-af34-4b8102dcbcd0,1819ac03-542b-4026-976b-f37addd59f3b,b7063015-6c31-4658-a8e7-14f98f37fd42,8d29754a-2a18-460d-a1ba-9509f8d359da,8a6d36cd-0bc6-42b7-92c4-67acc8576861,8dd0ff1f-0da4-48df-9bb3-7f338ae36a40
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Version {{ product_version }} template for {{ product_name }} Workbench
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMIId: "{{ ami_ids['us-east-1'] }}"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterLabels:
+      InstanceType:
+        default: "What type of code-server workbench do you want to start?"
+      VolumeSize:
+        default: "How much storage would you like to have?"
+  ParameterMetadata:
+    InstanceType:
+      OptionLabels:
+        m8i.xlarge: "General purpose: 4 vCPU, 16 GiB RAM"
+    VolumeSize:
+      OptionLabels:
+        "100": "100 GB"
+Outputs:
+  FeatureToggles:
+    Description: Enabled features for this workbench
+    Value: '[{ "feature": "DCVConnectionOptions", "enabled": true }, { "feature": "RDPConnectionOption", "enabled": false }, { "feature": "WorkbenchWorkingDirectoryEnabled", "enabled": false }]'
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value: !Ref Workbench
+  PrivateIP:
+    Description: Private IP address of the newly created EC2 instance
+    Value: !GetAtt Workbench.PrivateIp
+  PublicIP:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt Workbench.PublicIp
+  UserCredentialsSecret:
+    Description: Secret containing the workstation login credentials
+    Value: !Ref WorkbenchUserCredentials
+Parameters:
+  InstanceType:
+    AllowedValues: ["m8i.xlarge"]
+    Default: "m8i.xlarge"
+    Description: Amazon EC2 Instance Type
+    Type: String
+  OwnerTID:
+    Default: ""
+    Description: Owner TID
+    Type: String
+  SubnetId:
+    Default: ""
+    Description: Subnet ID where the workbench is provisioned
+    Type: AWS::EC2::Subnet::Id
+  UserSecurityGroupId:
+    Default: ""
+    Description: Security group created for the user
+    Type: AWS::EC2::SecurityGroup::Id
+  VolumeSize:
+    AllowedValues: [100]
+    Default: 100
+    Description: Amazon EBS Volume Size
+    Type: String
+  VpcIdSSM:
+    Default: /workbench/vpc/vpc-id
+    Type: AWS::SSM::Parameter::Value<String>
+Resources:
+  WorkbenchUserCredentials:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Per-instance login credentials for the code-server workbench
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"ubuntu"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+        RequireEachIncludedType: true
+      Tags:
+        - Key: vew:provisionedProduct:ownerId
+          Value: !Ref OwnerTID
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: !Sub ec2.${AWS::URLSuffix}
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/ProvisionedProductInstanceProfilePermissionsPolicyV2
+      Policies:
+        - PolicyName: AllowCloudWatchLogs
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*:log-stream:*
+        - PolicyName: AllowCloudWatchMetrics
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: "*"
+        - PolicyName: Ec2DescribeTagsUserTID
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: ec2:DescribeTags
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ec2:Region: !Ref AWS::Region
+        - PolicyName: Ec2PublishEvents
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Sub arn:${AWS::Partition}:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+        - PolicyName: AllowEcsExec
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: ecs:ExecuteCommand
+                Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/*
+              - Effect: Allow
+                Action:
+                  - ecs:ExecuteCommand
+                  - ecs:DescribeTasks
+                Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task/*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/vew:provisionedProduct:ownerId: !Ref OwnerTID
+        - PolicyName: S3ForNiceDcvLicense
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              # kics-scan ignore-line - Read-only access to the regional DCV license bucket
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:aws:s3:::dcv-license.${AWS::Region}/*
+        - PolicyName: ReadWorkbenchUserCredential
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref WorkbenchUserCredentials
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Default rules for the code-server workbench
+      SecurityGroupIngress:
+        # kics-scan ignore-line - Source is restricted to the user's VEW security group
+        - Description: Enable TCP connections from user workbenches and virtual targets
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref UserSecurityGroupId
+        # kics-scan ignore-line - Source is restricted to the user's VEW security group
+        - Description: Enable UDP connections from user workbenches and virtual targets
+          FromPort: 1024
+          ToPort: 65535
+          IpProtocol: udp
+          SourceSecurityGroupId: !Ref UserSecurityGroupId
+      SecurityGroupEgress:
+        # kics-scan ignore-line - Workbench requires outbound access for development tools
+        - Description: Allow outbound access for package downloads and APIs
+          IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref VpcIdSSM
+  # kics-scan ignore-block - Detailed monitoring is a per-customer cost decision
+  Workbench:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            Encrypted: true
+            Iops: 3000
+            VolumeSize: !Ref VolumeSize
+            VolumeType: gp3
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceType: !Ref InstanceType
+      ImageId: !FindInMap
+        - RegionMap
+        - !Ref AWS::Region
+        - AMIId
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !GetAtt SecurityGroup.GroupId
+            - !Ref UserSecurityGroupId
+          SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+
+          AWS_REGION="${AWS::Region}"
+          secret_json=$(aws secretsmanager get-secret-value \
+            --secret-id '${WorkbenchUserCredentials}' \
+            --region "$AWS_REGION" \
+            --query SecretString \
+            --output text)
+          username=$(printf '%s' "$secret_json" | jq -er '.username')
+          password=$(printf '%s' "$secret_json" | jq -er '.password')
+          printf '%s:%s\n' "$username" "$password" | chpasswd
+          unset password secret_json
+
+          systemctl daemon-reload
+          systemctl enable --now gdm3.service dcvserver.service code-server.service
