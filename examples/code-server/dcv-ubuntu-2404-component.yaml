@@ -1,0 +1,176 @@
+name: Amazon DCV Ubuntu 24.04 Workstation
+description: Installs a PAM-authenticated Amazon DCV desktop and web viewer on Ubuntu 24.04 x86_64
+schemaVersion: 1.0
+phases:
+  - name: build
+    steps:
+      - name: ValidatePlatform
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              . /etc/os-release
+              test "$ID" = "ubuntu"
+              test "$VERSION_ID" = "24.04"
+              test "$(uname -m)" = "x86_64"
+              getent passwd ubuntu > /dev/null
+      - name: InstallDesktop
+        action: ExecuteBash
+        timeoutSeconds: 1800
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              export DEBIAN_FRONTEND=noninteractive
+              echo "gdm3 shared/default-x-display-manager select gdm3" | debconf-set-selections
+              apt-get update
+              apt-get install -y \
+                ubuntu-desktop-minimal \
+                gdm3 \
+                xserver-xorg-video-dummy \
+                ca-certificates \
+                curl \
+                jq \
+                awscli \
+                iproute2
+      - name: ConfigureDisplay
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              if grep -Eq '^[#[:space:]]*WaylandEnable=' /etc/gdm3/custom.conf; then
+                sed -Ei 's/^[#[:space:]]*WaylandEnable=.*/WaylandEnable=false/' /etc/gdm3/custom.conf
+              else
+                sed -i '/^\[daemon\]/a WaylandEnable=false' /etc/gdm3/custom.conf
+              fi
+
+              cat > /etc/X11/xorg.conf <<'EOF'
+              Section "Device"
+                  Identifier "DummyDevice"
+                  Driver "dummy"
+                  Option "UseEDID" "false"
+                  VideoRam 512000
+              EndSection
+
+              Section "Monitor"
+                  Identifier "DummyMonitor"
+                  HorizSync 5.0 - 1000.0
+                  VertRefresh 5.0 - 200.0
+                  Option "ReducedBlanking"
+              EndSection
+
+              Section "Screen"
+                  Identifier "DummyScreen"
+                  Device "DummyDevice"
+                  Monitor "DummyMonitor"
+                  DefaultDepth 24
+                  SubSection "Display"
+                      Viewport 0 0
+                      Depth 24
+                      Virtual 4096 2160
+                  EndSubSection
+              EndSection
+              EOF
+      - name: InstallDcv
+        action: ExecuteBash
+        timeoutSeconds: 600
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              archive=/tmp/nice-dcv-ubuntu2404-x86_64.tgz
+              install_dir=/tmp/nice-dcv-2025.0-20103-ubuntu2404-x86_64
+
+              curl -fsSL \
+                https://d1uj6qtbmh3dt5.cloudfront.net/2025.0/Servers/nice-dcv-2025.0-20103-ubuntu2404-x86_64.tgz \
+                -o "$archive"
+              echo "a39374d39f2d849bd13ee101970bb9eea15a8c5ec743799b7cbb7f562ece9e17  $archive" \
+                | sha256sum -c -
+              tar -xzf "$archive" -C /tmp
+              apt-get install -y \
+                "$install_dir/nice-dcv-server_2025.0.20103-1_amd64.ubuntu2404.deb" \
+                "$install_dir/nice-dcv-web-viewer_2025.0.20103-1_amd64.ubuntu2404.deb"
+
+              rm -f "$archive"
+              rm -rf "$install_dir"
+              apt-get clean
+      - name: ConfigureDcv
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              cat > /etc/dcv/dcv.conf <<'EOF'
+              [security]
+              authentication="system"
+
+              [session-management]
+              create-session=true
+
+              [session-management/automatic-console-session]
+              owner="ubuntu"
+              EOF
+
+              usermod -aG video dcv
+              systemctl set-default graphical.target
+              systemctl enable gdm3.service dcvserver.service
+  - name: validate
+    steps:
+      - name: VerifyDcvConfiguration
+        action: ExecuteBash
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+              . /etc/os-release
+              test "$ID" = "ubuntu"
+              test "$VERSION_ID" = "24.04"
+              test "$(uname -m)" = "x86_64"
+              dpkg-query -W -f='${Status}\n' \
+                nice-dcv-server \
+                nice-dcv-web-viewer \
+                gdm3 \
+                xserver-xorg-video-dummy \
+                | grep -Fxq 'install ok installed'
+              grep -Fxq 'WaylandEnable=false' /etc/gdm3/custom.conf
+              grep -Fxq '    Driver "dummy"' /etc/X11/xorg.conf
+              grep -Fxq 'authentication="system"' /etc/dcv/dcv.conf
+              ! grep -Fxq 'authentication="none"' /etc/dcv/dcv.conf
+              grep -Fxq 'create-session=true' /etc/dcv/dcv.conf
+              grep -Fxq 'owner="ubuntu"' /etc/dcv/dcv.conf
+              id -nG dcv | tr ' ' '\n' | grep -Fxq video
+              systemctl is-enabled --quiet gdm3.service
+              systemctl is-enabled --quiet dcvserver.service
+              systemd-analyze verify gdm3.service dcvserver.service
+      - name: VerifyDcvRuntime
+        action: ExecuteBash
+        timeoutSeconds: 90
+        inputs:
+          commands:
+            - |
+              set -euo pipefail
+
+              cleanup() {
+                systemctl stop dcvserver.service gdm3.service || true
+              }
+              trap cleanup EXIT
+
+              systemctl start gdm3.service
+              systemctl start dcvserver.service
+
+              for attempt in $(seq 1 30); do
+                sessions=$(dcv list-sessions 2>/dev/null || true)
+                if ss -lnt | grep -Eq ':8443[[:space:]]' \
+                  && printf '%s\n' "$sessions" | grep -q console \
+                  && printf '%s\n' "$sessions" | grep -q ubuntu; then
+                  exit 0
+                fi
+                sleep 2
+              done
+
+              systemctl status gdm3.service dcvserver.service --no-pager || true
+              journalctl -u dcvserver.service -u gdm3.service --no-pager -n 100 || true
+              dcv list-sessions || true
+              exit 1
