@@ -1,4 +1,4 @@
-Jinja2 ~= 3.1
+Jinja2 >= 3.1.6, < 4
 mypy-boto3-dynamodb ~= 1.42
 mypy-boto3-ec2 ~= 1.42
 mypy-boto3-iam ~= 1.42
