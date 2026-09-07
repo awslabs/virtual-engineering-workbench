@@ -4,7 +4,7 @@ from re import sub
 
 from pydantic import BaseModel, Field
 
-ORGANIZATION_PREFIX = "proserve"
+ORGANIZATION_PREFIX = "elva"
 APPLICATION_PREFIX = "wb"
 SSM_PARAM_UI_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_COGNITO_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
@@ -138,7 +138,7 @@ class AppConfig(BaseConfig):
 
 
 _dev_env_config = {
-    "rest-api-cors-origins": "*",
+    "rest-api-cors-origins": "https://dev.workbench.elva.land",
     "tools-account-id-ssm-param": f"{SSM_PARAM_UI_PREFIX}/tools-account-id",
     "image-service-account-id-ssm-param": f"{SSM_PARAM_BE_PREFIX}/image-service-account-id",
     "dns-records-param": f"{SSM_PARAM_UI_PREFIX}/dns-records",

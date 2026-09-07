@@ -85,7 +85,7 @@ export class PublicAccessDeploymentStack extends Stack {
       region: 'us-east-1',
       service: 'sns',
       account: this.account,
-      resource: `proserve-wb-monitoring-alarm-topic-${props.appEnvironment}`,
+      resource: `elva-wb-monitoring-alarm-topic-${props.appEnvironment}`,
 
     });
     const snsTopic = sns.Topic.fromTopicArn(this, 'DelegationRole', snsTopicArn);
@@ -199,7 +199,7 @@ export class PublicAccessDeploymentStack extends Stack {
     });
 
     const cf5xxErrorAlarm = new Alarm(this, 'cloudfrontErrors', {
-      alarmName: `proserve-wb-monitoring-cloudfront-5xx-failures-alarm-${props.appEnvironment}`,
+      alarmName: `elva-wb-monitoring-cloudfront-5xx-failures-alarm-${props.appEnvironment}`,
       alarmDescription: 'This alarm fires when there are 500 errors returned by VIEW Web App[Cloudfront]',
       comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
       threshold: 1,
@@ -277,7 +277,7 @@ export class PublicAccessDeploymentStack extends Stack {
     });
 
     new CfAlarm(this, 'anomalyCfAlarm', {
-      alarmName: `proserve-wb-monitoring-wafv2-cloudfront-blocked-requests-alarm-${props.appEnvironment}`,
+      alarmName: `elva-wb-monitoring-wafv2-cloudfront-blocked-requests-alarm-${props.appEnvironment}`,
       alarmDescription: 'This alarm fires when there are elevated WAFv2 cloudfront ACL BlockedRequests',
       alarmActions: [snsTopic.topicArn],
       metrics: [
@@ -313,7 +313,7 @@ export class PublicAccessDeploymentStack extends Stack {
     });
 
     new CfAlarm(this, 'anomalyCognitoAlarm', {
-      alarmName: `proserve-wb-monitoring-wafv2-cognito-blocked-requests-alarm-${props.appEnvironment}`,
+      alarmName: `elva-wb-monitoring-wafv2-cognito-blocked-requests-alarm-${props.appEnvironment}`,
       alarmDescription: 'This alarm fires when there are elevated WAFv2 cognito ACL BlockedRequests',
       alarmActions: [snsTopic.topicArn],
       metrics: [
@@ -432,7 +432,7 @@ export class PublicAccessDeploymentStack extends Stack {
     });
 
     const cwDashboardUrl = new Dashboard(this, 'monitoring-dashboard', {
-      dashboardName: `proserve-wb-monitoring-dashboard-frontend-${props.appEnvironment}`,
+      dashboardName: `elva-wb-monitoring-dashboard-frontend-${props.appEnvironment}`,
       widgets: [
         [cf5XXRate, cf4XXRate, wafBlock],
         [cloudfrontGraph, wafv2Graph]

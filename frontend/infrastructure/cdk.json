@@ -2,16 +2,18 @@
   "notices": false,
   "app": "npx ts-node --prefer-ts-exts bin/infrastructure.ts",
   "context": {
-    "app-name": "proserve-wb-ui",
-    "deployment-qualifier": "b704d",
+    "app-name": "elva-wb-ui",
+    "deployment-qualifier": "c0956",
     "@aws-cdk/core:stackRelativeExports": "true",
     "config": {
       "dev": {
         "CustomLoginDNSEnabled": false,
         "PrivateDeployment": false,
-        "VPCName": "default-vpc",
-        "AllowCustomUserLogin": true,
-        "RequireCustomUserLogin2FA": true
+        "VPCName": "vpc-elva-wb-dev",
+        "AllowCustomUserLogin": false,
+        "RequireCustomUserLogin2FA": true,
+        "OIDCSecretName": "elva-wb-ui-dev/oidc",
+        "LogoutUrl": "https://elva-dev.eu.auth0.com/v2/logout?client_id=qT6VZQ2fFCC05k62kCMGFU9mSGYAvlR2&returnTo={appDns}/login"
       }
     }
   }
