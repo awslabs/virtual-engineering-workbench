@@ -1,7 +1,7 @@
 from aws_cdk import aws_lambda
 
 PRIVATE_API_ENDPOINT = False
-LOCAL_BUNDLING = True
+LOCAL_BUNDLING = False
 
 X86_ARCH_KEY = aws_lambda.Architecture.X86_64
 ARM_ARCH_KEY = aws_lambda.Architecture.ARM_64
