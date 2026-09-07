@@ -21,7 +21,8 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o /tmp
     && rm -rf /tmp/aws /tmp/awscliv2.zip
 
 # CDK + Yarn 4 + uv
-RUN npm install -g aws-cdk \
+# aws-cdk is pinned so image builds are reproducible; deploy.sh requires cdk v2+.
+RUN npm install -g aws-cdk@2.1133.0 \
     && corepack enable \
     && corepack prepare yarn@4.13.0 --activate
 
