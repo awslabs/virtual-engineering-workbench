@@ -249,6 +249,10 @@ log "OIDC federation (leave empty to use manual Cognito users):"
 prompt OIDC_CLIENT_ID     "OIDC Client ID"                     ""
 prompt OIDC_CLIENT_SECRET "OIDC Client Secret"                 "" true
 prompt OIDC_ISSUER_URL    "OIDC Issuer URL"                    ""
+prompt OIDC_USER_ID_CLAIM "OIDC claim containing the VEW user ID" ""
+if [ -n "$OIDC_CLIENT_ID" ] && [ -z "$OIDC_USER_ID_CLAIM" ]; then
+  err "OIDC_USER_ID_CLAIM is required when OIDC federation is configured"
+fi
 
 echo ""
 log "TLS and DNS (leave empty for no custom domain):"
@@ -311,6 +315,7 @@ ADMIN_EMAIL="$ADMIN_EMAIL"
 ADMIN_USER_ID="$ADMIN_USER_ID"
 OIDC_CLIENT_ID="$OIDC_CLIENT_ID"
 OIDC_ISSUER_URL="$OIDC_ISSUER_URL"
+OIDC_USER_ID_CLAIM="$OIDC_USER_ID_CLAIM"
 CERT_ARN="$CERT_ARN"
 CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
 CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
@@ -444,18 +449,21 @@ rm -f "${BACKEND_CONSTANTS}.bak"
 # --- frontend/infrastructure/cdk.json ---
 log "Patching $FE_CDK_JSON"
 
-OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-dev/oidc"
+OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 if [ -z "$OIDC_CLIENT_ID" ]; then
   ALLOW_CUSTOM_LOGIN="true"
-  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName)'
+  AUTH0_LOGOUT_URL=""
+  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName) | del(.context.config.dev.LogoutUrl)'
 else
   ALLOW_CUSTOM_LOGIN="false"
-  OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc'
+  AUTH0_LOGOUT_URL="${OIDC_ISSUER_URL%/}/v2/logout?client_id=${OIDC_CLIENT_ID}&returnTo={appDns}/login"
+  OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.LogoutUrl = $logout'
 fi
 
 jq --arg app_name "$APP_NAME" \
    --arg qualifier "$DEPLOYMENT_QUALIFIER" \
    --arg oidc "$OIDC_NAME" \
+   --arg logout "$AUTH0_LOGOUT_URL" \
    --arg vpcname "$VPC_NAME" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
    --argjson private "$PRIVATE_DEPLOYMENT" \
@@ -616,7 +624,8 @@ if [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUE
     --arg cid "$OIDC_CLIENT_ID" \
     --arg cs "$OIDC_CLIENT_SECRET" \
     --arg iss "$OIDC_ISSUER_URL" \
-    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss}')
+    --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss, UserIDClaim: $uid_claim}')
 
   if aws secretsmanager describe-secret --secret-id "$OIDC_SECRET_NAME" --region "$AWS_REGION" &>/dev/null; then
     aws secretsmanager put-secret-value \

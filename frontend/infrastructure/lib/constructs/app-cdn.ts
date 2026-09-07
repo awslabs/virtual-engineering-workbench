@@ -453,7 +453,7 @@ export class AppCdn extends Construct {
 
     if (appConfig.logoutUrl) {
       this._customLogoutUrl = appConfig.logoutUrl.replace(
-        '{appDns}', `https://${appConfig.domainName || ''}`);
+        '{appDns}', `https://${this._distribution.distributionDomainName}`);
     } else {
       this._customLogoutUrl = `https://${this._distribution.distributionDomainName}/logout`;
     }

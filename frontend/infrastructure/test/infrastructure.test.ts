@@ -12,9 +12,12 @@ import { AppConfig } from '../lib/app-config';
 
 class FEStack {
 
-  static get(oidcSecretName: string | undefined = undefined) {
+  static get(
+    oidcSecretName: string | undefined = undefined,
+    logoutUrl = 'http://localhost'
+  ) {
     const cdkCfg: { [key: string]: string } = {
-      LogoutUrl: 'http://localhost',
+      LogoutUrl: logoutUrl,
     };
     if (oidcSecretName !== undefined) {
       cdkCfg.OIDCSecretName = oidcSecretName;
@@ -147,6 +150,46 @@ test('User Pool Client should have a CloudFront callback url', () => {
   }));
 });
 
+test('User Pool Client should resolve the Auth0 logout URL against the CloudFront domain', () => {
+  // ARRANGE
+  const logoutUrl = 'https://tenant.example/v2/logout?' +
+    'client_id=auth0-client&returnTo={appDns}/login';
+
+  // ACT
+  const stack = FEStack.get('fake-secret-name', logoutUrl);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
+    LogoutURLs: Match.arrayWith([{
+      'Fn::Join': [
+        '',
+        [
+          'https://tenant.example/v2/logout?client_id=auth0-client&returnTo=https://',
+          {
+            'Fn::GetAtt': [
+              Match.stringLikeRegexp('webappcdnfrontenddistribution.*'),
+              'DomainName'
+            ]
+          },
+          '/login'
+        ]
+      ]
+    }])
+  }));
+});
+
+test('User Pool Client should keep the Cognito logout URL when OIDC is not configured', () => {
+  // ACT
+  const stack = FEStack.get();
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
+    LogoutURLs: Match.arrayWith(['http://localhost'])
+  }));
+});
+
 test('User Pool Client should be configured only with MyCorpOIDC identity provider', () => {
   // ARRANGE
 
@@ -159,6 +202,33 @@ test('User Pool Client should be configured only with MyCorpOIDC identity provid
     SupportedIdentityProviders: Match.arrayWith([
       Match.objectLike({ Ref: Match.stringLikeRegexp('webuserpooloidcprovider.*') })
     ]),
+  }));
+});
+
+test('OIDC user ID claim should be mapped to the VEW user ID attribute', () => {
+  // ACT
+  const stack = FEStack.get('fake-secret-name');
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties('AWS::Cognito::UserPoolIdentityProvider', Match.objectLike({
+    AttributeMapping: Match.objectLike({
+      'custom:user_tid': '{{resolve:secretsmanager:fake-secret-name:' +
+        'SecretString:UserIDClaim::}}',
+    }),
+  }));
+});
+
+test('OIDC verified email claim should be mapped to Cognito', () => {
+  // ACT
+  const stack = FEStack.get('fake-secret-name');
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties('AWS::Cognito::UserPoolIdentityProvider', Match.objectLike({
+    AttributeMapping: Match.objectLike({
+      email_verified: 'email_verified',
+    }),
   }));
 });
 
