@@ -14,3 +14,6 @@ class ComponentQueryService(ABC):
     def get_component_project_associations(
         self, component_id: str
     ) -> list[component_project_association.ComponentProjectAssociation]: ...
+
+    @abstractmethod
+    def is_component_in_project(self, project_id: str, component_id: str) -> bool: ...

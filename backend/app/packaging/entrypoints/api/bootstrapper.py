@@ -397,6 +397,7 @@ def bootstrap(  # noqa: C901
                 uow=shared_uow,
                 message_bus=message_bus,
                 component_version_qry_srv=component_version_qry_srv,
+                component_qry_srv=component_qry_srv,
             )
 
         return _handle_command
@@ -436,6 +437,7 @@ def bootstrap(  # noqa: C901
                 parameter_srv=parameter_srv,
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
+                component_qry_srv=component_qry_srv,
             )
 
         return _handle_command
@@ -481,6 +483,7 @@ def bootstrap(  # noqa: C901
                 parameter_qry_srv=parameter_srv,
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
+                component_qry_srv=component_qry_srv,
             )
 
         return _handle_command

@@ -11,6 +11,7 @@ from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe, recipe_version
 from app.packaging.domain.model.shared import component_version_entry
 from app.packaging.domain.ports import (
+    component_query_service,
     component_version_query_service,
     mandatory_components_list_query_service,
     parameter_service,
@@ -98,6 +99,7 @@ def __filter_and_validate_user_components(
     command: update_recipe_version_command.UpdateRecipeVersionCommand,
     mandatory_component_ids: list,
     component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
+    component_qry_srv: component_query_service.ComponentQueryService,
 ):
     user_component_versions = [
         component_version
@@ -111,6 +113,14 @@ def __filter_and_validate_user_components(
         comp.order = idx + 1
 
     for comp in user_component_versions:
+        if not component_qry_srv.is_component_in_project(
+            project_id=command.projectId.value,
+            component_id=comp.componentId,
+        ):
+            raise domain_exception.DomainException(
+                f"Component {comp.componentId} is not associated with project {command.projectId.value}."
+            )
+
         component_version_entity = component_version_qry_srv.get_component_version(
             component_id=comp.componentId,
             version_id=comp.componentVersionId,
@@ -154,6 +164,7 @@ def __get_recipe_component_versions(
     mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     recipe_entity: recipe.Recipe,
     command: update_recipe_version_command.UpdateRecipeVersionCommand,
+    component_qry_srv: component_query_service.ComponentQueryService,
 ):
     mandatory_components_list = mandatory_components_list_qry_srv.get_mandatory_components_list(
         architecture=recipe_entity.recipeArchitecture,
@@ -170,7 +181,7 @@ def __get_recipe_component_versions(
     mandatory_component_ids = [comp.componentId for comp in mandatory_component_versions]
 
     user_component_versions = __filter_and_validate_user_components(
-        command, mandatory_component_ids, component_version_qry_srv
+        command, mandatory_component_ids, component_version_qry_srv, component_qry_srv
     )
 
     recipe_component_versions = __assemble_positioned_components(
@@ -213,6 +224,7 @@ def handle(
     parameter_qry_srv: parameter_service.ParameterDefinitionService,
     mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     system_configuration_mapping: dict,
+    component_qry_srv: component_query_service.ComponentQueryService,
 ):
 
     recipe_version_entity = __get_recipe_version_entity(command, recipe_version_query_service)
@@ -246,6 +258,7 @@ def handle(
         mandatory_components_list_qry_srv,
         recipe_entity,
         command,
+        component_qry_srv,
     )
 
     component_ids = [component_version.componentId for component_version in recipe_component_versions]

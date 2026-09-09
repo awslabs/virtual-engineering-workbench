@@ -7,7 +7,7 @@ from app.packaging.domain.events.component import component_version_update_start
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.shared.component_version_entry import ComponentVersionEntry
-from app.packaging.domain.ports import component_version_query_service
+from app.packaging.domain.ports import component_query_service, component_version_query_service
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -16,8 +16,18 @@ def __fetch_and_validate_dependencies(
     component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
     dependencies: list[ComponentVersionEntry],
     acceptable_states_for_update: list[component_version.ComponentVersionStatus],
+    component_qry_srv: component_query_service.ComponentQueryService,
+    project_id: str,
 ):
     for dependency in dependencies:
+        if not component_qry_srv.is_component_in_project(
+            project_id=project_id,
+            component_id=dependency.componentId,
+        ):
+            raise domain_exception.DomainException(
+                f"Component {dependency.componentId} is not associated with project {project_id}."
+            )
+
         component_entity = component_version_qry_srv.get_component_version(
             dependency.componentId, dependency.componentVersionId
         )
@@ -73,6 +83,7 @@ def handle(
     uow: unit_of_work.UnitOfWork,
     message_bus: message_bus.MessageBus,
     component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
+    component_qry_srv: component_query_service.ComponentQueryService,
 ):
     component_version_entity = component_version_qry_srv.get_component_version(
         command.componentId.value, command.componentVersionId.value
@@ -112,7 +123,11 @@ def handle(
             )
 
     __fetch_and_validate_dependencies(
-        component_version_qry_srv, dependencies, acceptable_states_for_dependent_components
+        component_version_qry_srv,
+        dependencies,
+        acceptable_states_for_dependent_components,
+        component_qry_srv,
+        command.projectId.value,
     )
 
     try:

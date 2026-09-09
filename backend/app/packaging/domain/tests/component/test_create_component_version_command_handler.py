@@ -14,6 +14,7 @@ from app.packaging.domain.model.component import component, component_version
 from app.packaging.domain.model.shared.component_version_entry import (
     ComponentVersionEntry,
 )
+from app.packaging.domain.tests.conftest import TEST_PROJECT_ID
 from app.packaging.domain.value_objects.component import component_id_value_object
 from app.packaging.domain.value_objects.component_version import (
     component_license_dashboard_url_value_object,
@@ -27,7 +28,7 @@ from app.packaging.domain.value_objects.component_version import (
     component_version_release_type_value_object,
     component_version_yaml_definition_value_object,
 )
-from app.packaging.domain.value_objects.shared import user_id_value_object
+from app.packaging.domain.value_objects.shared import project_id_value_object, user_id_value_object
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -42,6 +43,7 @@ def create_component_version_command_mock():
         software_version="1.0.0",
     ) -> create_component_version_command.CreateComponentVersionCommand:
         return create_component_version_command.CreateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(TEST_PROJECT_ID),
             componentId=component_id_value_object.from_str("comp-1234abcd"),
             componentVersionDescription=component_version_description_value_object.from_str("Test description"),
             componentVersionReleaseType=component_version_release_type_value_object.from_str("MAJOR"),
@@ -329,6 +331,7 @@ def create_component_version_with_dependencies_command_mock(
     get_test_component_yaml_definition,
 ) -> create_component_version_command.CreateComponentVersionCommand:
     return create_component_version_command.CreateComponentVersionCommand(
+        projectId=project_id_value_object.from_str(TEST_PROJECT_ID),
         componentId=component_id_value_object.from_str("comp-1234abcd"),
         componentVersionDescription=component_version_description_value_object.from_str("Test description"),
         componentVersionReleaseType=component_version_release_type_value_object.from_str("MAJOR"),

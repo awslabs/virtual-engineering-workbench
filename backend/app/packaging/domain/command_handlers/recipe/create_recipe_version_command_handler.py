@@ -12,6 +12,7 @@ from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe, recipe_version
 from app.packaging.domain.model.shared import component_version_entry
 from app.packaging.domain.ports import (
+    component_query_service,
     component_version_query_service,
     mandatory_components_list_query_service,
     parameter_service,
@@ -178,8 +179,18 @@ def __process_mandatory_components(
 def __validate_user_components(
     command: create_recipe_version_command.CreateRecipeVersionCommand,
     component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
+    component_qry_srv: component_query_service.ComponentQueryService,
 ):
     for user_component_version_entry in command.recipeComponentsVersions.value:
+        if not component_qry_srv.is_component_in_project(
+            project_id=command.projectId.value,
+            component_id=user_component_version_entry.componentId,
+        ):
+            raise domain_exception.DomainException(
+                f"Component {user_component_version_entry.componentId} is not associated with "
+                f"project {command.projectId.value}."
+            )
+
         component_version_entity = component_version_qry_srv.get_component_version(
             component_id=user_component_version_entry.componentId,
             version_id=user_component_version_entry.componentVersionId,
@@ -216,6 +227,7 @@ def handle(
     parameter_srv: parameter_service.ParameterDefinitionService,
     mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     system_configuration_mapping: dict,
+    component_qry_srv: component_query_service.ComponentQueryService,
 ):
     recipe_entity = __get_recipe_entity(
         recipe_qry_srv=recipe_qry_srv,
@@ -246,7 +258,7 @@ def handle(
         appended_mandatory_components,
     ) = __process_mandatory_components(mandatory_components_list_qry_srv, recipe_entity)
 
-    __validate_user_components(command, component_version_qry_srv)
+    __validate_user_components(command, component_version_qry_srv, component_qry_srv)
 
     recipe_component_versions = __assemble_recipe_components(
         prepended_mandatory_components,
