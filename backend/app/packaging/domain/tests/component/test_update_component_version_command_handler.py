@@ -19,6 +19,7 @@ from app.packaging.domain.tests.conftest import (
     TEST_COMPONENT_ID,
     TEST_COMPONENT_NAME,
     TEST_COMPONENT_VERSION_ID,
+    TEST_PROJECT_ID,
 )
 from app.packaging.domain.value_objects.component import component_id_value_object
 from app.packaging.domain.value_objects.component_version import (
@@ -31,7 +32,7 @@ from app.packaging.domain.value_objects.component_version import (
     component_version_id_value_object,
     component_version_yaml_definition_value_object,
 )
-from app.packaging.domain.value_objects.shared import user_id_value_object
+from app.packaging.domain.value_objects.shared import project_id_value_object, user_id_value_object
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -41,6 +42,7 @@ def update_component_version_command_mock(
     get_test_component_yaml_definition,
 ) -> update_component_version_command.UpdateComponentVersionCommand:
     return update_component_version_command.UpdateComponentVersionCommand(
+        projectId=project_id_value_object.from_str(TEST_PROJECT_ID),
         componentId=component_id_value_object.from_str("comp-1234abcd"),
         componentVersionId=component_version_id_value_object.from_str("vers-1234abcd"),
         componentVersionDescription=component_version_description_value_object.from_str("Test description"),
@@ -72,6 +74,7 @@ def test_handle_should_update_version(
     expected_version_name,
     update_component_version_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     get_test_component_yaml_definition,
     get_test_component_version_with_specific_version_name_and_status,
 ):
@@ -96,6 +99,7 @@ def test_handle_should_update_version(
         uow=uow_mock,
         message_bus=message_bus_mock,
         component_version_qry_srv=component_version_query_service_mock,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -163,6 +167,7 @@ def test_handle_should_update_version(
 )
 def test_update_component_version_command_handler_should_raise_an_exception_when_status_is_invalid(
     component_version_query_service_mock,
+    component_query_service_mock,
     get_test_component_version_with_specific_status,
     status,
     update_component_version_command_mock,
@@ -185,6 +190,7 @@ def test_update_component_version_command_handler_should_raise_an_exception_when
             uow=uow_mock,
             message_bus=message_bus_mock,
             component_version_qry_srv=component_version_query_service_mock,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -206,6 +212,7 @@ def test_handle_should_raise_exception_when_version_is_not_rc(
     fetched_release_name,
     update_component_version_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     get_test_component_version_with_specific_version_name_and_status,
 ):
     # ARRANGE
@@ -230,6 +237,7 @@ def test_handle_should_raise_exception_when_version_is_not_rc(
             uow=uow_mock,
             message_bus=message_bus_mock,
             component_version_qry_srv=component_version_query_service_mock,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -241,6 +249,7 @@ def test_handle_should_raise_exception_when_version_is_not_rc(
 def test_handle_should_raise_exception_when_component_version_is_none(
     update_component_version_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -259,6 +268,7 @@ def test_handle_should_raise_exception_when_component_version_is_none(
             uow=uow_mock,
             message_bus=message_bus_mock,
             component_version_qry_srv=component_version_query_service_mock,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -273,6 +283,7 @@ def update_component_version_with_dependencies_command_mock(
     get_test_component_yaml_definition,
 ) -> update_component_version_command.UpdateComponentVersionCommand:
     return update_component_version_command.UpdateComponentVersionCommand(
+        projectId=project_id_value_object.from_str(TEST_PROJECT_ID),
         componentId=component_id_value_object.from_str("comp-1234abcd"),
         componentVersionId=component_version_id_value_object.from_str("vers-1234abcd"),
         componentVersionDescription=component_version_description_value_object.from_str("Test description"),
@@ -361,6 +372,7 @@ def test_handle_should_succeed_when_dependent_components_are_present(
     expected_version_name,
     update_component_version_with_dependencies_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     get_test_component_yaml_definition,
     return_dependent_component_version_for_update,
 ):
@@ -410,6 +422,7 @@ def test_handle_should_succeed_when_dependent_components_are_present(
         uow=uow_mock,
         message_bus=message_bus_mock,
         component_version_qry_srv=component_version_query_service_mock,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -536,6 +549,7 @@ def test_fail_update_component_version_when_dependent_component_version_is_not_v
     expected_version_name,
     update_component_version_with_dependencies_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     return_dependent_component_version_for_update,
     component_status,
     error_message,
@@ -582,6 +596,7 @@ def test_fail_update_component_version_when_dependent_component_version_is_not_v
             uow=uow_mock,
             message_bus=message_bus_mock,
             component_version_qry_srv=component_version_query_service_mock,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -611,6 +626,7 @@ def test_should_fail_if_dependent_component_does_not_exist(
     expected_version_name,
     update_component_version_with_dependencies_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     return_dependent_component_version_for_update,
     error_message,
     component_id,
@@ -657,6 +673,7 @@ def test_should_fail_if_dependent_component_does_not_exist(
             uow=uow_mock,
             message_bus=message_bus_mock,
             component_version_qry_srv=component_version_query_service_mock,
+            component_qry_srv=component_query_service_mock,
         )
 
         # ASSERT
@@ -669,6 +686,7 @@ def test_should_fail_if_dependent_component_does_not_exist(
                 uow=uow_mock,
                 message_bus=message_bus_mock,
                 component_version_qry_srv=component_version_query_service_mock,
+                component_qry_srv=component_query_service_mock,
             )
 
         # ASSERT
@@ -680,6 +698,7 @@ def update_component_version_with_dependencies_same_as_updating_component_comman
     get_test_component_yaml_definition,
 ) -> update_component_version_command.UpdateComponentVersionCommand:
     return update_component_version_command.UpdateComponentVersionCommand(
+        projectId=project_id_value_object.from_str(TEST_PROJECT_ID),
         componentId=component_id_value_object.from_str("comp-1234abcd"),
         componentVersionId=component_version_id_value_object.from_str("vers-1234abcd"),
         componentVersionDescription=component_version_description_value_object.from_str("Test description"),
@@ -730,6 +749,7 @@ def test_should_fail_if_dependent_component_is_same_as_the_component_being_updat
     expected_version_name,
     update_component_version_with_dependencies_same_as_updating_component_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     return_dependent_component_version_for_update,
 ):
     # ARRANGE
@@ -780,6 +800,7 @@ def test_should_fail_if_dependent_component_is_same_as_the_component_being_updat
             uow=uow_mock,
             message_bus=message_bus_mock,
             component_version_qry_srv=component_version_query_service_mock,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -792,6 +813,7 @@ def test_should_fail_if_dependent_component_is_same_as_the_component_being_updat
 def test_handle_should_succeed_when_updating_downstream_dependencies(
     update_component_version_without_dependencies_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     get_test_component_yaml_definition,
     get_mock_components_versions_list_with_dependencies,
 ):
@@ -811,6 +833,7 @@ def test_handle_should_succeed_when_updating_downstream_dependencies(
         uow=uow_mock,
         message_bus=message_bus_mock,
         component_version_qry_srv=component_version_query_service_mock,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT

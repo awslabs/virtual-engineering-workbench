@@ -310,6 +310,7 @@ def test_create_component_version_should_succeed_if_dependencies_is_none_or_empt
     assertpy.assert_that(status_code).is_equal_to(200)
     mocked_create_component_version_cmd_handler.assert_called_once_with(
         create_component_version_command.CreateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(GlobalVariables.TEST_PROJECT_ID.value),
             componentId=component_id_value_object.from_str(GlobalVariables.TEST_COMPONENT_ID.value),
             componentVersionDescription=component_version_description_value_object.from_str(
                 GlobalVariables.TEST_COMPONENT_VERSION_DESCRIPTION.value
@@ -366,6 +367,7 @@ def test_create_component_version_should_succeed(
     assertpy.assert_that(status_code).is_equal_to(200)
     mocked_create_component_version_cmd_handler.assert_called_once_with(
         create_component_version_command.CreateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(GlobalVariables.TEST_PROJECT_ID.value),
             componentId=component_id_value_object.from_str(GlobalVariables.TEST_COMPONENT_ID.value),
             componentVersionDescription=component_version_description_value_object.from_str(
                 GlobalVariables.TEST_COMPONENT_VERSION_DESCRIPTION.value
@@ -540,6 +542,7 @@ def test_update_component_version_should_succeed_without_dependencies(
     assertpy.assert_that(status_code).is_equal_to(200)
     mocked_update_component_version_cmd_handler.assert_called_once_with(
         update_component_version_command.UpdateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(GlobalVariables.TEST_PROJECT_ID.value),
             componentId=component_id_value_object.from_str(GlobalVariables.TEST_COMPONENT_ID.value),
             componentVersionId=component_version_id_value_object.from_str(
                 GlobalVariables.TEST_COMPONENT_VERSION_ID.value
@@ -605,6 +608,7 @@ def test_update_component_version_should_succeed(
     assertpy.assert_that(status_code).is_equal_to(200)
     mocked_update_component_version_cmd_handler.assert_called_once_with(
         update_component_version_command.UpdateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(GlobalVariables.TEST_PROJECT_ID.value),
             componentId=component_id_value_object.from_str(GlobalVariables.TEST_COMPONENT_ID.value),
             componentVersionId=component_version_id_value_object.from_str(
                 GlobalVariables.TEST_COMPONENT_VERSION_ID.value
@@ -1707,6 +1711,7 @@ def test_create_component_version_should_succeed_if_license_and_notes_is_not_emp
     assertpy.assert_that(status_code).is_equal_to(200)
     mocked_create_component_version_cmd_handler.assert_called_once_with(
         create_component_version_command.CreateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(GlobalVariables.TEST_PROJECT_ID.value),
             componentId=component_id_value_object.from_str(GlobalVariables.TEST_COMPONENT_ID.value),
             componentVersionDescription=component_version_description_value_object.from_str(
                 GlobalVariables.TEST_COMPONENT_VERSION_DESCRIPTION.value
@@ -1761,6 +1766,7 @@ def test_create_component_version_should_succeed_if_license_or_notes_is_empty_an
     assertpy.assert_that(status_code).is_equal_to(200)
     mocked_create_component_version_cmd_handler.assert_called_once_with(
         create_component_version_command.CreateComponentVersionCommand(
+            projectId=project_id_value_object.from_str(GlobalVariables.TEST_PROJECT_ID.value),
             componentId=component_id_value_object.from_str(GlobalVariables.TEST_COMPONENT_ID.value),
             componentVersionDescription=component_version_description_value_object.from_str(
                 GlobalVariables.TEST_COMPONENT_VERSION_DESCRIPTION.value
