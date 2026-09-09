@@ -1,3 +1,5 @@
+from aws_lambda_powertools.event_handler.exceptions import NotFoundError
+
 from app.packaging.domain.ports import recipe_query_service, recipe_version_query_service
 from app.packaging.domain.value_objects.recipe import recipe_id_value_object
 from app.packaging.domain.value_objects.recipe_version import (
@@ -28,6 +30,23 @@ class RecipeVersionDomainQueryService:
         version_id: recipe_version_id_value_object.RecipeVersionIdValueObject,
     ):
         return self._recipe_version_qry_srv.get_recipe_version(recipe_id=recipe_id.value, version_id=version_id.value)
+
+    def require_recipe_version_in_recipe(
+        self,
+        recipe_id: recipe_id_value_object.RecipeIdValueObject,
+        version_id: recipe_version_id_value_object.RecipeVersionIdValueObject,
+    ) -> None:
+        """Raise when the version does not belong to the given recipe.
+
+        A recipe version test execution is stored under the version alone, so the version must be
+        checked against the recipe the caller addressed before its executions are returned.
+        """
+
+        if (
+            self._recipe_version_qry_srv.get_recipe_version(recipe_id=recipe_id.value, version_id=version_id.value)
+            is None
+        ):
+            raise NotFoundError(f"Version {version_id.value} not found for recipe {recipe_id.value}.")
 
     def get_all_recipes_versions(
         self,

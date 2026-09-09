@@ -1,13 +1,19 @@
 import assertpy
+import pytest
+from aws_lambda_powertools.event_handler.exceptions import NotFoundError
 
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.query_services import component_version_domain_query_service
 from app.packaging.domain.value_objects.component import (
+    component_id_value_object,
     component_platform_value_object,
     component_supported_architecture_value_object,
     component_supported_os_version_value_object,
 )
-from app.packaging.domain.value_objects.component_version import component_version_status_value_object
+from app.packaging.domain.value_objects.component_version import (
+    component_version_id_value_object,
+    component_version_status_value_object,
+)
 from app.packaging.domain.value_objects.shared import project_id_value_object
 
 
@@ -146,3 +152,64 @@ def test_should_return_project_component_versions(
             ),
         ]
     )
+
+
+def test_require_component_version_in_component_should_pass_when_version_belongs_to_component(
+    component_query_service_mock,
+    component_version_definition_service_mock,
+    component_version_query_service_mock,
+    get_test_component_id,
+    get_test_component_version_id,
+    get_test_component_version_with_specific_component_id_version_name_and_status,
+):
+    # ARRANGE
+    component_version_domain_qry_srv = component_version_domain_query_service.ComponentVersionDomainQueryService(
+        component_qry_srv=component_query_service_mock,
+        component_version_definition_srv=component_version_definition_service_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+    )
+    component_version_query_service_mock.get_component_version.return_value = (
+        get_test_component_version_with_specific_component_id_version_name_and_status(
+            component_id=get_test_component_id,
+            version_name="1.0.0",
+            status=component_version.ComponentVersionStatus.Released,
+        )
+    )
+
+    # ACT
+    result = component_version_domain_qry_srv.require_component_version_in_component(
+        component_id=component_id_value_object.from_str(get_test_component_id),
+        version_id=component_version_id_value_object.from_str(get_test_component_version_id),
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_none()
+    component_version_query_service_mock.get_component_version.assert_called_once_with(
+        component_id=get_test_component_id, version_id=get_test_component_version_id
+    )
+
+
+def test_require_component_version_in_component_should_raise_when_version_does_not_belong_to_component(
+    component_query_service_mock,
+    component_version_definition_service_mock,
+    component_version_query_service_mock,
+    get_test_component_id,
+    get_test_component_version_id,
+):
+    # ARRANGE
+    component_version_domain_qry_srv = component_version_domain_query_service.ComponentVersionDomainQueryService(
+        component_qry_srv=component_query_service_mock,
+        component_version_definition_srv=component_version_definition_service_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+    )
+    component_version_query_service_mock.get_component_version.return_value = None
+
+    # ACT
+    with pytest.raises(NotFoundError) as e:
+        component_version_domain_qry_srv.require_component_version_in_component(
+            component_id=component_id_value_object.from_str(get_test_component_id),
+            version_id=component_version_id_value_object.from_str(get_test_component_version_id),
+        )
+
+    # ASSERT
+    assertpy.assert_that(str(e.value)).is_equal_to("Version vers-1234abcd not found for component comp-1234abcd.")

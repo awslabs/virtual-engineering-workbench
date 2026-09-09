@@ -1,3 +1,5 @@
+from aws_lambda_powertools.event_handler.exceptions import NotFoundError
+
 from app.packaging.domain.ports import (
     component_query_service,
     component_version_definition_service,
@@ -45,6 +47,25 @@ class ComponentVersionDomainQueryService:
             self._component_version_definition_srv.get_component_version_definition(component_version)
         )
         return component_version, yaml_definition_obj, yaml_definition_b64
+
+    def require_component_version_in_component(
+        self,
+        component_id: component_id_value_object.ComponentIdValueObject,
+        version_id: component_version_id_value_object.ComponentVersionIdValueObject,
+    ) -> None:
+        """Raise when the version does not belong to the given component.
+
+        A component version test execution is stored under the version alone, so the version must be
+        checked against the component the caller addressed before its executions are returned.
+        """
+
+        if (
+            self._component_version_qry_srv.get_component_version(
+                component_id=component_id.value, version_id=version_id.value
+            )
+            is None
+        ):
+            raise NotFoundError(f"Version {version_id.value} not found for component {component_id.value}.")
 
     def get_all_components_versions(
         self,
