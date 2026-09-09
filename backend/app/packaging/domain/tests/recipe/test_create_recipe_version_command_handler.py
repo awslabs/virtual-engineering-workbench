@@ -43,6 +43,7 @@ def test_handle_should_create_new_version_recipe_if_version_in_repository(
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -85,6 +86,7 @@ def test_handle_should_create_new_version_recipe_if_version_in_repository(
         parameter_srv=parameter_service_mock,
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -243,6 +245,7 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -285,6 +288,7 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
         parameter_srv=parameter_service_mock,
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -444,6 +448,7 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions_without_component_version_type_set,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -486,6 +491,7 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
         parameter_srv=parameter_service_mock,
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -822,6 +828,7 @@ def test_handle_should_create_new_version_recipe_with_correct_component_versions
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -869,6 +876,7 @@ def test_handle_should_create_new_version_recipe_with_correct_component_versions
         parameter_srv=parameter_service_mock,
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -907,6 +915,7 @@ def test_handle_should_create_new_version_recipe_with_correct_component_versions
 def test_handle_should_raise_exception_if_recipe_not_found(
     create_recipe_version_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     mock_system_configuration_mapping,
     parameter_service_mock,
@@ -934,6 +943,7 @@ def test_handle_should_raise_exception_if_recipe_not_found(
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -946,6 +956,7 @@ def test_handle_should_raise_exception_if_recipe_status_is_archived(
     create_recipe_version_command_mock,
     mock_recipe_object,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     mock_system_configuration_mapping,
     parameter_service_mock,
@@ -975,6 +986,7 @@ def test_handle_should_raise_exception_if_recipe_status_is_archived(
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -997,6 +1009,7 @@ def test_handle_should_raise_exception_if_parameter_doesnt_exist_when_creating_n
     release_type,
     create_recipe_version_command_mock,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -1034,6 +1047,7 @@ def test_handle_should_raise_exception_if_parameter_doesnt_exist_when_creating_n
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
     assertpy.assert_that(str(exec_info.value)).is_equal_to("Parameter ami_ssm_param_name not found.")
 
@@ -1042,6 +1056,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_don_t_exi
     create_recipe_version_command_mock,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     mock_system_configuration_mapping,
     parameter_service_mock,
@@ -1075,6 +1090,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_don_t_exi
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -1100,6 +1116,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_are_not_v
     get_test_component_version_with_specific_version_name_and_status,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     mock_system_configuration_mapping,
     parameter_service_mock,
@@ -1143,6 +1160,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_are_not_v
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -1266,6 +1284,7 @@ def test_handle_should_raise_exception_with_duplicate_components(
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     mock_system_configuration_mapping,
     parameter_service_mock,
@@ -1311,6 +1330,7 @@ def test_handle_should_raise_exception_with_duplicate_components(
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
 
     # ASSERT
@@ -1324,6 +1344,7 @@ def test_handle_should_order_components_prepended_user_appended(
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_positioned_components,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -1365,6 +1386,7 @@ def test_handle_should_order_components_prepended_user_appended(
         parameter_srv=parameter_service_mock,
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
     )
 
     # ASSERT
@@ -1385,6 +1407,7 @@ def test_handle_should_detect_duplicate_mandatory_components(
     get_test_component_version_with_specific_status,
     get_test_mandatory_components_list_with_positioned_components,
     component_version_query_service_mock,
+    component_query_service_mock,
     mandatory_components_list_query_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
@@ -1429,6 +1452,7 @@ def test_handle_should_detect_duplicate_mandatory_components(
             parameter_srv=parameter_service_mock,
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
         )
 
     assertpy.assert_that(str(exc_info.value)).contains("duplicate components")

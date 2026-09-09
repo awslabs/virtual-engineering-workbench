@@ -63,6 +63,14 @@ def handle(
             component_version.ComponentVersionStatus.Released.value,
         ]
         for dependency_component in command.componentVersionDependencies.value:
+            if not component_qry_srv.is_component_in_project(
+                project_id=command.projectId.value,
+                component_id=dependency_component.componentId,
+            ):
+                raise domain_exception.DomainException(
+                    f"Component {dependency_component.componentId}/{dependency_component.componentName} is not"
+                    f" associated with project {command.projectId.value}."
+                )
             dependency_component_version_entity: component_version.ComponentVersion = (
                 component_version_qry_srv.get_component_version(
                     component_id=dependency_component.componentId,

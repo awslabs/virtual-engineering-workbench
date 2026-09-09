@@ -129,3 +129,56 @@ def test_get_component_project_association_empty(
     # ASSERT
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result).is_empty()
+
+
+def test_is_component_in_project_when_association_exists(
+    get_test_project_component_association, get_dynamodb_component_query_service, backend_app_table
+):
+    # ARRANGE
+    query_service = get_dynamodb_component_query_service
+    fill_db_with_project_component_associations(
+        backend_app_table, [get_test_project_component_association(project_id="proj-2")]
+    )
+
+    # ACT
+    result = query_service.is_component_in_project(
+        project_id="proj-2", component_id=GlobalVariables.TEST_COMPONENT_ID.value
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_true()
+
+
+def test_is_component_in_project_when_association_is_for_another_project(
+    get_test_component, get_test_project_component_association, get_dynamodb_component_query_service, backend_app_table
+):
+    # ARRANGE
+    query_service = get_dynamodb_component_query_service
+    fill_db_with_components(backend_app_table, [get_test_component()])
+    fill_db_with_project_component_associations(
+        backend_app_table, [get_test_project_component_association(project_id="proj-2")]
+    )
+
+    # ACT
+    result = query_service.is_component_in_project(
+        project_id="proj-3", component_id=GlobalVariables.TEST_COMPONENT_ID.value
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_false()
+
+
+def test_is_component_in_project_when_component_has_no_association(
+    get_test_component, get_dynamodb_component_query_service, backend_app_table
+):
+    # ARRANGE
+    query_service = get_dynamodb_component_query_service
+    fill_db_with_components(backend_app_table, [get_test_component()])
+
+    # ACT
+    result = query_service.is_component_in_project(
+        project_id=GlobalVariables.TEST_PROJECT_ID.value, component_id=GlobalVariables.TEST_COMPONENT_ID.value
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_false()

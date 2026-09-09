@@ -203,6 +203,12 @@ def share_component(
     component_id: str,
 ) -> api_gateway.Response[api_model.ShareComponentResponse]:
     """Shares a component with a list of projects."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     command = share_component_command.ShareComponentCommand(
         projectIds=[project_id_value_object.from_str(project) for project in request.projectIds],
         componentId=component_id_value_object.from_str(component_id),
@@ -225,6 +231,11 @@ def get_component(
     component_id: str,
 ) -> api_gateway.Response[api_model.GetComponentResponse]:
     """Get a specific component."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
 
     component = dependencies.component_domain_qry_srv.get_component(
         component_id=component_id_value_object.from_str(component_id),
@@ -253,6 +264,12 @@ def update_component(
     component_id: str,
 ) -> api_gateway.Response[api_model.UpdateComponentResponse]:
     """Update a component name and description."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     command = update_component_command.UpdateComponentCommand(
         componentId=component_id_value_object.from_str(component_id),
         componentDescription=component_description_value_object.from_str(request.componentDescription),
@@ -275,6 +292,12 @@ def archive_component(
     component_id: str,
 ) -> api_gateway.Response[api_model.ArchiveComponentResponse]:
     """Archive a specific component."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     command = archive_component_command.ArchiveComponentCommand(
         projectId=project_id_value_object.from_str(project_id),
         componentId=component_id_value_object.from_str(component_id),
@@ -300,6 +323,11 @@ def get_component_versions(
     component_id: str,
 ) -> api_gateway.Response[api_model.GetComponentVersionsResponse]:
     """Lists versions associated to a specific component."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
 
     component_versions = dependencies.component_version_domain_qry_srv.get_component_versions(
         component_id=component_id_value_object.from_str(component_id),
@@ -328,7 +356,14 @@ def create_component_version(
     component_id: str,
 ) -> api_gateway.Response[api_model.CreateComponentVersionResponse]:
     """Creates a component version."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     kwargs = {
+        "projectId": project_id_value_object.from_str(project_id),
         "componentId": component_id_value_object.from_str(component_id),
         "componentVersionDescription": component_version_description_value_object.from_str(
             request.componentVersionDescription
@@ -377,6 +412,12 @@ def validate_component_version(
     component_id: str,
 ) -> api_gateway.Response[api_model.ValidateComponentVersionResponse]:
     """Validates a component version."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     command = validate_component_version_command.ValidateComponentVersionCommand(
         componentId=component_id_value_object.from_str(component_id),
         componentVersionYamlDefinition=component_version_yaml_definition_value_object.from_str(
@@ -404,6 +445,11 @@ def get_component_version(
     version_id: str,
 ) -> api_gateway.Response[api_model.GetComponentVersionResponse]:
     """Get a specific component version."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
 
     component_version, yaml_definition_obj, yaml_definition_b64 = (
         dependencies.component_version_domain_qry_srv.get_component_version(
@@ -484,6 +530,11 @@ def release_component_version(
 ) -> api_gateway.Response[api_model.ReleaseComponentVersionResponse]:
     """Releases a component version."""
 
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     command = release_component_version_command.ReleaseComponentVersionCommand(
         projectId=project_id_value_object.from_str(project_id),
         componentId=component_id_value_object.from_str(component_id),
@@ -513,7 +564,14 @@ def update_component_version(
     version_id: str,
 ) -> api_gateway.Response[api_model.UpdateComponentVersionResponse]:
     """Updates a component version."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+
     kwargs = {
+        "projectId": project_id_value_object.from_str(project_id),
         "componentId": component_id_value_object.from_str(component_id),
         "componentVersionId": component_version_id_value_object.from_str(version_id),
         "componentVersionDescription": component_version_description_value_object.from_str(
@@ -559,6 +617,15 @@ def get_component_version_test_executions(
 ) -> api_gateway.Response[api_model.GetComponentVersionTestExecutionsResponse]:
     """Lists test executions associated to a specific component version."""
 
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+    dependencies.component_version_domain_qry_srv.require_component_version_in_component(
+        component_id=component_id_value_object.from_str(component_id),
+        version_id=component_version_id_value_object.from_str(version_id),
+    )
+
     component_version_test_execution_summaries = (
         dependencies.component_version_test_execution_domain_qry_srv.get_component_version_test_execution_summaries(
             version_id=component_version_id_value_object.from_str(version_id),
@@ -595,6 +662,15 @@ def get_component_version_test_execution_logs_url(
 ) -> api_gateway.Response[api_model.GetComponentVersionTestExecutionLogsUrlResponse]:
     """Get logs url of a specific component version test execution."""
 
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
+    dependencies.component_version_domain_qry_srv.require_component_version_in_component(
+        component_id=component_id_value_object.from_str(component_id),
+        version_id=component_version_id_value_object.from_str(version_id),
+    )
+
     s3_presigned_url = (
         dependencies.component_version_test_execution_domain_qry_srv.get_component_version_test_execution_logs_url(
             version_id=component_version_id_value_object.from_str(version_id),
@@ -619,6 +695,11 @@ def retire_component_version(
     project_id: str, component_id: str, version_id: str
 ) -> api_gateway.Response[api_model.RetireComponentVersionResponse]:
     """Retire a specific component version."""
+
+    dependencies.component_domain_qry_srv.require_component_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        component_id=component_id_value_object.from_str(component_id),
+    )
 
     command = retire_component_version_command.RetireComponentVersionCommand(
         componentId=component_id_value_object.from_str(component_id),
@@ -937,6 +1018,11 @@ def get_recipe_versions(
 ) -> api_gateway.Response[api_model.GetRecipeVersionsResponse]:
     """Lists versions associated to a specific recipe."""
 
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
+
     recipe_versions = dependencies.recipe_version_domain_qry_srv.get_recipe_versions(
         recipe_id=recipe_id_value_object.from_str(recipe_id),
     )
@@ -961,6 +1047,11 @@ def retire_recipe_version(
     project_id: str, recipe_id: str, version_id: str
 ) -> api_gateway.Response[api_model.RetireRecipeVersionResponse]:
     """Retire a specific recipe version."""
+
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
 
     command = retire_recipe_version_command.RetireRecipeVersionCommand(
         projectId=project_id_value_object.from_str(project_id),
@@ -989,6 +1080,11 @@ def get_recipe_version(
 ) -> api_gateway.Response[api_model.GetRecipeVersionResponse]:
     """Get a specific recipe version."""
 
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
+
     recipe_version = dependencies.recipe_version_domain_qry_srv.get_recipe_version(
         recipe_id=recipe_id_value_object.from_str(recipe_id),
         version_id=recipe_version_id_value_object.from_str(version_id),
@@ -1015,6 +1111,11 @@ def update_recipe_version(
     version_id: str,
 ) -> api_gateway.Response[api_model.UpdateRecipeVersionResponse]:
     """Updates a specific recipe version"""
+
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
 
     command = update_recipe_version_command.UpdateRecipeVersionCommand(
         projectId=project_id_value_object.from_str(project_id),
@@ -1052,6 +1153,11 @@ def release_recipe_version(
 ) -> api_gateway.Response[api_model.ReleaseRecipeVersionResponse]:
     """Releases a specific recipe version"""
 
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
+
     command = release_recipe_version_command.ReleaseRecipeVersionCommand(
         recipeId=recipe_id_value_object.from_str(recipe_id),
         recipeVersionId=recipe_version_id_value_object.from_str(version_id),
@@ -1076,6 +1182,15 @@ def get_recipe_version_test_executions(
     version_id: str,
 ) -> api_gateway.Response[api_model.GetRecipeVersionTestExecutionsResponse]:
     """Lists test executions associated to a specific recipe version."""
+
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
+    dependencies.recipe_version_domain_qry_srv.require_recipe_version_in_recipe(
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+        version_id=recipe_version_id_value_object.from_str(version_id),
+    )
 
     recipe_version_test_execution_summaries = (
         dependencies.recipe_version_test_execution_domain_qry_srv.get_recipe_version_test_execution_summaries(
@@ -1107,6 +1222,15 @@ def get_recipe_version_test_execution_logs_url(
 ) -> api_gateway.Response[api_model.GetRecipeVersionTestExecutionLogsUrlResponse]:
     """Get logs url a specific recipe version test execution."""
 
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+    )
+    dependencies.recipe_version_domain_qry_srv.require_recipe_version_in_recipe(
+        recipe_id=recipe_id_value_object.from_str(recipe_id),
+        version_id=recipe_version_id_value_object.from_str(version_id),
+    )
+
     s3_presigned_url = (
         dependencies.recipe_version_test_execution_domain_qry_srv.get_recipe_version_test_execution_logs_url(
             version_id=recipe_version_id_value_object.from_str(version_id),
@@ -1128,6 +1252,15 @@ def create_pipeline(
     project_id: str,
 ) -> api_gateway.Response[api_model.CreatePipelineResponse]:
     """Creates a pipeline."""
+
+    dependencies.recipe_domain_qry_srv.require_recipe_in_project(
+        project_id=project_id_value_object.from_str(project_id),
+        recipe_id=recipe_id_value_object.from_str(request.recipeId),
+    )
+    dependencies.recipe_version_domain_qry_srv.require_recipe_version_in_recipe(
+        recipe_id=recipe_id_value_object.from_str(request.recipeId),
+        version_id=recipe_version_id_value_object.from_str(request.recipeVersionId),
+    )
 
     command = create_pipeline_command.CreatePipelineCommand(
         projectId=project_id_value_object.from_str(project_id),
