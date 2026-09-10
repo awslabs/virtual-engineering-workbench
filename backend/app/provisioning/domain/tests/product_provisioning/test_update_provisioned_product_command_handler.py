@@ -189,6 +189,65 @@ def test_handle_should_update_provisioned_product(
     mock_instance_mgmt_srv.create_user_security_group.assert_not_called()
 
 
+def test_handle_should_preserve_original_owner_when_another_user_updates_provisioned_product(
+    mock_logger,
+    mock_publisher,
+    mock_products_srv,
+    mock_provisioned_products_qs,
+    mock_provisioned_product_repo,
+    mock_parameter_srv,
+    mock_instance_mgmt_srv,
+    get_provisioned_product,
+    mock_versions_query_service,
+    default_subnet_selector,
+    mock_container_mgmt_srv,
+    mock_unit_of_work,
+):
+    command = update_provisioned_product_command.UpdateProvisionedProductCommand(
+        provisioned_product_id=provisioned_product_id_value_object.from_str("pp-123"),
+    )
+    mock_instance_mgmt_srv.get_user_security_group_id.return_value = "sg-12345"
+    mock_provisioned_products_qs.get_by_id.return_value = get_provisioned_product(
+        status=product_status.ProductStatus.Updating,
+        sc_provisioned_product_id="sc-pp-123",
+        created_by="T0011AA",
+        last_update_by="T0099ZZ",
+        provisioning_parameters=[
+            provisioning_parameter.ProvisioningParameter(key="OwnerTID", value="T0088YY"),
+        ],
+        new_provisioning_parameters=[
+            provisioning_parameter.ProvisioningParameter(key="OwnerTID"),
+        ],
+    )
+
+    update_product.handle(
+        command=command,
+        publisher=mock_publisher,
+        products_srv=mock_products_srv,
+        provisioned_products_qs=mock_provisioned_products_qs,
+        instance_mgmt_srv=mock_instance_mgmt_srv,
+        container_mgmt_srv=mock_container_mgmt_srv,
+        logger=mock_logger,
+        versions_qs=mock_versions_query_service,
+        parameter_srv=mock_parameter_srv,
+        spoke_account_vpc_id_param_name="/workbench/vpc/vpc-id",
+        subnet_selector=default_subnet_selector,
+        uow=mock_unit_of_work,
+    )
+
+    service_catalog_parameters = mock_products_srv.update_product.call_args.kwargs["provisioning_parameters"]
+    owner_parameter = next(parameter for parameter in service_catalog_parameters if parameter.key == "OwnerTID")
+    assertpy.assert_that(owner_parameter.value).is_equal_to("T0011AA")
+
+    updated_product = mock_provisioned_product_repo.update_entity.call_args.kwargs["entity"]
+    assertpy.assert_that(updated_product.createdBy).is_equal_to("T0011AA")
+    assertpy.assert_that(updated_product.lastUpdatedBy).is_equal_to("T0099ZZ")
+    updated_owner_parameter = next(
+        parameter for parameter in updated_product.newProvisioningParameters if parameter.key == "OwnerTID"
+    )
+    assertpy.assert_that(updated_owner_parameter.value).is_equal_to("T0011AA")
+
+
 @freeze_time("2023-12-07")
 @pytest.mark.parametrize(
     "param_name,param_type,param_value",
