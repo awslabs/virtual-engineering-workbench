@@ -11,11 +11,12 @@ from app.packaging.domain.value_objects.component_version import (
     component_version_id_value_object,
     component_version_yaml_definition_value_object,
 )
-from app.packaging.domain.value_objects.shared import user_id_value_object
+from app.packaging.domain.value_objects.shared import project_id_value_object, user_id_value_object
 from app.shared.adapters.message_bus import command_bus
 
 
 class UpdateComponentVersionCommand(command_bus.Command):
+    projectId: project_id_value_object.ProjectIdValueObject
     componentId: component_id_value_object.ComponentIdValueObject
     componentVersionId: component_version_id_value_object.ComponentVersionIdValueObject
     componentVersionDescription: component_version_description_value_object.ComponentVersionDescriptionValueObject

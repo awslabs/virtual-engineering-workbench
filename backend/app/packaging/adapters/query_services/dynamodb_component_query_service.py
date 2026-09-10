@@ -111,3 +111,17 @@ class DynamoDBComponentQueryService(component_query_service.ComponentQueryServic
         ]
 
         return components
+
+    def is_component_in_project(self, project_id: str, component_id: str) -> bool:
+        """Return whether the component is associated with the given project."""
+
+        result = self._dynamodb_client.get_item(
+            TableName=self._table_name,
+            Key={
+                "PK": f"{DBPrefix.Component}#{component_id}",
+                "SK": f"{DBPrefix.Project}#{project_id}",
+            },
+            ConsistentRead=True,
+        )
+
+        return "Item" in result
