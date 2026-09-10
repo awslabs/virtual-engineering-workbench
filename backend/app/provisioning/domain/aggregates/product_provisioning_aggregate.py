@@ -1969,13 +1969,15 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
             user_sg_param.value = user_sg_id
 
     def __set_user_tid_in_provisioning_params(self, user_tid: str):
+        provisioning_parameters = (
+            self._provisioned_product.newProvisioningParameters
+            if self._provisioned_product.status == product_status.ProductStatus.Updating
+            else self._provisioned_product.provisioningParameters
+        )
+
         # Set UserTid parameter if it exists as a provisioning parameter
         user_tid_param = next(
-            (
-                param
-                for param in self._provisioned_product.provisioningParameters or []
-                if param.key == PRODUCT_PARAM_NAME_OWNER_TID
-            ),
+            (param for param in provisioning_parameters or [] if param.key == PRODUCT_PARAM_NAME_OWNER_TID),
             None,
         )
         if user_tid_param:

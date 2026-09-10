@@ -111,6 +111,7 @@ def provisioned_product_updated_event():
         "productType": "WORKBENCH",
         "productName": "TEST",
         "provisionedProductId": "vt-123",
+        "region": "us-east-1",
     }
 
 
