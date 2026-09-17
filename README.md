@@ -227,6 +227,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | --- | --- | --- |
 | `AWS_ACCOUNT_ID` | — | 12-digit AWS account ID |
 | `AWS_REGION` | `us-east-1` | Deployment region |
+| `ENABLED_WORKBENCH_REGIONS` | value of `AWS_REGION` | Comma-separated regions where spoke workbenches may be provisioned |
 | `ENVIRONMENT` | `dev` | Environment name (`dev`, `qa`, `prod`) |
 | `ORG_PREFIX` | `proserve` | Organization prefix for resource naming |
 | `APP_PREFIX` | `wb` | Application prefix for resource naming |
@@ -256,7 +257,6 @@ Additional configuration not managed by `deploy.sh` (edit manually for advanced 
 | `backend/infra/config.py` | `rest-api-cors-origins` | `*` | Restrict to your domain in production |
 | `backend/infra/config.py` | `retain_resources` | `False` | `True` in production to prevent data loss on stack deletion |
 | `backend/infra/config.py` | `backup-resources` | `False` | `True` in production to enable DynamoDB PITR and S3 versioning |
-| `backend/infra/config.py` | `enabled-workbench-regions` | `["us-east-1"]` | Regions where workbenches can be provisioned |
 | `backend/infra/config.py` | `allowed-cidrs-for-private-api-endpoint` | RFC 1918 ranges | CIDR ranges allowed to reach private API endpoints |
 | `backend/infra/config.py` | `user-role-stage-access` | all roles → `["dev"]` | Which spoke account stages each VEW role can provision into |
 | `backend/infra/config.py` | `disabled-components` | `[]` | Bounded contexts to disable per environment |

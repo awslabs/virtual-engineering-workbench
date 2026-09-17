@@ -22,6 +22,9 @@ CONFIG_FILE=""
 LOG_FILE="$SCRIPT_DIR/.deploy-logs/deploy-$(date +%Y%m%d-%H%M%S).log"
 mkdir -p "$SCRIPT_DIR/.deploy-logs"
 
+# shellcheck source=scripts/deploy-regions.sh
+source "$SCRIPT_DIR/scripts/deploy-regions.sh"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -229,6 +232,10 @@ fi
 prompt AWS_ACCOUNT_ID    "AWS Account ID (12 digits)"          ""
 [[ "$AWS_ACCOUNT_ID" =~ ^[0-9]{12}$ ]] || err "Invalid AWS Account ID: $AWS_ACCOUNT_ID"
 prompt AWS_REGION         "AWS Region"                          "us-east-1"
+prompt ENABLED_WORKBENCH_REGIONS "Enabled workbench regions (comma-separated)" "$AWS_REGION"
+ENABLED_WORKBENCH_REGIONS="${ENABLED_WORKBENCH_REGIONS:-$AWS_REGION}"
+ENABLED_WORKBENCH_REGIONS=$(normalize_workbench_regions "$ENABLED_WORKBENCH_REGIONS") || \
+  err "ENABLED_WORKBENCH_REGIONS must be a comma-separated list of AWS regions"
 prompt ENVIRONMENT        "Environment (dev/qa/prod)"           "dev"
 [[ "$ENVIRONMENT" =~ ^(dev|qa|prod)$ ]] || err "Invalid environment: $ENVIRONMENT"
 prompt ORG_PREFIX         "Organization prefix"                 "proserve"
@@ -304,6 +311,7 @@ CONFIG_OUT="$SCRIPT_DIR/.deploy-config-${ENVIRONMENT}"
 cat > "$CONFIG_OUT" <<CONF
 AWS_ACCOUNT_ID="$AWS_ACCOUNT_ID"
 AWS_REGION="$AWS_REGION"
+ENABLED_WORKBENCH_REGIONS="$ENABLED_WORKBENCH_REGIONS"
 ENVIRONMENT="$ENVIRONMENT"
 ORG_PREFIX="$ORG_PREFIX"
 APP_PREFIX="$APP_PREFIX"
@@ -371,6 +379,7 @@ if [ "$DRY_RUN" = "true" ]; then
   log "=== DRY RUN SUMMARY ==="
   log "Account:       $AWS_ACCOUNT_ID (verified: $CALLER_ACCOUNT)"
   log "Region:        $AWS_REGION"
+  log "Workbench regions: $ENABLED_WORKBENCH_REGIONS"
   log "Environment:   $ENVIRONMENT"
   log "Org prefix:    $ORG_PREFIX"
   log "App prefix:    $APP_PREFIX"
@@ -401,10 +410,10 @@ sed -i.bak \
   -e "s/^ORGANIZATION_PREFIX = \".*\"/ORGANIZATION_PREFIX = \"${ORG_PREFIX}\"/" \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
   -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${AWS_REGION}\"/" \
-  -e "s/\"enabled-workbench-regions\": \[\"[^\"]*\"\]/\"enabled-workbench-regions\": [\"${AWS_REGION}\"]/" \
   -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${AWS_REGION}/g" \
   "$BACKEND_CONFIG"
 rm -f "${BACKEND_CONFIG}.bak"
+patch_workbench_regions_config "$BACKEND_CONFIG" "$ENABLED_WORKBENCH_REGIONS"
 
 # --- backend/infra/constants.py ---
 BACKEND_CONSTANTS="$REPO_ROOT/backend/infra/constants.py"
@@ -477,18 +486,19 @@ log "Configuration files patched"
 # ---------------------------------------------------------------------------
 # Phase 3: CDK bootstrap (default qualifier)
 # ---------------------------------------------------------------------------
-step 3 "CDK bootstrapping account $AWS_ACCOUNT_ID in $AWS_REGION"
+BOOTSTRAP_REGIONS=$(required_bootstrap_regions \
+  "$AWS_REGION" \
+  "$ENABLED_WORKBENCH_REGIONS" \
+  "$PRIVATE_DEPLOYMENT")
 
-run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${AWS_REGION}" \
-  --trust "$AWS_ACCOUNT_ID" \
-  --cloudformation-execution-policies "arn:aws:iam::aws:policy/AdministratorAccess"
+step 3 "CDK bootstrapping account $AWS_ACCOUNT_ID in required regions"
 
-if [ "$AWS_REGION" != "us-east-1" ] && [ "$PRIVATE_DEPLOYMENT" != "true" ]; then
-  log "Bootstrapping us-east-1 for Cognito/CloudFront resources"
-  run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/us-east-1" \
+while IFS= read -r bootstrap_region; do
+  log "Bootstrapping hub account in $bootstrap_region"
+  run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${bootstrap_region}" \
     --trust "$AWS_ACCOUNT_ID" \
     --cloudformation-execution-policies "arn:aws:iam::aws:policy/AdministratorAccess"
-fi
+done < <(workbench_regions_lines "$BOOTSTRAP_REGIONS")
 
 # ---------------------------------------------------------------------------
 # Phase 4: Create prerequisite resources (SSM parameters, VPC, service roles)
