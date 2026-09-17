@@ -45,7 +45,15 @@ paths:
         - $ref: '#/components/parameters/ProjectId'
       responses:
         '200': {$ref: '#/components/responses/ComponentPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.read]
       x-amazon-apigateway-request-validator: params-only
@@ -71,7 +79,15 @@ paths:
             schema: {$ref: '#/components/schemas/CreateComponentRequest'}
       responses:
         '201': {$ref: '#/components/responses/CreateComponent'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.write]
       x-amazon-apigateway-request-validator: all
@@ -85,7 +101,15 @@ paths:
         - $ref: '#/components/parameters/ComponentId'
       responses:
         '200': {$ref: '#/components/responses/Component'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.read]
       x-amazon-apigateway-request-validator: params-only
@@ -103,7 +127,15 @@ paths:
             schema: {$ref: '#/components/schemas/UpdateComponentRequest'}
       responses:
         '200': {$ref: '#/components/responses/EmptyComponentAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.write]
       x-amazon-apigateway-request-validator: all
@@ -116,7 +148,15 @@ paths:
         - $ref: '#/components/parameters/ComponentId'
       responses:
         '200': {$ref: '#/components/responses/EmptyComponentAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.write]
       x-amazon-apigateway-request-validator: params-only
@@ -130,7 +170,15 @@ paths:
         - $ref: '#/components/parameters/ComponentId'
       responses:
         '200': {$ref: '#/components/responses/ComponentVersionPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.read]
       x-amazon-apigateway-request-validator: params-only
@@ -148,7 +196,15 @@ paths:
             schema: {$ref: '#/components/schemas/CreateComponentVersionRequest'}
       responses:
         '202': {$ref: '#/components/responses/ComponentVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.write]
       x-amazon-apigateway-request-validator: all
@@ -163,7 +219,15 @@ paths:
         - $ref: '#/components/parameters/ComponentVersionId'
       responses:
         '200': {$ref: '#/components/responses/ComponentVersion'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.read]
       x-amazon-apigateway-request-validator: params-only
@@ -182,7 +246,15 @@ paths:
             schema: {$ref: '#/components/schemas/UpdateComponentVersionRequest'}
       responses:
         '202': {$ref: '#/components/responses/ComponentVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.write]
       x-amazon-apigateway-request-validator: all
@@ -196,7 +268,15 @@ paths:
         - $ref: '#/components/parameters/ComponentVersionId'
       responses:
         '202': {$ref: '#/components/responses/ComponentVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.write]
       x-amazon-apigateway-request-validator: params-only
@@ -211,7 +291,15 @@ paths:
         - $ref: '#/components/parameters/ComponentVersionId'
       responses:
         '200': {$ref: '#/components/responses/ComponentVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security:
         - ClientCredentials: [clients/packaging/component.release]
       x-amazon-apigateway-request-validator: params-only
@@ -228,7 +316,15 @@ paths:
             schema: {$ref: '#/components/schemas/CreateRecipeRequest'}
       responses:
         '201': {$ref: '#/components/responses/CreateRecipe'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.write]}]
       x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -238,7 +334,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}]
       responses:
         '200': {$ref: '#/components/responses/RecipePage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -249,7 +353,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
       responses:
         '200': {$ref: '#/components/responses/Recipe'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -259,7 +371,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
       responses:
         '200': {description: Recipe archived.}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.write]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -275,7 +395,15 @@ paths:
             schema: {$ref: '#/components/schemas/CreateRecipeVersionRequest'}
       responses:
         '202': {$ref: '#/components/responses/RecipeVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.write]}]
       x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -285,7 +413,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
       responses:
         '200': {$ref: '#/components/responses/RecipeVersionPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -296,7 +432,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
       responses:
         '200': {$ref: '#/components/responses/RecipeVersion'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -311,7 +455,15 @@ paths:
             schema: {$ref: '#/components/schemas/UpdateRecipeVersionRequest'}
       responses:
         '202': {$ref: '#/components/responses/RecipeVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.write]}]
       x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -321,7 +473,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
       responses:
         '202': {$ref: '#/components/responses/RecipeVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.write]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -332,7 +492,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
       responses:
         '200': {$ref: '#/components/responses/RecipeVersionAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/recipe.release]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -348,7 +516,15 @@ paths:
             schema: {$ref: '#/components/schemas/CreatePipelineRequest'}
       responses:
         '202': {$ref: '#/components/responses/PipelineAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.write]}]
       x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -358,7 +534,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}]
       responses:
         '200': {$ref: '#/components/responses/PipelinePage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -369,7 +553,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/PipelineId'}]
       responses:
         '200': {$ref: '#/components/responses/Pipeline'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -384,7 +576,15 @@ paths:
             schema: {$ref: '#/components/schemas/UpdatePipelineRequest'}
       responses:
         '202': {$ref: '#/components/responses/PipelineAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.write]}]
       x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -394,7 +594,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/PipelineId'}]
       responses:
         '202': {$ref: '#/components/responses/PipelineAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.write]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -410,7 +618,15 @@ paths:
             schema: {$ref: '#/components/schemas/CreateImageRequest'}
       responses:
         '202': {$ref: '#/components/responses/ImageAction'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.execute]}]
       x-amazon-apigateway-request-validator: all
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -420,7 +636,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}]
       responses:
         '200': {$ref: '#/components/responses/ImagePage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration
@@ -431,7 +655,15 @@ paths:
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ImageId'}]
       responses:
         '200': {$ref: '#/components/responses/Image'}
-        default: {$ref: '#/components/responses/Problem'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+        '500': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
       security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
       x-amazon-apigateway-request-validator: params-only
       x-amazon-apigateway-integration: *lambdaIntegration

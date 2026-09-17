@@ -5,6 +5,15 @@ def test_schema_is_valid(api_schema):
     validate_spec(api_schema)
 
 
+def test_method_responses_use_explicit_status_codes_for_api_gateway(api_schema):
+    for path, methods in api_schema["paths"].items():
+        for method, operation in methods.items():
+            responses = operation["responses"]
+            assert all(code.isdigit() and len(code) == 3 for code in responses), (method, path)
+            for code in ("400", "401", "403", "404", "409", "422", "429", "500", "503"):
+                assert responses[code] == {"$ref": "#/components/responses/Problem"}
+
+
 def test_schema_exposes_component_and_recipe_slices(api_schema):
     assert set(api_schema["paths"]) == {
         "/projects/{projectId}/components",
