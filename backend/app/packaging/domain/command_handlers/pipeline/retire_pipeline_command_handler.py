@@ -41,7 +41,7 @@ def handle(
                 pipelineId=command.pipelineId.value,
             ),
             lastUpdateDate=current_time,
-            lastUpdateBy=command.lastUpdateBy.value,
+            lastUpdatedBy=command.lastUpdateBy.value,
             status=pipeline.PipelineStatus.Updating,
         )
         uow.commit()

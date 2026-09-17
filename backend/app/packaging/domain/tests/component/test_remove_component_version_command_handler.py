@@ -5,9 +5,7 @@ import assertpy
 import pytest
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.component import (
-    remove_component_version_command_handler,
-)
+from app.packaging.domain.command_handlers.component import remove_component_version_command_handler
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.ports import component_version_definition_service

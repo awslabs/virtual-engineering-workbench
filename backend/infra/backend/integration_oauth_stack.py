@@ -60,6 +60,28 @@ class IntegrationOauthStack(aws_cdk.Stack):
                     "program.read": "Allows to read project data",
                     "assignment.write": "Allows to enrol users to programs",
                     "assignment.read": "Allows to read user data in the projects",
+                    "client_assignment.read": "Allows to read service-client project assignments",
+                    "client_assignment.write": "Allows to manage service-client project assignments",
+                },
+            ),
+        )
+
+        packaging_resource_server = backend_app_api_resource_server.BackendAppApiResourceServer(
+            self,
+            "PackagingResourceServer",
+            user_pool,
+            resource_server=backend_app_api_resource_server.ResourceServer(
+                identifier="clients/packaging",
+                scopes={
+                    "component.read": "Allows service clients to read components and component versions",
+                    "component.write": "Allows service clients to manage components and component versions",
+                    "component.release": "Allows service clients to release immutable component versions",
+                    "recipe.read": "Allows service clients to read recipes and recipe versions",
+                    "recipe.write": "Allows service clients to manage recipes and recipe versions",
+                    "recipe.release": "Allows service clients to release immutable recipe versions",
+                    "pipeline.read": "Allows service clients to read pipelines and image build status",
+                    "pipeline.write": "Allows service clients to manage pipelines",
+                    "pipeline.execute": "Allows service clients to start image builds",
                 },
             ),
         )
@@ -93,7 +115,17 @@ class IntegrationOauthStack(aws_cdk.Stack):
                 ),
                 backend_app_api_oauth_client.AppClientResourceServer(
                     resource_server=projects_resource_server,
-                    scopes=["program.read", "assignment.write", "assignment.read"],
+                    scopes=[
+                        "program.read",
+                        "assignment.write",
+                        "assignment.read",
+                        "client_assignment.read",
+                        "client_assignment.write",
+                    ],
+                ),
+                backend_app_api_oauth_client.AppClientResourceServer(
+                    resource_server=packaging_resource_server,
+                    scopes=["component.read", "component.write", "component.release"],
                 ),
                 backend_app_api_oauth_client.AppClientResourceServer(
                     resource_server=publishing_compound_resource_server,

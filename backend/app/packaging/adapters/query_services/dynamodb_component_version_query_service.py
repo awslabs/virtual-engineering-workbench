@@ -79,6 +79,7 @@ class DynamoDBComponentVersionQueryService(component_version_query_service.Compo
 
         result = self._dynamodb_client.get_item(
             TableName=self._table_name,
+            ConsistentRead=True,
             Key={
                 "PK": f"{DBPrefix.Component}#{component_id}",
                 "SK": f"{DBPrefix.Version}#{version_id}",

@@ -5,6 +5,7 @@ from urllib.parse import unquote
 
 from aws_lambda_powertools import logging, tracing
 from aws_lambda_powertools.event_handler import api_gateway, content_types
+from aws_lambda_powertools.event_handler.exceptions import NotFoundError
 from aws_lambda_powertools.event_handler.openapi.models import Server
 from aws_lambda_powertools.event_handler.openapi.params import Query
 from aws_lambda_powertools.utilities import typing
@@ -21,20 +22,13 @@ from app.projects.domain.commands.project_accounts import (
     on_board_project_account_command,
     reonboard_project_account_command,
 )
-from app.projects.domain.commands.projects import (
-    create_project_command,
-    update_project_command,
-)
+from app.projects.domain.commands.projects import create_project_command, update_project_command
 from app.projects.domain.commands.technologies import (
     add_technology,
     delete_technology_command,
     update_technology_command,
 )
-from app.projects.domain.commands.users import (
-    assign_user_command,
-    reassign_user_command,
-    unassign_user_command,
-)
+from app.projects.domain.commands.users import assign_user_command, reassign_user_command, unassign_user_command
 from app.projects.domain.exceptions import domain_exception
 from app.projects.domain.model import enrolment, project_account, project_assignment
 from app.projects.domain.value_objects import (
@@ -727,6 +721,30 @@ def get_project_user_assignment_internal(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=response,
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.get("/internal/projects/<project_id>/clients/<client_id>")
+def get_service_client_assignment_internal(
+    project_id: str, client_id: str
+) -> api_gateway.Response[api_model.GetServiceClientAssignmentResponse]:
+    assignment = dependencies.projects_query_service.get_service_client_assignment(project_id, client_id)
+    if assignment is None:
+        raise NotFoundError("Service client assignment not found")
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetServiceClientAssignmentResponse(
+            assignment=api_model.ServiceClientAssignment.model_validate(
+                {
+                    "clientId": assignment.clientId,
+                    "projectId": assignment.projectId,
+                    "status": assignment.status.value,
+                }
+            )
+        ),
         content_type=content_types.APPLICATION_JSON,
     )
 

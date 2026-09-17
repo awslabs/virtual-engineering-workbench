@@ -3,16 +3,11 @@ from datetime import datetime, timezone
 import semver
 
 from app.packaging.domain.commands.component import release_component_version_command
-from app.packaging.domain.events.component import (
-    component_version_release_completed,
-)
+from app.packaging.domain.events.component import component_version_release_completed
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe_version
-from app.packaging.domain.ports import (
-    component_version_query_service,
-    recipe_version_query_service,
-)
+from app.packaging.domain.ports import component_version_query_service, recipe_version_query_service
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -145,7 +140,7 @@ def handle(
                 componentVersionId=command.componentVersionId.value,
             ),
             lastUpdateDate=current_time,
-            lastUpdateBy=command.lastUpdatedBy.value,
+            lastUpdatedBy=command.lastUpdatedBy.value,
             componentVersionName=final_component_version_name,
             status=component_version.ComponentVersionStatus.Released,
         )
@@ -171,3 +166,4 @@ def handle(
             component_version_dependencies=component_version_entity.componentVersionDependencies,
         )
     )
+    return {"componentVersionId": command.componentVersionId.value}
