@@ -109,7 +109,6 @@ def handle(
             component_version_build_arn=component_version_build_arn,
             component_yaml_definition_s3_uri=component_s3_uri,
         )
-
         message_bus.publish(
             component_version_published.ComponentVersionPublished(
                 component_id=command.componentId.value,

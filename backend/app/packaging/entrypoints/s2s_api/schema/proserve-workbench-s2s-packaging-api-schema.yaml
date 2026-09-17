@@ -1,0 +1,1077 @@
+openapi: 3.0.1
+info:
+  title: Virtual Engineering Workbench Packaging S2S API
+  version: 1.0.0
+  description: Project-scoped component, recipe, and pipeline publishing POC using internal IDs.
+servers:
+  - url: https://{Host}/clients/packaging/v1
+    variables:
+      Host:
+        default: example.invalid
+x-amazon-apigateway-request-validators:
+  all:
+    validateRequestBody: true
+    validateRequestParameters: true
+  params-only:
+    validateRequestBody: false
+    validateRequestParameters: true
+x-amazon-apigateway-request-validator: params-only
+x-amazon-apigateway-gateway-responses:
+  DEFAULT_4XX: &clientGatewayError
+    responseParameters:
+      gatewayresponse.header.Content-Type: "'application/problem+json'"
+      gatewayresponse.header.Cache-Control: "'no-store'"
+    responseTemplates:
+      application/problem+json: >-
+        {"type":"https://problems.virtual-engineering-workbench.dev/api-gateway-error","title":"Client Error","status":$context.status,"detail":$context.error.messageString,"code":"$context.error.responseType","requestId":"$context.requestId","retryable":false}
+  BAD_REQUEST_BODY: *clientGatewayError
+  BAD_REQUEST_PARAMETERS: *clientGatewayError
+  UNAUTHORIZED: *clientGatewayError
+  ACCESS_DENIED: *clientGatewayError
+  THROTTLED: *clientGatewayError
+  DEFAULT_5XX:
+    responseParameters:
+      gatewayresponse.header.Content-Type: "'application/problem+json'"
+      gatewayresponse.header.Cache-Control: "'no-store'"
+    responseTemplates:
+      application/problem+json: >-
+        {"type":"https://problems.virtual-engineering-workbench.dev/api-gateway-error","title":"Server Error","status":$context.status,"detail":"API Gateway could not process the request.","code":"$context.error.responseType","requestId":"$context.requestId","retryable":true}
+paths:
+  /projects/{projectId}/components:
+    get:
+      operationId: ListComponents
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200': {$ref: '#/components/responses/ComponentPage'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.read]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: &lambdaIntegration
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations
+        credentials: '{{apigw_invocation_role_arn}}'
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        responses:
+          default:
+            statusCode: '200'
+    post:
+      operationId: CreateComponent
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateComponentRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/CreateComponent'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.write]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/components/{componentId}:
+    get:
+      operationId: GetComponent
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+      responses:
+        '200': {$ref: '#/components/responses/Component'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.read]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+    put:
+      operationId: UpdateComponent
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateComponentRequest'}
+      responses:
+        '200': {$ref: '#/components/responses/EmptyComponentAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.write]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    delete:
+      operationId: ArchiveComponent
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+      responses:
+        '200': {$ref: '#/components/responses/EmptyComponentAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.write]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/components/{componentId}/versions:
+    get:
+      operationId: ListComponentVersions
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+      responses:
+        '200': {$ref: '#/components/responses/ComponentVersionPage'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.read]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+    post:
+      operationId: CreateComponentVersion
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateComponentVersionRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/ComponentVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.write]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/components/{componentId}/versions/{versionId}:
+    get:
+      operationId: GetComponentVersion
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+        - $ref: '#/components/parameters/ComponentVersionId'
+      responses:
+        '200': {$ref: '#/components/responses/ComponentVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.read]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+    put:
+      operationId: UpdateComponentVersion
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+        - $ref: '#/components/parameters/ComponentVersionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateComponentVersionRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/ComponentVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.write]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    delete:
+      operationId: RetireComponentVersion
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+        - $ref: '#/components/parameters/ComponentVersionId'
+      responses:
+        '202': {$ref: '#/components/responses/ComponentVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.write]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/components/{componentId}/versions/{versionId}/release:
+    post:
+      operationId: ReleaseComponentVersion
+      tags: [ALL]
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ComponentId'
+        - $ref: '#/components/parameters/ComponentVersionId'
+      responses:
+        '200': {$ref: '#/components/responses/ComponentVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security:
+        - ClientCredentials: [clients/packaging/component.release]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/recipes:
+    post:
+      operationId: CreateRecipe
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateRecipeRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/CreateRecipe'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.write]}]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    get:
+      operationId: ListRecipes
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}]
+      responses:
+        '200': {$ref: '#/components/responses/RecipePage'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/recipes/{recipeId}:
+    get:
+      operationId: GetRecipe
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Recipe'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+    delete:
+      operationId: ArchiveRecipe
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
+      responses:
+        '200': {description: Recipe archived.}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.write]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/recipes/{recipeId}/versions:
+    post:
+      operationId: CreateRecipeVersion
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateRecipeVersionRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/RecipeVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.write]}]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    get:
+      operationId: ListRecipeVersions
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
+      responses:
+        '200': {$ref: '#/components/responses/RecipeVersionPage'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/recipes/{recipeId}/versions/{versionId}:
+    get:
+      operationId: GetRecipeVersion
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
+      responses:
+        '200': {$ref: '#/components/responses/RecipeVersion'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+    put:
+      operationId: UpdateRecipeVersion
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateRecipeVersionRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/RecipeVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.write]}]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    delete:
+      operationId: RetireRecipeVersion
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
+      responses:
+        '202': {$ref: '#/components/responses/RecipeVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.write]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/recipes/{recipeId}/versions/{versionId}/release:
+    post:
+      operationId: ReleaseRecipeVersion
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}, {$ref: '#/components/parameters/RecipeVersionId'}]
+      responses:
+        '200': {$ref: '#/components/responses/RecipeVersionAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/recipe.release]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/pipelines:
+    post:
+      operationId: CreatePipeline
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreatePipelineRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/PipelineAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.write]}]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    get:
+      operationId: ListPipelines
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}]
+      responses:
+        '200': {$ref: '#/components/responses/PipelinePage'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/pipelines/{pipelineId}:
+    get:
+      operationId: GetPipeline
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/PipelineId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Pipeline'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+    put:
+      operationId: UpdatePipeline
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/PipelineId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdatePipelineRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/PipelineAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.write]}]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    delete:
+      operationId: DeletePipeline
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/PipelineId'}]
+      responses:
+        '202': {$ref: '#/components/responses/PipelineAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.write]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/images:
+    post:
+      operationId: CreateImage
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateImageRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/ImageAction'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.execute]}]
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration: *lambdaIntegration
+    get:
+      operationId: ListImages
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}]
+      responses:
+        '200': {$ref: '#/components/responses/ImagePage'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+  /projects/{projectId}/images/{imageId}:
+    get:
+      operationId: GetImage
+      tags: [ALL]
+      parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ImageId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Image'}
+        default: {$ref: '#/components/responses/Problem'}
+      security: [{ClientCredentials: [clients/packaging/pipeline.read]}]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration: *lambdaIntegration
+components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    RecipeId:
+      name: recipeId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    RecipeVersionId:
+      name: versionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    PipelineId:
+      name: pipelineId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    ImageId:
+      name: imageId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+    ComponentId:
+      name: componentId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+    ComponentVersionId:
+      name: versionId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+  responses:
+    CreateComponent:
+      description: Created component identifier.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/CreateComponentResponse'}
+    Component:
+      description: Component.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ComponentResponse'}
+    ComponentPage:
+      description: Components.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ComponentPage'}
+    ComponentVersion:
+      description: Component version status and definition when available.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ComponentVersionResponse'}
+    ComponentVersionPage:
+      description: Component versions.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ComponentVersionPage'}
+    ComponentVersionAction:
+      description: Component-version action; poll the version resource after an asynchronous change.
+      headers:
+        Retry-After:
+          schema: {type: string}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ComponentVersionActionResponse'}
+    EmptyComponentAction:
+      description: Component updated or archived.
+      content:
+        application/json:
+          schema: {type: object}
+    Problem:
+      description: RFC problem response.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    CreateRecipe:
+      description: Created recipe identifier.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/CreateRecipeResponse'}
+    Recipe:
+      description: Recipe.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RecipeResponse'}
+    RecipePage:
+      description: Recipe page.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RecipePage'}
+    RecipeVersion:
+      description: Recipe version status.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RecipeVersionResponse'}
+    RecipeVersionPage:
+      description: Recipe versions.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RecipeVersionPage'}
+    RecipeVersionAction:
+      description: Accepted recipe-version action; poll the version resource for status.
+      headers:
+        Retry-After:
+          schema: {type: string}
+        Cache-Control:
+          schema: {type: string}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RecipeVersionActionResponse'}
+    PipelineAction:
+      description: Accepted pipeline action.
+      headers:
+        Retry-After:
+          schema: {type: string, default: '5'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/PipelineActionResponse'}
+    Pipeline:
+      description: Pipeline.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/PipelineResponse'}
+    PipelinePage:
+      description: Pipelines.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/PipelinePage'}
+    ImageAction:
+      description: Accepted image creation action.
+      headers:
+        Retry-After:
+          schema: {type: string, default: '5'}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/CreateImageResponse'}
+    Image:
+      description: Image.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ImageResponse'}
+    ImagePage:
+      description: Images.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ImagePage'}
+  schemas:
+    Component:
+      properties:
+        componentId:
+          type: "string"
+        componentDescription:
+          type: "string"
+        componentName:
+          type: "string"
+        componentSupportedArchitectures:
+          items:
+            type: "string"
+          type: "array"
+        componentPlatform:
+          type: "string"
+        componentSupportedOsVersions:
+          items:
+            type: "string"
+          type: "array"
+        status:
+          type: "string"
+        createDate:
+          type: "string"
+        createdBy:
+          type: "string"
+        lastUpdateDate:
+          type: "string"
+        lastUpdatedBy:
+          type: "string"
+      required: ["componentId","componentDescription","componentName","componentSupportedArchitectures","componentPlatform","componentSupportedOsVersions","status","createDate","createdBy","lastUpdateDate","lastUpdatedBy"]
+      type: "object"
+    ComponentVersionEntry:
+      properties:
+        componentId:
+          type: "string"
+        componentName:
+          type: "string"
+        componentVersionId:
+          type: "string"
+        componentVersionName:
+          type: "string"
+        componentVersionType:
+          type: "string"
+          nullable: true
+        order:
+          type: "integer"
+          nullable: true
+        position:
+          type: "string"
+          nullable: true
+      required: ["componentId","componentName","componentVersionId","componentVersionName"]
+      type: "object"
+    ComponentVersion:
+      properties:
+        componentId:
+          type: "string"
+        componentVersionId:
+          type: "string"
+        componentVersionDescription:
+          type: "string"
+        componentVersionName:
+          type: "string"
+        componentVersionDependencies:
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          type: "array"
+          nullable: true
+        associatedComponentsVersions:
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          type: "array"
+          nullable: true
+        associatedRecipesVersions:
+          items: {}
+          type: "array"
+          nullable: true
+        softwareVendor:
+          type: "string"
+        softwareVersion:
+          type: "string"
+        licenseDashboard:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+        status:
+          type: "string"
+        createDate:
+          type: "string"
+        createdBy:
+          type: "string"
+        lastUpdateDate:
+          type: "string"
+        lastUpdatedBy:
+          type: "string"
+      required: ["componentId","componentVersionId","componentVersionDescription","componentVersionName","softwareVendor","softwareVersion","status","createDate","createdBy","lastUpdateDate","lastUpdatedBy"]
+      type: "object"
+    CreateComponentRequest:
+      additionalProperties: false
+      properties:
+        componentName:
+          type: "string"
+        componentDescription:
+          type: "string"
+        componentPlatform:
+          type: "string"
+        componentSupportedArchitectures:
+          items:
+            type: "string"
+          type: "array"
+        componentSupportedOsVersions:
+          items:
+            type: "string"
+          type: "array"
+      required: ["componentName","componentDescription","componentPlatform","componentSupportedArchitectures","componentSupportedOsVersions"]
+      type: "object"
+    UpdateComponentRequest:
+      additionalProperties: false
+      properties:
+        componentDescription:
+          type: "string"
+      required: ["componentDescription"]
+      type: "object"
+    CreateComponentVersionRequest:
+      additionalProperties: false
+      properties:
+        componentVersionDescription:
+          type: "string"
+        componentVersionDependencies:
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          type: "array"
+          nullable: true
+        componentVersionReleaseType:
+          type: "string"
+        componentVersionYamlDefinition:
+          type: "string"
+        softwareVendor:
+          type: "string"
+        softwareVersion:
+          type: "string"
+        licenseDashboard:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+      required: ["componentVersionDescription","componentVersionReleaseType","componentVersionYamlDefinition","softwareVendor","softwareVersion"]
+      type: "object"
+    UpdateComponentVersionRequest:
+      additionalProperties: false
+      properties:
+        componentVersionDescription:
+          type: "string"
+        componentVersionDependencies:
+          items:
+            $ref: "#/components/schemas/ComponentVersionEntry"
+          type: "array"
+          nullable: true
+        componentVersionYamlDefinition:
+          type: "string"
+        softwareVendor:
+          type: "string"
+        softwareVersion:
+          type: "string"
+        licenseDashboard:
+          type: "string"
+          nullable: true
+        notes:
+          type: "string"
+          nullable: true
+      required: ["componentVersionDescription","componentVersionYamlDefinition","softwareVendor","softwareVersion"]
+      type: "object"
+    ComponentResponse:
+      properties:
+        component:
+          $ref: "#/components/schemas/Component"
+      required: ["component"]
+      type: "object"
+    ComponentPage:
+      properties:
+        components:
+          items:
+            $ref: "#/components/schemas/Component"
+          type: "array"
+      required: ["components"]
+      type: "object"
+    ComponentVersionResponse:
+      properties:
+        component_version:
+          $ref: "#/components/schemas/ComponentVersion"
+        yaml_definition:
+          additionalProperties: true
+          type: "object"
+          nullable: true
+        yaml_definition_b64:
+          type: "string"
+          nullable: true
+      required: ["component_version"]
+      type: "object"
+    ComponentVersionPage:
+      properties:
+        component_versions:
+          items:
+            $ref: "#/components/schemas/ComponentVersion"
+          type: "array"
+      required: ["component_versions"]
+      type: "object"
+    CreateComponentResponse:
+      properties:
+        componentId:
+          type: "string"
+      required: ["componentId"]
+      type: "object"
+    ComponentVersionActionResponse:
+      properties:
+        componentVersionId:
+          type: "string"
+      required: ["componentVersionId"]
+      type: "object"
+    RecipeComponentVersion:
+      type: object
+      additionalProperties: false
+      required: [componentId, componentName, componentVersionId, componentVersionName, componentVersionType, order]
+      properties:
+        componentId: {type: string}
+        componentName: {type: string}
+        componentVersionId: {type: string}
+        componentVersionName: {type: string}
+        componentVersionType: {type: string}
+        order: {type: integer}
+    Recipe:
+      type: object
+      required: [recipeId, recipeDescription, recipeName, recipePlatform, recipeArchitecture, recipeOsVersion, status, createDate, createdBy, lastUpdateDate, lastUpdatedBy]
+      properties:
+        recipeId: {type: string}
+        recipeDescription: {type: string}
+        recipeName: {type: string}
+        recipePlatform: {type: string}
+        recipeArchitecture: {type: string}
+        recipeOsVersion: {type: string}
+        status: {type: string}
+        createDate: {type: string}
+        createdBy: {type: string}
+        lastUpdateDate: {type: string}
+        lastUpdatedBy: {type: string}
+    RecipeVersion:
+      type: object
+      required: [recipeId, recipeVersionId, recipeComponentsVersions, recipeVersionDescription, recipeVersionName, recipeVersionVolumeSize, status, createDate, createdBy, lastUpdateDate, lastUpdatedBy]
+      properties:
+        recipeId: {type: string}
+        recipeVersionId: {type: string}
+        recipeComponentsVersions:
+          type: array
+          items: {$ref: '#/components/schemas/RecipeComponentVersion'}
+        recipeVersionDescription: {type: string}
+        recipeVersionName: {type: string}
+        recipeVersionVolumeSize: {type: string}
+        recipeVersionIntegrations:
+          type: array
+          items: {type: string}
+          nullable: true
+        status: {type: string}
+        createDate: {type: string}
+        createdBy: {type: string}
+        lastUpdateDate: {type: string}
+        lastUpdatedBy: {type: string}
+    CreateRecipeRequest:
+      type: object
+      additionalProperties: false
+      required: [recipeDescription, recipeName, recipePlatform, recipeArchitecture, recipeOsVersion]
+      properties:
+        recipeDescription: {type: string}
+        recipeName: {type: string}
+        recipePlatform: {type: string}
+        recipeArchitecture: {type: string}
+        recipeOsVersion: {type: string}
+    CreateRecipeVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [recipeComponentsVersions, recipeVersionDescription, recipeVersionReleaseType, recipeVersionVolumeSize]
+      properties:
+        recipeComponentsVersions:
+          type: array
+          items: {$ref: '#/components/schemas/RecipeComponentVersion'}
+        recipeVersionDescription: {type: string}
+        recipeVersionReleaseType: {type: string, enum: [MAJOR, MINOR, PATCH]}
+        recipeVersionVolumeSize: {type: string}
+        recipeVersionIntegrations:
+          type: array
+          items: {type: string}
+    UpdateRecipeVersionRequest:
+      type: object
+      additionalProperties: false
+      required: [recipeComponentsVersions, recipeVersionDescription, recipeVersionVolumeSize]
+      properties:
+        recipeComponentsVersions:
+          type: array
+          items: {$ref: '#/components/schemas/RecipeComponentVersion'}
+        recipeVersionDescription: {type: string}
+        recipeVersionVolumeSize: {type: string}
+        recipeVersionIntegrations:
+          type: array
+          items: {type: string}
+    CreateRecipeResponse:
+      type: object
+      required: [recipeId]
+      properties:
+        recipeId: {type: string}
+    RecipeVersionActionResponse:
+      type: object
+      required: [recipeVersionId]
+      properties:
+        recipeVersionId: {type: string}
+    CreatePipelineRequest:
+      type: object
+      additionalProperties: false
+      required: [buildInstanceTypes, pipelineDescription, pipelineName, pipelineSchedule, recipeId, recipeVersionId]
+      properties:
+        buildInstanceTypes:
+          type: array
+          items: {type: string}
+        pipelineDescription: {type: string}
+        pipelineName: {type: string}
+        pipelineSchedule: {type: string}
+        recipeId: {type: string}
+        recipeVersionId: {type: string}
+        productId: {type: string, nullable: true}
+    UpdatePipelineRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        buildInstanceTypes:
+          type: array
+          items: {type: string}
+          nullable: true
+        pipelineSchedule: {type: string, nullable: true}
+        recipeVersionId: {type: string, nullable: true}
+        productId: {type: string, nullable: true}
+    Pipeline:
+      type: object
+      required: [projectId, pipelineId, buildInstanceTypes, pipelineDescription, pipelineName, pipelineSchedule, recipeId, recipeName, recipeVersionId, recipeVersionName, status, createDate, createdBy, lastUpdateDate, lastUpdatedBy]
+      properties:
+        projectId: {type: string}
+        pipelineId: {type: string}
+        buildInstanceTypes:
+          type: array
+          items: {type: string}
+        pipelineDescription: {type: string}
+        pipelineName: {type: string}
+        pipelineSchedule: {type: string}
+        recipeId: {type: string}
+        recipeName: {type: string}
+        recipeVersionId: {type: string}
+        recipeVersionName: {type: string}
+        status: {type: string}
+        productId: {type: string, nullable: true}
+        distributionConfigArn: {type: string, nullable: true}
+        infrastructureConfigArn: {type: string, nullable: true}
+        pipelineArn: {type: string, nullable: true}
+        createDate: {type: string}
+        createdBy: {type: string}
+        lastUpdateDate: {type: string}
+        lastUpdatedBy: {type: string}
+    PipelinePage:
+      type: object
+      required: [pipelines]
+      properties:
+        pipelines:
+          type: array
+          items: {$ref: '#/components/schemas/Pipeline'}
+    PipelineResponse:
+      type: object
+      required: [pipeline]
+      properties:
+        pipeline: {$ref: '#/components/schemas/Pipeline'}
+    PipelineActionResponse:
+      type: object
+      required: [pipelineId]
+      properties:
+        pipelineId: {type: string}
+    CreateImageRequest:
+      type: object
+      additionalProperties: false
+      required: [pipelineId]
+      properties:
+        pipelineId: {type: string}
+    CreateImageResponse:
+      type: object
+      required: [imageId]
+      properties:
+        imageId: {type: string}
+    Image:
+      type: object
+      required: [projectId, imageId, imageBuildVersion, imageBuildVersionArn, pipelineId, pipelineName, recipeId, recipeName, recipeVersionId, recipeVersionName, status, createDate, lastUpdateDate]
+      properties:
+        projectId: {type: string}
+        imageId: {type: string}
+        imageBuildVersion: {type: string}
+        imageBuildVersionArn: {type: string}
+        pipelineId: {type: string}
+        pipelineName: {type: string}
+        recipeId: {type: string}
+        recipeName: {type: string}
+        recipeVersionId: {type: string}
+        recipeVersionName: {type: string}
+        status: {type: string}
+        imageUpstreamId: {type: string, nullable: true}
+        createDate: {type: string}
+        lastUpdateDate: {type: string}
+    ImagePage:
+      type: object
+      required: [images]
+      properties:
+        images:
+          type: array
+          items: {$ref: '#/components/schemas/Image'}
+    ImageResponse:
+      type: object
+      required: [image]
+      properties:
+        image: {$ref: '#/components/schemas/Image'}
+    RecipeResponse:
+      type: object
+      required: [recipe]
+      properties:
+        recipe: {$ref: '#/components/schemas/Recipe'}
+    RecipePage:
+      type: object
+      required: [recipes]
+      properties:
+        recipes:
+          type: array
+          items: {$ref: '#/components/schemas/Recipe'}
+    RecipeVersionResponse:
+      type: object
+      required: [recipe_version]
+      properties:
+        recipe_version: {$ref: '#/components/schemas/RecipeVersion'}
+    RecipeVersionPage:
+      type: object
+      required: [recipe_versions]
+      properties:
+        recipe_versions:
+          type: array
+          items: {$ref: '#/components/schemas/RecipeVersion'}
+    ProblemDetails:
+      type: object
+      required: [type, title, status, detail, code, retryable]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        code:
+          type: string
+        requestId:
+          type: string
+          nullable: true
+        retryable:
+          type: boolean
+  securitySchemes:
+    ClientCredentials:
+      type: apiKey
+      name: Authorization
+      in: header
+      x-amazon-apigateway-authtype: cognito_user_pools
+      x-amazon-apigateway-authorizer:
+        type: cognito_user_pools
+        providerARNs:
+          - arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/{{user_pool_id}}

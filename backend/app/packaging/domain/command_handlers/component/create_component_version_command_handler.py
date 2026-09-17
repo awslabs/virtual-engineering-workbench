@@ -13,6 +13,19 @@ from app.shared.adapters.unit_of_work_v2 import unit_of_work
 INITIAL_VERSION = "1.0.0-rc.1"
 
 
+def _publish_creation_started(command, entity, message_bus):
+    message_bus.publish(
+        component_version_creation_started.ComponentVersionCreationStarted(
+            component_id=command.componentId.value,
+            component_version_id=entity.componentVersionId,
+            component_version_description=command.componentVersionDescription.value,
+            component_version_name=entity.componentVersionName,
+            component_version_yaml_definition=command.componentVersionYamlDefinition.value,
+            component_version_dependencies=command.componentVersionDependencies.value,
+        )
+    )
+
+
 def _calculate_new_version_name(
     component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
     command: create_component_version_command.CreateComponentVersionCommand,
@@ -114,13 +127,5 @@ def handle(
         )
         uow.commit()
 
-    message_bus.publish(
-        component_version_creation_started.ComponentVersionCreationStarted(
-            component_id=command.componentId.value,
-            component_version_id=component_version_entity.componentVersionId,
-            component_version_description=command.componentVersionDescription.value,
-            component_version_name=new_component_version_name,
-            component_version_yaml_definition=command.componentVersionYamlDefinition.value,
-            component_version_dependencies=command.componentVersionDependencies.value,
-        )
-    )
+    _publish_creation_started(command, component_version_entity, message_bus)
+    return {"componentVersionId": component_version_entity.componentVersionId}

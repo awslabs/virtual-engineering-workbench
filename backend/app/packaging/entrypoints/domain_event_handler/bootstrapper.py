@@ -39,10 +39,7 @@ from app.packaging.domain.commands.component import (
     remove_component_version_command,
     update_component_version_associations_command,
 )
-from app.packaging.domain.commands.pipeline import (
-    deploy_pipeline_command,
-    remove_pipeline_command,
-)
+from app.packaging.domain.commands.pipeline import deploy_pipeline_command, remove_pipeline_command
 from app.packaging.domain.commands.recipe import (
     deploy_recipe_version_command,
     remove_recipe_version_command,
@@ -194,7 +191,6 @@ def bootstrap(  # noqa: C901
             return update_recipe_version_on_component_update_command_handler.handle(
                 command=command,
                 uow=shared_uow,
-                message_bus=message_bus,
                 component_qry_srv=component_query_service,
                 component_version_qry_srv=component_version_query_service,
                 recipe_version_query_service=recipe_version_qry_srv,

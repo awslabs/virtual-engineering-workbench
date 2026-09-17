@@ -2,6 +2,7 @@ import importlib
 import json
 import logging
 import unittest
+from unittest import mock
 from unittest.mock import create_autospec, patch
 
 import assertpy
@@ -11,11 +12,16 @@ from app.projects.domain.command_handlers.enrolments import (
     enrol_user_to_program_command_handler,
 )
 from app.projects.domain.commands.enrolments import approve_enrolments_command, enrol_user_to_program_command
-from app.projects.domain.model import enrolment, project_assignment
+from app.projects.domain.commands.service_clients import (
+    put_service_client_assignment_command,
+    revoke_service_client_assignment_command,
+)
+from app.projects.domain.model import enrolment, project_assignment, service_client_assignment
+from app.projects.domain.ports import projects_query_service
 from app.projects.entrypoints.s2s_api import bootstrapper
 from app.projects.entrypoints.s2s_api.model import api_model
 from app.projects.entrypoints.s2s_api.tests import fake_classes
-from app.shared.adapters.message_bus import event_bridge_message_bus, in_memory_command_bus
+from app.shared.adapters.message_bus import command_bus, event_bridge_message_bus, in_memory_command_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work as shared_dynamodb_unit_of_work
 
 
@@ -260,3 +266,99 @@ def test_offboard_multiple_users_should_remove_assignments(mock_command_handler,
     # Assert
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
     mock_command_handler.assert_called_once()
+
+
+def service_client_dependencies(assignment=None):
+    projects_query_service_mock = mock.create_autospec(
+        projects_query_service.ProjectsQueryService,
+        instance=True,
+    )
+    projects_query_service_mock.get_service_client_assignment.return_value = assignment
+    command_bus_mock = mock.create_autospec(command_bus.CommandBus, instance=True)
+    dependencies = bootstrapper.Dependencies(
+        technologies_query_service=fake_classes.FakeTechnologiesQueryService(),
+        projects_query_service=projects_query_service_mock,
+        enrolment_query_service=fake_classes.FakeEnrolmentsQueryService(),
+        command_bus=command_bus_mock,
+    )
+    return dependencies, command_bus_mock
+
+
+def test_put_service_client_assignment_dispatches_command(lambda_context, authenticated_event):
+    dependencies, command_bus_mock = service_client_dependencies()
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(
+            authenticated_event(None, "/projects/proj-1/clients/client-1", "PUT"),
+            lambda_context,
+        )
+
+    assert response["statusCode"] == 200
+    dispatched = command_bus_mock.handle.call_args.args[0]
+    assert isinstance(dispatched, put_service_client_assignment_command.PutServiceClientAssignmentCommand)
+    assert dispatched.project_id.value == "proj-1"
+    assert dispatched.client_id == "client-1"
+    assert dispatched.granted_by == "fake_client_id"
+
+
+def test_get_service_client_assignment_returns_assignment(lambda_context, authenticated_event):
+    assignment = service_client_assignment.ServiceClientAssignment(
+        clientId="client-1",
+        projectId="proj-1",
+        status=service_client_assignment.ServiceClientAssignmentStatus.ACTIVE,
+        grantedBy="admin-client",
+        createDate="2026-09-16T10:00:00+00:00",
+        lastUpdateDate="2026-09-16T10:00:00+00:00",
+    )
+    dependencies, _ = service_client_dependencies(assignment)
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(
+            authenticated_event(None, "/projects/proj-1/clients/client-1", "GET"),
+            lambda_context,
+        )
+
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"])["assignment"] == {
+        "clientId": "client-1",
+        "projectId": "proj-1",
+        "status": "ACTIVE",
+    }
+
+
+def test_get_service_client_assignment_returns_404_when_missing(lambda_context, authenticated_event):
+    dependencies, _ = service_client_dependencies()
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(
+            authenticated_event(None, "/projects/proj-1/clients/missing", "GET"),
+            lambda_context,
+        )
+
+    assert response["statusCode"] == 404
+    dependencies.projects_query_service.get_service_client_assignment.assert_called_once_with("proj-1", "missing")
+
+
+def test_delete_service_client_assignment_dispatches_command(lambda_context, authenticated_event):
+    dependencies, command_bus_mock = service_client_dependencies()
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(
+            authenticated_event(None, "/projects/proj-1/clients/client-1", "DELETE"),
+            lambda_context,
+        )
+
+    assert response["statusCode"] == 200
+    dispatched = command_bus_mock.handle.call_args.args[0]
+    assert isinstance(dispatched, revoke_service_client_assignment_command.RevokeServiceClientAssignmentCommand)
+    assert dispatched.project_id.value == "proj-1"
+    assert dispatched.client_id == "client-1"
+    assert dispatched.revoked_by == "fake_client_id"

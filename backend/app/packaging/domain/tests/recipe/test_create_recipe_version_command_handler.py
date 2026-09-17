@@ -6,9 +6,7 @@ import pytest
 from assertpy import assertpy
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.recipe import (
-    create_recipe_version_command_handler,
-)
+from app.packaging.domain.command_handlers.recipe import create_recipe_version_command_handler
 from app.packaging.domain.events.recipe import recipe_version_creation_started
 from app.packaging.domain.exceptions.domain_exception import DomainException
 from app.packaging.domain.model.component import component_version
@@ -76,7 +74,7 @@ def test_handle_should_create_new_version_recipe_if_version_in_repository(
     component_version_query_service_mock.get_component_version.side_effect = component_version_entities
 
     # ACT
-    create_recipe_version_command_handler.handle(
+    result = create_recipe_version_command_handler.handle(
         command=create_recipe_version_command_mock,
         uow=uow_mock,
         message_bus=message_bus_mock,
@@ -90,6 +88,7 @@ def test_handle_should_create_new_version_recipe_if_version_in_repository(
     )
 
     # ASSERT
+    assertpy.assert_that(result).is_equal_to({"recipeVersionId": "vers-11111111"})
     recipe_version_repo_mock.add.assert_called_once_with(
         recipe_version.RecipeVersion(
             recipeId="reci-1234abcd",

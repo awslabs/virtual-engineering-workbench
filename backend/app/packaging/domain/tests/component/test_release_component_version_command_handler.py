@@ -5,29 +5,17 @@ import assertpy
 import pytest
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.component import (
-    release_component_version_command_handler,
-)
+from app.packaging.domain.command_handlers.component import release_component_version_command_handler
 from app.packaging.domain.commands.component import release_component_version_command
-from app.packaging.domain.events.component import (
-    component_version_release_completed,
-)
+from app.packaging.domain.events.component import component_version_release_completed
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe_version
 from app.packaging.domain.model.shared import component_version_entry
-from app.packaging.domain.model.shared.component_version_entry import (
-    ComponentVersionEntry,
-)
-from app.packaging.domain.tests.conftest import (
-    TEST_COMPONENT_ID,
-    TEST_COMPONENT_NAME,
-    TEST_COMPONENT_VERSION_ID,
-)
+from app.packaging.domain.model.shared.component_version_entry import ComponentVersionEntry
+from app.packaging.domain.tests.conftest import TEST_COMPONENT_ID, TEST_COMPONENT_NAME, TEST_COMPONENT_VERSION_ID
 from app.packaging.domain.value_objects.component import component_id_value_object
-from app.packaging.domain.value_objects.component_version import (
-    component_version_id_value_object,
-)
+from app.packaging.domain.value_objects.component_version import component_version_id_value_object
 from app.packaging.domain.value_objects.shared import (
     project_id_value_object,
     user_id_value_object,
@@ -55,6 +43,17 @@ def get_release_component_version_command_mock():
         )
 
     return _get_release_component_version_command_mock
+
+
+def test_release_command_defaults_to_no_ui_roles():
+    command = release_component_version_command.ReleaseComponentVersionCommand(
+        projectId=project_id_value_object.from_str("proj-1234"),
+        componentId=component_id_value_object.from_str("comp-1234abcd"),
+        componentVersionId=component_version_id_value_object.from_str("vers-1234abcd"),
+        lastUpdatedBy=user_id_value_object.from_str("service:client-1"),
+    )
+
+    assert command.userRoles == []
 
 
 @pytest.mark.parametrize(
@@ -91,7 +90,7 @@ def test_handle_should_release_version(
     uow_mock.get_repository.side_effect = lambda pk, x: repos_dict.get(x)
 
     # ACT
-    release_component_version_command_handler.handle(
+    result = release_component_version_command_handler.handle(
         command=release_component_version_command_mock,
         uow=uow_mock,
         message_bus=message_bus_mock,
@@ -107,11 +106,12 @@ def test_handle_should_release_version(
     component_version_repo_mock.update_attributes.assert_called_once_with(
         pk,
         lastUpdateDate="2023-10-12T00:00:00+00:00",
-        lastUpdateBy=release_component_version_command_mock.lastUpdatedBy.value,
+        lastUpdatedBy=release_component_version_command_mock.lastUpdatedBy.value,
         componentVersionName=expected_version_name,
         status=component_version.ComponentVersionStatus.Released,
     )
     uow_mock.commit.assert_called()
+    assert result == {"componentVersionId": "vers-1234abcd"}
     message_bus_mock.publish.assert_called_once_with(
         component_version_release_completed.ComponentVersionReleaseCompleted(
             componentId=release_component_version_command_mock.componentId.value,
@@ -350,7 +350,7 @@ def test_handle_release_should_succeed_when_updating_downstream_dependencies(
             componentVersionId=release_component_version_command_mock.componentVersionId.value,
         ),
         lastUpdateDate="2023-10-12T00:00:00+00:00",
-        lastUpdateBy=release_component_version_command_mock.lastUpdatedBy.value,
+        lastUpdatedBy=release_component_version_command_mock.lastUpdatedBy.value,
         componentVersionName=expected_version_name,
         status=component_version.ComponentVersionStatus.Released,
     )
@@ -550,7 +550,7 @@ def test_handle_should_release_version_and_update_recipe(
             componentVersionId=component_version_entity.componentVersionId,
         ),
         lastUpdateDate="2023-10-12T00:00:00+00:00",
-        lastUpdateBy=release_component_version_command_mock.lastUpdatedBy.value,
+        lastUpdatedBy=release_component_version_command_mock.lastUpdatedBy.value,
         componentVersionName=expected_version_name,
         status=component_version.ComponentVersionStatus.Released,
     )

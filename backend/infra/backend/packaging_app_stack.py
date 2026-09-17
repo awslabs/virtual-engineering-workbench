@@ -5,18 +5,10 @@ from typing import Optional
 import aws_cdk
 import cdk_nag
 import constructs
-from aws_cdk import (
-    aws_apigateway,
-    aws_dynamodb,
-    aws_ec2,
-    aws_events,
-    aws_iam,
-    aws_pipes_alpha,
-    aws_scheduler,
-    aws_ssm,
-)
+from aws_cdk import aws_apigateway, aws_dynamodb, aws_ec2, aws_events, aws_iam, aws_pipes_alpha, aws_scheduler, aws_ssm
 
 from app.packaging import domain
+from app.shared.api import bounded_contexts
 from infra import config, constants
 from infra.auth import packaging_auth, packaging_auth_schema
 from infra.backend import vew_bounded_context_stack
@@ -25,12 +17,11 @@ from infra.constructs import (
     backend_app_entrypoints,
     backend_app_event_bus,
     backend_app_openapi,
+    backend_app_openapi_oauth,
     backend_app_storage,
     shared_layer,
 )
-from infra.constructs.component_version_testing import (
-    component_version_testing_state_machine,
-)
+from infra.constructs.component_version_testing import component_version_testing_state_machine
 from infra.constructs.pipes import topic_to_event_bus_pipe
 from infra.constructs.recipe_version_testing import recipe_version_testing_state_machine
 from infra.constructs.sns import topic
@@ -103,6 +94,7 @@ class Entrypoint(enum.StrEnum):
     IMAGE_BUILDER_EVENTS = "image-builder-events"
     COMPONENT_VERSION_TESTING = "component-version-testing"
     RECIPE_VERSION_TESTING = "recipe-version-testing"
+    S2S_API = "s2s-api"
 
 
 class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
@@ -213,6 +205,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         image_builder_event_handler_name = app_config.format_resource_name(Entrypoint.IMAGE_BUILDER_EVENTS)
         component_version_testing_handler_name = app_config.format_resource_name(Entrypoint.COMPONENT_VERSION_TESTING)
         recipe_version_testing_handler_name = app_config.format_resource_name(Entrypoint.RECIPE_VERSION_TESTING)
+        s2s_api_handler_name = app_config.format_resource_name(Entrypoint.S2S_API)
 
         self._backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
@@ -297,6 +290,75 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
                     timeout=aws_cdk.Duration.seconds(5),
                     memory_size=1792,
+                ),
+                backend_app_entrypoints.AppEntryPoint(
+                    name=s2s_api_handler_name,
+                    app_root="app",
+                    lambda_root="app/packaging",
+                    entry="app/packaging/entrypoints/s2s_api",
+                    environment={
+                        "COMPONENT_S3_BUCKET_NAME": app_config.component_specific["component-s3-bucket-name"].format(
+                            environment=app_config.environment,
+                            image_service_account_id=self.get_image_service_account_id(app_config),
+                            region=app_config.region,
+                        ),
+                        "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
+                        "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
+                        "AMI_FACTORY_SUBNET_NAMES": ami_factory_subnet_names,
+                        "IMAGE_KEY_NAME": "-".join(
+                            [app_config.get_organization_prefix(), app_config.get_application_prefix(), IMAGE_KEY_NAME]
+                        ),
+                        "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
+                        "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "TOPIC_NAME": PRODUCT_PACKAGING_TOPIC_NAME,
+                        "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
+                        "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
+                        "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
+                        "API_BASE_PATH": constants.CUSTOM_DNS_S2S_API_PATH_PACKAGING,
+                        "STRIP_PREFIXES": constants.CUSTOM_DNS_S2S_API_PATH_PACKAGING,
+                        "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
+                        "GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY": GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY,
+                        "GSI_NAME_CUSTOM_QUERY_BY_BUILD_VERSION_ARN": GSI_NAME_CUSTOM_QUERY_BY_BUILD_VERSION_ARN,
+                        "GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION": GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION,
+                        "GSI_NAME_IMAGE_UPSTREAM_ID": GSI_NAME_IMAGE_UPSTREAM_ID,
+                        "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
+                        "TABLE_NAME": self._storage.table.table_name,
+                    },
+                    permissions=[
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                actions=[
+                                    "secretsmanager:GetSecretValue",
+                                    "secretsmanager:DescribeSecret",
+                                ],
+                                effect=aws_iam.Effect.ALLOW,
+                                resources=[audit_logging_key_arn],
+                            )
+                        ),
+                        lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
+                        lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
+                        lambda lambda_f: system_configuration_mapping.grant_read(lambda_f),
+                        lambda lambda_f: pipelines_configuration_mapping.grant_read(lambda_f),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                actions=["sts:AssumeRole", "sts:TagSession"],
+                                effect=aws_iam.Effect.ALLOW,
+                                resources=[
+                                    f"arn:aws:iam::{self.get_image_service_account_id(app_config)}:role/{PRODUCT_PACKAGING_ADMIN_ROLE}",
+                                ],
+                            )
+                        ),
+                    ],
+                    reserved_concurrency=app_config.component_specific["api-lambda-reserved-concurrency"],
+                    provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
+                    timeout=aws_cdk.Duration.seconds(10),
+                    memory_size=512,
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [
+                            ("GET", "/internal/projects/*/clients/*"),
+                        ]
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=component_version_testing_handler_name,
@@ -543,6 +605,30 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             ),
         )
 
+        cognito_user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(
+            self,
+            app_config.environment_config["cognito-userpool-id-ssm-param"].format(environment=app_config.environment),
+        )
+        self._s2s_open_api = backend_app_openapi_oauth.BackendAppOpenApiOauth(
+            self,
+            "ServiceIntegrationPackagingOpenApi",
+            app_config,
+            handler=self._backend_app.app_entries_function_aliases[s2s_api_handler_name],
+            schema_directory="app/packaging/entrypoints/s2s_api/schema/",
+            schema="proserve-workbench-s2s-packaging-api-schema.yaml",
+            api_version="v1",
+            version_description="First release of the Packaging component S2S API",
+            user_pool_id=cognito_user_pool_id,
+            cache_enabled=False,
+            waf_acl_arn=api_acl_arn if not provision_private_endpoint else None,
+            endpoint_type=(
+                aws_apigateway.EndpointType.PRIVATE
+                if provision_private_endpoint
+                else aws_apigateway.EndpointType.REGIONAL
+            ),
+            vpc_endpoint=vpc_endpoint if provision_private_endpoint else None,
+        )
+
         # Component version testing step function
         self._component_testing_state_machine = (
             component_version_testing_state_machine.ComponentVersionTestingStateMachine(
@@ -680,6 +766,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             .with_lambda_functions(self._backend_app.app_entries.values())
             .with_dynamodb_table(self._storage.table)
             .with_api_gateway(self._open_api.api)
+            .with_api_gateway(self._s2s_open_api.api)
             .with_step_functions(
                 [
                     self._component_testing_state_machine.state_machine,
@@ -763,6 +850,10 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
     @property
     def api(self) -> backend_app_openapi.BackendAppOpenApi:
         return self._open_api
+
+    @property
+    def s2s_api(self) -> backend_app_openapi_oauth.BackendAppOpenApiOauth:
+        return self._s2s_open_api
 
     @property
     def packaging_table(self) -> backend_app_storage.BackendAppStorage:

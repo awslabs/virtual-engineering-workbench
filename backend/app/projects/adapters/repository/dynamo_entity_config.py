@@ -1,6 +1,14 @@
 import enum
 
-from app.projects.domain.model import enrolment, project, project_account, project_assignment, technology, user
+from app.projects.domain.model import (
+    enrolment,
+    project,
+    project_account,
+    project_assignment,
+    service_client_assignment,
+    technology,
+    user,
+)
 from app.shared.adapters.unit_of_work_v2 import dynamodb_repo_config, dynamodb_repository
 
 
@@ -10,6 +18,7 @@ class DBPrefix(enum.StrEnum):
     USER = "USER"
     TECHNOLOGY = "TECHNOLOGY"
     ENROLMENT = "ENROLMENT"
+    CLIENT = "CLIENT"
 
 
 class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):
@@ -59,6 +68,32 @@ class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):
             user.User,
             self.user_entity_config,
         )
+        self.register_cfg(
+            service_client_assignment.ServiceClientAssignmentPrimaryKey,
+            service_client_assignment.ServiceClientAssignment,
+            self.service_client_assignment_entity_config,
+        )
+
+    def service_client_assignment_entity_config(
+        self,
+        cfg: dynamodb_repo_config.GenericDynamoDBRepositoryConfig[
+            service_client_assignment.ServiceClientAssignmentPrimaryKey,
+            service_client_assignment.ServiceClientAssignment,
+        ],
+    ):
+        cfg.partition_key(
+            name="PK",
+            value_template=lambda client_id: f"{DBPrefix.CLIENT}#{client_id}",
+            values_from_entity=lambda ent: ent.clientId,
+            values_from_primary_key=lambda pk: pk.clientId,
+        )
+        cfg.sort_key(
+            name="SK",
+            value_template=lambda project_id: f"{DBPrefix.PROJECT}#{project_id}",
+            values_from_entity=lambda ent: ent.projectId,
+            values_from_primary_key=lambda pk: pk.projectId,
+        )
+        cfg.enable_optimistic_concurrency_control()
 
     def project_account_entity_config(
         self,
