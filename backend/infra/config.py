@@ -6,6 +6,17 @@ from pydantic import BaseModel, Field
 
 ORGANIZATION_PREFIX = "proserve"
 APPLICATION_PREFIX = "wb"
+
+# An existing VPC to deploy into, by Name tag. Empty derives the name from the
+# prefixes above, which assumes VEW created the VPC itself. Organisations that
+# provision networking centrally cannot let it do that, and may forbid
+# ec2:CreateVpc outright.
+HUB_VPC_NAME = ""
+
+# Comma-separated Name tags of subnets within HUB_VPC_NAME that the AMI factory
+# may build in. Empty derives them from the prefixes, matching the subnets VEW
+# names when it creates the VPC itself.
+HUB_SUBNET_NAMES = ""
 SSM_PARAM_UI_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_COGNITO_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_BE_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-backend-{{environment}}"
@@ -152,7 +163,10 @@ _dev_env_config = {
         "PROGRAM_OWNER": ["dev"],
         "ADMIN": ["dev"],
     },
-    "vpc-name": f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    "vpc-name": HUB_VPC_NAME or f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    # An adopted VPC is managed elsewhere and already carries the S3 and
+    # DynamoDB gateway endpoints; adding them again fails on the existing route.
+    "adopted-vpc": bool(HUB_VPC_NAME),
     "allowed-cidrs-for-private-api-endpoint": [
         "10.0.0.0/8",
         "172.16.0.0/12",
@@ -248,12 +262,12 @@ publishing_app_config = {
 }
 
 _dev_packaging_config = {
-    "ami-factory-subnet-names": [
+    "ami-factory-subnet-names": [s.strip() for s in HUB_SUBNET_NAMES.split(",") if s.strip()] or [
         f"subnet-1-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
         f"subnet-2-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
         f"subnet-3-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
     ],
-    "ami-factory-vpc-name": f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    "ami-factory-vpc-name": HUB_VPC_NAME or f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
     "api-lambda-provisioned-concurrency": 1,
     "api-lambda-reserved-concurrency": 10,
     "authorizer-provisioned-concurrency": 1,
@@ -314,7 +328,7 @@ image_key_app_config = {"dev": {}, "qa": {}, "prod": {}}
 image_sharing_app_config = {"dev": {}, "qa": {}, "prod": {}}
 
 _dev_product_packaging_config = {
-    "ami-factory-vpc-name": f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    "ami-factory-vpc-name": HUB_VPC_NAME or f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
 }
 
 product_packaging_app_config = {

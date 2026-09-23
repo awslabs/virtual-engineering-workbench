@@ -246,6 +246,8 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
 | `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
+| `HUB_VPC_NAME` | — | Name tag of an existing VPC in the hub account to deploy into. Empty derives the name from the prefixes and creates the VPC if absent |
+| `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |
 
 Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 

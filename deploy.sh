@@ -223,6 +223,23 @@ if [ -n "$CONFIG_FILE" ]; then
   source "$CONFIG_FILE"
 fi
 
+# Not prompted for, and absent from every config written before it existed, so
+# it needs a default under set -u.
+HUB_VPC_NAME="${HUB_VPC_NAME:-}"
+HUB_SUBNET_NAMES="${HUB_SUBNET_NAMES:-}"
+# A stray space matches nothing in either describe-vpcs or Vpc.from_lookup,
+# while the name still reads as correct in the resulting error.
+HUB_VPC_NAME="${HUB_VPC_NAME#"${HUB_VPC_NAME%%[![:space:]]*}"}"
+HUB_VPC_NAME="${HUB_VPC_NAME%"${HUB_VPC_NAME##*[![:space:]]}"}"
+
+# Both are written to the saved config, sourced on the next run, and
+# interpolated into sed expressions, so restrict them to what a Name tag needs.
+for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
+  case "${!_var}" in
+    *[!a-zA-Z0-9.,_\ -]*) err "$_var may contain only letters, digits, and . , _ - and spaces" ;;
+  esac
+done
+
 if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   prompt AWS_PROFILE_HUB "AWS CLI profile for hub account (empty for default)" "default"
 fi
@@ -297,7 +314,7 @@ DEPLOYMENT_QUALIFIER=$(echo -n "$AWS_ACCOUNT_ID" | md5sum | cut -c1-5)
 ADMIN_USER_ID=$(echo "$ADMIN_USER_ID" | tr '[:lower:]' '[:upper:]')
 SPOKE_CDK_QUALIFIER="ioc760get"
 PROJECTS_TABLE="${ORG_PREFIX}-${APP_PREFIX}-projects-table-${ENVIRONMENT}"
-VPC_NAME="vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}"
+VPC_NAME="${HUB_VPC_NAME:-vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}}"
 
 # Save config for re-runs (excluding secrets)
 CONFIG_OUT="$SCRIPT_DIR/.deploy-config-${ENVIRONMENT}"
@@ -322,6 +339,8 @@ AWS_PROFILE_SPOKE="${AWS_PROFILE_SPOKE:-}"
 PRIVATE_DEPLOYMENT="$PRIVATE_DEPLOYMENT"
 PRIVATE_DNS_AUTOMATE="${PRIVATE_DNS_AUTOMATE:-true}"
 PRIVATE_DNS_ZONE="${PRIVATE_DNS_ZONE:-}"
+HUB_VPC_NAME='${HUB_VPC_NAME}'
+HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -400,6 +419,8 @@ log "Patching $BACKEND_CONFIG"
 sed -i.bak \
   -e "s/^ORGANIZATION_PREFIX = \".*\"/ORGANIZATION_PREFIX = \"${ORG_PREFIX}\"/" \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
+  -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
+  -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
   -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${AWS_REGION}\"/" \
   -e "s/\"enabled-workbench-regions\": \[\"[^\"]*\"\]/\"enabled-workbench-regions\": [\"${AWS_REGION}\"]/" \
   -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${AWS_REGION}/g" \
@@ -459,7 +480,8 @@ jq --arg app_name "$APP_NAME" \
    --arg vpcname "$VPC_NAME" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
    --argjson private "$PRIVATE_DEPLOYMENT" \
-   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname $OIDC_FILTER" \
+   --argjson adoptedvpc "$([ -n "$HUB_VPC_NAME" ] && echo true || echo false)" \
+   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname | .context.config.dev.AdoptedVPC = \$adoptedvpc $OIDC_FILTER" \
    "$FE_CDK_JSON" > "${FE_CDK_JSON}.tmp" && mv "${FE_CDK_JSON}.tmp" "$FE_CDK_JSON"
 
 # --- frontend/infrastructure/lib/public-access-deployment-stack.ts ---
@@ -520,6 +542,11 @@ EXISTING_VPC=$(aws ec2 describe-vpcs \
   --region "$AWS_REGION" 2>/dev/null || echo "None")
 
 if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
+  # The lookup cannot distinguish an absent VPC from a denied DescribeVpcs, so an
+  # explicitly configured name that misses is an operator error either way.
+  if [ -n "$HUB_VPC_NAME" ]; then
+    err "HUB_VPC_NAME is set to '$HUB_VPC_NAME' but no such VPC resolved in $AWS_REGION. Check the name, the region, and DescribeVpcs permission. Refusing to create a VPC."
+  fi
   warn "VPC '$VPC_NAME' not found in $AWS_REGION"
   warn "A development VPC will be created. This is intended for dev/testing only — not for production use."
   if [ "$AUTO_CONFIRM" = "true" ]; then

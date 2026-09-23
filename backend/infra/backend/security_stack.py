@@ -47,7 +47,8 @@ class SecurityStack(aws_cdk.Stack):
         vpc_name = app_config.environment_config["vpc-name"]
         if vpc_name:
             vpc = aws_ec2.Vpc.from_lookup(self, "vpc", vpc_name=vpc_name)
-            vpc.add_gateway_endpoint("ddb-gateway-endpoint", service=aws_ec2.GatewayVpcEndpointAwsService.DYNAMODB)
+            if not app_config.environment_config["adopted-vpc"]:
+                vpc.add_gateway_endpoint("ddb-gateway-endpoint", service=aws_ec2.GatewayVpcEndpointAwsService.DYNAMODB)
 
         # IAM Role for technical VEW API access
         if app_config.environment_config["tools-account-id-ssm-param"]:
