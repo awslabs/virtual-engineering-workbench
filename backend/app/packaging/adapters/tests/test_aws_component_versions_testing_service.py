@@ -310,3 +310,69 @@ def test_should_teardown_testing_environment(
         "terminated"
     )
     assertpy.assert_that(response).is_none()
+
+
+def test_launch_testing_environment_should_tag_instance_and_volume(
+    mock_aws_component_version_testing_service_factory,
+    mock_instance_profile,
+    mock_security_group,
+    mock_moto_ec2_calls,
+    mock_ec2_launch_instances_call,
+    mock_ec2_client,
+    mock_vpc,
+):
+    """RunInstances authorizes against the instance and the volume, so a policy
+    requiring tags on create needs both carried on the call."""
+    # ARRANGE
+    mock_ec2_client.create_subnet(
+        CidrBlock="10.0.100.0/24",
+        VpcId=mock_vpc.get("Vpc").get("VpcId"),
+        TagSpecifications=[{"ResourceType": "subnet", "Tags": [{"Key": "Name", "Value": "subnet-0"}]}],
+    )
+    mock_ec2_launch_instances_call.side_effect = [{"Instances": [{"InstanceId": "i-0000000000"}]}]
+    service = mock_aws_component_version_testing_service_factory(
+        ami_factory_subnet_names=["subnet-0"], resource_tags={"Lab": "CDX", "Owner": "CDX"}
+    )
+
+    # ACT
+    service.launch_testing_environment(
+        image_upstream_id=GlobalVariables.TEST_AMI_ID.value,
+        instance_type=GlobalVariables.TEST_INSTANCE_TYPE.value,
+    )
+
+    # ASSERT
+    specs = mock_ec2_launch_instances_call.call_args.kwargs["TagSpecifications"]
+    assertpy.assert_that([s["ResourceType"] for s in specs]).is_equal_to(["instance", "volume"])
+    for spec in specs:
+        assertpy.assert_that(spec["Tags"]).is_equal_to(
+            [{"Key": "Lab", "Value": "CDX"}, {"Key": "Owner", "Value": "CDX"}]
+        )
+
+
+def test_launch_testing_environment_without_tags_sends_none(
+    mock_aws_component_version_testing_service_factory,
+    mock_instance_profile,
+    mock_security_group,
+    mock_moto_ec2_calls,
+    mock_ec2_launch_instances_call,
+    mock_ec2_client,
+    mock_vpc,
+):
+    """Upstream behaviour when no tags are configured."""
+    # ARRANGE
+    mock_ec2_client.create_subnet(
+        CidrBlock="10.0.101.0/24",
+        VpcId=mock_vpc.get("Vpc").get("VpcId"),
+        TagSpecifications=[{"ResourceType": "subnet", "Tags": [{"Key": "Name", "Value": "subnet-0"}]}],
+    )
+    mock_ec2_launch_instances_call.side_effect = [{"Instances": [{"InstanceId": "i-0000000000"}]}]
+    service = mock_aws_component_version_testing_service_factory(ami_factory_subnet_names=["subnet-0"])
+
+    # ACT
+    service.launch_testing_environment(
+        image_upstream_id=GlobalVariables.TEST_AMI_ID.value,
+        instance_type=GlobalVariables.TEST_INSTANCE_TYPE.value,
+    )
+
+    # ASSERT
+    assertpy.assert_that(mock_ec2_launch_instances_call.call_args.kwargs["TagSpecifications"]).is_empty()

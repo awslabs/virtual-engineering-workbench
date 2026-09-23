@@ -246,6 +246,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
 | `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
+| `RESOURCE_TAGS` | `{}` | JSON object of tags applied to resources VEW provisions at runtime — Image Builder instances and AMIs, Service Catalog products, and the instances launched by component and recipe testing. Needed where an organisation denies resource creation without required tags |
 
 Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 

@@ -1,3 +1,4 @@
+import json
 import os
 
 from app.shared import config
@@ -33,3 +34,7 @@ class AppConfig(config.VEWBaseConfig):
 
     def get_gsi_name_query_by_user_key(self) -> str:
         return os.environ.get("GSI_NAME_CUSTOM_QUERY_BY_USER_KEY", "")
+
+    def get_resource_tags(self) -> dict[str, str]:
+        """Tags to stamp on resources this deployment provisions at runtime."""
+        return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))
