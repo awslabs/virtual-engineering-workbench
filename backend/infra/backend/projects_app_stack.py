@@ -1,4 +1,5 @@
 import enum
+import json
 import typing
 
 import aws_cdk
@@ -67,9 +68,11 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         qualifier: str,
         provision_private_endpoint: bool = False,
         vpc_endpoint: aws_ec2.IVpcEndpoint | None = None,
+        resource_tags: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, id, app_config=app_config, **kwargs)
+        self._resource_tags = json.dumps(resource_tags or {})
 
         self.configure_event_buses(app_config)
 
@@ -407,6 +410,7 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             cpu_task=4096,
             environment={
                 **backend_app_entrypoints.BackendAppEntrypoints.build_global_env_vars(app_config),
+                "RESOURCE_TAGS": self._resource_tags,
                 **environment_vars,
                 **environment_vars_acct_onboard,
                 "TOOLKIT_STACK_NAME": constants.PROJECTS_TOOLKIT_STACK_NAME,

@@ -41,16 +41,6 @@ ci_commit_sha = app.node.try_get_context("ci-commit-sha") or "latest"
 qualifier = (
     app.node.try_get_context("@aws-cdk/core:bootstrapQualifier") or aws_cdk.DefaultStackSynthesizer.DEFAULT_QUALIFIER
 )
-# List of required tags that every stack must have
-required_tags = [
-    {"Key": "Application", "Value": "VEW"},
-    {"Key": "vew:cost-category", "Value": "shared"},
-]
-
-# Apply required tags to all resources in the app
-# for tag in required_tags:
-# aws_cdk.Tags.of(app).add(tag["Key"], tag["Value"])
-
 base_config = config.BaseConfig(
     environment=environment,
     account=app.node.try_get_context("account"),
@@ -190,6 +180,7 @@ projects_stack = projects_app_stack.ProjectsAppStack(
     catalog_service_account_id=base_config.catalog_service_account,
     ci_commit_sha=ci_commit_sha,
     qualifier=qualifier,
+    resource_tags=resource_tags,
     provision_private_endpoint=constants.PRIVATE_API_ENDPOINT,
     vpc_endpoint=(prerequisites_app_stack.vpc_endpoint if constants.PRIVATE_API_ENDPOINT else None),
 )
