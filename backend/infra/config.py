@@ -262,7 +262,8 @@ publishing_app_config = {
 }
 
 _dev_packaging_config = {
-    "ami-factory-subnet-names": [s.strip() for s in HUB_SUBNET_NAMES.split(",") if s.strip()] or [
+    "ami-factory-subnet-names": [s.strip() for s in HUB_SUBNET_NAMES.split(",") if s.strip()]
+    or [
         f"subnet-1-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
         f"subnet-2-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
         f"subnet-3-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
