@@ -162,6 +162,9 @@ if [ ! -z $provisioning_api_custom_invoke_url ]; then
  provisioning_api_invoke_url="https://$provisioning_api_custom_invoke_url"
 fi
 
+user_pool_client_logout_redirect_url_json=$(jq -n \
+  --arg value "$user_pool_client_logout_redirect_url" '$value')
+
 # Output src/aws-exports.js
 
 cat << EOF > src/aws-exports.js
@@ -175,7 +178,7 @@ const awsmobile = {
           domain: '$user_pool_fqdn',
           scopes: ['email', 'profile', 'openid'],
           redirectSignIn: ['$user_pool_client_redirect_url'],
-          redirectSignOut: ['$user_pool_client_logout_redirect_url'],
+          redirectSignOut: [$user_pool_client_logout_redirect_url_json],
           responseType: 'code'
         }
       }

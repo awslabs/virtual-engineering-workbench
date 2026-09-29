@@ -188,6 +188,8 @@ cdk deploy --all --require-approval never \
 | `deployment-qualifier` | derived from account ID | Unique qualifier for S3 bucket naming |
 | `environment` | — | `dev`, `qa`, or `prod` |
 | `OIDCSecretName` | — | Secrets Manager secret with OIDC credentials (omit for manual Cognito users) |
+| `OIDCUserIdClaim` | `sub` | OIDC claim mapped to Cognito `custom:user_tid` |
+| `LogoutUrl` | — | Optional identity-provider logout URL; `{appDns}` is replaced with the application origin |
 | `AllowCustomUserLogin` | `true` | Allow Cognito-native users (no OIDC) |
 | `RequireCustomUserLogin2FA` | `true` | Require MFA for Cognito-native users |
 | `PrivateDeployment` | `false` | `true` for ALB-based private access (no CloudFront) |
