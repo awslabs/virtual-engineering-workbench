@@ -25,10 +25,12 @@ class ServiceCatalogProductsService(products_service.ProductsService):
         sc_boto_client_provider: typing.Callable[[str, str, str], client.ServiceCatalogClient],
         cf_boto_client_provider: typing.Callable[[str, str, str], cf_client.CloudFormationClient],
         logger: logging.Logger,
+        resource_tags: dict[str, str] | None = None,
     ):
         self._sc_boto_client_provider = sc_boto_client_provider
         self._cf_boto_client_provider = cf_boto_client_provider
         self._logger = logger
+        self._resource_tags = resource_tags or {}
 
     def has_provisioned_product_insufficient_capacity_error(
         self,
@@ -308,12 +310,32 @@ class ServiceCatalogProductsService(products_service.ProductsService):
             ProvisioningArtifactId=sc_provisioning_artifact_id,
             PathId=launch_path_id,
             ProvisionedProductName=name,
-            Tags=tags,
+            Tags=self.__merge_resource_tags(tags),
             ProvisioningParameters=[{"Key": param.key, "Value": param.value} for param in provisioning_parameters],
             ProvisionToken=f"{name}-{provisioning_token_suffix}",
         )
 
         return result["RecordDetail"]["ProvisionedProductId"]
+
+    def __merge_resource_tags(self, tags: list[dict[str, str]]) -> list[dict[str, str]]:
+        """Add the deployment's resource tags, without overriding a caller's own key.
+
+        Service Catalog passes these to CloudFormation, which applies them as
+        request tags on every resource it creates. An organisation whose SCPs
+        require tags on create denies the launch outright without them.
+        """
+        present = {tag["Key"] for tag in tags}
+
+        # A collision means the deployment's value is dropped. Harmless when the
+        # organisation checks only that a tag is present, wrong when it checks
+        # the value, and silent either way — so say so.
+        collisions = present & self._resource_tags.keys()
+        if collisions:
+            self._logger.warning(
+                "Provisioning tags override deployment resource tags: %s", ", ".join(sorted(collisions))
+            )
+
+        return tags + [{"Key": k, "Value": v} for k, v in self._resource_tags.items() if k not in present]
 
     def deprovision_product(self, user_id: str, aws_account_id: str, provisioned_product_id: str, region: str) -> None:
         sc_client = self._sc_boto_client_provider(aws_account_id, region, user_id)

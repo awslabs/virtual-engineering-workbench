@@ -113,11 +113,14 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         app_config: config.AppConfig,
         custom_api_domain: Optional[str],
         product_packaging_topic: topic.Topic,
+        resource_tags: dict[str, str] | None = None,
         provision_private_endpoint: bool = False,
         vpc_endpoint: Optional[aws_ec2.IVpcEndpoint] = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, id, app_config=app_config, **kwargs)
+
+        self._resource_tags = json.dumps(resource_tags or {})
 
         self._tools_account_id = None
         self._image_service_account_id = None
@@ -228,6 +231,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/packaging",
                     entry="app/packaging/entrypoints/api",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
@@ -304,6 +308,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/packaging",
                     entry="app/packaging/entrypoints/component_version_testing",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
@@ -358,6 +363,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/packaging",
                     entry="app/packaging/entrypoints/recipe_version_testing",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
@@ -407,6 +413,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/packaging",
                     entry="app/packaging/entrypoints/domain_event_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),
@@ -468,6 +475,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/packaging",
                     entry="app/packaging/entrypoints/image_builder_event_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,

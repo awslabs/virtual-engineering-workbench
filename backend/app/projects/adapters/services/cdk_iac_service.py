@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import re
@@ -23,6 +24,7 @@ class CDKIACService(iac_service.IACService):
         boto_session: Any = None,
         trusted_account: str = None,
         enable_lookup: bool = False,
+        resource_tags: dict[str, str] | None = None,
     ) -> None:
         self.__toolkit_stack_name = toolkit_stack_name
         self.__toolkit_stack_qualifier = toolkit_stack_qualifier
@@ -30,6 +32,7 @@ class CDKIACService(iac_service.IACService):
         self.__boto_session = boto_session
         self.__trusted_account = trusted_account
         self.__enable_lookup = enable_lookup
+        self.__resource_tags = resource_tags or {}
         self.__logger = logger
 
     @staticmethod
@@ -42,6 +45,11 @@ class CDKIACService(iac_service.IACService):
                 raise ValueError(f"Variable value too long for key: {key}")
 
     def deploy_iac(self, aws_account_id: str, region: str, variables: dict[str, str] = {}) -> None:  # noqa: C901
+        # The usecase app stamps these on the stacks it deploys into the project
+        # account, which an SCP requiring tags on create would otherwise deny.
+        if self.__resource_tags and "resource-tags" not in variables:
+            variables = {**variables, "resource-tags": json.dumps(self.__resource_tags)}
+
         self._validate_cdk_variables(variables)
 
         # Save original credentials to restore after CDK operations

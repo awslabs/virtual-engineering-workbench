@@ -239,6 +239,16 @@ for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
     *[!a-zA-Z0-9.,_\ -]*) err "$_var may contain only letters, digits, and . , _ - and spaces" ;;
   esac
 done
+RESOURCE_TAGS="${RESOURCE_TAGS:-}"
+if [ -z "$RESOURCE_TAGS" ]; then
+  RESOURCE_TAGS='{}'
+fi
+# The saved config writes this single-quoted and is sourced on the next run, so
+# a quote or a backslash here would be executed rather than read back.
+case "$RESOURCE_TAGS" in
+  *"'"*) err "RESOURCE_TAGS must not contain a single quote" ;;
+  *\\*)  err "RESOURCE_TAGS must not contain a backslash" ;;
+esac
 
 if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   prompt AWS_PROFILE_HUB "AWS CLI profile for hub account (empty for default)" "default"
@@ -347,6 +357,7 @@ PRIVATE_DNS_AUTOMATE="${PRIVATE_DNS_AUTOMATE:-true}"
 PRIVATE_DNS_ZONE="${PRIVATE_DNS_ZONE:-}"
 HUB_VPC_NAME='${HUB_VPC_NAME}'
 HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
+RESOURCE_TAGS='${RESOURCE_TAGS}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -690,6 +701,7 @@ FE_CDK_CONTEXT=(
   -c "region=$AWS_REGION"
   -c "app-name=$APP_NAME"
   -c "deployment-qualifier=$DEPLOYMENT_QUALIFIER"
+  -c "resource-tags=$RESOURCE_TAGS"
 )
 
 if [ -n "$CERT_ARN" ]; then
@@ -730,6 +742,7 @@ BE_CDK_CONTEXT=(
   -c "catalog-service-account=$AWS_ACCOUNT_ID"
   -c "catalog-service-region=$AWS_REGION"
   -c "organization-id=$ORG_ID"
+  -c "resource-tags=$RESOURCE_TAGS"
 )
 
 if [ -n "$API_CUSTOM_DOMAIN" ]; then

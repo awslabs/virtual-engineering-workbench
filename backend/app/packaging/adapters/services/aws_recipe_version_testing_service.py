@@ -54,8 +54,10 @@ class AwsRecipeVersionTestingService(recipe_version_testing_service.RecipeVersio
         system_configuration_mapping: Dict,
         ssm_run_command_timeout: int,
         recipe_test_s3_bucket_name: str,
+        resource_tags: dict[str, str] | None = None,
         boto_session: Any = None,
     ):
+        self._resource_tags = resource_tags or {}
         self._admin_role = admin_role
         self._ami_factory_aws_account_id = ami_factory_aws_account_id
         self._ami_factory_subnet_names = ami_factory_subnet_names
@@ -66,6 +68,17 @@ class AwsRecipeVersionTestingService(recipe_version_testing_service.RecipeVersio
         self._ssm_run_command_timeout = ssm_run_command_timeout
         self._boto_session = boto_session
         self._recipe_test_s3_bucket_name = recipe_test_s3_bucket_name
+
+    def _tag_specifications(self) -> list[dict]:
+        """RunInstances is authorized against the instance and the volume, so a
+        policy requiring tags on create needs both carried on the call."""
+        if not self._resource_tags:
+            return []
+        tags = [{"Key": k, "Value": v} for k, v in self._resource_tags.items()]
+        return [
+            {"ResourceType": "instance", "Tags": tags},
+            {"ResourceType": "volume", "Tags": tags},
+        ]
 
     def __get_attr_from_system_configuration(self, architecture: str, attr: str, os_version: str, platform: str) -> str:
         return self._system_configuration_mapping.get(platform).get(architecture).get(os_version).get(attr)
@@ -245,6 +258,7 @@ class AwsRecipeVersionTestingService(recipe_version_testing_service.RecipeVersio
                         MinCount=1,
                         SecurityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                         SubnetId=subnet.get("SubnetId"),
+                        TagSpecifications=self._tag_specifications(),
                     )
 
                 except ClientError as error:

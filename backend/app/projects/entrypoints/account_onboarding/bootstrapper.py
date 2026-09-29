@@ -122,6 +122,7 @@ def bootstrap(  # noqa: C901
         bootstrap_role=app_config.get_account_bootstrap_role(),
         boto_session=session,
         enable_lookup=True,
+        resource_tags=app_config.get_resource_tags(),
         logger=logger,
     )
 

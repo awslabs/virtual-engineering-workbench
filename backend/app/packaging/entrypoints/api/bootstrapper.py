@@ -236,6 +236,7 @@ def bootstrap(  # noqa: C901
     ami_factory_subnet_names = app_config.get_ami_factory_subnet_names().split(",")
 
     pipeline_srv = ec2_image_builder_pipeline_service.Ec2ImageBuilderPipelineService(
+        resource_tags=app_config.get_resource_tags(),
         admin_role=app_config.get_admin_role(),
         ami_factory_aws_account_id=app_config.get_ami_factory_account_id(),
         ami_factory_subnet_names=ami_factory_subnet_names,

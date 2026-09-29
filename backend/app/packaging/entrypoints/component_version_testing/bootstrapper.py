@@ -115,6 +115,7 @@ def bootstrap(  # noqa: C901
         instance_profile_name=app_config.get_instance_profile_name(),
         instance_security_group_name=app_config.get_instance_security_group_name(),
         region=app_config.get_default_region(),
+        resource_tags=app_config.get_resource_tags(),
         system_configuration_mapping=system_configuration_mapping,
         volume_size=app_config.get_volume_size(),
         ssm_run_command_timeout=app_config.get_ssm_run_command_timeout(),
