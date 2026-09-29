@@ -249,6 +249,8 @@ log "OIDC federation (leave empty to use manual Cognito users):"
 prompt OIDC_CLIENT_ID     "OIDC Client ID"                     ""
 prompt OIDC_CLIENT_SECRET "OIDC Client Secret"                 "" true
 prompt OIDC_ISSUER_URL    "OIDC Issuer URL"                    ""
+prompt OIDC_USER_ID_CLAIM "OIDC claim containing the VEW user ID" "sub"
+prompt OIDC_LOGOUT_URL    "OIDC provider logout URL (optional; {appDns} = application URL)" ""
 
 echo ""
 log "TLS and DNS (leave empty for no custom domain):"
@@ -301,6 +303,8 @@ VPC_NAME="vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}"
 
 # Save config for re-runs (excluding secrets)
 CONFIG_OUT="$SCRIPT_DIR/.deploy-config-${ENVIRONMENT}"
+printf -v OIDC_USER_ID_CLAIM_CONFIG '%q' "$OIDC_USER_ID_CLAIM"
+printf -v OIDC_LOGOUT_URL_CONFIG '%q' "$OIDC_LOGOUT_URL"
 cat > "$CONFIG_OUT" <<CONF
 AWS_ACCOUNT_ID="$AWS_ACCOUNT_ID"
 AWS_REGION="$AWS_REGION"
@@ -311,6 +315,8 @@ ADMIN_EMAIL="$ADMIN_EMAIL"
 ADMIN_USER_ID="$ADMIN_USER_ID"
 OIDC_CLIENT_ID="$OIDC_CLIENT_ID"
 OIDC_ISSUER_URL="$OIDC_ISSUER_URL"
+OIDC_USER_ID_CLAIM=$OIDC_USER_ID_CLAIM_CONFIG
+OIDC_LOGOUT_URL=$OIDC_LOGOUT_URL_CONFIG
 CERT_ARN="$CERT_ARN"
 CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
 CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
@@ -444,18 +450,24 @@ rm -f "${BACKEND_CONSTANTS}.bak"
 # --- frontend/infrastructure/cdk.json ---
 log "Patching $FE_CDK_JSON"
 
-OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-dev/oidc"
+OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 if [ -z "$OIDC_CLIENT_ID" ]; then
   ALLOW_CUSTOM_LOGIN="true"
-  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName)'
+  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName) | del(.context.config.dev.OIDCUserIdClaim) | del(.context.config.dev.LogoutUrl)'
 else
   ALLOW_CUSTOM_LOGIN="false"
-  OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc'
+  if [ -n "$OIDC_LOGOUT_URL" ]; then
+    OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.OIDCUserIdClaim = $uid_claim | .context.config.dev.LogoutUrl = $logout'
+  else
+    OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.OIDCUserIdClaim = $uid_claim | del(.context.config.dev.LogoutUrl)'
+  fi
 fi
 
 jq --arg app_name "$APP_NAME" \
    --arg qualifier "$DEPLOYMENT_QUALIFIER" \
    --arg oidc "$OIDC_NAME" \
+   --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+   --arg logout "$OIDC_LOGOUT_URL" \
    --arg vpcname "$VPC_NAME" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
    --argjson private "$PRIVATE_DEPLOYMENT" \
@@ -616,7 +628,8 @@ if [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUE
     --arg cid "$OIDC_CLIENT_ID" \
     --arg cs "$OIDC_CLIENT_SECRET" \
     --arg iss "$OIDC_ISSUER_URL" \
-    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss}')
+    --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss, UserIDClaim: $uid_claim}')
 
   if aws secretsmanager describe-secret --secret-id "$OIDC_SECRET_NAME" --region "$AWS_REGION" &>/dev/null; then
     aws secretsmanager put-secret-value \

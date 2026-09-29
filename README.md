@@ -237,6 +237,8 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `OIDC_CLIENT_ID` | — | OIDC client ID (empty = manual Cognito users) |
 | `OIDC_CLIENT_SECRET` | — | OIDC client secret |
 | `OIDC_ISSUER_URL` | — | OIDC issuer URL |
+| `OIDC_USER_ID_CLAIM` | `sub` | OIDC claim mapped to VEW's stable user ID |
+| `OIDC_LOGOUT_URL` | — | Optional provider logout URL; `{appDns}` is replaced with the application origin |
 | `CERT_ARN` | — | TLS certificate ARN in deployment region |
 | `CERT_ARN_US_EAST_1` | — | TLS certificate ARN in us-east-1 (required if deploying to another region) |
 | `CUSTOM_DOMAIN` | — | Custom domain for the web app (e.g., `dev.workbench.company.com`) |
@@ -271,7 +273,7 @@ The deploy script replaces default values in source files before deploying:
 | --- | --- |
 | `backend/infra/config.py` | Org/app prefix, Cognito region, enabled workbench regions |
 | `backend/infra/constants.py` | Lambda architecture (ARM/x86), local bundling flag, private API endpoint toggle |
-| `frontend/infrastructure/cdk.json` | App name, deployment qualifier, OIDC secret name, private deployment flag, VPC name |
+| `frontend/infrastructure/cdk.json` | App name, deployment qualifier, OIDC settings, private deployment flag, VPC name |
 | `frontend/infrastructure/lib/public-access-deployment-stack.ts` | Monitoring resource name prefix |
 
 If you deploy with the defaults (`proserve`/`wb`/`us-east-1`), no patching occurs.

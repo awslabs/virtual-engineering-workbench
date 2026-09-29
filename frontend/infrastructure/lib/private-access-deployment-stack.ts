@@ -44,7 +44,7 @@ export class PrivateAccessDeploymentStack extends Stack {
       withPostAuthenticationLogging();
 
     if (props.appConfig.oidcSecretName !== undefined) {
-      webUserPool.withIdentityProvider(props.appConfig.oidcSecretName);
+      webUserPool.withIdentityProvider(props.appConfig.oidcSecretName, props.appConfig.oidcUserIdClaim);
     }
 
     if (props.appConfig.customLoginDNSEnabled &&
