@@ -1,3 +1,4 @@
+import json
 import os
 
 from app.shared import config
@@ -48,3 +49,7 @@ class AppConfig(config.VEWBaseConfig):
 
     def get_lambda_iam_role(self) -> str:
         return os.environ.get("LAMBDA_IAM_ROLE", "")
+
+    def get_resource_tags(self) -> dict[str, str]:
+        """Tags to stamp on resources this deployment provisions at runtime."""
+        return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))

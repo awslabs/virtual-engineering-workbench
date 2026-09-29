@@ -1342,7 +1342,10 @@ def mock_aws_recipe_version_testing_service(mock_aws_recipe_version_testing_serv
 
 @pytest.fixture()
 def mock_aws_recipe_version_testing_service_factory(mock_system_configuration_mapping):
-    def __inner(ami_factory_subnet_names: list[str] = GlobalVariables.TEST_AMI_FACTORY_SUBNET_NAMES.value):
+    def __inner(
+        ami_factory_subnet_names: list[str] = GlobalVariables.TEST_AMI_FACTORY_SUBNET_NAMES.value,
+        resource_tags: dict[str, str] | None = None,
+    ):
         return aws_recipe_version_testing_service.AwsRecipeVersionTestingService(
             admin_role=GlobalVariables.TEST_ADMIN_ROLE.value,
             ami_factory_aws_account_id=GlobalVariables.TEST_AMI_FACTORY_AWS_ACCOUNT_ID.value,
@@ -1353,6 +1356,7 @@ def mock_aws_recipe_version_testing_service_factory(mock_system_configuration_ma
             instance_profile_name=GlobalVariables.TEST_INSTANCE_PROFILE_NAME.value,
             ssm_run_command_timeout=GlobalVariables.SSM_RUN_COMMAND_TIMEOUT.value,
             recipe_test_s3_bucket_name=GlobalVariables.TEST_RECIPE_TEST_BUCKET_NAME.value,
+            resource_tags=resource_tags,
         )
 
     return __inner
@@ -1368,6 +1372,7 @@ def mock_aws_component_version_testing_service_factory(mock_system_configuration
     def __inner(
         mock_system_configuration_mapping=mock_system_configuration_mapping,
         ami_factory_subnet_names: list[str] = GlobalVariables.TEST_AMI_FACTORY_SUBNET_NAMES.value,
+        resource_tags: dict[str, str] | None = None,
     ):
         return aws_component_version_testing_service.AwsComponentVersionTestingService(
             admin_role=GlobalVariables.TEST_ADMIN_ROLE.value,
@@ -1380,6 +1385,7 @@ def mock_aws_component_version_testing_service_factory(mock_system_configuration
             instance_profile_name=GlobalVariables.TEST_INSTANCE_PROFILE_NAME.value,
             ssm_run_command_timeout=GlobalVariables.SSM_RUN_COMMAND_TIMEOUT.value,
             component_test_s3_bucket_name=GlobalVariables.TEST_RECIPE_TEST_BUCKET_NAME.value,
+            resource_tags=resource_tags,
         )
 
     return __inner
