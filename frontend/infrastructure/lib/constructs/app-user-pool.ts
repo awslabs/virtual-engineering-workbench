@@ -121,8 +121,7 @@ export class WebUserPool extends Construct {
     return this;
   }
 
-  withIdentityProvider(identityProviderSecretName: string): WebUserPool {
-
+  withIdentityProvider(identityProviderSecretName: string, userIdClaim = 'sub'): WebUserPool {
     this._userPool.registerIdentityProvider(new UserPoolIdentityProviderOidc(this, 'oidc-provider', {
       userPool: this._userPool,
       name: 'CorporateLogin',
@@ -141,10 +140,11 @@ export class WebUserPool extends Construct {
       scopes: ['openid', 'email', 'profile'],
       attributeMapping: {
         email: ProviderAttribute.other('email'),
+        emailVerified: ProviderAttribute.other('email_verified'),
         givenName: ProviderAttribute.other('given_name'),
         familyName: ProviderAttribute.other('family_name'),
         custom: {
-          'custom:user_tid': ProviderAttribute.other('sub'), // eslint-disable-line
+          'custom:user_tid': ProviderAttribute.other(userIdClaim), // eslint-disable-line
         }
       },
     }));

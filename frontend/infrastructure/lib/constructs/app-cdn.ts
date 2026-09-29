@@ -451,11 +451,13 @@ export class AppCdn extends Construct {
       bucket.addToResourcePolicy(listBucketPermissions);
     }
 
+    const appDomain = appConfig.domainName || this._distribution.distributionDomainName;
+    const appOrigin = `https://${appDomain}`;
     if (appConfig.logoutUrl) {
       this._customLogoutUrl = appConfig.logoutUrl.replace(
-        '{appDns}', `https://${appConfig.domainName || ''}`);
+        '{appDns}', appOrigin);
     } else {
-      this._customLogoutUrl = `https://${this._distribution.distributionDomainName}/logout`;
+      this._customLogoutUrl = `${appOrigin}/logout`;
     }
 
     NagSuppressions.addResourceSuppressions(this._distribution, [{
