@@ -4,6 +4,7 @@ from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_description_value_object,
     recipe_version_id_value_object,
     recipe_version_integration_value_object,
+    recipe_version_parent_image_product_id_value_object,
     recipe_version_volume_size_value_object,
 )
 from app.packaging.domain.value_objects.shared import project_id_value_object, user_id_value_object
@@ -18,4 +19,7 @@ class UpdateRecipeVersionCommand(command_bus.Command):
     recipeVersionDescription: recipe_version_description_value_object.RecipeVersionDescriptionValueObject
     recipeVersionVolumeSize: recipe_version_volume_size_value_object.RecipeVersionVolumeSizeValueObject
     recipeVersionIntegrations: list[recipe_version_integration_value_object.RecipeVersionIntegrationValueObject]
+    parentImageProductId: (
+        recipe_version_parent_image_product_id_value_object.RecipeVersionParentImageProductIdValueObject | None
+    ) = None
     lastUpdatedBy: user_id_value_object.UserIdValueObject

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 /* eslint-disable complexity */
 import {
+  GetMarketplaceImagesResponse,
   GetRecipeResponse,
   Recipe,
   RecipeComponentVersion,
@@ -22,6 +23,7 @@ const MAX_VOLUME_SIZE = 500;
 
 interface ServiceAPI {
   getRecipe: (projectId: string, recipeId: string) => Promise<GetRecipeResponse>,
+  getMarketplaceImages: (projectId: string) => Promise<GetMarketplaceImagesResponse>,
   getIntegrations?: (projectId: string) => Promise<GetIntegrationsResponse>,
   getIntegrationComponentList?: (
     projectId: string,
@@ -54,6 +56,18 @@ const FETCH_INTEGRATIONS_KEY = (
   }
   return [
     'integrations',
+    projectId,
+  ];
+};
+
+const FETCH_MARKETPLACE_IMAGES_KEY = (
+  projectId: string,
+) => {
+  if (!projectId) {
+    return null;
+  }
+  return [
+    'marketplace-images',
     projectId,
   ];
 };
@@ -92,6 +106,7 @@ export const useRecipeVersionWizard = ({
   const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(
     recipeVersion?.recipeVersionIntegrations || []
   );
+  const [parentImageProductId, setParentImageProductId] = useState(recipeVersion?.parentImageProductId || '');
 
   useEffect(() => {
     if (recipeVersion?.recipeVersionDescription) {
@@ -102,6 +117,9 @@ export const useRecipeVersionWizard = ({
     }
     if (recipeVersion?.recipeVersionIntegrations) {
       setSelectedIntegrations(recipeVersion.recipeVersionIntegrations);
+    }
+    if (recipeVersion?.parentImageProductId) {
+      setParentImageProductId(recipeVersion.parentImageProductId);
     }
   }, [recipeVersion]);
   const [integrationComponents, setIntegrationComponents] = useState<ComponentVersionEntry[]>([]);
@@ -177,6 +195,29 @@ export const useRecipeVersionWizard = ({
       onError: (err) => {
         showErrorNotification({
           header: i18n.fetchRecipeError,
+          content: err.message
+        });
+      }
+    }
+  );
+
+  const marketplaceImagesFetcher = ([
+    ,
+    projectId,
+  ]: [
+      url: string,
+      projectId: string,
+  ]) => {
+    return serviceApi.getMarketplaceImages(projectId);
+  };
+
+  const { data: marketplaceImages, isLoading: isMarketplaceImagesLoading } = useSwr(
+    FETCH_MARKETPLACE_IMAGES_KEY(projectId),
+    marketplaceImagesFetcher, {
+      shouldRetryOnError: false,
+      onError: (err) => {
+        showErrorNotification({
+          header: i18n.fetchMarketplaceImagesError,
           content: err.message
         });
       }
@@ -329,5 +370,11 @@ export const useRecipeVersionWizard = ({
     setSelectedIntegrations,
     integrationComponents,
     isLoadingIntegrationComponents,
+    marketplaceImages: (marketplaceImages?.images || [])
+      .filter(image => image.platform === data?.recipe?.recipePlatform
+        && image.architecture === data?.recipe?.recipeArchitecture),
+    isMarketplaceImagesLoading,
+    parentImageProductId,
+    setParentImageProductId,
   };
 };
