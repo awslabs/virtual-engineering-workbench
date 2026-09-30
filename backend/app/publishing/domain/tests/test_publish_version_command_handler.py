@@ -288,7 +288,7 @@ def test_publish_version_publishes_version_when_product_does_not_exist(
         version_id=version_entity.versionId,
         version_name="1.0.0-rc.2",
         version_description=version_entity.versionDescription,
-        template_path=f"{product_entity.productId}/vers-12345abc/workbench-template.yml",
+        template_path=f"{product_entity.productId}/vers-12345abc/123456789012/dev/workbench-template.yml",
     )
     catalog_service_mock.associate_product_with_portfolio.assert_called_once_with(
         region="us-east-1",
@@ -313,7 +313,7 @@ def test_publish_version_publishes_version_when_product_does_not_exist(
         ),
         scProductId=product_entity.productId,
         scProvisioningArtifactId="pa-12345",
-        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/workbench-template.yml",
+        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/123456789012/dev/workbench-template.yml",
         status=version.VersionStatus.Created,
         parameters=[
             version.VersionParameter(
@@ -412,7 +412,7 @@ def test_publish_version_publishes_version_when_product_exists_version_does_not_
         version_name="1.0.0-rc.2",
         sc_product_id="prod-12345",
         description=None,
-        template_path=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        template_path=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
     )
     mock_version_repo.update_attributes.assert_called_once_with(
         pk=version.VersionPrimaryKey(
@@ -422,7 +422,7 @@ def test_publish_version_publishes_version_when_product_exists_version_does_not_
         ),
         scProductId=product_entity.productId,
         scProvisioningArtifactId="pa-12345",
-        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
         status=version.VersionStatus.Created,
         parameters=[
             version.VersionParameter(
@@ -525,7 +525,7 @@ def test_publish_version_publishes_version_when_product_and_version_exist(
         ),
         scProductId=product_entity.productId,
         scProvisioningArtifactId="pa-12345",
-        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
         status=version.VersionStatus.Created,
         parameters=[
             version.VersionParameter(
@@ -632,7 +632,7 @@ def test_publish_version_publishes_version_when_product_and_version_exist_for(
         ),
         scProductId=product_entity.productId,
         scProvisioningArtifactId="pa-12345",
-        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
         status=version.VersionStatus.Created,
         parameters=[
             version.VersionParameter(
@@ -742,7 +742,7 @@ def test_publish_version_when_contains_metadata_should_store_metadata_in_db(
         ),
         scProductId=product_entity.productId,
         scProvisioningArtifactId="pa-12345",
-        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
         status=version.VersionStatus.Created,
         parameters=[],
         metadata={"MyMetadataKey": {"label": "My meta label", "value": ["My meta value"]}},
@@ -809,7 +809,7 @@ def test_publish_version_publishes_version_when_promoted(
         version_id=version_entity.versionId,
         version_name="1.0.0-rc.2",
         version_description=None,
-        template_path=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        template_path=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
     )
     catalog_service_mock.associate_product_with_portfolio.assert_called_once_with(
         region="us-east-1", sc_portfolio_id="port-12345", sc_product_id="prod-12345"
@@ -832,7 +832,7 @@ def test_publish_version_publishes_version_when_promoted(
         ),
         scProductId=product_entity.productId,
         scProvisioningArtifactId="pa-12345",
-        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{template_entity}",
+        templateLocation=f"{product_entity.productId}/{version_entity.versionId}/{version_entity.awsAccountId}/{str(version_entity.stage).lower()}/{template_entity}",
         status=version.VersionStatus.Created,
         parameters=[
             version.VersionParameter(
@@ -1037,3 +1037,66 @@ def test_handle_ami_product_should_render_legitimate_template(
 
     # ASSERT
     assertpy.assert_that(result).is_equal_to(f"Name: {prod.productName}, Version: {vers.versionName}")
+
+
+def test_handle_ami_product_renders_only_the_image_restored_into_the_distributions_account(
+    get_version, get_product, shared_amis_query_service_mock
+):
+    # ARRANGE: two spokes in the same region, each with its own restored copy of the image
+    shared_amis_query_service_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-other-account",
+            awsAccountId="999999999999",
+            region="us-east-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-own-account",
+            awsAccountId=TEST_AWS_ACCOUNT_ID,
+            region="us-east-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-other-account-2",
+            awsAccountId="888888888888",
+            region="us-east-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+    template = b"{% for region, ami in ami_ids.items() %}{{ region }}={{ ami }};{% endfor %}"
+
+    # ACT
+    rendered = publish_version_command_handler._handle_ami_product(
+        template, shared_amis_query_service_mock, get_version(), get_product()
+    )
+
+    # ASSERT
+    assertpy.assert_that(rendered).is_equal_to("us-east-1=ami-own-account;")
+
+
+def test_handle_ami_product_without_an_image_in_the_distributions_account_should_raise(
+    get_version, get_product, shared_amis_query_service_mock
+):
+    # ARRANGE: only another account has the image so far
+    shared_amis_query_service_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-other-account",
+            awsAccountId="999999999999",
+            region="us-east-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+
+    # ACT & ASSERT
+    with pytest.raises(publish_version_command_handler.domain_exception.DomainException):
+        publish_version_command_handler._handle_ami_product(
+            b"{{ ami_ids }}", shared_amis_query_service_mock, get_version(), get_product()
+        )

@@ -5,10 +5,7 @@ import jinja2
 from jinja2.sandbox import SandboxedEnvironment
 
 from app.publishing.domain.commands import publish_version_command
-from app.publishing.domain.events import (
-    product_version_published,
-    product_version_update_started,
-)
+from app.publishing.domain.events import product_version_published, product_version_update_started
 from app.publishing.domain.exceptions import domain_exception
 from app.publishing.domain.model import product, version
 from app.publishing.domain.ports import (
@@ -275,7 +272,11 @@ def _upload_template(
     cf_template = _handle_ami_product(cf_template, shared_amis_qry_srv, vers, prod).encode()
     # Upload template to object storage
     template_file_name = template_qry_srv.get_default_template_file_name(product_type=prod.productType)
-    template_path = f"{vers.productId}/{vers.versionId}/{template_file_name}"
+    # One rendered template per distribution: they differ in the account's image, and distributions of
+    # one version are published concurrently.
+    template_path = (
+        f"{vers.productId}/{vers.versionId}/{vers.awsAccountId}/{str(vers.stage).lower()}/{template_file_name}"
+    )
     file_srv.put_template(template_path=template_path, content=cf_template)
 
     return template_path
@@ -287,11 +288,17 @@ def _handle_ami_product(
     vers: version.Version,
     prod: product.Product,
 ) -> str:
-    # Get all shared amis for the given original ami id
-    shared_amis = shared_amis_qry_srv.get_shared_amis(original_ami_id=vers.originalAmiId)
+    # The image restored into this distribution's account: every account owns its own copy (store +
+    # restore), so another account's image in the same region must not end up in this template.
+    shared_amis = [
+        ami
+        for ami in shared_amis_qry_srv.get_shared_amis(original_ami_id=vers.originalAmiId)
+        if ami.awsAccountId == vers.awsAccountId
+    ]
     if not shared_amis:
         raise domain_exception.DomainException(
-            f"Could not find any shared ami for {vers.originalAmiId}. Ami sharing process might have failed."
+            f"Could not find a shared ami for {vers.originalAmiId} in {vers.awsAccountId}. "
+            "Ami sharing process might have failed."
         )
     ami_ids_per_region = {ami.region: ami.copiedAmiId for ami in shared_amis}
 
