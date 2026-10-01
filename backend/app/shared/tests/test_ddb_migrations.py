@@ -229,8 +229,9 @@ def test_migrations_when_migration_fails_should_mark_new_migrations_as_failed(
         )
     )
 
-    # ACT
-    migrations.migrate()
+    # ACT: the failure is raised, after the states are saved
+    with pytest.raises(dynamodb_migrations.MigrationFailedError, match="001.FailingMigration"):
+        migrations.migrate()
 
     # ASSERT
     items = backend_app_dynamodb_table.scan()
