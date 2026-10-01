@@ -4,10 +4,7 @@ from datetime import datetime, timezone
 from app.packaging.domain.commands.component import remove_component_version_command
 from app.packaging.domain.exceptions.domain_exception import DomainException
 from app.packaging.domain.model.component import component_version
-from app.packaging.domain.ports import (
-    component_version_definition_service,
-    component_version_service,
-)
+from app.packaging.domain.ports import component_version_definition_service, component_version_service
 from app.shared.adapters.unit_of_work_v2.unit_of_work import UnitOfWork
 
 

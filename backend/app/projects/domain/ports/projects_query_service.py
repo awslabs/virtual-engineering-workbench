@@ -1,11 +1,16 @@
 import typing
 from abc import ABC, abstractmethod
 
-from app.projects.domain.model import project, project_account, project_assignment, user
+from app.projects.domain.model import project, project_account, project_assignment, service_client_assignment, user
 from app.shared.adapters.boto import paging_utils
 
 
 class ProjectsQueryService(ABC):
+    @abstractmethod
+    def get_service_client_assignment(
+        self, project_id: str, client_id: str
+    ) -> service_client_assignment.ServiceClientAssignment | None: ...
+
     @abstractmethod
     def list_projects(
         self, page_size: int, next_token: typing.Any, user_id: str | None

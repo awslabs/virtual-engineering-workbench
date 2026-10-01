@@ -8,31 +8,21 @@ import assertpy
 import pytest
 
 from app.projects.adapters.query_services import dynamodb_query_service
-from app.projects.domain.commands.enrolments import (
-    approve_enrolments_command,
-    enrol_user_to_program_command,
-)
+from app.projects.domain.commands.enrolments import approve_enrolments_command, enrol_user_to_program_command
 from app.projects.domain.commands.project_accounts import (
     activate_project_account_command,
     deactivate_project_account_command,
     on_board_project_account_command,
     reonboard_project_account_command,
 )
-from app.projects.domain.commands.projects import (
-    create_project_command,
-    update_project_command,
-)
+from app.projects.domain.commands.projects import create_project_command, update_project_command
 from app.projects.domain.commands.technologies import (
     add_technology,
     delete_technology_command,
     update_technology_command,
 )
-from app.projects.domain.commands.users import (
-    assign_user_command,
-    reassign_user_command,
-    unassign_user_command,
-)
-from app.projects.domain.model import project_assignment
+from app.projects.domain.commands.users import assign_user_command, reassign_user_command, unassign_user_command
+from app.projects.domain.model import project_assignment, service_client_assignment
 from app.projects.domain.ports import projects_query_service
 from app.projects.entrypoints.api import bootstrapper
 from app.projects.entrypoints.api.model import api_model
@@ -752,6 +742,69 @@ def test_internal_get_user_assignment_when_assignment_does_not_exist_returns_non
     response = api_model.GetProjectAssignmentResponse.model_validate_json(result["body"])
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.assignment).is_none()
+
+
+def test_internal_lookup_returns_404_for_missing_service_client_assignment(
+    lambda_context, authenticated_event, get_mock_dependencies
+):
+    from app.projects.entrypoints.api import handler
+
+    handler.dependencies = get_mock_dependencies
+    handler.dependencies.projects_query_service = mock.create_autospec(
+        projects_query_service.ProjectsQueryService,
+        instance=True,
+    )
+    handler.dependencies.projects_query_service.get_service_client_assignment.return_value = None
+
+    response = handler.handler(
+        authenticated_event(
+            None,
+            "/internal/projects/proj-1/clients/missing",
+            "GET",
+        ),
+        lambda_context,
+    )
+
+    assert response["statusCode"] == 404
+    handler.dependencies.projects_query_service.get_service_client_assignment.assert_called_once_with(
+        "proj-1", "missing"
+    )
+
+
+def test_internal_lookup_returns_service_client_assignment(lambda_context, authenticated_event, get_mock_dependencies):
+    from app.projects.entrypoints.api import handler
+
+    handler.dependencies = get_mock_dependencies
+    handler.dependencies.projects_query_service = mock.create_autospec(
+        projects_query_service.ProjectsQueryService,
+        instance=True,
+    )
+    handler.dependencies.projects_query_service.get_service_client_assignment.return_value = (
+        service_client_assignment.ServiceClientAssignment(
+            clientId="client-1",
+            projectId="proj-1",
+            status=service_client_assignment.ServiceClientAssignmentStatus.ACTIVE,
+            grantedBy="admin-client",
+            createDate="2026-09-16T10:00:00+00:00",
+            lastUpdateDate="2026-09-16T10:00:00+00:00",
+        )
+    )
+
+    response = handler.handler(
+        authenticated_event(
+            None,
+            "/internal/projects/proj-1/clients/client-1",
+            "GET",
+        ),
+        lambda_context,
+    )
+
+    assert response["statusCode"] == 200
+    assert json.loads(response["body"])["assignment"] == {
+        "clientId": "client-1",
+        "projectId": "proj-1",
+        "status": "ACTIVE",
+    }
 
 
 def test_internal_get_user_assignments_count(lambda_context, authenticated_event, get_mock_dependencies):

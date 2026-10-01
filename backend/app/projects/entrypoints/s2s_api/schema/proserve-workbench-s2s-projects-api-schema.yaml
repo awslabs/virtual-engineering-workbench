@@ -398,6 +398,111 @@ paths:
           - "method.request.path.projectId"
         contentHandling: "CONVERT_TO_TEXT"
         credentials: "{{apigw_invocation_role_arn}}"
+  /projects/{projectId}/clients/{clientId}:
+    get:
+      description: "Get a service-client project assignment"
+      operationId: "GetServiceClientAssignment"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetServiceClientAssignmentResponse"
+        "404":
+          description: "Assignment not found"
+      security:
+        - ClientCredentials: ["clients/projects/client_assignment.read"]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    put:
+      description: "Create or reactivate a service-client project assignment"
+      operationId: "PutServiceClientAssignment"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetServiceClientAssignmentResponse"
+      security:
+        - ClientCredentials: ["clients/projects/client_assignment.write"]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    delete:
+      description: "Revoke a service-client project assignment"
+      operationId: "RevokeServiceClientAssignment"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetServiceClientAssignmentResponse"
+      security:
+        - ClientCredentials: ["clients/projects/client_assignment.write"]
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
 components:
   schemas:
     Empty:
@@ -585,6 +690,34 @@ components:
           type: array
           items:
             type: string
+    ServiceClientAssignment:
+      title: ServiceClientAssignment
+      type: object
+      required:
+        - clientId
+        - projectId
+        - status
+      properties:
+        clientId:
+          title: ClientId
+          type: string
+        projectId:
+          title: ProjectId
+          type: string
+        status:
+          title: Status
+          type: string
+          enum:
+            - ACTIVE
+            - REVOKED
+    GetServiceClientAssignmentResponse:
+      title: GetServiceClientAssignmentResponse
+      type: object
+      required:
+        - assignment
+      properties:
+        assignment:
+          $ref: "#/components/schemas/ServiceClientAssignment"
   securitySchemes:
     ClientCredentials:
       type: apiKey

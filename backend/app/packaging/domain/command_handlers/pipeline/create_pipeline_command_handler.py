@@ -71,3 +71,4 @@ def handle(
             pipelineId=pipeline_entity.pipelineId,
         )
     )
+    return {"pipelineId": pipeline_entity.pipelineId}

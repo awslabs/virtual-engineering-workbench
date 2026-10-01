@@ -1,6 +1,7 @@
 import datetime
 import uuid
 from typing import List, Optional
+from unittest import mock
 
 import assertpy
 import pytest
@@ -14,6 +15,7 @@ from app.projects.domain.model import (
     project,
     project_account,
     project_assignment,
+    service_client_assignment,
     technology,
 )
 from app.projects.domain.model import user as user_model
@@ -1519,3 +1521,107 @@ def test_get_user_returns_user(
 
     # Assert
     assertpy.assert_that(user_entity).is_equal_to(fake_user)
+
+
+def test_get_service_client_assignment_returns_matching_assignment(
+    mock_dynamodb,
+    backend_app_dynamodb_table,
+    test_table_name,
+    gsi_name,
+    gsi_aws_accounts,
+    gsi_entities,
+):
+    expected = service_client_assignment.ServiceClientAssignment(
+        clientId="terraform-prod",
+        projectId="proj-1",
+        status=service_client_assignment.ServiceClientAssignmentStatus.ACTIVE,
+        grantedBy="bootstrap-client",
+        createDate="2026-09-16T10:00:00+00:00",
+        lastUpdateDate="2026-09-16T10:00:00+00:00",
+    )
+    backend_app_dynamodb_table.put_item(
+        Item={
+            "PK": "CLIENT#terraform-prod",
+            "SK": "PROJECT#proj-1",
+            **expected.model_dump(),
+        }
+    )
+    query_service = dynamodb_query_service.DynamoDBProjectsQueryService(
+        table_name=test_table_name,
+        dynamodb_client=mock_dynamodb.meta.client,
+        gsi_inverted_primary_key=gsi_name,
+        gsi_aws_accounts=gsi_aws_accounts,
+        gsi_entities=gsi_entities,
+    )
+
+    actual = query_service.get_service_client_assignment("proj-1", "terraform-prod")
+
+    assert actual == expected
+
+
+def test_get_service_client_assignment_returns_none_when_missing(
+    mock_dynamodb,
+    test_table_name,
+    gsi_name,
+    gsi_aws_accounts,
+    gsi_entities,
+):
+    query_service = dynamodb_query_service.DynamoDBProjectsQueryService(
+        table_name=test_table_name,
+        dynamodb_client=mock_dynamodb.meta.client,
+        gsi_inverted_primary_key=gsi_name,
+        gsi_aws_accounts=gsi_aws_accounts,
+        gsi_entities=gsi_entities,
+    )
+
+    assert query_service.get_service_client_assignment("proj-1", "missing") is None
+
+
+def test_get_service_client_assignment_uses_strongly_consistent_read(
+    mock_dynamodb,
+    test_table_name,
+    gsi_name,
+    gsi_aws_accounts,
+    gsi_entities,
+):
+    query_service = dynamodb_query_service.DynamoDBProjectsQueryService(
+        table_name=test_table_name,
+        dynamodb_client=mock_dynamodb.meta.client,
+        gsi_inverted_primary_key=gsi_name,
+        gsi_aws_accounts=gsi_aws_accounts,
+        gsi_entities=gsi_entities,
+    )
+    with mock.patch.object(
+        mock_dynamodb.meta.client,
+        "get_item",
+        wraps=mock_dynamodb.meta.client.get_item,
+    ) as get_item:
+        query_service.get_service_client_assignment("proj-1", "missing")
+
+    assert get_item.call_args.kwargs["ConsistentRead"] is True
+
+
+def test_service_client_assignment_repository_uses_client_and_project_keys(
+    mock_ddb_repo,
+    backend_app_dynamodb_table,
+):
+    assignment = service_client_assignment.ServiceClientAssignment(
+        clientId="terraform-prod",
+        projectId="proj-1",
+        status=service_client_assignment.ServiceClientAssignmentStatus.ACTIVE,
+        grantedBy="bootstrap-client",
+        createDate="2026-09-16T10:00:00+00:00",
+        lastUpdateDate="2026-09-16T10:00:00+00:00",
+    )
+
+    with mock_ddb_repo:
+        mock_ddb_repo.get_repository(
+            service_client_assignment.ServiceClientAssignmentPrimaryKey,
+            service_client_assignment.ServiceClientAssignment,
+        ).add(assignment)
+        mock_ddb_repo.commit()
+
+    item = backend_app_dynamodb_table.get_item(Key={"PK": "CLIENT#terraform-prod", "SK": "PROJECT#proj-1"})["Item"]
+    assert item["clientId"] == "terraform-prod"
+    assert item["projectId"] == "proj-1"
+    assert item["sequenceNo"] == 0
