@@ -19,6 +19,7 @@ from app.packaging.adapters.query_services import (
 from app.packaging.adapters.repository import dynamo_entity_config
 from app.packaging.adapters.services import (
     aws_component_definition_service,
+    aws_marketplace_image_service,
     ec2_image_builder_component_service,
     ec2_image_builder_pipeline_service,
     parameter_service,
@@ -120,6 +121,7 @@ class Dependencies(BaseModel):
         mandatory_components_list_domain_query_service.MandatoryComponentsListDomainQueryService
     )
     pipeline_srv: ec2_image_builder_pipeline_service.Ec2ImageBuilderPipelineService
+    marketplace_image_srv: aws_marketplace_image_service.AWSMarketplaceImageService
     component_definition_service: aws_component_definition_service.AWSComponentDefinitionService
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -247,6 +249,13 @@ def bootstrap(  # noqa: C901
         pipelines_configuration_mapping=pipelines_configuration_mapping,
         region=app_config.get_default_region(),
         topic_arn=f"arn:aws:sns:{app_config.get_default_region()}:{app_config.get_ami_factory_account_id()}:{app_config.get_topic_name()}",
+    )
+
+    marketplace_image_srv = aws_marketplace_image_service.AWSMarketplaceImageService(
+        admin_role=app_config.get_admin_role(),
+        ami_factory_aws_account_id=app_config.get_ami_factory_account_id(),
+        region=app_config.get_default_region(),
+        boto_session=session,
     )
 
     component_domain_qry_srv = component_domain_query_service.ComponentDomainQueryService(
@@ -439,6 +448,7 @@ def bootstrap(  # noqa: C901
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
                 component_qry_srv=component_qry_srv,
+                marketplace_image_srv=marketplace_image_srv,
             )
 
         return _handle_command
@@ -485,6 +495,7 @@ def bootstrap(  # noqa: C901
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
                 component_qry_srv=component_qry_srv,
+                marketplace_image_srv=marketplace_image_srv,
             )
 
         return _handle_command
@@ -689,5 +700,6 @@ def bootstrap(  # noqa: C901
         mandatory_components_list_domain_qry_srv=mandatory_components_list_domain_qry_srv,
         pipeline_domain_qry_srv=pipeline_domain_qry_srv,
         pipeline_srv=pipeline_srv,
+        marketplace_image_srv=marketplace_image_srv,
         component_definition_service=component_version_definition_srv,
     )
