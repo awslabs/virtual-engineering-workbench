@@ -20,6 +20,8 @@ MAC_AMI_ID = "ami-0cccccccccccccccc"
 UNDESCRIBED_AMI_ID = "ami-0dddddddddddddddd"
 XVDA_PRODUCT_ID = "prod-xvdaproduct1"
 XVDA_AMI_ID = "ami-0eeeeeeeeeeeeeeee"
+NO_ROOT_VOLUME_PRODUCT_ID = "prod-norootvolume1"
+NO_ROOT_VOLUME_AMI_ID = "ami-0ffffffffffffffff"
 
 LINUX_IMAGE = marketplace_image.MarketplaceImage(
     productId=LINUX_PRODUCT_ID,
@@ -74,6 +76,7 @@ def mock_marketplace_calls():
             (UNSUPPORTED_ARCHITECTURE_PRODUCT_ID, MAC_AMI_ID),
             (UNDESCRIBED_PRODUCT_ID, UNDESCRIBED_AMI_ID),
             (XVDA_PRODUCT_ID, XVDA_AMI_ID),
+            (NO_ROOT_VOLUME_PRODUCT_ID, NO_ROOT_VOLUME_AMI_ID),
         ]
     }
 
@@ -91,6 +94,7 @@ def mock_marketplace_calls():
         MAC_AMI_ID: _image("x86_64_mac", "Linux/UNIX"),
         UNDESCRIBED_AMI_ID: _image("x86_64", "Linux/UNIX"),
         XVDA_AMI_ID: _image("x86_64", "Linux/UNIX", root_device_name="/dev/xvda"),
+        NO_ROOT_VOLUME_AMI_ID: {**_image("x86_64", "Linux/UNIX"), "BlockDeviceMappings": []},
     }
 
     def _get_parameter(Name):
@@ -113,6 +117,7 @@ def mock_marketplace_calls():
                         _agreement(UNSUPPORTED_ARCHITECTURE_PRODUCT_ID),
                         _agreement(UNDESCRIBED_PRODUCT_ID),
                         _agreement(XVDA_PRODUCT_ID),
+                        _agreement(NO_ROOT_VOLUME_PRODUCT_ID),
                         _agreement(LINUX_PRODUCT_ID),
                     ]
                 }
@@ -189,6 +194,7 @@ def test_get_image_should_return_the_subscribed_product(mock_marketplace_calls, 
         LEGACY_PRODUCT_ID,
         UNSUPPORTED_ARCHITECTURE_PRODUCT_ID,
         XVDA_PRODUCT_ID,
+        NO_ROOT_VOLUME_PRODUCT_ID,
     ],
 )
 def test_get_image_should_return_none_for_products_that_cannot_be_used_as_base_images(

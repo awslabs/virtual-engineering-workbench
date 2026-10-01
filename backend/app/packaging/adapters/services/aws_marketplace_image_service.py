@@ -104,6 +104,16 @@ class AWSMarketplaceImageService(marketplace_image_service.MarketplaceImageServi
             return None
         if amis[0].get("RootDeviceName") != ROOT_DEVICE_NAME:
             return None
+        root_volume = next(
+            (
+                mapping.get("Ebs", {})
+                for mapping in amis[0].get("BlockDeviceMappings", [])
+                if mapping.get("DeviceName") == ROOT_DEVICE_NAME
+            ),
+            {},
+        )
+        if "VolumeSize" not in root_volume:
+            return None
 
         return marketplace_image.MarketplaceImage(
             productId=product_id,
@@ -111,11 +121,7 @@ class AWSMarketplaceImageService(marketplace_image_service.MarketplaceImageServi
             amiId=ami_id,
             platform="Windows" if amis[0].get("PlatformDetails", "").startswith("Windows") else "Linux",
             architecture=ARCHITECTURES[amis[0]["Architecture"]],
-            rootVolumeSize=next(
-                mapping["Ebs"]["VolumeSize"]
-                for mapping in amis[0].get("BlockDeviceMappings", [])
-                if mapping.get("DeviceName") == ROOT_DEVICE_NAME
-            ),
+            rootVolumeSize=root_volume["VolumeSize"],
         )
 
     @staticmethod
