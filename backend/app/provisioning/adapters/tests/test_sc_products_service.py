@@ -38,8 +38,8 @@ def test_sc_products_service_provision_product_should_provision_a_product(
         region="us-east-1",
         tags=[
             {
-                "key": "a",
-                "value": "b",
+                "Key": "a",
+                "Value": "b",
             }
         ],
     )
@@ -50,7 +50,7 @@ def test_sc_products_service_provision_product_should_provision_a_product(
         ProvisioningArtifactId="pa-123",
         PathId="path-1",
         ProvisionedProductName="test-name",
-        Tags=[{"key": "a", "value": "b"}],
+        Tags=[{"Key": "a", "Value": "b"}],
         ProvisioningParameters=[{"Key": "param-name", "Value": "param-value"}],
         ProvisionToken="test-name-123",
     )

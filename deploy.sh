@@ -223,6 +223,33 @@ if [ -n "$CONFIG_FILE" ]; then
   source "$CONFIG_FILE"
 fi
 
+# Not prompted for, and absent from every config written before it existed, so
+# it needs a default under set -u.
+HUB_VPC_NAME="${HUB_VPC_NAME:-}"
+HUB_SUBNET_NAMES="${HUB_SUBNET_NAMES:-}"
+# A stray space matches nothing in either describe-vpcs or Vpc.from_lookup,
+# while the name still reads as correct in the resulting error.
+HUB_VPC_NAME="${HUB_VPC_NAME#"${HUB_VPC_NAME%%[![:space:]]*}"}"
+HUB_VPC_NAME="${HUB_VPC_NAME%"${HUB_VPC_NAME##*[![:space:]]}"}"
+
+# Both are written to the saved config, sourced on the next run, and
+# interpolated into sed expressions, so restrict them to what a Name tag needs.
+for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
+  case "${!_var}" in
+    *[!a-zA-Z0-9.,_\ -]*) err "$_var may contain only letters, digits, and . , _ - and spaces" ;;
+  esac
+done
+RESOURCE_TAGS="${RESOURCE_TAGS:-}"
+if [ -z "$RESOURCE_TAGS" ]; then
+  RESOURCE_TAGS='{}'
+fi
+# The saved config writes this single-quoted and is sourced on the next run, so
+# a quote or a backslash here would be executed rather than read back.
+case "$RESOURCE_TAGS" in
+  *"'"*) err "RESOURCE_TAGS must not contain a single quote" ;;
+  *\\*)  err "RESOURCE_TAGS must not contain a backslash" ;;
+esac
+
 if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   prompt AWS_PROFILE_HUB "AWS CLI profile for hub account (empty for default)" "default"
 fi
@@ -249,6 +276,8 @@ log "OIDC federation (leave empty to use manual Cognito users):"
 prompt OIDC_CLIENT_ID     "OIDC Client ID"                     ""
 prompt OIDC_CLIENT_SECRET "OIDC Client Secret"                 "" true
 prompt OIDC_ISSUER_URL    "OIDC Issuer URL"                    ""
+prompt OIDC_USER_ID_CLAIM "OIDC claim containing the VEW user ID" "sub"
+prompt OIDC_LOGOUT_URL    "OIDC provider logout URL (optional; {appDns} = application URL)" ""
 
 echo ""
 log "TLS and DNS (leave empty for no custom domain):"
@@ -297,10 +326,12 @@ DEPLOYMENT_QUALIFIER=$(echo -n "$AWS_ACCOUNT_ID" | md5sum | cut -c1-5)
 ADMIN_USER_ID=$(echo "$ADMIN_USER_ID" | tr '[:lower:]' '[:upper:]')
 SPOKE_CDK_QUALIFIER="ioc760get"
 PROJECTS_TABLE="${ORG_PREFIX}-${APP_PREFIX}-projects-table-${ENVIRONMENT}"
-VPC_NAME="vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}"
+VPC_NAME="${HUB_VPC_NAME:-vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}}"
 
 # Save config for re-runs (excluding secrets)
 CONFIG_OUT="$SCRIPT_DIR/.deploy-config-${ENVIRONMENT}"
+printf -v OIDC_USER_ID_CLAIM_CONFIG '%q' "$OIDC_USER_ID_CLAIM"
+printf -v OIDC_LOGOUT_URL_CONFIG '%q' "$OIDC_LOGOUT_URL"
 cat > "$CONFIG_OUT" <<CONF
 AWS_ACCOUNT_ID="$AWS_ACCOUNT_ID"
 AWS_REGION="$AWS_REGION"
@@ -311,6 +342,8 @@ ADMIN_EMAIL="$ADMIN_EMAIL"
 ADMIN_USER_ID="$ADMIN_USER_ID"
 OIDC_CLIENT_ID="$OIDC_CLIENT_ID"
 OIDC_ISSUER_URL="$OIDC_ISSUER_URL"
+OIDC_USER_ID_CLAIM=$OIDC_USER_ID_CLAIM_CONFIG
+OIDC_LOGOUT_URL=$OIDC_LOGOUT_URL_CONFIG
 CERT_ARN="$CERT_ARN"
 CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
 CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
@@ -322,6 +355,9 @@ AWS_PROFILE_SPOKE="${AWS_PROFILE_SPOKE:-}"
 PRIVATE_DEPLOYMENT="$PRIVATE_DEPLOYMENT"
 PRIVATE_DNS_AUTOMATE="${PRIVATE_DNS_AUTOMATE:-true}"
 PRIVATE_DNS_ZONE="${PRIVATE_DNS_ZONE:-}"
+HUB_VPC_NAME='${HUB_VPC_NAME}'
+HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
+RESOURCE_TAGS='${RESOURCE_TAGS}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -400,6 +436,8 @@ log "Patching $BACKEND_CONFIG"
 sed -i.bak \
   -e "s/^ORGANIZATION_PREFIX = \".*\"/ORGANIZATION_PREFIX = \"${ORG_PREFIX}\"/" \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
+  -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
+  -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
   -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${AWS_REGION}\"/" \
   -e "s/\"enabled-workbench-regions\": \[\"[^\"]*\"\]/\"enabled-workbench-regions\": [\"${AWS_REGION}\"]/" \
   -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${AWS_REGION}/g" \
@@ -444,22 +482,29 @@ rm -f "${BACKEND_CONSTANTS}.bak"
 # --- frontend/infrastructure/cdk.json ---
 log "Patching $FE_CDK_JSON"
 
-OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-dev/oidc"
+OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 if [ -z "$OIDC_CLIENT_ID" ]; then
   ALLOW_CUSTOM_LOGIN="true"
-  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName)'
+  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName) | del(.context.config.dev.OIDCUserIdClaim) | del(.context.config.dev.LogoutUrl)'
 else
   ALLOW_CUSTOM_LOGIN="false"
-  OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc'
+  if [ -n "$OIDC_LOGOUT_URL" ]; then
+    OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.OIDCUserIdClaim = $uid_claim | .context.config.dev.LogoutUrl = $logout'
+  else
+    OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.OIDCUserIdClaim = $uid_claim | del(.context.config.dev.LogoutUrl)'
+  fi
 fi
 
 jq --arg app_name "$APP_NAME" \
    --arg qualifier "$DEPLOYMENT_QUALIFIER" \
    --arg oidc "$OIDC_NAME" \
+   --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+   --arg logout "$OIDC_LOGOUT_URL" \
    --arg vpcname "$VPC_NAME" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
    --argjson private "$PRIVATE_DEPLOYMENT" \
-   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname $OIDC_FILTER" \
+   --argjson adoptedvpc "$([ -n "$HUB_VPC_NAME" ] && echo true || echo false)" \
+   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname | .context.config.dev.AdoptedVPC = \$adoptedvpc $OIDC_FILTER" \
    "$FE_CDK_JSON" > "${FE_CDK_JSON}.tmp" && mv "${FE_CDK_JSON}.tmp" "$FE_CDK_JSON"
 
 # --- frontend/infrastructure/lib/public-access-deployment-stack.ts ---
@@ -520,6 +565,11 @@ EXISTING_VPC=$(aws ec2 describe-vpcs \
   --region "$AWS_REGION" 2>/dev/null || echo "None")
 
 if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
+  # The lookup cannot distinguish an absent VPC from a denied DescribeVpcs, so an
+  # explicitly configured name that misses is an operator error either way.
+  if [ -n "$HUB_VPC_NAME" ]; then
+    err "HUB_VPC_NAME is set to '$HUB_VPC_NAME' but no such VPC resolved in $AWS_REGION. Check the name, the region, and DescribeVpcs permission. Refusing to create a VPC."
+  fi
   warn "VPC '$VPC_NAME' not found in $AWS_REGION"
   warn "A development VPC will be created. This is intended for dev/testing only — not for production use."
   if [ "$AUTO_CONFIRM" = "true" ]; then
@@ -616,7 +666,8 @@ if [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUE
     --arg cid "$OIDC_CLIENT_ID" \
     --arg cs "$OIDC_CLIENT_SECRET" \
     --arg iss "$OIDC_ISSUER_URL" \
-    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss}')
+    --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss, UserIDClaim: $uid_claim}')
 
   if aws secretsmanager describe-secret --secret-id "$OIDC_SECRET_NAME" --region "$AWS_REGION" &>/dev/null; then
     aws secretsmanager put-secret-value \
@@ -650,6 +701,7 @@ FE_CDK_CONTEXT=(
   -c "region=$AWS_REGION"
   -c "app-name=$APP_NAME"
   -c "deployment-qualifier=$DEPLOYMENT_QUALIFIER"
+  -c "resource-tags=$RESOURCE_TAGS"
 )
 
 if [ -n "$CERT_ARN" ]; then
@@ -690,6 +742,7 @@ BE_CDK_CONTEXT=(
   -c "catalog-service-account=$AWS_ACCOUNT_ID"
   -c "catalog-service-region=$AWS_REGION"
   -c "organization-id=$ORG_ID"
+  -c "resource-tags=$RESOURCE_TAGS"
 )
 
 if [ -n "$API_CUSTOM_DOMAIN" ]; then
