@@ -42,7 +42,7 @@
     "basic-ftp": "^6.2.1",
     "cross-spawn": "^7.0.6",
     "diff": "^8.0.3",
-    "dompurify": "^3.4.13",
+    "dompurify": "^3.4.16",
     "fast-xml-parser": "^5.10.1",
     "immutable": "^4.3.9",
     "js-yaml": "^4.3.2",
