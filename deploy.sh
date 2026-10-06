@@ -8,6 +8,7 @@
 # Usage: ./deploy.sh [--config <path>] [--dry-run] [--destroy] [--yes]
 #   --config <path>  Load inputs from a config file instead of prompting
 #   --dry-run        Validate prerequisites and config without deploying
+#   --diff           Preview the CDK stack changes without deploying them
 #   --destroy        Tear down all VEW stacks and orphaned resources
 #   --yes            Auto-confirm interactive prompts (for CI/CD)
 #
@@ -46,17 +47,31 @@ run_cmd() {
   fi
 }
 
+# cdk diff rejects --require-approval, --force and --concurrency, so the verb
+# alone cannot be swapped: each takes its own flags. Callers pass context only,
+# and set CDK_DEPLOY_EXTRA for flags that belong to deploy.
+cdk_run() {
+  if [ "$DIFF_MODE" = "true" ]; then
+    run_cmd cdk diff --all "$@"
+  else
+    # shellcheck disable=SC2086 # CDK_DEPLOY_EXTRA is a flag list, not one word
+    run_cmd cdk deploy --all --require-approval never --force ${CDK_DEPLOY_EXTRA:-} "$@"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Parse arguments
 # ---------------------------------------------------------------------------
 DESTROY_MODE=false
 DRY_RUN=false
+DIFF_MODE=false
 AUTO_CONFIRM=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --config)  CONFIG_FILE="$2"; shift 2 ;;
     --destroy) DESTROY_MODE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --diff)    DIFF_MODE=true; shift ;;
     --yes)     AUTO_CONFIRM=true; shift ;;
     *) err "Unknown argument: $1" ;;
   esac
@@ -599,7 +614,7 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   (
     cd "$BACKEND_DIR"
     cp cdk-vpc.json cdk.json
-    run_cmd cdk deploy --all --require-approval never --force \
+    cdk_run \
       -c "environment=$ENVIRONMENT" \
       -c "account=$AWS_ACCOUNT_ID" \
       -c "region=$AWS_REGION"
@@ -727,8 +742,7 @@ fi
 log "Deploying frontend CDK stacks"
 (
   cd "$FRONTEND_DIR"
-  run_cmd cdk deploy --all --require-approval never --force \
-    "${FE_CDK_CONTEXT[@]}"
+  cdk_run "${FE_CDK_CONTEXT[@]}"
 )
 
 # ---------------------------------------------------------------------------
@@ -801,9 +815,7 @@ log "Deploying backend CDK stacks"
     CDK_CONCURRENCY=10
   fi
 
-  run_cmd cdk deploy --all --require-approval never --force \
-    --concurrency $CDK_CONCURRENCY \
-    "${BE_CDK_CONTEXT[@]}"
+  CDK_DEPLOY_EXTRA="--concurrency $CDK_CONCURRENCY" cdk_run "${BE_CDK_CONTEXT[@]}"
   rm -f cdk.json
 )
 
@@ -812,6 +824,17 @@ deactivate
 # ---------------------------------------------------------------------------
 # Phase 8: Build and deploy frontend web application
 # ---------------------------------------------------------------------------
+if [ "$DIFF_MODE" = "true" ]; then
+  echo ""
+  log "=== DIFF COMPLETE ==="
+  log "The stack changes above are what a deploy would apply. Nothing was deployed."
+  warn "Preview covers the CDK stacks only. The phases before them still ran:"
+  warn "bootstrap, SSM parameters and the VPC stack, which are no-ops only on an"
+  warn "account that is already deployed."
+  log "Run without --diff to apply."
+  exit 0
+fi
+
 step 8 "Building frontend web application and uploading to S3"
 
 WEB_DIR="$REPO_ROOT/frontend/web"
