@@ -184,6 +184,24 @@ delete_one_stack() {
   done
 }
 
+# s3 rb --force deletes current objects only. CDK enables versioning on its
+# buckets, so non-current versions and delete markers survive it and the bucket
+# cannot be removed.
+empty_versioned_bucket() {
+  local bucket=$1 payload
+  while :; do
+    payload=$(aws s3api list-object-versions --bucket "$bucket" --region "$AWS_REGION" \
+      --max-items 1000 \
+      --query '{Objects: [Versions, DeleteMarkers][][].{Key:Key,VersionId:VersionId}}' \
+      --output json 2>/dev/null || echo '{"Objects":null}')
+    case "$payload" in
+      *'"Objects": null'*|*'"Objects": []'*) return 0 ;;
+    esac
+    aws s3api delete-objects --bucket "$bucket" --region "$AWS_REGION" \
+      --delete "$payload" >/dev/null 2>&1 || return 1
+  done
+}
+
 if [ "$DESTROY_MODE" = "true" ]; then
   if [ -z "$CONFIG_FILE" ]; then
     err "--destroy requires --config <path> to identify resources by prefix"
@@ -347,6 +365,7 @@ if [ "$DESTROY_MODE" = "true" ]; then
   for bucket in $BUCKETS; do
     BUCKET_IDX=$(( BUCKET_IDX + 1 ))
     progress $(( BUCKET_IDX * 100 / BUCKET_TOTAL )) "$bucket"
+    empty_versioned_bucket "$bucket" || true
     if aws s3 rb "s3://$bucket" --force >/dev/null 2>&1; then
       BUCKET_OK=$(( BUCKET_OK + 1 ))
     else
