@@ -846,13 +846,17 @@ step 8 "Building frontend web application and uploading to S3"
 
 WEB_DIR="$REPO_ROOT/frontend/web"
 
+# configure_auth.sh reads the UI stack for the Cognito pool, client and domain,
+# so it needs the frontend's region; the backend APIs keep their own. Its
+# describe-stacks calls fall back to an empty string, so a wrong region here
+# yields a config with blank Cognito fields instead of an error.
 log "Generating frontend configuration (aws-exports.js)"
 (
   cd "$WEB_DIR"
   APP_NAME="$APP_NAME" \
   BACKEND_APP_NAME="$BACKEND_APP_NAME" \
   ENVIRONMENT_NAME="$ENVIRONMENT" \
-  AWS_DEFAULT_REGION="$AWS_REGION" \
+  AWS_DEFAULT_REGION="$FE_REGION" \
   AWS_REGION_BE_API="$AWS_REGION" \
   UPLOAD_ENV="remote" \
   bash configure_auth.sh
