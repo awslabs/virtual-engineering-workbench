@@ -400,7 +400,7 @@ paths:
         credentials: "{{apigw_invocation_role_arn}}"
   /projects/{projectId}/clients/{clientId}:
     get:
-      description: "Get a service-client project assignment"
+      description: "Get a service-client project assignment; the caller must have an ACTIVE assignment to this project"
       operationId: "GetServiceClientAssignment"
       parameters:
         - name: projectId
@@ -422,6 +422,8 @@ paths:
                 $ref: "#/components/schemas/GetServiceClientAssignmentResponse"
         "404":
           description: "Assignment not found"
+        "403":
+          description: "Required scope or ACTIVE caller project assignment is missing"
       security:
         - ClientCredentials: ["clients/projects/client_assignment.read"]
       x-amazon-apigateway-request-validator: params-only
@@ -436,7 +438,11 @@ paths:
         contentHandling: "CONVERT_TO_TEXT"
         credentials: "{{apigw_invocation_role_arn}}"
     put:
-      description: "Create or reactivate a service-client project assignment"
+      description: >-
+        Create or reactivate a service-client project assignment. The caller must
+        have an ACTIVE assignment to this project, or additionally hold
+        clients/projects/client_assignment.bootstrap for an existing project
+        with no ACTIVE service-client assignments.
       operationId: "PutServiceClientAssignment"
       parameters:
         - name: projectId
@@ -456,6 +462,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetServiceClientAssignmentResponse"
+        "403":
+          description: "Required scope or project access is missing"
       security:
         - ClientCredentials: ["clients/projects/client_assignment.write"]
       x-amazon-apigateway-request-validator: params-only
@@ -470,7 +478,7 @@ paths:
         contentHandling: "CONVERT_TO_TEXT"
         credentials: "{{apigw_invocation_role_arn}}"
     delete:
-      description: "Revoke a service-client project assignment"
+      description: "Revoke a service-client project assignment; the caller must have an ACTIVE assignment to this project"
       operationId: "RevokeServiceClientAssignment"
       parameters:
         - name: projectId
@@ -490,6 +498,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetServiceClientAssignmentResponse"
+        "403":
+          description: "Required scope or project access is missing"
       security:
         - ClientCredentials: ["clients/projects/client_assignment.write"]
       x-amazon-apigateway-request-validator: params-only

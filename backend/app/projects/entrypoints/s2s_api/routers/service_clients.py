@@ -12,6 +12,7 @@ from app.projects.domain.commands.service_clients import (
 from app.projects.domain.value_objects import project_id_value_object
 from app.projects.entrypoints.s2s_api import bootstrapper
 from app.projects.entrypoints.s2s_api.model import api_model
+from app.projects.entrypoints.s2s_api.routers import access
 
 tracer = Tracer()
 
@@ -36,6 +37,7 @@ def init(dependencies: bootstrapper.Dependencies) -> Router:
     @tracer.capture_method
     @router.put("/projects/<project_id>/clients/<client_id>")
     def put_service_client_assignment(project_id: str, client_id: str):
+        access.require_bootstrap_or_project_access(router, dependencies.projects_query_service, project_id)
         granted_by = router.context["user_principal"].user_name
         dependencies.command_bus.handle(
             put_service_client_assignment_command.PutServiceClientAssignmentCommand(
@@ -49,6 +51,12 @@ def init(dependencies: bootstrapper.Dependencies) -> Router:
     @tracer.capture_method
     @router.get("/projects/<project_id>/clients/<client_id>")
     def get_service_client_assignment(project_id: str, client_id: str):
+        access.require_project_access(
+            router,
+            dependencies.projects_query_service,
+            project_id,
+            "clients/projects/client_assignment.read",
+        )
         assignment = dependencies.projects_query_service.get_service_client_assignment(project_id, client_id)
         if assignment is None:
             raise NotFoundError("Service client assignment not found")
@@ -57,6 +65,12 @@ def init(dependencies: bootstrapper.Dependencies) -> Router:
     @tracer.capture_method
     @router.delete("/projects/<project_id>/clients/<client_id>")
     def revoke_service_client_assignment(project_id: str, client_id: str):
+        access.require_project_access(
+            router,
+            dependencies.projects_query_service,
+            project_id,
+            "clients/projects/client_assignment.write",
+        )
         revoked_by = router.context["user_principal"].user_name
         dependencies.command_bus.handle(
             revoke_service_client_assignment_command.RevokeServiceClientAssignmentCommand(

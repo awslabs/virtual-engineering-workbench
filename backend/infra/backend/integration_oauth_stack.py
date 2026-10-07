@@ -62,6 +62,7 @@ class IntegrationOauthStack(aws_cdk.Stack):
                     "assignment.read": "Allows to read user data in the projects",
                     "client_assignment.read": "Allows to read service-client project assignments",
                     "client_assignment.write": "Allows to manage service-client project assignments",
+                    "client_assignment.bootstrap": "Allows platform recovery of orphan projects",
                 },
             ),
         )
@@ -133,6 +134,21 @@ class IntegrationOauthStack(aws_cdk.Stack):
                 ),
             ],
             client_name="sample-s2s",
+        )
+
+        backend_app_api_oauth_client.BackendAppApiOAuthClient(
+            self,
+            "PlatformProjectsBootstrapClient",
+            app_config=app_config,
+            user_pool=user_pool,
+            resource_servers=[
+                backend_app_api_oauth_client.AppClientResourceServer(
+                    resource_server=projects_resource_server,
+                    scopes=["client_assignment.read", "client_assignment.write", "client_assignment.bootstrap"],
+                ),
+            ],
+            client_name="platform-projects-bootstrap",
+            client_construct_id="PlatformProjectsBootstrapOAuthClient",
         )
 
         # backend_app_api_oauth_client.BackendAppApiOAuthClient(

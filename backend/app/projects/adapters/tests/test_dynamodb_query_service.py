@@ -1601,6 +1601,48 @@ def test_get_service_client_assignment_uses_strongly_consistent_read(
     assert get_item.call_args.kwargs["ConsistentRead"] is True
 
 
+def test_list_service_client_assignments_is_project_scoped_and_paginated(
+    mock_dynamodb, backend_app_dynamodb_table, test_table_name, gsi_name, gsi_aws_accounts, gsi_entities
+):
+    expected = []
+    for client_id, project_id, status in [
+        ("client-1", "proj-1", "REVOKED"),
+        ("client-2", "proj-1", "ACTIVE"),
+        ("client-3", "proj-2", "ACTIVE"),
+    ]:
+        assignment = service_client_assignment.ServiceClientAssignment(
+            clientId=client_id,
+            projectId=project_id,
+            status=status,
+            grantedBy="bootstrap-client",
+            createDate="2026-09-16T10:00:00+00:00",
+            lastUpdateDate="2026-09-16T10:00:00+00:00",
+        )
+        backend_app_dynamodb_table.put_item(
+            Item={"PK": f"CLIENT#{client_id}", "SK": f"PROJECT#{project_id}", **assignment.model_dump()}
+        )
+        if project_id == "proj-1":
+            expected.append(assignment)
+    backend_app_dynamodb_table.put_item(Item={"PK": "USER#user-1", "SK": "PROJECT#proj-1"})
+    query_service = dynamodb_query_service.DynamoDBProjectsQueryService(
+        table_name=test_table_name,
+        dynamodb_client=mock_dynamodb.meta.client,
+        gsi_inverted_primary_key=gsi_name,
+        gsi_aws_accounts=gsi_aws_accounts,
+        gsi_entities=gsi_entities,
+    )
+    query = mock_dynamodb.meta.client.query
+    with mock.patch.object(
+        mock_dynamodb.meta.client, "query", side_effect=lambda **params: query(**params, Limit=1)
+    ) as paged_query:
+        actual = query_service.list_service_client_assignments("proj-1")
+
+    assert actual == expected
+    assert paged_query.call_count > 1
+    assert "ExclusiveStartKey" in paged_query.call_args.kwargs
+    assert query_service.list_service_client_assignments("missing") == []
+
+
 def test_service_client_assignment_repository_uses_client_and_project_keys(
     mock_ddb_repo,
     backend_app_dynamodb_table,

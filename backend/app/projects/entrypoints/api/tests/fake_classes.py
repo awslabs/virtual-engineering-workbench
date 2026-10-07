@@ -27,6 +27,11 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
     ) -> service_client_assignment.ServiceClientAssignment | None:
         return None
 
+    def list_service_client_assignments(
+        self, project_id: str
+    ) -> list[service_client_assignment.ServiceClientAssignment]:
+        return []
+
     def list_projects_by_user(
         self, user_id: str, page_size: int, next_token: Any
     ) -> Tuple[List[project.Project], Any, List[project_assignment.Assignment]]:

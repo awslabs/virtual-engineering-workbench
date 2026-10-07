@@ -6,6 +6,7 @@ from unittest import mock
 from unittest.mock import create_autospec, patch
 
 import assertpy
+import pytest
 
 from app.projects.domain.command_handlers.enrolments import (
     approve_enrolments_command_handler,
@@ -268,12 +269,26 @@ def test_offboard_multiple_users_should_remove_assignments(mock_command_handler,
     mock_command_handler.assert_called_once()
 
 
-def service_client_dependencies(assignment=None):
+def service_client_dependencies(assignment=None, caller_status="ACTIVE"):
     projects_query_service_mock = mock.create_autospec(
         projects_query_service.ProjectsQueryService,
         instance=True,
     )
-    projects_query_service_mock.get_service_client_assignment.return_value = assignment
+    caller = (
+        service_client_assignment.ServiceClientAssignment(
+            clientId="fake_client_id",
+            projectId="proj-1",
+            status=caller_status,
+            grantedBy="admin-client",
+            createDate="2026-09-16T10:00:00+00:00",
+            lastUpdateDate="2026-09-16T10:00:00+00:00",
+        )
+        if caller_status is not None
+        else None
+    )
+    projects_query_service_mock.get_service_client_assignment.side_effect = lambda project_id, client_id: (
+        (caller if client_id == "fake_client_id" else assignment) if project_id == "proj-1" else None
+    )
     command_bus_mock = mock.create_autospec(command_bus.CommandBus, instance=True)
     dependencies = bootstrapper.Dependencies(
         technologies_query_service=fake_classes.FakeTechnologiesQueryService(),
@@ -342,7 +357,9 @@ def test_get_service_client_assignment_returns_404_when_missing(lambda_context, 
         )
 
     assert response["statusCode"] == 404
-    dependencies.projects_query_service.get_service_client_assignment.assert_called_once_with("proj-1", "missing")
+    dependencies.projects_query_service.get_service_client_assignment.assert_has_calls(
+        [mock.call("proj-1", "fake_client_id"), mock.call("proj-1", "missing")]
+    )
 
 
 def test_delete_service_client_assignment_dispatches_command(lambda_context, authenticated_event):
@@ -362,3 +379,95 @@ def test_delete_service_client_assignment_dispatches_command(lambda_context, aut
     assert dispatched.project_id.value == "proj-1"
     assert dispatched.client_id == "client-1"
     assert dispatched.revoked_by == "fake_client_id"
+
+
+@pytest.mark.parametrize("caller_status", [None, "REVOKED"])
+@pytest.mark.parametrize(
+    ("method", "target_client"),
+    [("PUT", "fake_client_id"), ("PUT", "client-1"), ("GET", "client-1"), ("DELETE", "client-1")],
+)
+def test_service_client_routes_deny_unassigned_or_revoked_caller(
+    lambda_context, authenticated_event, caller_status, method, target_client
+):
+    dependencies, command_bus_mock = service_client_dependencies(caller_status=caller_status)
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(
+            authenticated_event(None, f"/projects/proj-1/clients/{target_client}", method), lambda_context
+        )
+
+    assert response["statusCode"] == 403
+    command_bus_mock.handle.assert_not_called()
+
+
+@pytest.mark.parametrize("method", ["PUT", "GET", "DELETE"])
+def test_service_client_routes_deny_caller_assigned_to_different_project(lambda_context, authenticated_event, method):
+    dependencies, command_bus_mock = service_client_dependencies()
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(
+            authenticated_event(None, "/projects/other-project/clients/fake_client_id", method), lambda_context
+        )
+
+    assert response["statusCode"] == 403
+    command_bus_mock.handle.assert_not_called()
+
+
+@pytest.mark.parametrize("method", ["PUT", "GET", "DELETE"])
+def test_service_client_routes_require_scope_even_for_assigned_caller(lambda_context, authenticated_event, method):
+    dependencies, command_bus_mock = service_client_dependencies()
+    event = authenticated_event(None, "/projects/proj-1/clients/client-1", method)
+    event["requestContext"]["authorizer"]["claims"]["scope"] = ""
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(event, lambda_context)
+
+    assert response["statusCode"] == 403
+    command_bus_mock.handle.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("project_exists", "active_client_exists", "expected_status"),
+    [
+        (True, False, 200),
+        (True, True, 403),
+        (False, False, 403),
+    ],
+)
+def test_service_client_bootstrap_only_assigns_existing_orphan_project(
+    lambda_context, authenticated_event, project_exists, active_client_exists, expected_status
+):
+    dependencies, command_bus_mock = service_client_dependencies(caller_status=None)
+    query = dependencies.projects_query_service
+    query.get_project_by_id.return_value = object() if project_exists else None
+    query.list_service_client_assignments.return_value = [
+        service_client_assignment.ServiceClientAssignment(
+            clientId="existing-client",
+            projectId="proj-1",
+            status="ACTIVE" if active_client_exists else "REVOKED",
+            grantedBy="admin-client",
+            createDate="2026-09-16T10:00:00+00:00",
+            lastUpdateDate="2026-09-16T10:00:00+00:00",
+        )
+    ]
+    event = authenticated_event(None, "/projects/proj-1/clients/management-client", "PUT")
+    event["requestContext"]["authorizer"]["claims"][
+        "scope"
+    ] = "clients/projects/client_assignment.write clients/projects/client_assignment.bootstrap"
+    with patch("app.projects.entrypoints.s2s_api.bootstrapper.bootstrap", return_value=dependencies):
+        from app.projects.entrypoints.s2s_api import handler
+
+        importlib.reload(handler)
+        response = handler.handler(event, lambda_context)
+
+    assert response["statusCode"] == expected_status
+    if expected_status == 200:
+        assert command_bus_mock.handle.call_args.args[0].client_id == "management-client"
+    else:
+        command_bus_mock.handle.assert_not_called()

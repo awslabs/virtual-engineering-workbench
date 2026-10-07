@@ -7,6 +7,11 @@ from app.shared.adapters.boto import paging_utils
 
 class ProjectsQueryService(ABC):
     @abstractmethod
+    def list_service_client_assignments(
+        self, project_id: str
+    ) -> list[service_client_assignment.ServiceClientAssignment]: ...
+
+    @abstractmethod
     def get_service_client_assignment(
         self, project_id: str, client_id: str
     ) -> service_client_assignment.ServiceClientAssignment | None: ...

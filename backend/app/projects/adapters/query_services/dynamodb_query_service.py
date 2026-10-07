@@ -52,6 +52,27 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
         self._gsi_entities = gsi_entities
         self._default_page_size = default_page_size
 
+    def list_service_client_assignments(
+        self, project_id: str
+    ) -> list[service_client_assignment.ServiceClientAssignment]:
+        assignments = []
+        params: dict[str, Any] = {
+            "TableName": self._table_name,
+            "IndexName": self._gsi_inverted_primary_key,
+            "KeyConditionExpression": Key("SK").eq(f"{dynamo_entity_config.DBPrefix.PROJECT}#{project_id}")
+            & Key("PK").begins_with(f"{dynamo_entity_config.DBPrefix.CLIENT}#"),
+        }
+        while True:
+            result = self._dynamodb_client.query(**params)
+            assignments.extend(
+                service_client_assignment.ServiceClientAssignment.model_validate(item)
+                for item in result.get("Items", [])
+            )
+            if not result.get("LastEvaluatedKey"):
+                break
+            params["ExclusiveStartKey"] = result["LastEvaluatedKey"]
+        return assignments
+
     def get_service_client_assignment(
         self, project_id: str, client_id: str
     ) -> service_client_assignment.ServiceClientAssignment | None:
