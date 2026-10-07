@@ -9,6 +9,9 @@ export interface WafInfrastructureProps {
   appEnvironment: string,
   formatResourceName: (rn: string) => string,
   provisionApiAcl: boolean,
+  // Set when the deployment region is not us-east-1: a CLOUDFRONT-scoped ACL
+  // cannot be created here, so WafCloudFrontStack creates it and passes the ARN.
+  cloudfrontAclArn?: string,
 }
 
 export class WafInfrastructure extends Construct {
@@ -19,7 +22,7 @@ export class WafInfrastructure extends Construct {
   constructor(scope: Construct, id: string, props: WafInfrastructureProps) {
     super(scope, id);
 
-    this.cloudfrontAclArn = this._createCloudfrontAcl(props);
+    this.cloudfrontAclArn = props.cloudfrontAclArn ?? this._createCloudfrontAcl(props);
     this.cognitoAclArn = this._createCognitoAcl(props);
 
     if (props.provisionApiAcl) {

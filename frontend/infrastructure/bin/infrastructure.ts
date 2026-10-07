@@ -9,6 +9,7 @@ import { AppConfig } from '../lib/app-config';
 import { PrivateAccessDeploymentStack } from '../lib/private-access-deployment-stack';
 import { PublicAccessDeploymentParamsStack } from '../lib/public-access-deployment-stack-params';
 import { WafRegionalStack } from '../lib/waf-regional-stack';
+import { WafCloudFrontStack } from '../lib/waf-cloudfront-stack';
 
 const app = new App();
 const appName = app.node.tryGetContext('app-name');
@@ -73,6 +74,23 @@ if (config.privateDeployment) {
 if (!config.privateDeployment) {
   const isBackendInSameRegion = beRegion === undefined || beRegion === 'us-east-1';
 
+  // A CLOUDFRONT-scoped web ACL exists only in us-east-1. Deploying there keeps
+  // it in the main stack, as before; anywhere else it needs its own.
+  const cloudfrontAclInOwnStack = region !== 'us-east-1';
+  const wafCloudFrontStack = cloudfrontAclInOwnStack
+    ? new WafCloudFrontStack(app, 'WafCloudFrontStack', {
+      stackName: getStackName(`${appName}-waf-cloudfront`, appEnvironment),
+      appName,
+      appEnvironment,
+      formatResourceName: (resourceName: string) => getResourceName(appName, resourceName, appEnvironment),
+      env: {
+        region: 'us-east-1',
+        account,
+      },
+      crossRegionReferences: true,
+    })
+    : undefined;
+
   const infraStack = new PublicAccessDeploymentStack(app, 'InfrastructureStack', {
     stackName: getStackName(appName, appEnvironment),
     appName,
@@ -84,10 +102,16 @@ if (!config.privateDeployment) {
     },
     formatResourceName: (resourceName: string) => getResourceName(appName, resourceName, appEnvironment),
     appConfig: config,
+    crossRegionReferences: cloudfrontAclInOwnStack,
     wafProps: {
       provisionApiAcl: isBackendInSameRegion,
+      cloudfrontAclArn: wafCloudFrontStack?.aclArn,
     },
   });
+
+  if (wafCloudFrontStack) {
+    infraStack.addDependency(wafCloudFrontStack);
+  }
 
   if (!isBackendInSameRegion) {
     const wafRegionalStack = new WafRegionalStack(app, 'WafRegionalStack', {
