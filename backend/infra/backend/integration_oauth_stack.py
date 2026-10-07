@@ -58,6 +58,7 @@ class IntegrationOauthStack(aws_cdk.Stack):
                 identifier="clients/projects",
                 scopes={
                     "program.read": "Allows to read project data",
+                    "program.write": "Allows to create and manage project data",
                     "assignment.write": "Allows to enrol users to programs",
                     "assignment.read": "Allows to read user data in the projects",
                     "client_assignment.read": "Allows to read service-client project assignments",
@@ -143,7 +144,7 @@ class IntegrationOauthStack(aws_cdk.Stack):
             resource_servers=[
                 backend_app_api_oauth_client.AppClientResourceServer(
                     resource_server=projects_resource_server,
-                    scopes=["client_assignment.read", "client_assignment.write"],
+                    scopes=["program.read", "program.write", "client_assignment.read", "client_assignment.write"],
                 ),
             ],
             client_name="projects-assignment-management",

@@ -45,12 +45,16 @@ def test_assignment_management_and_packaging_scopes_are_separate():
     assert len(clients) == 3
     management_scopes = next(scopes for name, scopes in clients.items() if "projects-assignment-management" in name)
     assert management_scopes == [
+        {"Fn::Join": ["", [{"Ref": projects_server_id}, "/program.read"]]},
+        {"Fn::Join": ["", [{"Ref": projects_server_id}, "/program.write"]]},
         {"Fn::Join": ["", [{"Ref": projects_server_id}, "/client_assignment.read"]]},
         {"Fn::Join": ["", [{"Ref": projects_server_id}, "/client_assignment.write"]]},
     ]
     sample_scopes = next(scopes for name, scopes in clients.items() if "sample-s2s" in name)
     assert "client_assignment.write" not in json.dumps(sample_scopes)
     assert "/component.write" in json.dumps(sample_scopes)
+    bootstrap_scopes = next(scopes for name, scopes in clients.items() if "platform-projects-bootstrap" in name)
+    assert "/program." not in json.dumps(bootstrap_scopes)
     for scopes in clients.values():
         serialized = json.dumps(scopes)
         assert not ("client_assignment.write" in serialized and packaging_server_id in serialized)
