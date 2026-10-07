@@ -3,7 +3,7 @@ from http import HTTPStatus
 from aws_lambda_powertools import Tracer
 from aws_lambda_powertools.event_handler import api_gateway, content_types
 from aws_lambda_powertools.event_handler.api_gateway import Router
-from aws_lambda_powertools.event_handler.exceptions import NotFoundError
+from aws_lambda_powertools.event_handler.exceptions import ForbiddenError, NotFoundError
 
 from app.projects.domain.commands.service_clients import (
     put_service_client_assignment_command,
@@ -37,8 +37,10 @@ def init(dependencies: bootstrapper.Dependencies) -> Router:
     @tracer.capture_method
     @router.put("/projects/<project_id>/clients/<client_id>")
     def put_service_client_assignment(project_id: str, client_id: str):
-        access.require_bootstrap_or_project_access(router, dependencies.projects_query_service, project_id)
         granted_by = router.context["user_principal"].user_name
+        if client_id == granted_by:
+            raise ForbiddenError("Service clients cannot assign themselves to projects")
+        access.require_bootstrap_or_project_access(router, dependencies.projects_query_service, project_id)
         dependencies.command_bus.handle(
             put_service_client_assignment_command.PutServiceClientAssignmentCommand(
                 project_id=project_id_value_object.from_str(project_id),

@@ -33,9 +33,9 @@ def test_bootstrap_scope_is_isolated_from_sample_and_packaging_clients():
     )
     assert "client_assignment.bootstrap" in {scope["ScopeName"] for scope in projects["Scopes"]}
     clients = template.find_resources("AWS::Cognito::UserPoolClient")
-    assert len(clients) == 2
+    assert len(clients) == 3
     bootstrap = next(client for key, client in clients.items() if "PlatformProjectsBootstrap" in key)
-    sample = next(client for key, client in clients.items() if "PlatformProjectsBootstrap" not in key)
+    sample = next(client for key, client in clients.items() if "sample-s2s" in client["Properties"]["ClientName"])
     bootstrap_scopes = json.dumps(bootstrap["Properties"]["AllowedOAuthScopes"])
     sample_scopes = json.dumps(sample["Properties"]["AllowedOAuthScopes"])
     assert "client_assignment.bootstrap" not in sample_scopes

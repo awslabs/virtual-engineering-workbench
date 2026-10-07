@@ -50,11 +50,20 @@ Poll each resource's GET endpoint for lifecycle status.
 
 ## Assign the client to a project
 
-Use a management client with `clients/projects/client_assignment.write` and an
-existing `ACTIVE` assignment to the target project to create or reactivate an
-assignment. The `clientId` path value is the client ID contained in the Packaging
-access token. The caller's assignment is checked using its token's client ID;
-the write scope alone cannot grant access to an unrelated project.
+Use the dedicated `projects-assignment-management` OAuth client with
+`clients/projects/client_assignment.write` and an existing `ACTIVE` assignment to
+the target project to create or reactivate assignments. This client has
+assignment read/write scopes and no Packaging scopes. The `sample-s2s` client
+retains its Packaging scopes and no longer has assignment-write access.
+
+A client must never hold both `clients/projects/client_assignment.write` and
+any `clients/packaging/*` scopes. Use separate credentials for assignment
+management and Packaging operations, including for custom clients.
+
+The `clientId` path value is the client ID contained in the Packaging access
+token. It must differ from the calling management client's token `client_id`.
+Self-assignment PUT requests return HTTP `403`, even when the caller already
+has an active assignment or holds the bootstrap scope.
 
 ```bash
 curl --fail-with-body --request PUT \
@@ -68,15 +77,15 @@ Reading and revoking assignments also require an `ACTIVE` caller assignment to
 the target project, plus `client_assignment.read` or `client_assignment.write`,
 respectively.
 
-For initial setup or recovery, the separate `platform-projects-bootstrap` OAuth
-client has `clients/projects/client_assignment.write` and
-`clients/projects/client_assignment.bootstrap`, with no Packaging scopes.
-Its PUT requests can assign a management client to an existing project only
-when the project has no `ACTIVE` service-client assignments. Obtain a bootstrap
-token requesting both scopes, and use it in place of
-`$MANAGEMENT_ACCESS_TOKEN` in the PUT example, targeting the management client's
-ID. Projects that already have an active service client must use the normal
-project-assigned management flow. The `sample-s2s` client has no bootstrap scope.
+For initial setup or orphan-project recovery, obtain a token from the separate
+`platform-projects-bootstrap` client requesting both
+`clients/projects/client_assignment.write` and
+`clients/projects/client_assignment.bootstrap`. Use that token to assign the
+management client's ID to an existing project with no active service-client
+assignments. Then use the management client's token to assign the Packaging
+client. The bootstrap client cannot assign itself, and it has no Packaging
+scopes. Projects with active service clients require an already assigned
+management client to grant access.
 
 ## Component POC
 
