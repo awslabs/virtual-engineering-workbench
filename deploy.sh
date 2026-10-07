@@ -313,6 +313,30 @@ if [ "$PRIVATE_DEPLOYMENT" != "true" ] && [ "$AWS_REGION" != "us-east-1" ] && [ 
   prompt CERT_ARN_US_EAST_1 "TLS Certificate ARN in us-east-1 (for Cognito)" ""
 fi
 
+# ---------------------------------------------------------------------------
+# Which region each part of the deployment lives in
+# ---------------------------------------------------------------------------
+# A public deployment puts the frontend in us-east-1 and names the backend's
+# region with be-region, which is the split the CDK apps are built for:
+# CloudFront, Lambda@Edge and a CLOUDFRONT-scoped web ACL exist only there, and
+# the apps create their own regional stacks for whatever the backend needs.
+# A private deployment has no CloudFront and stays in one region.
+FE_REGION="$AWS_REGION"
+FE_CERT_ARN="$CERT_ARN"
+if [ "$PRIVATE_DEPLOYMENT" != "true" ] && [ "$AWS_REGION" != "us-east-1" ]; then
+  FE_REGION="us-east-1"
+  # CloudFront and the Cognito hosted UI read their certificate from the
+  # frontend's own region; CERT_ARN stays with the backend's API domain.
+  FE_CERT_ARN="$CERT_ARN_US_EAST_1"
+  [ -n "$FE_CERT_ARN" ] || err "A public deployment outside us-east-1 needs CERT_ARN_US_EAST_1: CloudFront and Cognito read their certificate from us-east-1."
+  log "Frontend deploys to $FE_REGION; backend stays in $AWS_REGION"
+fi
+
+# The user pool is created by the frontend stack, so it lives wherever that is.
+# If the pool is ever split into a stack of its own, this is the only line that
+# changes. The backend reads it to reach the pool and to build the JWKS URI.
+COGNITO_REGION="$FE_REGION"
+
 echo ""
 log "Spoke account (optional):"
 prompt SPOKE_ACCOUNT_ID   "Spoke Account ID (empty to skip)"   ""
@@ -447,8 +471,8 @@ sed -i.bak \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
   -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
   -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
-  -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${AWS_REGION}\"/" \
-  -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${AWS_REGION}/g" \
+  -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${COGNITO_REGION}\"/" \
+  -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${COGNITO_REGION}/g" \
   "$BACKEND_CONFIG"
 rm -f "${BACKEND_CONFIG}.bak"
 patch_workbench_regions_config "$BACKEND_CONFIG" "$ENABLED_WORKBENCH_REGIONS"
@@ -708,14 +732,18 @@ run_cmd yarn --cwd "$FRONTEND_DIR" install --frozen-lockfile
 FE_CDK_CONTEXT=(
   -c "environment=$ENVIRONMENT"
   -c "account=$AWS_ACCOUNT_ID"
-  -c "region=$AWS_REGION"
+  -c "region=$FE_REGION"
   -c "app-name=$APP_NAME"
   -c "deployment-qualifier=$DEPLOYMENT_QUALIFIER"
   -c "resource-tags=$RESOURCE_TAGS"
 )
 
-if [ -n "$CERT_ARN" ]; then
-  FE_CDK_CONTEXT+=(-c "cert-arn=$CERT_ARN")
+if [ "$FE_REGION" != "$AWS_REGION" ]; then
+  FE_CDK_CONTEXT+=(-c "be-region=$AWS_REGION")
+fi
+
+if [ -n "$FE_CERT_ARN" ]; then
+  FE_CDK_CONTEXT+=(-c "cert-arn=$FE_CERT_ARN")
 fi
 if [ -n "$CUSTOM_DOMAIN" ]; then
   FE_CDK_CONTEXT+=(-c "use-custom-domain=$CUSTOM_DOMAIN")
@@ -766,10 +794,12 @@ if [ -n "${CI_COMMIT_SHA:-}" ]; then
 fi
 
 FE_STACK_NAME="${APP_NAME}-${ENVIRONMENT}"
+# The frontend stack follows FE_REGION, which is us-east-1 for a public
+# deployment outside it.
 FE_OUTPUTS=$(aws cloudformation describe-stacks \
   --stack-name "$FE_STACK_NAME" \
   --query 'Stacks[0].Outputs' \
-  --output json --region "$AWS_REGION" 2>/dev/null || echo "[]")
+  --output json --region "$FE_REGION" 2>/dev/null || echo "[]")
 
 CORS_ORIGIN=$(echo "$FE_OUTPUTS" | jq -r '.[] | select(.OutputKey=="cdncustomfqdnoutput") | .OutputValue // empty')
 if [ -z "$CORS_ORIGIN" ] || [ "$CORS_ORIGIN" = "not available" ]; then
@@ -843,7 +873,7 @@ fi
 
 if [ -n "$S3_BUCKET" ] && [ "$S3_BUCKET" != "null" ]; then
   log "Uploading web app to s3://$S3_BUCKET"
-  run_cmd aws s3 sync "$WEB_DIR/dist" "s3://$S3_BUCKET" --delete --region "$AWS_REGION"
+  run_cmd aws s3 sync "$WEB_DIR/dist" "s3://$S3_BUCKET" --delete --region "$FE_REGION"
 
   if [ -n "$CF_DIST_ID" ] && [ "$CF_DIST_ID" != "null" ]; then
     log "Invalidating CloudFront distribution $CF_DIST_ID"
