@@ -319,7 +319,7 @@ prompt SPOKE_ACCOUNT_ID   "Spoke Account ID (empty to skip)"   ""
 if [ -n "$SPOKE_ACCOUNT_ID" ]; then
   prompt SPOKE_VPC_ID        "Spoke VPC ID (empty to create a new VPC)"  ""
   if [ -z "$SPOKE_VPC_ID" ]; then
-    warn "No Spoke VPC ID provided — a new VPC will be created in the spoke account during bootstrap."
+    warn "No Spoke VPC ID provided — a new VPC will be created in the spoke account during bootstrap. Set it where networking is provisioned centrally: such an organisation may also deny ec2:CreateVpc, which fails the bootstrap with an authorization error rather than a missing VPC."
   fi
   prompt AWS_PROFILE_SPOKE   "AWS CLI profile for spoke account"  ""
   [[ -n "$AWS_PROFILE_SPOKE" ]] || warn "AWS profile for spoke not specified. Will fallback to using AWS_SPOKE_ACCESS_KEY_ID, AWS_SPOKE_SECRET_ACCESS_KEY and AWS_SPOKE_SESSION_TOKEN environment variables."
