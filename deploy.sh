@@ -581,7 +581,11 @@ put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/dns-records" '{"records"
 put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-backend-${ENVIRONMENT}/image-service-account-id" "$AWS_ACCOUNT_ID"
 
 # Ensure Image Builder service-linked role exists (required by packaging stacks)
-aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
+if [ "$DIFF_MODE" = "true" ]; then
+  log "Skipping the Image Builder service-linked role (--diff)"
+else
+  aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
+fi
 
 # --- VPC ---
 EXISTING_VPC=$(aws ec2 describe-vpcs \
@@ -594,6 +598,13 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   # explicitly configured name that misses is an operator error either way.
   if [ -n "$HUB_VPC_NAME" ]; then
     err "HUB_VPC_NAME is set to '$HUB_VPC_NAME' but no such VPC resolved in $AWS_REGION. Check the name, the region, and DescribeVpcs permission. Refusing to create a VPC."
+  fi
+  # --diff only diffs the VPC stack, so the VPC is never created. The backend
+  # stacks resolve it with Vpc.from_lookup while synthesizing, which would then
+  # fail inside CDK with "Could not find any VPCs matching". Refuse here
+  # instead, where the reason can be given.
+  if [ "$DIFF_MODE" = "true" ]; then
+    err "--diff needs a VPC named '$VPC_NAME' in $AWS_REGION: the backend stacks look it up while synthesizing, and a preview does not create one. Deploy once before previewing, or set HUB_VPC_NAME to an existing VPC."
   fi
   warn "VPC '$VPC_NAME' not found in $AWS_REGION"
   warn "A development VPC will be created. This is intended for dev/testing only — not for production use."
@@ -627,7 +638,12 @@ else
 fi
 
 # --- Self-signed TLS certificate (private deployment, no CERT_ARN provided) ---
-if [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+# A preview must not mint and import a certificate. Without one the
+# frontend stack is diffed as it would be with CERT_ARN unset, which is
+# the honest comparison for a deployment that has none yet.
+if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+  warn "Skipping the self-signed certificate import (--diff); the frontend diff assumes no CERT_ARN"
+elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
   command -v openssl >/dev/null || err "openssl is required to generate a self-signed certificate (no CERT_ARN provided)."
   log "Generating self-signed certificate for $CUSTOM_DOMAIN, $API_CUSTOM_DOMAIN"
 
@@ -685,7 +701,10 @@ step 5 "Configuring identity federation"
 
 OIDC_SECRET_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 
-if [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUER_URL" ]; then
+# put-secret-value overwrites a live secret, so a preview never writes it.
+if [ "$DIFF_MODE" = "true" ] && [ -n "$OIDC_CLIENT_ID" ]; then
+  warn "Skipping the OIDC secret write (--diff); it would overwrite the live secret"
+elif [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUER_URL" ]; then
   log "Creating OIDC secret: $OIDC_SECRET_NAME"
   OIDC_JSON=$(jq -n \
     --arg cid "$OIDC_CLIENT_ID" \
@@ -828,9 +847,11 @@ if [ "$DIFF_MODE" = "true" ]; then
   echo ""
   log "=== DIFF COMPLETE ==="
   log "The stack changes above are what a deploy would apply. Nothing was deployed."
-  warn "Preview covers the CDK stacks only. The phases before them still ran:"
-  warn "bootstrap, SSM parameters and the VPC stack, which are no-ops only on an"
-  warn "account that is already deployed."
+  warn "Two writes still happen, because the diff itself needs them: the CDK"
+  warn "bootstrap stack, and the SSM parameters the stacks read while"
+  warn "synthesizing. Both are no-ops on an account already deployed."
+  warn "Everything else is skipped: the service-linked role, the self-signed"
+  warn "certificate import, and the OIDC secret."
   log "Run without --diff to apply."
   exit 0
 fi
