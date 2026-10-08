@@ -208,13 +208,12 @@ if [ "$DESTROY_MODE" = "true" ]; then
   fi
   source "$CONFIG_FILE"
   PREFIX="${ORG_PREFIX}-${APP_PREFIX}"
-  warn "This will delete ALL VEW stacks and orphaned resources with prefix '$PREFIX' in $AWS_REGION"
-  if [ "$AUTO_CONFIRM" = "true" ]; then
-    CONFIRM="destroy"
-  else
-    read -r -p "$(echo -e "${YELLOW}Type 'destroy' to confirm: ${NC}")" CONFIRM
-  fi
-  [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
+  # Stacks end in the environment (<prefix>-<name>-<env>); buckets and some log
+  # groups carry it mid-name. Without this, destroying dev in an account that
+  # also holds qa would match qa's resources, which only matters now that the
+  # destroy does anything.
+  ENV_SUFFIX="-${ENVIRONMENT}"
+  ENV_INFIX="-${ENVIRONMENT}-"
 
   activate_hub_credentials
   log "Target account: $(aws sts get-caller-identity --query Account --output text)"
@@ -222,7 +221,8 @@ if [ "$DESTROY_MODE" = "true" ]; then
   # -- CloudFormation stacks -------------------------------------------------
   STACKS=$(aws cloudformation list-stacks \
     --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
-    --query "StackSummaries[?starts_with(StackName, '${PREFIX}')].StackName" \
+    --query "StackSummaries[?starts_with(StackName, '${PREFIX}') \
+      && ends_with(StackName, '${ENV_SUFFIX}')].StackName" \
     --output text --region "$AWS_REGION" | tr '\t' ' ')
 
   # The CDK app names some stacks without the configured prefix, so the filter
@@ -245,7 +245,20 @@ if [ "$DESTROY_MODE" = "true" ]; then
   REMAINING="$DEPENDENTS $STACKS"
   STACK_TOTAL=$(echo "$REMAINING" | wc -w | tr -d ' ')
   DELETED=0
-  log "Found $STACK_TOTAL stack(s) to delete"
+  FAILED=""
+  # Everything to be deleted is resolved first, so the operator sees the whole
+  # list — including stacks found through their exports rather than their name
+  # — before being asked to approve it.
+  warn "This will delete $STACK_TOTAL stack(s) in $AWS_REGION, and any orphaned"
+  warn "log groups, ECR repositories and S3 buckets left behind by them:"
+  for stack in $REMAINING; do echo "    $stack"; done
+  warn "Matching '${PREFIX}' in environment '${ENVIRONMENT}'."
+  if [ "$AUTO_CONFIRM" = "true" ]; then
+    CONFIRM="destroy"
+  else
+    read -r -p "$(echo -e "${YELLOW}Type 'destroy' to confirm: ${NC}")" CONFIRM
+  fi
+  [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
 
   # Lambda releases its VPC network interfaces lazily, minutes after the
   # function is gone, so whatever owns the VPC and subnets is deleted last and
@@ -282,7 +295,9 @@ if [ "$DESTROY_MODE" = "true" ]; then
           BLOCKED="$BLOCKED $stack"
           log "Blocked, will retry: $stack"
         else
-          DELETED=$(( DELETED + 1 ))
+          # A stack that would not delete is not deleted. Keeping it here
+          # is what stops the run reporting success over it.
+          FAILED="$FAILED $stack"
         fi
       fi
     done
@@ -301,7 +316,7 @@ if [ "$DESTROY_MODE" = "true" ]; then
       fi
       if [ "$ATTEMPT" -eq 4 ]; then
         warn "$stack still has dependencies after 4 attempts — check for leftover network interfaces"
-        REMAINING="$REMAINING $stack"
+        FAILED="$FAILED $stack"
         break
       fi
       warn "$stack not ready (attempt $ATTEMPT) — waiting 3 min for network interfaces to be released"
@@ -310,9 +325,10 @@ if [ "$DESTROY_MODE" = "true" ]; then
     done
   done
 
-  if [ -n "$(echo $REMAINING)" ]; then
-    warn "Could not delete:$REMAINING"
-    warn "Last reason: ${BLOCK_REASON:-unknown}"
+  LEFT="$(echo $REMAINING $FAILED)"
+  if [ -n "$LEFT" ]; then
+    warn "Could not delete: $LEFT"
+    [ -n "$(echo $REMAINING)" ] && warn "Last reason: ${BLOCK_REASON:-unknown}"
   else
     log "All $STACK_TOTAL stack(s) deleted"
   fi
@@ -320,9 +336,17 @@ if [ "$DESTROY_MODE" = "true" ]; then
   # -- Orphaned resources ----------------------------------------------------
   # Matched on substring, not prefix: CDK nests log groups under /aws/lambda/
   # and /pipes/, so the prefix is not at the start of the name.
+  # CDK nests log groups under /aws/lambda/ and /pipes/, and WAF requires its
+  # own aws-waf-logs- prefix, so the name is matched at one of four known
+  # starts rather than anywhere in the string — a bare substring would also
+  # claim another stack's group that happens to contain this prefix.
   log "Cleaning orphaned CloudWatch log groups..."
   LOG_GROUPS=$(aws logs describe-log-groups --region "$AWS_REGION" \
-    --query "logGroups[?contains(logGroupName, '${PREFIX}')].logGroupName" --output text)
+    --query "logGroups[?starts_with(logGroupName, '${PREFIX}') \
+      || starts_with(logGroupName, '/aws/lambda/${PREFIX}') \
+      || starts_with(logGroupName, '/pipes/${PREFIX}') \
+      || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')] \
+      | [?ends_with(@, '${ENV_SUFFIX}') || contains(@, '${ENV_INFIX}')]" --output text)
   LG_TOTAL=$(echo "$LOG_GROUPS" | wc -w | tr -d ' ')
   LG_IDX=0; LG_OK=0
   for lg in $LOG_GROUPS; do
@@ -340,7 +364,8 @@ if [ "$DESTROY_MODE" = "true" ]; then
 
   log "Cleaning orphaned ECR repositories..."
   REPOS=$(aws ecr describe-repositories --region "$AWS_REGION" \
-    --query "repositories[?starts_with(repositoryName, '${PREFIX}')].repositoryName" \
+    --query "repositories[?starts_with(repositoryName, '${PREFIX}') \
+      && (ends_with(repositoryName, '${ENV_SUFFIX}') || contains(repositoryName, '${ENV_INFIX}'))].repositoryName" \
     --output text 2>/dev/null || echo "")
   REPO_TOTAL=$(echo "$REPOS" | wc -w | tr -d ' ')
   REPO_IDX=0; REPO_OK=0
@@ -358,7 +383,8 @@ if [ "$DESTROY_MODE" = "true" ]; then
   log "Deleted $REPO_OK of $REPO_TOTAL ECR repositor(ies)"
 
   log "Cleaning orphaned S3 buckets..."
-  BUCKETS=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}')].Name" \
+  BUCKETS=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}') \
+      && (ends_with(Name, '${ENV_SUFFIX}') || contains(Name, '${ENV_INFIX}'))].Name" \
     --output text 2>/dev/null || echo "")
   BUCKET_TOTAL=$(echo "$BUCKETS" | wc -w | tr -d ' ')
   BUCKET_IDX=0; BUCKET_OK=0
@@ -376,6 +402,9 @@ if [ "$DESTROY_MODE" = "true" ]; then
   progress_end
   log "Deleted $BUCKET_OK of $BUCKET_TOTAL bucket(s)"
 
+  if [ -n "$(echo ${LEFT:-})" ]; then
+    err "Destruction incomplete — these were not deleted:$(echo " ${LEFT}")"
+  fi
   log "Destruction complete"
   exit 0
 fi
