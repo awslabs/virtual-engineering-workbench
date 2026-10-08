@@ -194,6 +194,7 @@ export const useCreateRecipeVersion = ({
     recipeVersionVolumeSize: string,
     recipeVersionReleaseType?: string,
     recipeVersionIntegrations?: string[],
+    parentImageProductId?: string,
   ) {
     if (projectId && recipeId) {
       setCreateRecipeVersionInProgress(true);
@@ -204,6 +205,7 @@ export const useCreateRecipeVersion = ({
           recipeComponentsVersions,
           recipeVersionVolumeSize,
           recipeVersionIntegrations,
+          parentImageProductId,
         })
         .then(() => {
           showSuccessNotification({

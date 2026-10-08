@@ -84,6 +84,7 @@ from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_description_value_object,
     recipe_version_id_value_object,
     recipe_version_integration_value_object,
+    recipe_version_parent_image_product_id_value_object,
     recipe_version_release_type_value_object,
     recipe_version_status_value_object,
     recipe_version_volume_size_value_object,
@@ -976,6 +977,11 @@ def create_recipe_version(
         recipeVersionIntegrations=recipe_version_integration_value_object.from_str_array(
             request.recipeVersionIntegrations or []
         ),
+        parentImageProductId=(
+            recipe_version_parent_image_product_id_value_object.from_str(request.parentImageProductId)
+            if request.parentImageProductId
+            else None
+        ),
         createdBy=user_id_value_object.from_str(app.context.get("user_principal").user_name),
     )
 
@@ -1129,6 +1135,11 @@ def update_recipe_version(
         ),
         recipeVersionDescription=recipe_version_description_value_object.from_str(request.recipeVersionDescription),
         recipeVersionVolumeSize=recipe_version_volume_size_value_object.from_str(request.recipeVersionVolumeSize),
+        parentImageProductId=(
+            recipe_version_parent_image_product_id_value_object.from_str(request.parentImageProductId)
+            if request.parentImageProductId
+            else None
+        ),
         lastUpdatedBy=user_id_value_object.from_str(app.context.get("user_principal").user_name),
     )
 
@@ -1494,6 +1505,24 @@ def get_pipelines_allowed_build_types(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetPipelinesAllowedBuildTypesResponse(pipelines_allowed_build_types=allowed_build_types),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.get("/projects/<project_id>/marketplace-images", tags=[TAG_RECIPE_VERSIONS])
+def get_marketplace_images(
+    project_id: str,
+) -> api_gateway.Response[api_model.GetMarketplaceImagesResponse]:
+    """Lists the AWS Marketplace images the AMI factory account is subscribed to."""
+
+    images = dependencies.marketplace_image_srv.list_images()
+
+    images_parsed = [api_model.MarketplaceImage.model_validate(image.model_dump()) for image in images]
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetMarketplaceImagesResponse(images=images_parsed),
         content_type=content_types.APPLICATION_JSON,
     )
 
