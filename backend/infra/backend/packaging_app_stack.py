@@ -571,6 +571,11 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             recipe_version_testing_lambda=self._backend_app.app_entries_functions[recipe_version_testing_handler_name],
         )
 
+        # Created one after the other. Both configure CloudWatch logging, and
+        # creating them concurrently fails with "The state machine IAM Role is
+        # not authorized to access the Log Destination".
+        self._recipe_testing_state_machine.node.add_dependency(self._component_testing_state_machine)
+
         # Subscribe to domain events
         self._event_bus.l3_event_bus.subscribe_to_events(
             name="packaging-domain-events-rule",
