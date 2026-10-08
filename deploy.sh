@@ -47,6 +47,33 @@ run_cmd() {
 }
 
 # ---------------------------------------------------------------------------
+# Activate hub account credentials
+# ---------------------------------------------------------------------------
+activate_hub_credentials() {
+  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+    log "Using existing env var credentials (AWS_ACCESS_KEY_ID set)"
+    return
+  fi
+  log "Activating credentials for hub account (profile: $AWS_PROFILE_HUB)"
+  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_HUB" --format env)"
+}
+
+activate_spoke_credentials() {
+  if [ -n "${AWS_SPOKE_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SPOKE_SECRET_ACCESS_KEY:-}" ]; then
+    export AWS_ACCESS_KEY_ID="$AWS_SPOKE_ACCESS_KEY_ID"
+    export AWS_SECRET_ACCESS_KEY="$AWS_SPOKE_SECRET_ACCESS_KEY"
+    export AWS_SESSION_TOKEN="${AWS_SPOKE_SESSION_TOKEN:-}"
+    log "Using existing env var credentials for spoke account"
+    return
+  fi
+  if [ -z "${AWS_PROFILE_SPOKE:-}" ]; then
+    err "No spoke account credentials available. Set AWS_PROFILE_SPOKE or AWS_SPOKE_ACCESS_KEY_ID/AWS_SPOKE_SECRET_ACCESS_KEY environment variables."
+  fi
+  log "Activating credentials for spoke account (profile: $AWS_PROFILE_SPOKE)"
+  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_SPOKE" --format env)"
+}
+
+# ---------------------------------------------------------------------------
 # Parse arguments
 # ---------------------------------------------------------------------------
 DESTROY_MODE=false
@@ -79,7 +106,7 @@ if [ "$DESTROY_MODE" = "true" ]; then
   fi
   [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
 
-  activate_hub_credentials 2>/dev/null || true
+  activate_hub_credentials
 
   log "Deleting CloudFormation stacks..."
   STACKS=$(aws cloudformation list-stacks \
@@ -368,33 +395,6 @@ HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
 RESOURCE_TAGS='${RESOURCE_TAGS}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
-
-# ---------------------------------------------------------------------------
-# Activate hub account credentials
-# ---------------------------------------------------------------------------
-activate_hub_credentials() {
-  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-    log "Using existing env var credentials (AWS_ACCESS_KEY_ID set)"
-    return
-  fi
-  log "Activating credentials for hub account (profile: $AWS_PROFILE_HUB)"
-  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_HUB" --format env)"
-}
-
-activate_spoke_credentials() {
-  if [ -n "${AWS_SPOKE_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SPOKE_SECRET_ACCESS_KEY:-}" ]; then
-    export AWS_ACCESS_KEY_ID="$AWS_SPOKE_ACCESS_KEY_ID"
-    export AWS_SECRET_ACCESS_KEY="$AWS_SPOKE_SECRET_ACCESS_KEY"
-    export AWS_SESSION_TOKEN="${AWS_SPOKE_SESSION_TOKEN:-}"
-    log "Using existing env var credentials for spoke account"
-    return
-  fi
-  if [ -z "${AWS_PROFILE_SPOKE:-}" ]; then
-    err "No spoke account credentials available. Set AWS_PROFILE_SPOKE or AWS_SPOKE_ACCESS_KEY_ID/AWS_SPOKE_SECRET_ACCESS_KEY environment variables."
-  fi
-  log "Activating credentials for spoke account (profile: $AWS_PROFILE_SPOKE)"
-  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_SPOKE" --format env)"
-}
 
 activate_hub_credentials
 
