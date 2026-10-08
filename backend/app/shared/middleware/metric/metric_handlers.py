@@ -16,12 +16,15 @@ def _get_data(args, kwargs):
     user_name = None
     path = None
     if "event" in kwargs:
-        op = kwargs.get("event").get("requestContext", {}).get("operationName", None)
-        user_name = kwargs.get("event").get("requestContext", {}).get("authorizer", {}).get("userName", None)
-        path = kwargs.get("event").get("requestContext", {}).get("path", None)
+        event = kwargs.get("event")
+        op = event.get("requestContext", {}).get("operationName", None)
+        authorizer = event.get("requestContext", {}).get("authorizer", {})
+        user_name = authorizer.get("userName") or authorizer.get("claims", {}).get("client_id")
+        path = event.get("requestContext", {}).get("path", None)
     elif args:
         op = args[0].get("requestContext", {}).get("operationName", None)
-        user_name = args[0].get("requestContext", {}).get("authorizer", {}).get("userName", None)
+        authorizer = args[0].get("requestContext", {}).get("authorizer", {})
+        user_name = authorizer.get("userName") or authorizer.get("claims", {}).get("client_id")
         path = args[0].get("requestContext", {}).get("path", None)
 
     return op, user_name, path

@@ -59,3 +59,9 @@ def test_api_schema_should_have_auth_configured(api_schema):
 
     # ASSERT
     assertpy.assert_that(methods_wo_auth).described_as("Methods without auth detected").is_empty()
+
+
+def test_internal_service_client_assignment_route_uses_sigv4(api_schema):
+    operation = api_schema["paths"]["/internal/projects/{projectId}/clients/{clientId}"]["get"]
+
+    assert operation["security"] == [{"sigv4": []}]

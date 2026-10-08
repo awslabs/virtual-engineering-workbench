@@ -24,6 +24,7 @@ class BackendAppApiOAuthClient(constructs.Construct):
         client_name: str,
         custom_oauth_settings: aws_cognito.OAuthSettings | None = None,
         generate_secret: bool = True,
+        client_construct_id: str = "OAuthClient",
     ) -> None:
         super().__init__(scope, id)
 
@@ -50,7 +51,7 @@ class BackendAppApiOAuthClient(constructs.Construct):
 
         # Add client
         user_pool.add_client(
-            "OAuthClient",
+            client_construct_id,
             auth_flows=aws_cognito.AuthFlow(
                 user_password=False,
                 user_srp=False,

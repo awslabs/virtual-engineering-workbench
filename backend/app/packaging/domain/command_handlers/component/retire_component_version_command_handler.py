@@ -119,7 +119,8 @@ def handle(
         )
     # Component versions in release candidate are not subject to roles filtering
     if (
-        not any([item.value in acceptable_roles_for_released_retirement for item in command.userRoles])
+        not command.serviceAuthorized
+        and not any([item.value in acceptable_roles_for_released_retirement for item in command.userRoles])
         and component_version_parsed.prerelease is None
     ):
         raise DomainException(
@@ -158,3 +159,4 @@ def handle(
             componentVersionDependencies=component_version_entity.componentVersionDependencies,
         )
     )
+    return {"componentVersionId": command.componentVersionId.value}

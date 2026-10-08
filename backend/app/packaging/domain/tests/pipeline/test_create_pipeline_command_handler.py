@@ -81,7 +81,7 @@ def test_create_pipeline_command_handler_should_create_pipeline(
     pipeline_service_mock.get_pipeline_allowed_build_instance_types.return_value = TEST_BUILD_INSTANCE_TYPES
 
     # ACT
-    create_pipeline_command_handler.handle(
+    result = create_pipeline_command_handler.handle(
         command=create_pipeline_command,
         message_bus=message_bus_mock,
         recipe_version_qry_srv=recipe_version_query_service_mock,
@@ -94,6 +94,7 @@ def test_create_pipeline_command_handler_should_create_pipeline(
     generic_repo_mock.add.assert_called_with(pipeline_entity)
     message_bus_mock.publish.assert_called_with(pipeline_creation_started_event)
     uow_mock.commit.assert_called()
+    assert result == {"pipelineId": "pipe-11111111"}
 
 
 def test_create_pipeline_command_should_raise_an_exception_if_recipe_version_is_not_found(
