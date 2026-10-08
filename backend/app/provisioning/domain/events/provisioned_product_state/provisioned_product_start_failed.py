@@ -9,6 +9,7 @@ from app.shared.adapters.message_bus import message_bus
 class StartFailedReason(StrEnum):
     InsufficientInstanceCapacity = "INSUFFICIENT_INSTANCE_CAPACITY"
     InsufficientClusterCapacity = "INSUFFICIENT_CLUSTER_CAPACITY"
+    InstanceStartError = "INSTANCE_START_ERROR"
 
 
 class ProvisionedProductStartFailed(message_bus.Message):

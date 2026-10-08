@@ -8,11 +8,8 @@ from app.provisioning.domain.events.provisioned_product_state import (
     provisioned_product_start_failed,
     provisioned_product_started,
 )
-from app.provisioning.domain.model import product_status, provisioned_product
-from app.provisioning.domain.ports import (
-    container_management_service,
-    instance_management_service,
-)
+from app.provisioning.domain.model import product_status, provisioned_product, workbench_failure
+from app.provisioning.domain.ports import container_management_service, instance_management_service
 from app.shared.adapters.message_bus import message_bus
 
 
@@ -38,6 +35,9 @@ class BaseInstanceHandler(handler.Handler, abc.ABC):
 
         if provisioned_product.status == product_status.ProductStatus.Running:
             provisioned_product.startDate = datetime.now(timezone.utc).isoformat()
+            # a successful start clears the last failure.
+            provisioned_product.statusReason = None
+            provisioned_product.failedOperation = None
 
             return provisioned_product_started.ProvisionedProductStarted(
                 provisionedProductId=provisioned_product.provisionedProductId
@@ -49,6 +49,7 @@ class BaseInstanceHandler(handler.Handler, abc.ABC):
                 "realStatus": provisioned_product.status,
             }
         )
+        self._record_start_failure(provisioned_product)
         return provisioned_product_start_failed.ProvisionedProductStartFailed(
             projectId=provisioned_product.projectId,
             provisionedProductId=provisioned_product.provisionedProductId,
@@ -56,6 +57,12 @@ class BaseInstanceHandler(handler.Handler, abc.ABC):
             productType=provisioned_product.provisionedProductType,
             owner=provisioned_product.userId,
         )
+
+    def _record_start_failure(self, provisioned_product: provisioned_product.ProvisionedProduct) -> None:
+        """why the started workbench didn't come up, when its runtime can tell. Only a workbench that
+        ended up stopped (or broken) has failed; one still on its way up hasn't."""
+        if provisioned_product.status in workbench_failure.START_FAILURE_STATUSES:
+            provisioned_product.failedOperation = workbench_failure.FailedOperation.Start.value
 
     @abc.abstractmethod
     def _get_active_product_statuses(self) -> set[product_status.ProductStatus]: ...
@@ -114,3 +121,21 @@ class InstanceHandler(BaseInstanceHandler):
         provisioned_product.status = provisioning_helpers.map_provisioned_product_instance_type_status(inst_details)
         provisioned_product.privateIp = inst_details.private_ip_address
         provisioned_product.publicIp = inst_details.public_ip_address
+
+    def _record_start_failure(self, provisioned_product: provisioned_product.ProvisionedProduct) -> None:
+        super()._record_start_failure(provisioned_product)
+        if provisioned_product.failedOperation != workbench_failure.FailedOperation.Start:
+            return
+        # EC2's state reason, e.g. "Server.InsufficientInstanceCapacity: Insufficient capacity."; best effort,
+        # the failure itself is already decided.
+        try:
+            reason = self.__instance_mgmt_srv.get_instance_state_reason(
+                user_id=provisioned_product.createdBy,
+                aws_account_id=provisioned_product.awsAccountId,
+                instance_id=provisioned_product.instanceId,
+                region=provisioned_product.region,
+            )
+        except Exception:
+            reason = None
+        if isinstance(reason, str) and reason:
+            provisioned_product.statusReason = reason

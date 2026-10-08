@@ -425,6 +425,19 @@ class InternalGetProvisioningSubnetsResponse(BaseModel):
     subnets: Optional[List[ProvisioningSubnet]] = Field(None, title="Subnets")
 
 
+class WorkbenchFailure(BaseModel):
+    """Why a workbench failed to launch, start, update or be removed, as a stable code the portal explains."""
+
+    code: str = Field(
+        ...,
+        description="CAPACITY, QUOTA, UNSUPPORTED_IN_AZ, PERMISSIONS, TEMPLATE or UNKNOWN.",
+        title="Code",
+    )
+    operation: Optional[str] = Field(None, description="LAUNCH, START, UPDATE or REMOVE.", title="Operation")
+    instanceType: Optional[str] = Field(None, description="The workbench's instance type.", title="InstanceType")
+    gpu: Optional[bool] = Field(None, description="The instance type has a GPU.", title="Gpu")
+
+
 class ProvisionedProduct(BaseModel):
     projectId: str = Field(..., description="Project Id.", title="ProjectId")
     provisionedProductId: str = Field(..., description="Provisioned Product Id.", title="ProvisionedProductId")
@@ -435,6 +448,9 @@ class ProvisionedProduct(BaseModel):
     userId: str = Field(..., description="User Id.", title="UserId")
     status: str = Field(..., description="Status.", title="Status")
     statusReason: Optional[str] = Field(None, description="Status reason.", title="StatusReason")
+    failure: Optional[WorkbenchFailure] = Field(
+        None, description="Why the workbench failed, when it has.", title="Failure"
+    )
     productId: str = Field(..., description="Product Id.", title="ProductId")
     productName: str = Field(..., description="Product name.", title="ProductName")
     productDescription: Optional[str] = Field(None, description="Product description.", title="ProductDescription")

@@ -39,3 +39,4 @@ export * from './RemoveProvisionedProductsRequest';
 export * from './StopProvisionedProductsRequest';
 export * from './UpdateProvisionedProductRequest';
 export * from './UpdateUserProfileRequest';
+export * from './WorkbenchFailure';

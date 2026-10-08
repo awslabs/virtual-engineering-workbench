@@ -71,6 +71,28 @@ class ServiceCatalogProductsService(products_service.ProductsService):
         )
         return has_capacity_error and instance_type in status_reason
 
+    def get_provisioned_product_failure_reason(
+        self,
+        provisioned_product_id: str,
+        user_id: str,
+        aws_account_id: str,
+        region: str,
+    ) -> str | None:
+        """the first failed resource's reason in the product's stack (events are newest first), skipping
+        the follow-ups CloudFormation adds once something has failed."""
+        stack_events = self.__get_stack_events(
+            provisioned_product_id=provisioned_product_id,
+            user_id=user_id,
+            aws_account_id=aws_account_id,
+            region=region,
+        )
+        for stack_event in reversed(stack_events or []):
+            status = stack_event.get("ResourceStatus") or ""
+            reason = stack_event.get("ResourceStatusReason")
+            if status.endswith("_FAILED") and reason and not _is_follow_up_reason(reason):
+                return reason
+        return None
+
     def has_provisioned_product_missing_removal_signal_error(
         self,
         provisioned_product_id: str,
@@ -399,3 +421,15 @@ class ServiceCatalogProductsService(products_service.ProductsService):
         return provisioned_product_details.ProvisionedProductDetails.model_validate(
             response.get("ProvisionedProducts").pop()
         )
+
+
+# CloudFormation's consequences of an earlier failure, not its cause.
+_FOLLOW_UP_REASONS = (
+    "Resource creation cancelled",
+    "The following resource(s) failed to",
+    "Resource update cancelled",
+)
+
+
+def _is_follow_up_reason(reason: str) -> bool:
+    return reason.startswith(_FOLLOW_UP_REASONS)
