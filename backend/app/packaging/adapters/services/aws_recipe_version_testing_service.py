@@ -352,9 +352,16 @@ class AwsRecipeVersionTestingService(recipe_version_testing_service.RecipeVersio
 
             ssm_client = self.__get_ssm_client(access_key_id, secret_access_key, session_token)
 
-            ssm_command_status = ssm_client.get_command_invocation(CommandId=command_id, InstanceId=instance_id).get(
-                "Status"
-            )
+            try:
+                ssm_command_status = ssm_client.get_command_invocation(
+                    CommandId=command_id, InstanceId=instance_id
+                ).get("Status")
+            except ClientError as error:
+                if error.response.get("Error", {}).get("Code") != "InvocationDoesNotExist":
+                    raise
+                # SSM registers the invocation shortly after SendCommand returns; a status check right
+                # after it can miss it. Still pending, not failed (it failed recipe version tests).
+                return recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Pending
             return self.__map_status(ssm_command_status)
 
     def run_testing(
