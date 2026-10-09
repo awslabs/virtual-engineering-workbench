@@ -18,6 +18,7 @@ import {
 } from './interface';
 import { useCommonProvisionedProduct, useCommonProvisionedProductState } from '../common.logic';
 import useSWR from 'swr';
+import { useWorkbenchFailureNotifications } from '../workbench-failure.logic';
 
 type FetcherProps = {
   projectId: string,
@@ -69,6 +70,8 @@ export const useProvisionedProductDetails = (
 
 
   const provisionedProduct = apiResponse?.provisionedProduct;
+  const watchedProducts = useMemo(() => [provisionedProduct], [provisionedProduct]);
+  useWorkbenchFailureNotifications(watchedProducts);
   const provisioningParameters =
     provisionedProduct?.provisioningParameters || [];
   const outputParameters = provisionedProduct?.outputs || [];

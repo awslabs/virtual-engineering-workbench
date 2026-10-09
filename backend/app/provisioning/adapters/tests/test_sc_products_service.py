@@ -7,10 +7,7 @@ from botocore import exceptions
 
 from app.provisioning.adapters.exceptions import adapter_exception
 from app.provisioning.adapters.services import sc_products_service
-from app.provisioning.domain.model import (
-    provisioned_product_output,
-    provisioning_parameter,
-)
+from app.provisioning.domain.model import provisioned_product_output, provisioning_parameter
 
 
 @mock.patch("uuid.uuid4", mock.MagicMock(return_value="123"))
@@ -456,3 +453,42 @@ def test_has_provisioned_product_missing_removal_signal_error_return_false_when_
     mock_logger.info.assert_called_once_with("Unable to fetch record outputs for rec-123")
     mock_logger.error.assert_called_once_with("Unable to fetch CloudFormation stack ARN for pp-123")
     assertpy.assert_that(has_signal_error).is_equal_to(False)
+
+
+def test_get_provisioned_product_failure_reason_returns_the_first_failed_resource(
+    mock_moto_calls,
+    mock_describe_stack_events_request,
+):
+    # the root cause, not CloudFormation's follow-ups (events are newest first).
+    mock_describe_stack_events_request.return_value = {
+        "StackEvents": [
+            {
+                "LogicalResourceId": "stack",
+                "ResourceStatus": "ROLLBACK_IN_PROGRESS",
+                "ResourceStatusReason": "The following resource(s) failed to create: [Instance].",
+            },
+            {
+                "LogicalResourceId": "Volume",
+                "ResourceStatus": "CREATE_FAILED",
+                "ResourceStatusReason": "Resource creation cancelled",
+            },
+            {
+                "LogicalResourceId": "Instance",
+                "ResourceStatus": "CREATE_FAILED",
+                "ResourceStatusReason": "You have requested more vCPU capacity than your current vCPU limit of 0 "
+                "allows (Service: Ec2, Status Code: 400, Error Code: VcpuLimitExceeded)",
+            },
+            {"LogicalResourceId": "Role", "ResourceStatus": "CREATE_COMPLETE"},
+        ]
+    }
+    service = sc_products_service.ServiceCatalogProductsService(
+        sc_boto_client_provider=mock.MagicMock(return_value=boto3.client("servicecatalog", region_name="us-east-1")),
+        cf_boto_client_provider=mock.MagicMock(return_value=boto3.client("cloudformation", region_name="us-east-1")),
+        logger=mock.MagicMock(),
+    )
+
+    reason = service.get_provisioned_product_failure_reason(
+        user_id="T0011AA", aws_account_id="001234567890", provisioned_product_id="pp-123", region="us-east-1"
+    )
+
+    assertpy.assert_that(reason).contains("VcpuLimitExceeded")

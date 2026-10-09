@@ -390,6 +390,7 @@ def test_start_virtual_target_should_catch_error(
             userDomains=["domain"],
             status=product_status.ProductStatus.Stopped,
             statusReason="test",
+            failedOperation="START",
             productId="prod-123",
             productName="Pied Piper",
             productDescription="Compression",

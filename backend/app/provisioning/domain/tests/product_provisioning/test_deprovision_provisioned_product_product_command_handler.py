@@ -195,6 +195,7 @@ def test_deprovision_virtual_target_when_catalog_call_fails_should_fail_deprovis
             userId="T0011AA",
             userDomains=["domain"],
             status=product_status.ProductStatus.ProvisioningError,
+            failedOperation="REMOVE",
             statusReason="failed",
             productId="prod-123",
             productName="Pied Piper",

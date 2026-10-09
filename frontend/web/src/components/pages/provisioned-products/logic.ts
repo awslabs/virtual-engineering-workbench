@@ -25,6 +25,9 @@ import { useFeatureToggles } from '../../feature-toggles/feature-toggle.hook.ts'
 import { useCommonProvisionedProduct } from './common.logic.ts';
 import { ServiceAPI } from '../../../services';
 import { CompareDates } from '../shared/compare-dates.tsx';
+import { useWorkbenchFailureNotifications } from './workbench-failure.logic.ts';
+
+const NO_PRODUCTS: ProvisionedProduct[] = [];
 
 export const fetchKey = (productType: string) =>
   `provisioning/products/${productType}`;
@@ -145,6 +148,7 @@ export function useProvisionedProducts(
       shouldRetryOnError: false,
     }
   );
+  useWorkbenchFailureNotifications(data?.provisionedProducts ?? NO_PRODUCTS);
   const targets = data ? data.
     provisionedProducts.
     filter((p) => p.status !== PRODUCT_INSTANCE_STATES.Terminated).

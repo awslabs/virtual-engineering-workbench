@@ -31,6 +31,7 @@ import {
 import { FeatureToggle } from '../../shared/feature-toggle';
 import { Feature } from '../../../feature-toggles/feature-toggle.state';
 import { ProvisionedProductInstalledToolsList } from './components';
+import { WorkbenchFailureAlert } from '../workbench-failure';
 
 function getOSImage(osVersion: string) {
   if (osVersion.toLocaleLowerCase().includes('ubuntu')) {
@@ -246,6 +247,7 @@ export function ProvisionedProductDetails(props: ProvisionedProductDetailsProps)
   function renderAlert() {
     return (
       <>
+        <WorkbenchFailureAlert provisionedProduct={provisionedProduct} />
         {!!provisionedProduct?.instanceRecommendationReason &&
           <Alert
             statusIconAriaLabel="Warning"

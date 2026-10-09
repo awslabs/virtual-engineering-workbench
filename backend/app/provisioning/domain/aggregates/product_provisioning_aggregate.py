@@ -6,11 +6,7 @@ from datetime import datetime, timezone
 
 import semver
 
-from app.provisioning.domain.aggregates.internal import (
-    networking_helpers,
-    product_helpers,
-    provisioning_helpers,
-)
+from app.provisioning.domain.aggregates.internal import networking_helpers, product_helpers, provisioning_helpers
 from app.provisioning.domain.commands.product_provisioning import (
     authorize_user_ip_address_command,
     check_if_upgrade_available_command,
@@ -51,12 +47,8 @@ from app.provisioning.domain.events.product_provisioning import (
     provisioned_product_upgrade_failed,
     provisioned_product_upgraded,
 )
-from app.provisioning.domain.events.provisioned_product_configuration import (
-    provisioned_product_configuration_requested,
-)
-from app.provisioning.domain.events.provisioned_product_state import (
-    provisioned_product_stop_initiated,
-)
+from app.provisioning.domain.events.provisioned_product_configuration import provisioned_product_configuration_requested
+from app.provisioning.domain.events.provisioned_product_state import provisioned_product_stop_initiated
 from app.provisioning.domain.exceptions import domain_exception
 from app.provisioning.domain.model import (
     container_details,
@@ -65,6 +57,7 @@ from app.provisioning.domain.model import (
     product_status,
     provisioned_product,
     user_profile,
+    workbench_failure,
 )
 from app.provisioning.domain.ports import (
     container_management_service,
@@ -118,6 +111,14 @@ PRODUCT_EC2_TYPES = [
 AUTO_UPDATE_PROCESS_NAME = "AUTO_UPDATE"
 AUTO_STOP_AFTER_UPDATE_PROCESS_NAME = "AUTO_STOP_AFTER_UPDATE_PROCESS_NAME"
 CLEANUP_ERROR_PROVISIONED_PRODUCT = "CLEANUP_ERROR_PROVISIONED_PRODUCT"
+
+
+# which operation a ProvisioningError explains.
+_FAILED_OPERATIONS = {
+    product_launch_failed.ProductLaunchFailed: workbench_failure.FailedOperation.Launch,
+    provisioned_product_removal_failed.ProvisionedProductRemovalFailed: workbench_failure.FailedOperation.Remove,
+    provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed: workbench_failure.FailedOperation.Update,
+}
 
 
 class ProductProvisioningAggregate(aggregate.Aggregate):
@@ -1317,8 +1318,25 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 productName=self._provisioned_product.productName,
                 productType=self._provisioned_product.provisionedProductType,
                 owner=self._provisioned_product.userId,
-            )
+            ),
+            reason=self.__launch_failure_reason(products_srv),
         )
+
+    def __launch_failure_reason(self, products_srv: products_service.ProductsService) -> str | None:
+        """the stack's root cause (its first failed resource), so the owner learns why. Best effort."""
+        if not self._provisioned_product.scProvisionedProductId:
+            return None
+        try:
+            reason = products_srv.get_provisioned_product_failure_reason(
+                provisioned_product_id=self._provisioned_product.scProvisionedProductId,
+                aws_account_id=self._provisioned_product.awsAccountId,
+                region=self._provisioned_product.region,
+                user_id=self._provisioned_product.userId,
+            )
+        except Exception:
+            self._logger.exception("Unable to read the launch failure reason")
+            return None
+        return reason if isinstance(reason, str) else None
 
     def fail_removal(
         self,
@@ -1532,6 +1550,8 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
     def __fail(self, event: message_bus.Message, reason: str | None = None):
         self._provisioned_product.status = product_status.ProductStatus.ProvisioningError
         self._provisioned_product.statusReason = reason
+        operation = _FAILED_OPERATIONS.get(type(event))
+        self._provisioned_product.failedOperation = operation.value if operation else None
         self._publish(event)
 
     def __raise_if_entity_not_loaded_for(

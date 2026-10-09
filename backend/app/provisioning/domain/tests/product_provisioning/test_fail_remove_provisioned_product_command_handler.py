@@ -57,6 +57,7 @@ def test_fail_remove_virtual_target_should_update_status_and_publish(
             userId="T0011AA",
             userDomains=["domain"],
             status=product_status.ProductStatus.ProvisioningError,
+            failedOperation="REMOVE",
             productId="prod-123",
             productName="Pied Piper",
             productDescription="Compression",
