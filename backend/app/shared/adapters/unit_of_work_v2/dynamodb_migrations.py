@@ -18,6 +18,12 @@ MigrationScript: typing.TypeAlias = typing.Callable[[service_resource.Table], No
 MIGRATION_ENTITY_NAME = "MIGRATION"
 
 
+class MigrationFailedError(Exception):
+    """A migration script failed. Its state (and that of every later script) is saved as FAILED first, so
+    the next start retries it; raising makes the failure visible - the Lambda does not start against a
+    half-migrated table."""
+
+
 class MigrationsScriptState(enum.StrEnum):
     Running = "RUNNING"
     Completed = "COMPLETED"
@@ -116,13 +122,24 @@ class DynamoDBMigrator:
             self.__logger.debug("No new DB migrations.")
             return
 
-        failed = False
-        for migration_script in migrations_meta.migrationScripts:
+        failed_error = self.__run_scripts(migrations_meta)
 
-            if failed:
+        with self.__uow as uow:
+            uow.get_repository(DynamoDBMigrationPrimaryKey, DynamoDBMigration).update_entity(
+                DynamoDBMigrationPrimaryKey(), migrations_meta
+            )
+            uow.commit()
+
+        if failed_error:
+            raise failed_error
+
+    def __run_scripts(self, migrations_meta: DynamoDBMigration) -> "MigrationFailedError | None":
+        """Runs the RUNNING scripts in order; after a failure, marks it and every later script FAILED."""
+        failed_error: MigrationFailedError | None = None
+        for migration_script in migrations_meta.migrationScripts:
+            if failed_error:
                 migration_script.state = MigrationsScriptState.Failed
                 continue
-
             if migration_script.state != MigrationsScriptState.Running:
                 continue
 
@@ -131,16 +148,11 @@ class DynamoDBMigrator:
             try:
                 script(self.__ddb_table)
                 migration_script.state = MigrationsScriptState.Completed
-            except Exception:
+            except Exception as error:
                 self.__logger.exception(f"Unable to apply {migration_script.name} migration")
                 migration_script.state = MigrationsScriptState.Failed
-                failed = True
-
-        with self.__uow as uow:
-            uow.get_repository(DynamoDBMigrationPrimaryKey, DynamoDBMigration).update_entity(
-                DynamoDBMigrationPrimaryKey(), migrations_meta
-            )
-            uow.commit()
+                failed_error = MigrationFailedError(f"Migration {migration_script.name} failed: {error}")
+        return failed_error
 
     def register_migration(self, name: str, script: MigrationScript) -> typing.Self:
         self.__logger.debug(f"Registering DB migration {name} for {self.__table_name}")
