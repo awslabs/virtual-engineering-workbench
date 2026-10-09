@@ -17,7 +17,7 @@ import {
 import { RoleBasedFeature } from '../../../../state';
 import { FC, useState, useEffect } from 'react';
 import { EnabledRegion, REGION_NAMES } from '../../../user-preferences';
-import { compareSemanticVersions } from '../../../../hooks/provisioning';
+import { compareSemanticVersions, preselectedVersion } from '../../../../hooks/provisioning';
 import { useRoleAccessToggle } from '../../../../hooks/role-access-toggle';
 import { useFeatureToggles } from '../../../feature-toggles/feature-toggle.hook';
 import { Feature } from '../../../feature-toggles/feature-toggle.state';
@@ -160,12 +160,12 @@ const configureSettingsStep: FC<ConfigureSettingsStepParams> = ({
     localStorage.removeItem('selectedRegion');
   }
 
-  // Pre-select recommended version by default when no version is selected
+  // Pre-select the recommended, else the newest released version when no version is selected.
   useEffect(() => {
     if (!selectedVersion && !productVersionsLoading) {
-      const recommendedVersion = productVersions.find(version => version.isRecommendedVersion);
-      if (recommendedVersion) {
-        setSelectedVersion?.(recommendedVersion);
+      const preselected = preselectedVersion(productVersions);
+      if (preselected) {
+        setSelectedVersion?.(preselected);
       }
     }
   }, [productVersions, productVersionsLoading, selectedVersion, setSelectedVersion]);
