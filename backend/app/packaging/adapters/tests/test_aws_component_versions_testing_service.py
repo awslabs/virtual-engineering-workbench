@@ -1,3 +1,5 @@
+import unittest.mock
+
 import assertpy
 import pytest
 from botocore.exceptions import ClientError
@@ -376,3 +378,41 @@ def test_launch_testing_environment_without_tags_sends_none(
 
     # ASSERT
     assertpy.assert_that(mock_ec2_launch_instances_call.call_args.kwargs["TagSpecifications"]).is_empty()
+
+
+def test_testing_command_status_is_pending_while_ssm_has_no_invocation_yet(
+    mock_aws_component_version_testing_service, mock_ssm_client
+):
+    # SSM answers InvocationDoesNotExist for a command it hasn't registered for the instance yet (seen
+    # right after SendCommand; it failed a recipe version test on 2026-10-08).
+    error = ClientError(
+        {"Error": {"Code": "InvocationDoesNotExist", "Message": "Invocation not found"}}, "GetCommandInvocation"
+    )
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", side_effect=error):
+        with unittest.mock.patch.object(
+            mock_aws_component_version_testing_service,
+            "_AwsComponentVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            response = mock_aws_component_version_testing_service.get_testing_command_status(
+                command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809", instance_id=GlobalVariables.TEST_INSTANCE_ID.value
+            )
+
+    assertpy.assert_that(response).is_equal_to(
+        component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending
+    )
+
+
+def test_testing_command_status_raises_other_ssm_errors(mock_aws_component_version_testing_service, mock_ssm_client):
+    error = ClientError({"Error": {"Code": "AccessDeniedException", "Message": "denied"}}, "GetCommandInvocation")
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", side_effect=error):
+        with unittest.mock.patch.object(
+            mock_aws_component_version_testing_service,
+            "_AwsComponentVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            with pytest.raises(ClientError):
+                mock_aws_component_version_testing_service.get_testing_command_status(
+                    command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                    instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                )
