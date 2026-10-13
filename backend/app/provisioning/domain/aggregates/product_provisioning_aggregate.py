@@ -393,6 +393,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
             stage=self._provisioned_product.stage,
         )
 
+        self.__raise_if_downgrade(version_distribution.versionName)
         self._provisioned_product.newProvisioningParameters = self.__validate_and_map_input_parameters(
             provisioning_parameters=command.provisioning_parameters.value,
             current_provisioned_parameters=self._provisioned_product.provisioningParameters,
@@ -1565,6 +1566,19 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         if provisioned_product_id and self._provisioned_product.provisionedProductId != provisioned_product_id.value:
             raise domain_exception.DomainException(
                 f"Trying to change entity with ID {provisioned_product_id.value} but aggregate is loaded for {self._provisioned_product.provisionedProductId}"
+            )
+
+    def __raise_if_downgrade(self, target_version_name: str) -> None:
+        """An update goes to a newer version, or the same one for an instance type change."""
+        try:
+            current = semver.Version.parse(self._provisioned_product.versionName)
+            target = semver.Version.parse(target_version_name)
+        except (TypeError, ValueError):
+            return
+        if target < current:
+            raise domain_exception.DomainException(
+                f"Version {target_version_name} is older than the provisioned product's version "
+                f"{self._provisioned_product.versionName}: an update goes to a newer version."
             )
 
     def __is_user_owner(self, user_id: user_id_value_object.UserIdValueObject | None = None) -> bool:
