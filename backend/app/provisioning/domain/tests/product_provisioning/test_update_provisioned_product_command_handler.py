@@ -739,34 +739,143 @@ def test_handle_when_update_fails_should_publish_failure_event(
         provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed(provisionedProductId="pp-123")
     )
     mock_unit_of_work.commit.assert_called_once()
+    expected = get_provisioned_product(
+        status=product_status.ProductStatus.Stopped,
+        sc_provisioned_product_id="sc-pp-123",
+        last_update_date="2023-12-07T00:00:00+00:00",
+        status_reason="Update failed: Test",
+        outputs=[
+            provisioned_product_output.ProvisionedProductOutput(
+                outputKey="instance-id", outputValue="i-1234567890", description="description"
+            ),
+            provisioned_product_output.ProvisionedProductOutput(
+                outputKey="privateIp", outputValue="192.168.1.1", description="description"
+            ),
+            provisioned_product_output.ProvisionedProductOutput(
+                outputKey="SSHKeyPair",
+                outputValue="/ec2/keypair/i-123",
+                description="SSM Parameter containing the ssh key generated",
+            ),
+        ],
+        instance_id="i-1234567890",
+        private_ip="192.168.1.1",
+        ssh_key_path="/ec2/keypair/i-123",
+        block_device_mappings=get_test_block_device_mappings(),
+    )
+    # the card says why the update failed.
+    expected.failedOperation = "UPDATE"
     mock_provisioned_product_repo.update_entity.assert_called_once_with(
         provisioned_product.ProvisionedProductPrimaryKey(
             projectId="proj-123",
             provisionedProductId="pp-123",
         ),
-        get_provisioned_product(
-            status=product_status.ProductStatus.Stopped,
-            sc_provisioned_product_id="sc-pp-123",
-            last_update_date="2023-12-07T00:00:00+00:00",
-            status_reason="Test",
-            outputs=[
-                provisioned_product_output.ProvisionedProductOutput(
-                    outputKey="instance-id", outputValue="i-1234567890", description="description"
-                ),
-                provisioned_product_output.ProvisionedProductOutput(
-                    outputKey="privateIp", outputValue="192.168.1.1", description="description"
-                ),
-                provisioned_product_output.ProvisionedProductOutput(
-                    outputKey="SSHKeyPair",
-                    outputValue="/ec2/keypair/i-123",
-                    description="SSM Parameter containing the ssh key generated",
-                ),
-            ],
-            instance_id="i-1234567890",
-            private_ip="192.168.1.1",
-            ssh_key_path="/ec2/keypair/i-123",
-            block_device_mappings=get_test_block_device_mappings(),
+        expected,
+    )
+
+
+def _handle_update(command, mocks):
+    update_product.handle(command=command, **mocks)
+
+
+@pytest.fixture()
+def update_mocks(
+    mock_logger,
+    mock_publisher,
+    mock_products_srv,
+    mock_provisioned_products_qs,
+    mock_parameter_srv,
+    mock_instance_mgmt_srv,
+    mock_versions_query_service,
+    default_subnet_selector,
+    mock_container_mgmt_srv,
+    mock_unit_of_work,
+):
+    return dict(
+        publisher=mock_publisher,
+        products_srv=mock_products_srv,
+        provisioned_products_qs=mock_provisioned_products_qs,
+        instance_mgmt_srv=mock_instance_mgmt_srv,
+        container_mgmt_srv=mock_container_mgmt_srv,
+        logger=mock_logger,
+        versions_qs=mock_versions_query_service,
+        parameter_srv=mock_parameter_srv,
+        spoke_account_vpc_id_param_name="/workbench/vpc/vpc-id",
+        subnet_selector=default_subnet_selector,
+        uow=mock_unit_of_work,
+    )
+
+
+def test_handle_when_new_version_is_in_a_sibling_sc_product_should_use_the_artifact_of_its_own_product(
+    update_mocks,
+    mock_products_srv,
+    mock_provisioned_products_qs,
+    mock_versions_query_service,
+    get_provisioned_product,
+    get_test_version,
+):
+    # ARRANGE: concurrent first publishes left two same-named SC products; 1.0.5 was published into the
+    # other one, the workbench was launched from "sc-prod-123"
+    sibling = get_test_version(version_name="1.0.5", sc_provisioning_artifact_id="pa-in-sibling")
+    sibling.scProductId = "sc-prod-sibling"
+    mock_versions_query_service.get_product_version_distributions.return_value = [sibling]
+    mock_products_srv.get_provisioning_artifact_id.return_value = "pa-in-own-product"
+    mock_provisioned_products_qs.get_by_id.return_value = get_provisioned_product(
+        status=product_status.ProductStatus.Updating, sc_provisioned_product_id="sc-pp-123"
+    )
+
+    # ACT
+    _handle_update(
+        update_provisioned_product_command.UpdateProvisionedProductCommand(
+            provisioned_product_id=provisioned_product_id_value_object.from_str("pp-123"),
         ),
+        update_mocks,
+    )
+
+    # ASSERT: found by name in the workbench's own product, and that artifact is the one updated to
+    mock_products_srv.get_provisioning_artifact_id.assert_called_once_with(
+        user_id="T0011AA",
+        aws_account_id="001234567890",
+        sc_product_id="sc-prod-123",
+        version_name="1.0.5",
+        region="us-east-1",
+    )
+    kwargs = mock_products_srv.update_product.call_args.kwargs
+    assertpy.assert_that(kwargs["sc_product_id"]).is_equal_to("sc-prod-123")
+    assertpy.assert_that(kwargs["sc_provisioning_artifact_id"]).is_equal_to("pa-in-own-product")
+
+
+def test_handle_when_new_version_is_missing_from_its_own_sc_product_should_fail_with_a_reason(
+    update_mocks,
+    mock_products_srv,
+    mock_provisioned_products_qs,
+    mock_provisioned_product_repo,
+    mock_versions_query_service,
+    mock_message_bus,
+    get_provisioned_product,
+    get_test_version,
+):
+    sibling = get_test_version(version_name="1.0.5", sc_provisioning_artifact_id="pa-in-sibling")
+    sibling.scProductId = "sc-prod-sibling"
+    mock_versions_query_service.get_product_version_distributions.return_value = [sibling]
+    mock_products_srv.get_provisioning_artifact_id.return_value = None
+    mock_provisioned_products_qs.get_by_id.return_value = get_provisioned_product(
+        status=product_status.ProductStatus.Updating, sc_provisioned_product_id="sc-pp-123"
+    )
+
+    _handle_update(
+        update_provisioned_product_command.UpdateProvisionedProductCommand(
+            provisioned_product_id=provisioned_product_id_value_object.from_str("pp-123"),
+        ),
+        update_mocks,
+    )
+
+    mock_products_srv.update_product.assert_not_called()
+    call = mock_provisioned_product_repo.update_entity.call_args
+    stored = call.kwargs.get("entity") or call.args[1]
+    assertpy.assert_that(stored.failedOperation).is_equal_to("UPDATE")
+    assertpy.assert_that(stored.statusReason).contains("Version 1.0.5 isn't available to this workbench yet")
+    mock_message_bus.publish.assert_called_once_with(
+        provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed(provisionedProductId="pp-123")
     )
 
 

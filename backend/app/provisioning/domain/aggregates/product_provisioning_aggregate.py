@@ -852,7 +852,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 aws_account_id=self._provisioned_product.awsAccountId,
                 sc_provisioned_product_id=self._provisioned_product.scProvisionedProductId,
                 sc_product_id=self._provisioned_product.scProductId,
-                sc_provisioning_artifact_id=new_version_distribution.scProvisioningArtifactId,
+                sc_provisioning_artifact_id=self.__artifact_in_own_product(products_srv, new_version_distribution),
                 provisioning_parameters=self._provisioned_product.newProvisioningParameters,
                 region=self._provisioned_product.region,
             )
@@ -873,7 +873,10 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 instance_mgmt_srv=instance_mgmt_srv,
                 container_mgmt_srv=container_mgmt_srv,
             )
-            self._provisioned_product.statusReason = str(e)
+            # The card says why: without failedOperation the reason was never shown, and a later start
+            # cleared it.
+            self._provisioned_product.statusReason = f"Update failed: {e}"
+            self._provisioned_product.failedOperation = workbench_failure.FailedOperation.Update.value
             self._publish(
                 provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed(
                     provisionedProductId=self._provisioned_product.provisionedProductId,
@@ -2513,6 +2516,29 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
             )
 
         return self._route_tables
+
+    def __artifact_in_own_product(
+        self, products_srv: products_service.ProductsService, distribution: version.Version
+    ) -> str:
+        """The target version's artifact in the workbench's own SC product. Concurrent first publishes can
+        leave several same-named products in an account and stage, so a version can sit in a sibling
+        product, and Service Catalog refuses another product's artifact for an update. The version is
+        found by name in the workbench's product; a distribution in that product is used as is."""
+        if distribution.scProductId == self._provisioned_product.scProductId:
+            return distribution.scProvisioningArtifactId
+        artifact_id = products_srv.get_provisioning_artifact_id(
+            user_id=self._provisioned_product.createdBy,
+            aws_account_id=self._provisioned_product.awsAccountId,
+            sc_product_id=self._provisioned_product.scProductId,
+            version_name=distribution.versionName,
+            region=self._provisioned_product.region,
+        )
+        if not artifact_id:
+            raise domain_exception.DomainException(
+                f"Version {distribution.versionName} isn't available to this workbench yet "
+                "(it was published to another Service Catalog product). Nothing changed: try again later."
+            )
+        return artifact_id
 
     def __get_version_distribution(
         self,

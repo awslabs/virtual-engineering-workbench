@@ -192,6 +192,7 @@ def bootstrap(  # noqa: C901
                 catalog_qry_srv=sc_qry_service,
                 logger=logger,
                 msg_bus=message_bus,
+                versions_qry_srv=versions_qry_srv,
             )
 
         return _handle_command
