@@ -345,7 +345,7 @@ if [ "$DESTROY_MODE" = "true" ]; then
     --query "logGroups[?starts_with(logGroupName, '${PREFIX}') \
       || starts_with(logGroupName, '/aws/lambda/${PREFIX}') \
       || starts_with(logGroupName, '/pipes/${PREFIX}') \
-      || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')] \
+      || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')].logGroupName \
       | [?ends_with(@, '${ENV_SUFFIX}') || contains(@, '${ENV_INFIX}')]" --output text)
   LG_TOTAL=$(echo "$LOG_GROUPS" | wc -w | tr -d ' ')
   LG_IDX=0; LG_OK=0
