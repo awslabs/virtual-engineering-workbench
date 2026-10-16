@@ -9,14 +9,11 @@ from app.projects.domain.model import (
     project,
     project_account,
     project_assignment,
+    service_client_assignment,
     technology,
     user,
 )
-from app.projects.domain.ports import (
-    enrolment_query_service,
-    projects_query_service,
-    technologies_query_service,
-)
+from app.projects.domain.ports import enrolment_query_service, projects_query_service, technologies_query_service
 from app.projects.domain.value_objects.account_type_value_object import AccountTypeEnum
 from app.shared.adapters.boto import paging_utils
 
@@ -24,6 +21,16 @@ from app.shared.adapters.boto import paging_utils
 class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
     def __init__(self):
         pass
+
+    def get_service_client_assignment(
+        self, project_id: str, client_id: str
+    ) -> service_client_assignment.ServiceClientAssignment | None:
+        return None
+
+    def list_service_client_assignments(
+        self, project_id: str
+    ) -> list[service_client_assignment.ServiceClientAssignment]:
+        return []
 
     def list_projects_by_user(
         self, user_id: str, page_size: int, next_token: Any

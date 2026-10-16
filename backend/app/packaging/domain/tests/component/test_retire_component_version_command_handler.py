@@ -270,7 +270,7 @@ def test_handle_should_retire_version(
     retire_component_version_command_mock = get_retire_component_version_command_mock(user_roles=user_roles)
 
     # ACT
-    retire_component_version_command_handler.handle(
+    result = retire_component_version_command_handler.handle(
         command=retire_component_version_command_mock,
         uow=uow_mock,
         message_bus=message_bus_mock,
@@ -289,6 +289,7 @@ def test_handle_should_retire_version(
         status=component_version.ComponentVersionStatus.Updating,
     )
     uow_mock.commit.assert_called()
+    assert result == {"componentVersionId": "vers-1234abcd"}
     message_bus_mock.publish.assert_called_once_with(
         component_version_retirement_started.ComponentVersionRetirementStarted(
             componentId=retire_component_version_command_mock.componentId.value,

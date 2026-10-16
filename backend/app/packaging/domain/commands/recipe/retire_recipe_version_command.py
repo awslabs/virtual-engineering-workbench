@@ -15,4 +15,5 @@ class RetireRecipeVersionCommand(command_bus.Command):
     recipeId: recipe_id_value_object.RecipeIdValueObject
     recipeVersionId: recipe_version_id_value_object.RecipeVersionIdValueObject
     userRoles: List[user_role_value_object.UserRoleValueObject]
+    serviceAuthorized: bool = False
     lastUpdatedBy: user_id_value_object.UserIdValueObject

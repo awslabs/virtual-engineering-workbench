@@ -77,7 +77,7 @@ def authenticated_event():
                     "claims": {
                         "sub": "fake_client_id",
                         "token_use": "access",
-                        "scope": "projects/read",
+                        "scope": "clients/projects/program.read clients/projects/assignment.read clients/projects/assignment.write clients/projects/client_assignment.read clients/projects/client_assignment.write",
                         "auth_time": "1681464958",
                         "iss": "cognito",
                         "exp": "Fri Apr 14 10:35:58 UTC 2023",

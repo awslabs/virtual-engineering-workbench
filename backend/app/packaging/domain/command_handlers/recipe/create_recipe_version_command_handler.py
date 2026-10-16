@@ -311,3 +311,5 @@ def handle(
             recipe_version_volume_size=recipe_version_entity.recipeVersionVolumeSize,
         )
     )
+
+    return {"recipeVersionId": recipe_version_entity.recipeVersionId}

@@ -268,7 +268,7 @@ def test_handle_should_retire_version(
             recipeVersionId=retire_recipe_version_command_mock.recipeVersionId.value,
         ),
         lastUpdateDate="2023-10-12T00:00:00+00:00",
-        lastUpdateBy=retire_recipe_version_command_mock.lastUpdatedBy.value,
+        lastUpdatedBy=retire_recipe_version_command_mock.lastUpdatedBy.value,
         status=recipe_version.RecipeVersionStatus.Updating,
     )
     uow_mock.commit.assert_called()

@@ -1,23 +1,12 @@
 import pytest
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.component import (
-    complete_component_version_testing_command_handler,
-)
-from app.packaging.domain.commands.component import (
-    complete_component_version_testing_command,
-)
-from app.packaging.domain.events.recipe import (
-    recipe_version_update_on_component_update_requested,
-)
-from app.packaging.domain.model.component import (
-    component_version,
-    component_version_test_execution,
-)
+from app.packaging.domain.command_handlers.component import complete_component_version_testing_command_handler
+from app.packaging.domain.commands.component import complete_component_version_testing_command
+from app.packaging.domain.events.recipe import recipe_version_update_on_component_update_requested
+from app.packaging.domain.model.component import component_version, component_version_test_execution
 from app.packaging.domain.value_objects.component import component_id_value_object
-from app.packaging.domain.value_objects.component_version import (
-    component_version_id_value_object,
-)
+from app.packaging.domain.value_objects.component_version import component_version_id_value_object
 from app.packaging.domain.value_objects.component_version_test_execution import (
     component_version_test_execution_id_value_object,
 )
