@@ -214,6 +214,7 @@ def test_update_associated_recipes_versions_list_should_add_to_list(
             componentVersionId=component_version_entity.componentVersionId,
         ),
         component_version_entity,
+        expected=mock.ANY,
     )
     uow_mock.commit.assert_called()
 
@@ -276,6 +277,7 @@ def test_update_associated_recipes_versions_list_should_delete_from_list(
             componentVersionId=component_version_entity.componentVersionId,
         ),
         component_version_entity,
+        expected=mock.ANY,
     )
     uow_mock.commit.assert_called()
 
@@ -572,6 +574,7 @@ def test_update_recipe_version_associations_should_pass_when_recipe_version_crea
                 componentVersionId=component_version_entity.componentVersionId,
             ),
             component_version_entity,
+            expected=mock.ANY,
         )
         uow_mock.commit.assert_called()
 
@@ -587,6 +590,7 @@ def test_update_recipe_version_associations_should_pass_when_recipe_version_crea
                 componentVersionId=component_version_entity.componentVersionId,
             ),
             component_version_entity,
+            expected=mock.ANY,
         )
         uow_mock.commit.assert_called()
 
@@ -689,6 +693,7 @@ def test_update_recipe_version_associations_should_pass_when_recipe_version_rele
                 componentVersionId=component_version_entity.componentVersionId,
             ),
             component_version_entity,
+            expected=mock.ANY,
         )
         uow_mock.commit.assert_called()
 

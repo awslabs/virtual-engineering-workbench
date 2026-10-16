@@ -6,21 +6,52 @@ from app.packaging.domain.commands.component import retire_component_version_com
 from app.packaging.domain.events.component import component_version_retirement_started
 from app.packaging.domain.exceptions.domain_exception import DomainException
 from app.packaging.domain.model.component import component_version, mandatory_components_list
-from app.packaging.domain.ports import component_version_query_service, mandatory_components_list_query_service
+from app.packaging.domain.model.recipe import recipe_version
+from app.packaging.domain.ports import (
+    component_version_query_service,
+    mandatory_components_list_query_service,
+    recipe_version_query_service,
+)
 from app.shared.adapters.message_bus.message_bus import MessageBus
 from app.shared.adapters.unit_of_work_v2.unit_of_work import UnitOfWork
 from app.shared.middleware.authorization import VirtualWorkbenchRoles
 
 
+# An association can outlive its version: retirement removes it asynchronously, and before the
+# association writes were conditional, parallel retirements lost removals. A retired (or deleted)
+# version no longer depends on anything, so its stale entry must not block a retirement.
+def __is_retired_component_version(
+    entry,
+    component_version_qry_srv: component_version_query_service.ComponentVersionQueryService | None,
+) -> bool:
+    if component_version_qry_srv is None:
+        return False
+    associated = component_version_qry_srv.get_component_version(
+        component_id=entry.componentId, version_id=entry.componentVersionId
+    )
+    return associated is None or associated.status == component_version.ComponentVersionStatus.Retired
+
+
+def __is_retired_recipe_version(
+    entry,
+    recipe_version_qry_srv: recipe_version_query_service.RecipeVersionQueryService | None,
+) -> bool:
+    if recipe_version_qry_srv is None:
+        return False
+    associated = recipe_version_qry_srv.get_recipe_version(recipe_id=entry.recipeId, version_id=entry.recipeVersionId)
+    return associated is None or associated.status == recipe_version.RecipeVersionStatus.Retired
+
+
 def __validate_associated_components_versions_list(
     component_version_entity: component_version.ComponentVersion,
+    component_version_qry_srv: component_version_query_service.ComponentVersionQueryService | None = None,
 ):
     rc_count = 0
-    associated_components_versions_list = (
-        component_version_entity.associatedComponentsVersions
-        if component_version_entity.associatedComponentsVersions
-        else []
-    )
+    associated_components_versions_list = [
+        entry
+        for entry in component_version_entity.associatedComponentsVersions or []
+        if not __is_retired_component_version(entry, component_version_qry_srv)
+    ]
     for component_version_entry in associated_components_versions_list:
         component_version_parsed = semver.Version.parse(component_version_entry.componentVersionName)
         if component_version_parsed.prerelease:
@@ -56,11 +87,14 @@ def __validate_associated_mandatory_components_lists(
 
 def __validate_associated_recipes_versions_list(
     component_version_entity: component_version.ComponentVersion,
+    recipe_version_qry_srv: recipe_version_query_service.RecipeVersionQueryService | None = None,
 ):
     rc_count = 0
-    associated_recipes_versions_list = (
-        component_version_entity.associatedRecipesVersions if component_version_entity.associatedRecipesVersions else []
-    )
+    associated_recipes_versions_list = [
+        entry
+        for entry in component_version_entity.associatedRecipesVersions or []
+        if not __is_retired_recipe_version(entry, recipe_version_qry_srv)
+    ]
     for recipe_version_entry in associated_recipes_versions_list:
         recipe_version_parsed = semver.Version.parse(recipe_version_entry.recipeVersionName)
         if recipe_version_parsed.prerelease:
@@ -80,6 +114,7 @@ def handle(
     mandatory_components_list_query_service: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     message_bus: MessageBus,
     uow: UnitOfWork,
+    recipe_version_query_service: recipe_version_query_service.RecipeVersionQueryService | None = None,
 ):
     component_version_entity: component_version.ComponentVersion = (
         component_version_query_service.get_component_version(
@@ -129,11 +164,17 @@ def handle(
 
     mandatory_components_lists = mandatory_components_list_query_service.get_mandatory_components_lists()
 
-    __validate_associated_components_versions_list(component_version_entity=component_version_entity)
+    __validate_associated_components_versions_list(
+        component_version_entity=component_version_entity,
+        component_version_qry_srv=component_version_query_service,
+    )
     __validate_associated_mandatory_components_lists(
         component_version_entity=component_version_entity, mandatory_components_lists=mandatory_components_lists
     )
-    __validate_associated_recipes_versions_list(component_version_entity=component_version_entity)
+    __validate_associated_recipes_versions_list(
+        component_version_entity=component_version_entity,
+        recipe_version_qry_srv=recipe_version_query_service,
+    )
 
     current_time = datetime.now(timezone.utc).isoformat()
 

@@ -8,6 +8,7 @@ from aws_cdk import aws_apigateway, aws_ec2, aws_iam, aws_lambda, aws_logs, aws_
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from infra import config
+from infra.constructs.openapi_nullable import accept_null_in_nullable_fields
 
 
 class BackendAppOpenApiOauth(constructs.Construct):
@@ -86,7 +87,9 @@ class BackendAppOpenApiOauth(constructs.Construct):
         self._api = aws_apigateway.SpecRestApi(
             self,
             id,
-            api_definition=aws_apigateway.ApiDefinition.from_inline(rendered_schema_dict),
+            api_definition=aws_apigateway.ApiDefinition.from_inline(
+                accept_null_in_nullable_fields(rendered_schema_dict)
+            ),
             deploy=True,
             deploy_options=aws_apigateway.StageOptions(
                 cache_data_encrypted=True,
