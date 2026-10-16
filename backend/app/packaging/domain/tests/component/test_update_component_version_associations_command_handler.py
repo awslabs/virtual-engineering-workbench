@@ -193,6 +193,7 @@ def test_handle_should_update_associations(
             componentVersionId=target_component_version_entity.componentVersionId,
         ),
         target_component_version_entity,
+        expected=mock.ANY,
     )
     uow_mock.commit.assert_called()
 
@@ -249,6 +250,7 @@ def test_handle_should_remove_old_associations_for_same_component_version(
             componentVersionId=target_component_version_entity.componentVersionId,
         ),
         target_component_version_entity,
+        expected=mock.ANY,
     )
     uow_mock.commit.assert_called()
 
@@ -325,6 +327,7 @@ def test_handle_should_remove_old_associations_for_previous_component_version(
             componentVersionId=target_component_version_entity.componentVersionId,
         ),
         target_component_version_entity,
+        expected=mock.ANY,
     )
     component_version_repo_mock.update_entity.assert_any_call(
         component_version.ComponentVersionPrimaryKey(
@@ -332,5 +335,6 @@ def test_handle_should_remove_old_associations_for_previous_component_version(
             componentVersionId=target_previous_component_version_entity.componentVersionId,
         ),
         target_previous_component_version_entity,
+        expected=mock.ANY,
     )
     uow_mock.commit.assert_called()

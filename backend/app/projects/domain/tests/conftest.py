@@ -10,14 +10,7 @@ from app.projects.domain.commands.project_accounts import (
     on_board_project_account_command,
     reonboard_project_account_command,
 )
-from app.projects.domain.model import (
-    enrolment,
-    project,
-    project_account,
-    project_assignment,
-    technology,
-    user,
-)
+from app.projects.domain.model import enrolment, project, project_account, project_assignment, technology, user
 from app.projects.domain.ports import projects_query_service
 from app.projects.domain.value_objects import (
     account_description_value_object,
@@ -30,12 +23,10 @@ from app.projects.domain.value_objects import (
     project_id_value_object,
     region_value_object,
 )
-from app.shared.adapters.boto import (
-    parameter_service_v2,
-    resource_access_management_service,
-)
+from app.shared.adapters.boto import parameter_service_v2, resource_access_management_service
 from app.shared.adapters.message_bus import message_bus as msg_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work as unit_of_work_v2
+from app.shared.adapters.unit_of_work_v2.repository_exception import RepositoryException
 
 
 @pytest.fixture
@@ -123,8 +114,14 @@ def mock_uow_2_factory(
         }
 
         uow = mock.create_autospec(spec=unit_of_work_v2.UnitOfWork, instance=True)
+        # Like DynamoDBUnitOfWork: repositories exist only inside "with uow:".
+        entered = []
+        uow.__enter__.side_effect = lambda *_: entered.append(True) or uow
+        uow.__exit__.side_effect = lambda *_: entered.pop() and None
 
         def __get_repo(_, repo_type):
+            if not entered:
+                raise RepositoryException(f"Repository {repo_type} is not registered with the unit of work.")
             return repos[repo_type]
 
         uow.get_repository.side_effect = __get_repo

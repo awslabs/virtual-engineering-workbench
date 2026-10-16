@@ -8,6 +8,7 @@
 # Usage: ./deploy.sh [--config <path>] [--dry-run] [--destroy] [--yes]
 #   --config <path>  Load inputs from a config file instead of prompting
 #   --dry-run        Validate prerequisites and config without deploying
+#   --diff           Preview the CDK stack changes without deploying them
 #   --destroy        Tear down all VEW stacks and orphaned resources
 #   --yes            Auto-confirm interactive prompts (for CI/CD)
 #
@@ -37,6 +38,21 @@ warn() { echo -e "${YELLOW}[VEW]${NC} $1" | tee -a "$LOG_FILE"; }
 err()  { echo -e "${RED}[VEW]${NC} $1" | tee -a "$LOG_FILE"; exit 1; }
 step() { echo -e "\n${CYAN}━━━ Phase $1: $2 ━━━${NC}" | tee -a "$LOG_FILE"; }
 
+# Rewrites a single terminal line; the log file keeps only the per-item lines.
+progress() {
+  local pct=$1 label=$2 filled i bar=""
+  [ -t 2 ] || return 0
+  filled=$(( pct * 24 / 100 ))
+  for (( i = 0; i < 24; i++ )); do
+    if [ "$i" -lt "$filled" ]; then bar="${bar}█"; else bar="${bar}░"; fi
+  done
+  printf "\r${CYAN}[VEW]${NC} [%s] %3d%%  %-46.46s" "$bar" "$pct" "$label" >&2
+}
+
+progress_end() {
+  if [ -t 2 ]; then printf "\r\033[K" >&2; fi
+}
+
 run_cmd() {
   log "Running: $*"
   "$@" 2>&1 | tee -a "$LOG_FILE"
@@ -46,32 +62,212 @@ run_cmd() {
   fi
 }
 
+# cdk diff rejects --require-approval, --force and --concurrency, so the verb
+# alone cannot be swapped: each takes its own flags. Callers pass context only,
+# and set CDK_DEPLOY_EXTRA for flags that belong to deploy.
+cdk_run() {
+  if [ "$DIFF_MODE" = "true" ]; then
+    run_cmd cdk diff --all "$@"
+  else
+    # shellcheck disable=SC2086 # CDK_DEPLOY_EXTRA is a flag list, not one word
+    run_cmd cdk deploy --all --require-approval never --force ${CDK_DEPLOY_EXTRA:-} "$@"
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Parse arguments
 # ---------------------------------------------------------------------------
 DESTROY_MODE=false
 DRY_RUN=false
+DIFF_MODE=false
 AUTO_CONFIRM=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --config)  CONFIG_FILE="$2"; shift 2 ;;
     --destroy) DESTROY_MODE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --diff)    DIFF_MODE=true; shift ;;
     --yes)     AUTO_CONFIRM=true; shift ;;
     *) err "Unknown argument: $1" ;;
   esac
 done
 
 # ---------------------------------------------------------------------------
+# Activate hub account credentials
+# ---------------------------------------------------------------------------
+activate_hub_credentials() {
+  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+    log "Using existing env var credentials (AWS_ACCESS_KEY_ID set)"
+    return
+  fi
+  log "Activating credentials for hub account (profile: $AWS_PROFILE_HUB)"
+  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_HUB" --format env)"
+}
+
+activate_spoke_credentials() {
+  if [ -n "${AWS_SPOKE_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SPOKE_SECRET_ACCESS_KEY:-}" ]; then
+    export AWS_ACCESS_KEY_ID="$AWS_SPOKE_ACCESS_KEY_ID"
+    export AWS_SECRET_ACCESS_KEY="$AWS_SPOKE_SECRET_ACCESS_KEY"
+    export AWS_SESSION_TOKEN="${AWS_SPOKE_SESSION_TOKEN:-}"
+    log "Using existing env var credentials for spoke account"
+    return
+  fi
+  if [ -z "${AWS_PROFILE_SPOKE:-}" ]; then
+    err "No spoke account credentials available. Set AWS_PROFILE_SPOKE or AWS_SPOKE_ACCESS_KEY_ID/AWS_SPOKE_SECRET_ACCESS_KEY environment variables."
+  fi
+  log "Activating credentials for spoke account (profile: $AWS_PROFILE_SPOKE)"
+  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_SPOKE" --format env)"
+}
+
+# ---------------------------------------------------------------------------
 # --destroy: tear down all VEW stacks and orphaned resources
 # ---------------------------------------------------------------------------
+
+# Deletes one stack, reporting resource-level progress while it runs.
+# Returns 0 deleted, 1 blocked by a CloudFormation export, 2 failed.
+delete_one_stack() {
+  local stack=$1 position=$2 total=$3
+  local stack_id res_total res_left status reason pct overall elapsed start
+  local misses=0 stalls=0
+
+  stack_id=$(aws cloudformation describe-stacks --stack-name "$stack" \
+    --query 'Stacks[0].StackId' --output text --region "$AWS_REGION" 2>/dev/null) || return 0
+  # length() is evaluated per page, so count the rows instead: a stack with
+  # more than 100 resources would otherwise yield one number per page.
+  res_total=$(aws cloudformation list-stack-resources --stack-name "$stack_id" \
+    --query 'StackResourceSummaries[].ResourceStatus' --output text --region "$AWS_REGION" 2>/dev/null \
+    | tr '\t' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
+  log "Deleting stack: $stack ($res_total resources)"
+  aws cloudformation delete-stack --stack-name "$stack_id" --region "$AWS_REGION"
+  start=$(date +%s)
+
+  while :; do
+    status=$(aws cloudformation describe-stacks --stack-name "$stack_id" \
+      --query 'Stacks[0].StackStatus' --output text --region "$AWS_REGION" 2>/dev/null || echo UNKNOWN)
+    res_left=$(aws cloudformation list-stack-resources --stack-name "$stack_id" \
+      --query "StackResourceSummaries[?ResourceStatus!='DELETE_COMPLETE'].ResourceStatus" \
+      --output text --region "$AWS_REGION" 2>/dev/null \
+      | tr '\t' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
+    if [ "$res_total" -gt 0 ]; then
+      pct=$(( (res_total - res_left) * 100 / res_total ))
+    else
+      pct=100
+    fi
+    elapsed=$(( $(date +%s) - start ))
+    overall=$(( (position * 100 + pct) / total ))
+    progress "$overall" "$stack  ${res_left}/${res_total} left  ${elapsed}s"
+
+    case "$status" in
+      DELETE_COMPLETE)
+        progress_end
+        log "Deleted: $stack (${elapsed}s)"
+        return 0 ;;
+      DELETE_FAILED)
+        progress_end
+        warn "Stack $stack is DELETE_FAILED after ${elapsed}s — check the console"
+        return 2 ;;
+      DELETE_IN_PROGRESS)
+        misses=0; stalls=0 ;;
+      UNKNOWN)
+        misses=$(( misses + 1 ))
+        if [ "$misses" -ge 3 ]; then
+          progress_end
+          warn "Lost track of $stack after ${elapsed}s — check the console"
+          return 2
+        fi ;;
+      *)
+        # CloudFormation cancels a delete within seconds when another stack
+        # imports one of this stack's exports; the status reverts unchanged.
+        reason=$(aws cloudformation describe-stack-events --stack-name "$stack_id" \
+          --region "$AWS_REGION" --max-items 1 \
+          --query 'StackEvents[0].ResourceStatusReason' --output text 2>/dev/null \
+          | head -1 || echo "")
+        case "$reason" in
+          *"Delete canceled"*|*"in use by"*)
+            progress_end
+            BLOCK_REASON="$reason"
+            return 1 ;;
+        esac
+        stalls=$(( stalls + 1 ))
+        if [ "$stalls" -ge 6 ]; then
+          progress_end
+          warn "$stack did not start deleting (status $status) — skipping"
+          return 1
+        fi ;;
+    esac
+    sleep 10
+  done
+}
+
+# s3 rb --force deletes current objects only. CDK enables versioning on its
+# buckets, so non-current versions and delete markers survive it and the bucket
+# cannot be removed.
+empty_versioned_bucket() {
+  local bucket=$1 payload
+  while :; do
+    payload=$(aws s3api list-object-versions --bucket "$bucket" --region "$AWS_REGION" \
+      --max-items 1000 \
+      --query '{Objects: [Versions, DeleteMarkers][][].{Key:Key,VersionId:VersionId}}' \
+      --output json 2>/dev/null || echo '{"Objects":null}')
+    case "$payload" in
+      *'"Objects": null'*|*'"Objects": []'*) return 0 ;;
+    esac
+    aws s3api delete-objects --bucket "$bucket" --region "$AWS_REGION" \
+      --delete "$payload" >/dev/null 2>&1 || return 1
+  done
+}
+
 if [ "$DESTROY_MODE" = "true" ]; then
   if [ -z "$CONFIG_FILE" ]; then
     err "--destroy requires --config <path> to identify resources by prefix"
   fi
   source "$CONFIG_FILE"
   PREFIX="${ORG_PREFIX}-${APP_PREFIX}"
-  warn "This will delete ALL VEW stacks and orphaned resources with prefix '$PREFIX' in $AWS_REGION"
+  # Stacks end in the environment (<prefix>-<name>-<env>); buckets and some log
+  # groups carry it mid-name. Without this, destroying dev in an account that
+  # also holds qa would match qa's resources, which only matters now that the
+  # destroy does anything.
+  ENV_SUFFIX="-${ENVIRONMENT}"
+  ENV_INFIX="-${ENVIRONMENT}-"
+
+  activate_hub_credentials
+  log "Target account: $(aws sts get-caller-identity --query Account --output text)"
+
+  # -- CloudFormation stacks -------------------------------------------------
+  STACKS=$(aws cloudformation list-stacks \
+    --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+    --query "StackSummaries[?starts_with(StackName, '${PREFIX}') \
+      && ends_with(StackName, '${ENV_SUFFIX}')].StackName" \
+    --output text --region "$AWS_REGION" | tr '\t' ' ')
+
+  # The CDK app names some stacks without the configured prefix, so the filter
+  # above misses them. Anything importing a VEW export is part of this
+  # deployment and has to be deleted before the stack that exports to it.
+  log "Resolving stacks that import VEW exports..."
+  DEPENDENTS=""
+  for export_name in $(aws cloudformation list-exports --region "$AWS_REGION" \
+      --query "Exports[?starts_with(Name,'${PREFIX}')].Name" --output text); do
+    for importer in $(aws cloudformation list-imports --export-name "$export_name" \
+        --region "$AWS_REGION" --query 'Imports' --output text 2>/dev/null || true); do
+      case " $STACKS $DEPENDENTS " in
+        *" $importer "*) ;;
+        *) DEPENDENTS="$DEPENDENTS $importer"
+           log "Also deleting: $importer (imports ${export_name%%:*})" ;;
+      esac
+    done
+  done
+
+  REMAINING="$DEPENDENTS $STACKS"
+  STACK_TOTAL=$(echo "$REMAINING" | wc -w | tr -d ' ')
+  DELETED=0
+  FAILED=""
+  # Everything to be deleted is resolved first, so the operator sees the whole
+  # list — including stacks found through their exports rather than their name
+  # — before being asked to approve it.
+  warn "This will delete $STACK_TOTAL stack(s) in $AWS_REGION, and any orphaned"
+  warn "log groups, ECR repositories and S3 buckets left behind by them:"
+  for stack in $REMAINING; do echo "    $stack"; done
+  warn "Matching '${PREFIX}' in environment '${ENVIRONMENT}'."
   if [ "$AUTO_CONFIRM" = "true" ]; then
     CONFIRM="destroy"
   else
@@ -79,43 +275,151 @@ if [ "$DESTROY_MODE" = "true" ]; then
   fi
   [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
 
-  activate_hub_credentials 2>/dev/null || true
+  # Lambda releases its VPC network interfaces lazily, minutes after the
+  # function is gone, so whatever owns the VPC and subnets is deleted last and
+  # retried rather than taken in list order.
+  NETWORK_STACKS=""
+  APP_STACKS=""
+  for stack in $REMAINING; do
+    if aws cloudformation list-stack-resources --stack-name "$stack" --region "$AWS_REGION" \
+        --query "StackResourceSummaries[?ResourceType=='AWS::EC2::VPC'||ResourceType=='AWS::EC2::Subnet'].LogicalResourceId" \
+        --output text 2>/dev/null | grep -q '[^[:space:]]'; then
+      NETWORK_STACKS="$NETWORK_STACKS $stack"
+      log "Holding until last: $stack (owns VPC or subnets)"
+    else
+      APP_STACKS="$APP_STACKS $stack"
+    fi
+  done
+  REMAINING="$APP_STACKS"
 
-  log "Deleting CloudFormation stacks..."
-  STACKS=$(aws cloudformation list-stacks \
-    --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
-    --query "StackSummaries[?starts_with(StackName, '${PREFIX}')].StackName" \
-    --output text --region "$AWS_REGION" 2>/dev/null || echo "")
-  for stack in $STACKS; do
-    log "Deleting stack: $stack"
-    aws cloudformation delete-stack --stack-name "$stack" --region "$AWS_REGION"
-    aws cloudformation wait stack-delete-complete --stack-name "$stack" --region "$AWS_REGION" || \
-      warn "Stack $stack deletion may have failed — check console"
+  # Export dependencies are discovered, not assumed: a stack that refuses to
+  # delete goes back in the queue and is retried once its importers are gone.
+  PASS=0
+  while [ -n "$(echo $REMAINING)" ]; do
+    PASS=$(( PASS + 1 ))
+    [ "$PASS" -gt 1 ] && log "Retry pass $PASS ($(echo $REMAINING | wc -w | tr -d ' ') stack(s) still blocked)"
+    BLOCKED=""
+    MOVED=0
+    for stack in $REMAINING; do
+      BLOCK_REASON=""
+      if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL"; then
+        DELETED=$(( DELETED + 1 )); MOVED=1
+      else
+        RC=$?
+        if [ "$RC" -eq 1 ]; then
+          BLOCKED="$BLOCKED $stack"
+          log "Blocked, will retry: $stack"
+        else
+          # A stack that would not delete is not deleted. Keeping it here
+          # is what stops the run reporting success over it.
+          FAILED="$FAILED $stack"
+        fi
+      fi
+    done
+    REMAINING="$BLOCKED"
+    if [ "$MOVED" -eq 0 ]; then
+      break
+    fi
   done
 
-  log "Cleaning orphaned CloudWatch log groups..."
-  for prefix_pattern in "$PREFIX" "aws-waf-logs-${PREFIX}"; do
-    aws logs describe-log-groups --log-group-name-prefix "$prefix_pattern" --region "$AWS_REGION" \
-      --query 'logGroups[].logGroupName' --output text 2>/dev/null | tr '\t' '\n' | while read -r lg; do
-      [ -n "$lg" ] && aws logs delete-log-group --log-group-name "$lg" --region "$AWS_REGION" \
-        && log "Deleted log group: $lg"
+  for stack in $NETWORK_STACKS; do
+    ATTEMPT=1
+    while [ "$ATTEMPT" -le 4 ]; do
+      if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL"; then
+        DELETED=$(( DELETED + 1 ))
+        break
+      fi
+      if [ "$ATTEMPT" -eq 4 ]; then
+        warn "$stack still has dependencies after 4 attempts — check for leftover network interfaces"
+        FAILED="$FAILED $stack"
+        break
+      fi
+      warn "$stack not ready (attempt $ATTEMPT) — waiting 3 min for network interfaces to be released"
+      sleep 180
+      ATTEMPT=$(( ATTEMPT + 1 ))
     done
   done
 
-  log "Cleaning orphaned ECR repositories..."
-  aws ecr describe-repositories --region "$AWS_REGION" \
-    --query "repositories[?starts_with(repositoryName, '${PREFIX}')].repositoryName" \
-    --output text 2>/dev/null | tr '\t' '\n' | while read -r repo; do
-    [ -n "$repo" ] && aws ecr delete-repository --repository-name "$repo" --force \
-      --region "$AWS_REGION" && log "Deleted ECR repo: $repo"
+  LEFT="$(echo $REMAINING $FAILED)"
+  if [ -n "$LEFT" ]; then
+    warn "Could not delete: $LEFT"
+    [ -n "$(echo $REMAINING)" ] && warn "Last reason: ${BLOCK_REASON:-unknown}"
+  else
+    log "All $STACK_TOTAL stack(s) deleted"
+  fi
+
+  # -- Orphaned resources ----------------------------------------------------
+  # Matched on substring, not prefix: CDK nests log groups under /aws/lambda/
+  # and /pipes/, so the prefix is not at the start of the name.
+  # CDK nests log groups under /aws/lambda/ and /pipes/, and WAF requires its
+  # own aws-waf-logs- prefix, so the name is matched at one of four known
+  # starts rather than anywhere in the string — a bare substring would also
+  # claim another stack's group that happens to contain this prefix.
+  log "Cleaning orphaned CloudWatch log groups..."
+  LOG_GROUPS=$(aws logs describe-log-groups --region "$AWS_REGION" \
+    --query "logGroups[?starts_with(logGroupName, '${PREFIX}') \
+      || starts_with(logGroupName, '/aws/lambda/${PREFIX}') \
+      || starts_with(logGroupName, '/pipes/${PREFIX}') \
+      || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')].logGroupName \
+      | [?ends_with(@, '${ENV_SUFFIX}') || contains(@, '${ENV_INFIX}')]" --output text)
+  LG_TOTAL=$(echo "$LOG_GROUPS" | wc -w | tr -d ' ')
+  LG_IDX=0; LG_OK=0
+  for lg in $LOG_GROUPS; do
+    LG_IDX=$(( LG_IDX + 1 ))
+    progress $(( LG_IDX * 100 / LG_TOTAL )) "$lg"
+    if aws logs delete-log-group --log-group-name "$lg" --region "$AWS_REGION" 2>/dev/null; then
+      LG_OK=$(( LG_OK + 1 ))
+    else
+      progress_end
+      warn "Could not delete log group: $lg"
+    fi
   done
+  progress_end
+  log "Deleted $LG_OK of $LG_TOTAL log group(s)"
+
+  log "Cleaning orphaned ECR repositories..."
+  REPOS=$(aws ecr describe-repositories --region "$AWS_REGION" \
+    --query "repositories[?starts_with(repositoryName, '${PREFIX}') \
+      && (ends_with(repositoryName, '${ENV_SUFFIX}') || contains(repositoryName, '${ENV_INFIX}'))].repositoryName" \
+    --output text 2>/dev/null || echo "")
+  REPO_TOTAL=$(echo "$REPOS" | wc -w | tr -d ' ')
+  REPO_IDX=0; REPO_OK=0
+  for repo in $REPOS; do
+    REPO_IDX=$(( REPO_IDX + 1 ))
+    progress $(( REPO_IDX * 100 / REPO_TOTAL )) "$repo"
+    if aws ecr delete-repository --repository-name "$repo" --force --region "$AWS_REGION" >/dev/null 2>&1; then
+      REPO_OK=$(( REPO_OK + 1 ))
+    else
+      progress_end
+      warn "Could not delete ECR repo: $repo"
+    fi
+  done
+  progress_end
+  log "Deleted $REPO_OK of $REPO_TOTAL ECR repositor(ies)"
 
   log "Cleaning orphaned S3 buckets..."
-  aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}')].Name" \
-    --output text 2>/dev/null | tr '\t' '\n' | while read -r bucket; do
-    [ -n "$bucket" ] && aws s3 rb "s3://$bucket" --force && log "Deleted S3 bucket: $bucket"
+  BUCKETS=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}') \
+      && (ends_with(Name, '${ENV_SUFFIX}') || contains(Name, '${ENV_INFIX}'))].Name" \
+    --output text 2>/dev/null || echo "")
+  BUCKET_TOTAL=$(echo "$BUCKETS" | wc -w | tr -d ' ')
+  BUCKET_IDX=0; BUCKET_OK=0
+  for bucket in $BUCKETS; do
+    BUCKET_IDX=$(( BUCKET_IDX + 1 ))
+    progress $(( BUCKET_IDX * 100 / BUCKET_TOTAL )) "$bucket"
+    empty_versioned_bucket "$bucket" || true
+    if aws s3 rb "s3://$bucket" --force >/dev/null 2>&1; then
+      BUCKET_OK=$(( BUCKET_OK + 1 ))
+    else
+      progress_end
+      warn "Could not delete S3 bucket: $bucket"
+    fi
   done
+  progress_end
+  log "Deleted $BUCKET_OK of $BUCKET_TOTAL bucket(s)"
 
+  if [ -n "$(echo ${LEFT:-})" ]; then
+    err "Destruction incomplete — these were not deleted:$(echo " ${LEFT}")"
+  fi
   log "Destruction complete"
   exit 0
 fi
@@ -369,33 +673,6 @@ RESOURCE_TAGS='${RESOURCE_TAGS}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
-# ---------------------------------------------------------------------------
-# Activate hub account credentials
-# ---------------------------------------------------------------------------
-activate_hub_credentials() {
-  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-    log "Using existing env var credentials (AWS_ACCESS_KEY_ID set)"
-    return
-  fi
-  log "Activating credentials for hub account (profile: $AWS_PROFILE_HUB)"
-  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_HUB" --format env)"
-}
-
-activate_spoke_credentials() {
-  if [ -n "${AWS_SPOKE_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SPOKE_SECRET_ACCESS_KEY:-}" ]; then
-    export AWS_ACCESS_KEY_ID="$AWS_SPOKE_ACCESS_KEY_ID"
-    export AWS_SECRET_ACCESS_KEY="$AWS_SPOKE_SECRET_ACCESS_KEY"
-    export AWS_SESSION_TOKEN="${AWS_SPOKE_SESSION_TOKEN:-}"
-    log "Using existing env var credentials for spoke account"
-    return
-  fi
-  if [ -z "${AWS_PROFILE_SPOKE:-}" ]; then
-    err "No spoke account credentials available. Set AWS_PROFILE_SPOKE or AWS_SPOKE_ACCESS_KEY_ID/AWS_SPOKE_SECRET_ACCESS_KEY environment variables."
-  fi
-  log "Activating credentials for spoke account (profile: $AWS_PROFILE_SPOKE)"
-  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_SPOKE" --format env)"
-}
-
 activate_hub_credentials
 
 # Verify credentials target the expected account
@@ -566,7 +843,11 @@ put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/dns-records" '{"records"
 put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-backend-${ENVIRONMENT}/image-service-account-id" "$AWS_ACCOUNT_ID"
 
 # Ensure Image Builder service-linked role exists (required by packaging stacks)
-aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
+if [ "$DIFF_MODE" = "true" ]; then
+  log "Skipping the Image Builder service-linked role (--diff)"
+else
+  aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
+fi
 
 # --- VPC ---
 EXISTING_VPC=$(aws ec2 describe-vpcs \
@@ -579,6 +860,13 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   # explicitly configured name that misses is an operator error either way.
   if [ -n "$HUB_VPC_NAME" ]; then
     err "HUB_VPC_NAME is set to '$HUB_VPC_NAME' but no such VPC resolved in $AWS_REGION. Check the name, the region, and DescribeVpcs permission. Refusing to create a VPC."
+  fi
+  # --diff only diffs the VPC stack, so the VPC is never created. The backend
+  # stacks resolve it with Vpc.from_lookup while synthesizing, which would then
+  # fail inside CDK with "Could not find any VPCs matching". Refuse here
+  # instead, where the reason can be given.
+  if [ "$DIFF_MODE" = "true" ]; then
+    err "--diff needs a VPC named '$VPC_NAME' in $AWS_REGION: the backend stacks look it up while synthesizing, and a preview does not create one. Deploy once before previewing, or set HUB_VPC_NAME to an existing VPC."
   fi
   warn "VPC '$VPC_NAME' not found in $AWS_REGION"
   warn "A development VPC will be created. This is intended for dev/testing only — not for production use."
@@ -599,7 +887,7 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   (
     cd "$BACKEND_DIR"
     cp cdk-vpc.json cdk.json
-    run_cmd cdk deploy --all --require-approval never --force \
+    cdk_run \
       -c "environment=$ENVIRONMENT" \
       -c "account=$AWS_ACCOUNT_ID" \
       -c "region=$AWS_REGION"
@@ -612,7 +900,12 @@ else
 fi
 
 # --- Self-signed TLS certificate (private deployment, no CERT_ARN provided) ---
-if [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+# A preview must not mint and import a certificate. Without one the
+# frontend stack is diffed as it would be with CERT_ARN unset, which is
+# the honest comparison for a deployment that has none yet.
+if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+  warn "Skipping the self-signed certificate import (--diff); the frontend diff assumes no CERT_ARN"
+elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
   command -v openssl >/dev/null || err "openssl is required to generate a self-signed certificate (no CERT_ARN provided)."
   log "Generating self-signed certificate for $CUSTOM_DOMAIN, $API_CUSTOM_DOMAIN"
 
@@ -670,7 +963,10 @@ step 5 "Configuring identity federation"
 
 OIDC_SECRET_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 
-if [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUER_URL" ]; then
+# put-secret-value overwrites a live secret, so a preview never writes it.
+if [ "$DIFF_MODE" = "true" ] && [ -n "$OIDC_CLIENT_ID" ]; then
+  warn "Skipping the OIDC secret write (--diff); it would overwrite the live secret"
+elif [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUER_URL" ]; then
   log "Creating OIDC secret: $OIDC_SECRET_NAME"
   OIDC_JSON=$(jq -n \
     --arg cid "$OIDC_CLIENT_ID" \
@@ -727,8 +1023,7 @@ fi
 log "Deploying frontend CDK stacks"
 (
   cd "$FRONTEND_DIR"
-  run_cmd cdk deploy --all --require-approval never --force \
-    "${FE_CDK_CONTEXT[@]}"
+  cdk_run "${FE_CDK_CONTEXT[@]}"
 )
 
 # ---------------------------------------------------------------------------
@@ -801,9 +1096,7 @@ log "Deploying backend CDK stacks"
     CDK_CONCURRENCY=10
   fi
 
-  run_cmd cdk deploy --all --require-approval never --force \
-    --concurrency $CDK_CONCURRENCY \
-    "${BE_CDK_CONTEXT[@]}"
+  CDK_DEPLOY_EXTRA="--concurrency $CDK_CONCURRENCY" cdk_run "${BE_CDK_CONTEXT[@]}"
   rm -f cdk.json
 )
 
@@ -812,6 +1105,19 @@ deactivate
 # ---------------------------------------------------------------------------
 # Phase 8: Build and deploy frontend web application
 # ---------------------------------------------------------------------------
+if [ "$DIFF_MODE" = "true" ]; then
+  echo ""
+  log "=== DIFF COMPLETE ==="
+  log "The stack changes above are what a deploy would apply. Nothing was deployed."
+  warn "Two writes still happen, because the diff itself needs them: the CDK"
+  warn "bootstrap stack, and the SSM parameters the stacks read while"
+  warn "synthesizing. Both are no-ops on an account already deployed."
+  warn "Everything else is skipped: the service-linked role, the self-signed"
+  warn "certificate import, and the OIDC secret."
+  log "Run without --diff to apply."
+  exit 0
+fi
+
 step 8 "Building frontend web application and uploading to S3"
 
 WEB_DIR="$REPO_ROOT/frontend/web"
