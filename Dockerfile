@@ -1,3 +1,4 @@
+# Python must match the Lambda runtime (PYTHON_3_13); Dependabot only proposes digest/patch updates.
 FROM public.ecr.aws/docker/library/python:3.13-slim@sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -9,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends docker-ce-cli \
     && rm -rf /var/lib/apt/lists/*
 
-# Node 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+# Node 24 (LTS; matches CI). Node 20 is end-of-life.
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,7 +27,7 @@ RUN npm install -g aws-cdk@2.1133.0 \
     && corepack enable \
     && corepack prepare yarn@4.13.0 --activate
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.3 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.3@sha256:90bbb3c16635e9627f49eec6539f956d70746c409209041800a0280b93152823 /uv /uvx /bin/
 
 WORKDIR /app
 ENTRYPOINT ["./deploy.sh"]
