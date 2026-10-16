@@ -16,6 +16,7 @@ import {
 } from '../../services/API/proserve-wb-provisioning-api/index.ts';
 import { ProductParameterState, visibleParameters } from './index.ts';
 import { useRoleAccessToggle } from '../role-access-toggle.ts';
+import { preselectedVersion } from './provisioning.helpers.ts';
 import { useUserProfile } from '../../components/user-preferences/user-profile.hook.ts';
 import { useFeatureToggles } from '../../components/feature-toggles/feature-toggle.hook.ts';
 import { Feature } from '../../components/feature-toggles/feature-toggle.state.ts';
@@ -54,7 +55,10 @@ export function useProvisionProduct({
   const { userProfile } = useUserProfile({ serviceAPIs: getApis() });
   const { isFeatureEnabled } = useFeatureToggles();
   const [selectedVersionRegion, setSelectedVersionRegion] = useState<string>(defaultSelectedRegion());
-  const [selectedVersionStage, setSelectedVersionStage] = useState<string>(availableStages[0]);
+  // PROD first: users launch released versions; admins can still pick another stage.
+  const [selectedVersionStage, setSelectedVersionStage] = useState<string>(
+    availableStages.includes('PROD') ? 'PROD' : availableStages[0]
+  );
   const [selectedVersion, setSelectedVersion] = useState<AvailableVersionDistribution | undefined>();
   const [productVersions, setProductVersions] = useState<AvailableVersionDistribution[]>([]);
   const [productVersionsLoading, setProductVersionsLoading] = useState(false);
@@ -111,7 +115,11 @@ export function useProvisionProduct({
       selectedVersionStage,
       selectedVersionRegion
     ).then(response => {
-      setProductVersions(response.availableProductVersions ?? []);
+      const versions = response.availableProductVersions ?? [];
+      setProductVersions(versions);
+      // Every launch starts on the recommended or newest released version of the stage (it took the
+      // oldest, and only in workbench-only programs).
+      setSelectedVersion(preselectedVersion(versions));
     }).catch(async e => {
       showErrorNotification({
         header: i18n.productVersionsFetchErrorTitle,
