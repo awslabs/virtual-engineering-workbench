@@ -3,9 +3,10 @@ from unittest import mock
 import assertpy
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 
 from app.provisioning.adapters.services import ec2_instance_management_service
-from app.provisioning.domain.exceptions import insufficient_capacity_exception
+from app.provisioning.domain.exceptions import instance_start_exception, insufficient_capacity_exception
 from app.provisioning.domain.model import (
     block_device_mappings,
     instance_details,
@@ -136,7 +137,9 @@ def test_ec2_instance_management_service_should_catch_error_when_starting(
             instance_id=mocked_instance_id,
         )
 
-    assertpy.assert_that(str(ex.value)).is_equal_to("Insufficient instance capacity error")
+    assertpy.assert_that(str(ex.value)).is_equal_to(
+        "Insufficient instance capacity error: Insufficient instance capacity"
+    )
     mock_start_ec2_instance_request.assert_called_once_with(InstanceIds=[mocked_instance_id])
     client_provider.assert_called_once_with("001234567890", "us-east-1", "T0011AA")
 
@@ -517,3 +520,26 @@ def test_describe_subnet_interfaces_should_return_subnet(mock_vpc, mock_network_
 
     # ASSERT
     assertpy.assert_that(interfaces).is_length(1)
+
+
+@pytest.mark.parametrize(
+    "code,message",
+    [
+        ("VcpuLimitExceeded", "You have requested more vCPU capacity than your current vCPU limit of 0 allows."),
+        ("Unsupported", "The requested configuration is currently not supported."),
+    ],
+)
+def test_start_instance_raises_the_ec2_error_for_other_refusals(code, message):
+    # a refusal other than capacity keeps EC2's code and message (it used to end in an UnboundLocalError).
+    ec2 = mock.MagicMock()
+    ec2.start_instances.side_effect = ClientError(
+        error_response={"Error": {"Code": code, "Message": message}}, operation_name="StartInstances"
+    )
+    service = ec2_instance_management_service.EC2InstanceManagementService(
+        ec2_boto_client_provider=mock.MagicMock(return_value=ec2),
+    )
+
+    with pytest.raises(instance_start_exception.InstanceStartException) as ex:
+        service.start_instance(user_id="T0011AA", aws_account_id="001234567890", region="us-east-1", instance_id="i-1")
+
+    assertpy.assert_that(str(ex.value)).is_equal_to(f"{code}: {message}")

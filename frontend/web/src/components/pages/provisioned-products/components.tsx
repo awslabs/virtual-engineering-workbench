@@ -52,6 +52,7 @@ import { Feature } from '../../feature-toggles/feature-toggle.state.ts';
 import {
   UpdateProvisionedProductPrompt
 } from './provisioned-product-update-prompt/update-provisioned-product-prompt';
+import { WorkbenchFailureSummary } from './workbench-failure.tsx';
 
 /* eslint @typescript-eslint/no-magic-numbers: "off" */
 
@@ -566,6 +567,10 @@ export function ProvisionedProductList({
               }
             />
           ,
+        },
+        {
+          id: 'failure',
+          content: (e: ProvisionedProduct) => <WorkbenchFailureSummary provisionedProduct={e} />,
         },
         {
           id: 'operating-system',

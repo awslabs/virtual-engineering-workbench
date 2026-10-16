@@ -2076,6 +2076,29 @@ components:
           title: OutputType
           type: string
           description: Output Type.
+    WorkbenchFailure:
+      title: WorkbenchFailure
+      type: object
+      description: Why a workbench failed to launch, start, update or be removed, as a stable code the portal explains.
+      required:
+        - code
+      properties:
+        code:
+          title: Code
+          type: string
+          description: CAPACITY, QUOTA, UNSUPPORTED_IN_AZ, PERMISSIONS, TEMPLATE or UNKNOWN.
+        operation:
+          title: Operation
+          type: string
+          description: LAUNCH, START, UPDATE or REMOVE.
+        instanceType:
+          title: InstanceType
+          type: string
+          description: The workbench's instance type.
+        gpu:
+          title: Gpu
+          type: boolean
+          description: The instance type has a GPU.
     ProvisionedProduct:
       title: ProvisionedProduct
       type: object
@@ -2123,6 +2146,8 @@ components:
           title: StatusReason
           type: string
           description: Status reason.
+        failure:
+          $ref: "#/components/schemas/WorkbenchFailure"
         productId:
           title: ProductId
           type: string

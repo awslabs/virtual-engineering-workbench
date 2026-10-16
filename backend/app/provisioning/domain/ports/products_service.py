@@ -71,6 +71,16 @@ class ProductsService(ABC):
         provisioned_instance_type: str | None,
     ) -> bool: ...
 
+    def get_provisioned_product_failure_reason(
+        self,
+        provisioned_product_id: str,
+        user_id: str,
+        aws_account_id: str,
+        region: str,
+    ) -> str | None:
+        """the reason of the first resource that failed in the product's stack, if known."""
+        return None
+
     @abstractmethod
     def has_provisioned_product_missing_removal_signal_error(
         self,
