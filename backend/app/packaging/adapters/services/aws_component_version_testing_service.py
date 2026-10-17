@@ -334,9 +334,16 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
 
             ssm_client = self.__get_ssm_client(access_key_id, secret_access_key, session_token)
 
-            ssm_command_status = ssm_client.get_command_invocation(CommandId=command_id, InstanceId=instance_id).get(
-                "Status"
-            )
+            try:
+                ssm_command_status = ssm_client.get_command_invocation(
+                    CommandId=command_id, InstanceId=instance_id
+                ).get("Status")
+            except ClientError as error:
+                if error.response.get("Error", {}).get("Code") != "InvocationDoesNotExist":
+                    raise
+                # SSM registers the invocation shortly after SendCommand returns; a status check right
+                # after it can miss it. Still pending, not failed.
+                return component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending
 
             if ssm_command_status in SSMCommandStatusMapping.Failed.value:
                 return component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Failed
