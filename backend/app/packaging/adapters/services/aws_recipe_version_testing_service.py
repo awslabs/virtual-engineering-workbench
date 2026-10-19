@@ -8,6 +8,7 @@ from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_ssm import client as ssm_client
 
 from app.packaging.adapters.exceptions import adapter_exception
+from app.packaging.adapters.services.ssm_command_registration import invocation_is_registering
 from app.packaging.domain.model.recipe import recipe_version_test_execution
 from app.packaging.domain.ports import recipe_version_testing_service
 from app.shared.api import sts_api
@@ -336,7 +337,9 @@ class AwsRecipeVersionTestingService(recipe_version_testing_service.RecipeVersio
             os_version=os_version,
         )
 
-    def get_testing_command_status(self, command_id: str, instance_id: str) -> None:
+    def get_testing_command_status(
+        self, command_id: str, instance_id: str, submitted_at: str | None = None
+    ) -> recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus:
         with sts_api.STSAPI(
             self._ami_factory_aws_account_id,
             self._region,
@@ -357,11 +360,11 @@ class AwsRecipeVersionTestingService(recipe_version_testing_service.RecipeVersio
                     CommandId=command_id, InstanceId=instance_id
                 ).get("Status")
             except ClientError as error:
-                if error.response.get("Error", {}).get("Code") != "InvocationDoesNotExist":
-                    raise
-                # SSM registers the invocation shortly after SendCommand returns; a status check right
-                # after it can miss it. Still pending, not failed (it failed recipe version tests).
-                return recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Pending
+                return (
+                    recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Pending
+                    if invocation_is_registering(error, submitted_at)
+                    else recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Failed
+                )
             return self.__map_status(ssm_command_status)
 
     def run_testing(

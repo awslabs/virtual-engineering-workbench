@@ -162,6 +162,7 @@ def test_handle_should_run_component_version_testing(
                 instanceId=instance_id,
             ),
             testCommandId=desired_command_ids[index],
+            testCommandSubmittedAt="2023-09-29T00:00:00+00:00",
             testCommandStatus=component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending.value,
             lastUpdateDate="2023-09-29T00:00:00+00:00",
             status=component_version_test_execution.ComponentVersionTestExecutionStatus.Running.value,

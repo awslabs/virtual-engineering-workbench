@@ -8,6 +8,7 @@ from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_ssm import client as ssm_client
 
 from app.packaging.adapters.exceptions import adapter_exception
+from app.packaging.adapters.services.ssm_command_registration import invocation_is_registering
 from app.packaging.domain.model.component import component_version_test_execution
 from app.packaging.domain.ports import component_version_testing_service
 from app.shared.api import sts_api
@@ -321,7 +322,7 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
         )
 
     def get_testing_command_status(
-        self, command_id: str, instance_id: str
+        self, command_id: str, instance_id: str, submitted_at: str | None = None
     ) -> component_version_test_execution.ComponentVersionTestExecutionCommandStatus:
         with sts_api.STSAPI(
             self._ami_factory_aws_account_id, self._region, self._admin_role, SESSION_USER, self._boto_session
@@ -339,11 +340,11 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
                     CommandId=command_id, InstanceId=instance_id
                 ).get("Status")
             except ClientError as error:
-                if error.response.get("Error", {}).get("Code") != "InvocationDoesNotExist":
-                    raise
-                # SSM registers the invocation shortly after SendCommand returns; a status check right
-                # after it can miss it. Still pending, not failed.
-                return component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending
+                return (
+                    component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending
+                    if invocation_is_registering(error, submitted_at)
+                    else component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Failed
+                )
 
             if ssm_command_status in SSMCommandStatusMapping.Failed.value:
                 return component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Failed
