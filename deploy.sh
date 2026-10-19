@@ -123,30 +123,42 @@ activate_spoke_credentials() {
 # --destroy: tear down all VEW stacks and orphaned resources
 # ---------------------------------------------------------------------------
 
+# CloudFront, Lambda@Edge and a CLOUDFRONT-scoped WAF exist only in us-east-1,
+# so a public deployment puts the frontend there wherever the backend runs. A
+# private deployment has no CloudFront and stays in one region. Both the deploy
+# and the destroy read this, so they cannot disagree about where to look.
+frontend_region() {
+  if [ "${PRIVATE_DEPLOYMENT:-false}" != "true" ] && [ "$1" != "us-east-1" ]; then
+    echo "us-east-1"
+  else
+    echo "$1"
+  fi
+}
+
 # Deletes one stack, reporting resource-level progress while it runs.
 # Returns 0 deleted, 1 blocked by a CloudFormation export, 2 failed.
 delete_one_stack() {
-  local stack=$1 position=$2 total=$3
+  local stack=$1 position=$2 total=$3 region=${4:-$AWS_REGION}
   local stack_id res_total res_left status reason pct overall elapsed start
   local misses=0 stalls=0
 
   stack_id=$(aws cloudformation describe-stacks --stack-name "$stack" \
-    --query 'Stacks[0].StackId' --output text --region "$AWS_REGION" 2>/dev/null) || return 0
+    --query 'Stacks[0].StackId' --output text --region "$region" 2>/dev/null) || return 0
   # length() is evaluated per page, so count the rows instead: a stack with
   # more than 100 resources would otherwise yield one number per page.
   res_total=$(aws cloudformation list-stack-resources --stack-name "$stack_id" \
-    --query 'StackResourceSummaries[].ResourceStatus' --output text --region "$AWS_REGION" 2>/dev/null \
+    --query 'StackResourceSummaries[].ResourceStatus' --output text --region "$region" 2>/dev/null \
     | tr '\t' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
   log "Deleting stack: $stack ($res_total resources)"
-  aws cloudformation delete-stack --stack-name "$stack_id" --region "$AWS_REGION"
+  aws cloudformation delete-stack --stack-name "$stack_id" --region "$region"
   start=$(date +%s)
 
   while :; do
     status=$(aws cloudformation describe-stacks --stack-name "$stack_id" \
-      --query 'Stacks[0].StackStatus' --output text --region "$AWS_REGION" 2>/dev/null || echo UNKNOWN)
+      --query 'Stacks[0].StackStatus' --output text --region "$region" 2>/dev/null || echo UNKNOWN)
     res_left=$(aws cloudformation list-stack-resources --stack-name "$stack_id" \
       --query "StackResourceSummaries[?ResourceStatus!='DELETE_COMPLETE'].ResourceStatus" \
-      --output text --region "$AWS_REGION" 2>/dev/null \
+      --output text --region "$region" 2>/dev/null \
       | tr '\t' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
     if [ "$res_total" -gt 0 ]; then
       pct=$(( (res_total - res_left) * 100 / res_total ))
@@ -179,7 +191,7 @@ delete_one_stack() {
         # CloudFormation cancels a delete within seconds when another stack
         # imports one of this stack's exports; the status reverts unchanged.
         reason=$(aws cloudformation describe-stack-events --stack-name "$stack_id" \
-          --region "$AWS_REGION" --max-items 1 \
+          --region "$region" --max-items 1 \
           --query 'StackEvents[0].ResourceStatusReason' --output text 2>/dev/null \
           | head -1 || echo "")
         case "$reason" in
@@ -203,16 +215,21 @@ delete_one_stack() {
 # buckets, so non-current versions and delete markers survive it and the bucket
 # cannot be removed.
 empty_versioned_bucket() {
-  local bucket=$1 payload
+  local bucket=$1 payload region
+  # A bucket answers only in its own region; the frontend's live in
+  # us-east-1 while the backend's do not.
+  region=$(aws s3api get-bucket-location --bucket "$bucket" \
+    --query 'LocationConstraint' --output text 2>/dev/null || echo None)
+  if [ "$region" = "None" ] || [ -z "$region" ]; then region="us-east-1"; fi
   while :; do
-    payload=$(aws s3api list-object-versions --bucket "$bucket" --region "$AWS_REGION" \
+    payload=$(aws s3api list-object-versions --bucket "$bucket" --region "$region" \
       --max-items 1000 \
       --query '{Objects: [Versions, DeleteMarkers][][].{Key:Key,VersionId:VersionId}}' \
       --output json 2>/dev/null || echo '{"Objects":null}')
     case "$payload" in
       *'"Objects": null'*|*'"Objects": []'*) return 0 ;;
     esac
-    aws s3api delete-objects --bucket "$bucket" --region "$AWS_REGION" \
+    aws s3api delete-objects --bucket "$bucket" --region "$region" \
       --delete "$payload" >/dev/null 2>&1 || return 1
   done
 }
@@ -233,40 +250,59 @@ if [ "$DESTROY_MODE" = "true" ]; then
   activate_hub_credentials
   log "Target account: $(aws sts get-caller-identity --query Account --output text)"
 
-  # -- CloudFormation stacks -------------------------------------------------
-  STACKS=$(aws cloudformation list-stacks \
-    --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
-    --query "StackSummaries[?starts_with(StackName, '${PREFIX}') \
-      && ends_with(StackName, '${ENV_SUFFIX}')].StackName" \
-    --output text --region "$AWS_REGION" | tr '\t' ' ')
+  # A public deployment leaves the frontend stacks in us-east-1 while the
+  # backend's stay put, so sweeping only AWS_REGION strands CloudFront, the
+  # Lambda@Edge functions and the WAF.
+  FE_REGION=$(frontend_region "$AWS_REGION")
+  REGIONS="$AWS_REGION"
+  if [ "$FE_REGION" != "$AWS_REGION" ]; then
+    REGIONS="$AWS_REGION $FE_REGION"
+    log "Also sweeping $FE_REGION for the frontend stacks"
+  fi
 
-  # The CDK app names some stacks without the configured prefix, so the filter
-  # above misses them. Anything importing a VEW export is part of this
-  # deployment and has to be deleted before the stack that exports to it.
-  log "Resolving stacks that import VEW exports..."
-  DEPENDENTS=""
-  for export_name in $(aws cloudformation list-exports --region "$AWS_REGION" \
+  # -- CloudFormation stacks -------------------------------------------------
+  # Everything to be deleted is resolved first, across every region, so the
+  # operator approves one list rather than one per region.
+  TARGETS=""
+  for region in $REGIONS; do
+    STACKS=$(aws cloudformation list-stacks \
+      --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+      --query "StackSummaries[?starts_with(StackName, '${PREFIX}') \
+        && ends_with(StackName, '${ENV_SUFFIX}')].StackName" \
+      --output text --region "$region" | tr '\t' ' ')
+
+    # The CDK app names some stacks without the configured prefix, so the
+    # filter above misses them. Anything importing a VEW export is part of
+    # this deployment and has to be deleted before the stack that exports to
+    # it. Exports do not cross a region, so this resolves within each.
+    log "Resolving stacks that import VEW exports in $region..."
+    DEPENDENTS=""
+    for export_name in $(aws cloudformation list-exports --region "$region" \
       --query "Exports[?starts_with(Name,'${PREFIX}')].Name" --output text); do
-    for importer in $(aws cloudformation list-imports --export-name "$export_name" \
-        --region "$AWS_REGION" --query 'Imports' --output text 2>/dev/null || true); do
-      case " $STACKS $DEPENDENTS " in
-        *" $importer "*) ;;
-        *) DEPENDENTS="$DEPENDENTS $importer"
-           log "Also deleting: $importer (imports ${export_name%%:*})" ;;
-      esac
+      for importer in $(aws cloudformation list-imports --export-name "$export_name" \
+        --region "$region" --query 'Imports' --output text 2>/dev/null || true); do
+        case " $STACKS $DEPENDENTS " in
+          *" $importer "*) ;;
+          *) DEPENDENTS="$DEPENDENTS $importer"
+             log "Also deleting: $importer (imports ${export_name%%:*})" ;;
+        esac
+      done
+    done
+
+    for stack in $DEPENDENTS $STACKS; do
+      TARGETS="$TARGETS ${region}|${stack}"
     done
   done
 
-  REMAINING="$DEPENDENTS $STACKS"
-  STACK_TOTAL=$(echo "$REMAINING" | wc -w | tr -d ' ')
+  STACK_TOTAL=$(echo "$TARGETS" | wc -w | tr -d ' ')
   DELETED=0
   FAILED=""
-  # Everything to be deleted is resolved first, so the operator sees the whole
-  # list — including stacks found through their exports rather than their name
-  # — before being asked to approve it.
-  warn "This will delete $STACK_TOTAL stack(s) in $AWS_REGION, and any orphaned"
+  STRANDED=""
+  warn "This will delete $STACK_TOTAL stack(s) in ${REGIONS// /, }, and any orphaned"
   warn "log groups, ECR repositories and S3 buckets left behind by them:"
-  for stack in $REMAINING; do echo "    $stack"; done
+  for target in $TARGETS; do
+    printf '    %-10s %s\n' "${target%%|*}" "${target#*|}"
+  done
   warn "Matching '${PREFIX}' in environment '${ENVIRONMENT}'."
   if [ "$AUTO_CONFIRM" = "true" ]; then
     CONFIRM="destroy"
@@ -275,127 +311,137 @@ if [ "$DESTROY_MODE" = "true" ]; then
   fi
   [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
 
-  # Lambda releases its VPC network interfaces lazily, minutes after the
-  # function is gone, so whatever owns the VPC and subnets is deleted last and
-  # retried rather than taken in list order.
-  NETWORK_STACKS=""
-  APP_STACKS=""
-  for stack in $REMAINING; do
-    if aws cloudformation list-stack-resources --stack-name "$stack" --region "$AWS_REGION" \
+  for region in $REGIONS; do
+    REGION_STACKS=""
+    for target in $TARGETS; do
+      [ "${target%%|*}" = "$region" ] && REGION_STACKS="$REGION_STACKS ${target#*|}"
+    done
+    [ -n "$(echo $REGION_STACKS)" ] || continue
+    case "$REGIONS" in *" "*) log "Deleting stacks in $region" ;; esac
+
+    # Lambda releases its VPC network interfaces lazily, minutes after the
+    # function is gone, so whatever owns the VPC and subnets is deleted last and
+    # retried rather than taken in list order.
+    NETWORK_STACKS=""
+    APP_STACKS=""
+    for stack in $REGION_STACKS; do
+      if aws cloudformation list-stack-resources --stack-name "$stack" --region "$region" \
         --query "StackResourceSummaries[?ResourceType=='AWS::EC2::VPC'||ResourceType=='AWS::EC2::Subnet'].LogicalResourceId" \
         --output text 2>/dev/null | grep -q '[^[:space:]]'; then
-      NETWORK_STACKS="$NETWORK_STACKS $stack"
-      log "Holding until last: $stack (owns VPC or subnets)"
-    else
-      APP_STACKS="$APP_STACKS $stack"
-    fi
-  done
-  REMAINING="$APP_STACKS"
-
-  # Export dependencies are discovered, not assumed: a stack that refuses to
-  # delete goes back in the queue and is retried once its importers are gone.
-  PASS=0
-  while [ -n "$(echo $REMAINING)" ]; do
-    PASS=$(( PASS + 1 ))
-    [ "$PASS" -gt 1 ] && log "Retry pass $PASS ($(echo $REMAINING | wc -w | tr -d ' ') stack(s) still blocked)"
-    BLOCKED=""
-    MOVED=0
-    for stack in $REMAINING; do
-      BLOCK_REASON=""
-      if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL"; then
-        DELETED=$(( DELETED + 1 )); MOVED=1
+        NETWORK_STACKS="$NETWORK_STACKS $stack"
+        log "Holding until last: $stack (owns VPC or subnets)"
       else
-        RC=$?
-        if [ "$RC" -eq 1 ]; then
-          BLOCKED="$BLOCKED $stack"
-          log "Blocked, will retry: $stack"
+        APP_STACKS="$APP_STACKS $stack"
+      fi
+    done
+    REMAINING="$APP_STACKS"
+
+    # Export dependencies are discovered, not assumed: a stack that refuses to
+    # delete goes back in the queue and is retried once its importers are gone.
+    PASS=0
+    while [ -n "$(echo $REMAINING)" ]; do
+      PASS=$(( PASS + 1 ))
+      [ "$PASS" -gt 1 ] && log "Retry pass $PASS ($(echo $REMAINING | wc -w | tr -d ' ') stack(s) still blocked)"
+      BLOCKED=""
+      MOVED=0
+      for stack in $REMAINING; do
+        BLOCK_REASON=""
+        if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL" "$region"; then
+          DELETED=$(( DELETED + 1 )); MOVED=1
         else
-          # A stack that would not delete is not deleted. Keeping it here
-          # is what stops the run reporting success over it.
-          FAILED="$FAILED $stack"
+          RC=$?
+          if [ "$RC" -eq 1 ]; then
+            BLOCKED="$BLOCKED $stack"
+            log "Blocked, will retry: $stack"
+          else
+            # A stack that would not delete is not deleted. Keeping it here
+            # is what stops the run reporting success over it.
+            FAILED="$FAILED $stack"
+          fi
         fi
-      fi
-    done
-    REMAINING="$BLOCKED"
-    if [ "$MOVED" -eq 0 ]; then
-      break
-    fi
-  done
-
-  for stack in $NETWORK_STACKS; do
-    ATTEMPT=1
-    while [ "$ATTEMPT" -le 4 ]; do
-      if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL"; then
-        DELETED=$(( DELETED + 1 ))
+      done
+      REMAINING="$BLOCKED"
+      if [ "$MOVED" -eq 0 ]; then
         break
       fi
-      if [ "$ATTEMPT" -eq 4 ]; then
-        warn "$stack still has dependencies after 4 attempts — check for leftover network interfaces"
-        FAILED="$FAILED $stack"
-        break
-      fi
-      warn "$stack not ready (attempt $ATTEMPT) — waiting 3 min for network interfaces to be released"
-      sleep 180
-      ATTEMPT=$(( ATTEMPT + 1 ))
+    done
+    STRANDED="$STRANDED $REMAINING"
+
+    for stack in $NETWORK_STACKS; do
+      ATTEMPT=1
+      while [ "$ATTEMPT" -le 4 ]; do
+        if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL" "$region"; then
+          DELETED=$(( DELETED + 1 ))
+          break
+        fi
+        if [ "$ATTEMPT" -eq 4 ]; then
+          warn "$stack still has dependencies after 4 attempts — check for leftover network interfaces"
+          FAILED="$FAILED $stack"
+          break
+        fi
+        warn "$stack not ready (attempt $ATTEMPT) — waiting 3 min for network interfaces to be released"
+        sleep 180
+        ATTEMPT=$(( ATTEMPT + 1 ))
+      done
     done
   done
 
-  LEFT="$(echo $REMAINING $FAILED)"
+  LEFT="$(echo $STRANDED $FAILED)"
   if [ -n "$LEFT" ]; then
     warn "Could not delete: $LEFT"
-    [ -n "$(echo $REMAINING)" ] && warn "Last reason: ${BLOCK_REASON:-unknown}"
+    [ -n "$(echo $STRANDED)" ] && warn "Last reason: ${BLOCK_REASON:-unknown}"
   else
     log "All $STACK_TOTAL stack(s) deleted"
   fi
 
   # -- Orphaned resources ----------------------------------------------------
-  # Matched on substring, not prefix: CDK nests log groups under /aws/lambda/
-  # and /pipes/, so the prefix is not at the start of the name.
   # CDK nests log groups under /aws/lambda/ and /pipes/, and WAF requires its
   # own aws-waf-logs- prefix, so the name is matched at one of four known
   # starts rather than anywhere in the string — a bare substring would also
   # claim another stack's group that happens to contain this prefix.
-  log "Cleaning orphaned CloudWatch log groups..."
-  LOG_GROUPS=$(aws logs describe-log-groups --region "$AWS_REGION" \
-    --query "logGroups[?starts_with(logGroupName, '${PREFIX}') \
-      || starts_with(logGroupName, '/aws/lambda/${PREFIX}') \
-      || starts_with(logGroupName, '/pipes/${PREFIX}') \
-      || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')].logGroupName \
-      | [?ends_with(@, '${ENV_SUFFIX}') || contains(@, '${ENV_INFIX}')]" --output text)
-  LG_TOTAL=$(echo "$LOG_GROUPS" | wc -w | tr -d ' ')
-  LG_IDX=0; LG_OK=0
-  for lg in $LOG_GROUPS; do
-    LG_IDX=$(( LG_IDX + 1 ))
-    progress $(( LG_IDX * 100 / LG_TOTAL )) "$lg"
-    if aws logs delete-log-group --log-group-name "$lg" --region "$AWS_REGION" 2>/dev/null; then
-      LG_OK=$(( LG_OK + 1 ))
-    else
-      progress_end
-      warn "Could not delete log group: $lg"
-    fi
-  done
-  progress_end
-  log "Deleted $LG_OK of $LG_TOTAL log group(s)"
+  for region in $REGIONS; do
+    log "Cleaning orphaned CloudWatch log groups in $region..."
+    LOG_GROUPS=$(aws logs describe-log-groups --region "$region" \
+      --query "logGroups[?starts_with(logGroupName, '${PREFIX}') \
+        || starts_with(logGroupName, '/aws/lambda/${PREFIX}') \
+        || starts_with(logGroupName, '/pipes/${PREFIX}') \
+        || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')].logGroupName \
+        | [?ends_with(@, '${ENV_SUFFIX}') || contains(@, '${ENV_INFIX}')]" --output text)
+    LG_TOTAL=$(echo "$LOG_GROUPS" | wc -w | tr -d ' ')
+    LG_IDX=0; LG_OK=0
+    for lg in $LOG_GROUPS; do
+      LG_IDX=$(( LG_IDX + 1 ))
+      progress $(( LG_IDX * 100 / LG_TOTAL )) "$lg"
+      if aws logs delete-log-group --log-group-name "$lg" --region "$region" 2>/dev/null; then
+        LG_OK=$(( LG_OK + 1 ))
+      else
+        progress_end
+        warn "Could not delete log group: $lg"
+      fi
+    done
+    progress_end
+    log "Deleted $LG_OK of $LG_TOTAL log group(s)"
 
-  log "Cleaning orphaned ECR repositories..."
-  REPOS=$(aws ecr describe-repositories --region "$AWS_REGION" \
-    --query "repositories[?starts_with(repositoryName, '${PREFIX}') \
-      && (ends_with(repositoryName, '${ENV_SUFFIX}') || contains(repositoryName, '${ENV_INFIX}'))].repositoryName" \
-    --output text 2>/dev/null || echo "")
-  REPO_TOTAL=$(echo "$REPOS" | wc -w | tr -d ' ')
-  REPO_IDX=0; REPO_OK=0
-  for repo in $REPOS; do
-    REPO_IDX=$(( REPO_IDX + 1 ))
-    progress $(( REPO_IDX * 100 / REPO_TOTAL )) "$repo"
-    if aws ecr delete-repository --repository-name "$repo" --force --region "$AWS_REGION" >/dev/null 2>&1; then
-      REPO_OK=$(( REPO_OK + 1 ))
-    else
-      progress_end
-      warn "Could not delete ECR repo: $repo"
-    fi
+    log "Cleaning orphaned ECR repositories in $region..."
+    REPOS=$(aws ecr describe-repositories --region "$region" \
+      --query "repositories[?starts_with(repositoryName, '${PREFIX}') \
+        && (ends_with(repositoryName, '${ENV_SUFFIX}') || contains(repositoryName, '${ENV_INFIX}'))].repositoryName" \
+      --output text 2>/dev/null || echo "")
+    REPO_TOTAL=$(echo "$REPOS" | wc -w | tr -d ' ')
+    REPO_IDX=0; REPO_OK=0
+    for repo in $REPOS; do
+      REPO_IDX=$(( REPO_IDX + 1 ))
+      progress $(( REPO_IDX * 100 / REPO_TOTAL )) "$repo"
+      if aws ecr delete-repository --repository-name "$repo" --force --region "$region" >/dev/null 2>&1; then
+        REPO_OK=$(( REPO_OK + 1 ))
+      else
+        progress_end
+        warn "Could not delete ECR repo: $repo"
+      fi
+    done
+    progress_end
+    log "Deleted $REPO_OK of $REPO_TOTAL ECR repositor(ies)"
   done
-  progress_end
-  log "Deleted $REPO_OK of $REPO_TOTAL ECR repositor(ies)"
 
   log "Cleaning orphaned S3 buckets..."
   BUCKETS=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}') \
@@ -635,10 +681,9 @@ fi
 # CloudFront, Lambda@Edge and a CLOUDFRONT-scoped web ACL exist only there, and
 # the apps create their own regional stacks for whatever the backend needs.
 # A private deployment has no CloudFront and stays in one region.
-FE_REGION="$AWS_REGION"
+FE_REGION=$(frontend_region "$AWS_REGION")
 FE_CERT_ARN="$CERT_ARN"
-if [ "$PRIVATE_DEPLOYMENT" != "true" ] && [ "$AWS_REGION" != "us-east-1" ]; then
-  FE_REGION="us-east-1"
+if [ "$FE_REGION" != "$AWS_REGION" ]; then
   # CloudFront and the Cognito hosted UI read their certificate from the
   # frontend's own region; CERT_ARN stays with the backend's API domain.
   FE_CERT_ARN="$CERT_ARN_US_EAST_1"
