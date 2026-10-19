@@ -30,6 +30,24 @@ from app.provisioning.domain.model.workbench_failure import (
             FailureCode.Quota,
         ),
         ("InstanceLimitExceeded: Your quota allows for 0 more running instance(s).", FailureCode.Quota),
+        ("MaxSpotInstanceCountExceeded: Max spot instance count exceeded", FailureCode.Quota),
+        (
+            "Rate exceeded (Service: Ec2, Status Code: 400, Error Code: RequestLimitExceeded)",
+            FailureCode.Unknown,
+        ),
+        ("Encountered unsupported property Foo", FailureCode.Template),
+        ("Unsupported: The requested configuration is currently not supported.", FailureCode.UnsupportedInAz),
+        ("Unsupported", FailureCode.UnsupportedInAz),
+        (
+            "The requested configuration is currently not supported. "
+            "(Service: Ec2, Status Code: 400, Error Code: Unsupported)",
+            FailureCode.UnsupportedInAz,
+        ),
+        (
+            "Your requested instance type (g6.xlarge) is not supported in your requested Availability Zone.",
+            FailureCode.UnsupportedInAz,
+        ),
+        ("The instance type Foo is not supported by this template", FailureCode.Unknown),
         (
             "Unsupported: Your requested instance type (g6.xlarge) is not supported in your requested Availability "
             "Zone (eu-north-1c).",

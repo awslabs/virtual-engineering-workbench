@@ -43,8 +43,7 @@ _PATTERNS: list[tuple[FailureCode, re.Pattern]] = [
     (
         FailureCode.Quota,
         re.compile(
-            r"VcpuLimitExceeded|InstanceLimitExceeded|vCPU limit|MaxSpotInstanceCountExceeded|"
-            r"service quota|LimitExceeded",
+            r"VcpuLimitExceeded|InstanceLimitExceeded|vCPU limit|MaxSpotInstanceCountExceeded|service quota",
             re.IGNORECASE,
         ),
     ),
@@ -59,8 +58,8 @@ _PATTERNS: list[tuple[FailureCode, re.Pattern]] = [
     (
         FailureCode.UnsupportedInAz,
         re.compile(
-            r"\bUnsupported\b|not supported in (your|the) requested Availability Zone|"
-            r"instance type .* is not supported",
+            r"^\s*Unsupported\s*(?::|$)|\bError Code:\s*Unsupported\b|"
+            r"not supported in (your|the) requested Availability Zone",
             re.IGNORECASE,
         ),
     ),
@@ -75,7 +74,7 @@ _PATTERNS: list[tuple[FailureCode, re.Pattern]] = [
         FailureCode.Template,
         re.compile(
             r"ValidationError|Parameter validation failed|Template (format )?error|Missing .* in the output|"
-            r"Exceeded attempts to wait|InvalidParameter",
+            r"Exceeded attempts to wait|InvalidParameter|Encountered unsupported property\b",
             re.IGNORECASE,
         ),
     ),
