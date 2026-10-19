@@ -632,7 +632,12 @@ if [ "$PRIVATE_DEPLOYMENT" != "true" ] && [ "$AWS_REGION" != "us-east-1" ]; then
   # CloudFront and the Cognito hosted UI read their certificate from the
   # frontend's own region; CERT_ARN stays with the backend's API domain.
   FE_CERT_ARN="$CERT_ARN_US_EAST_1"
-  [ -n "$FE_CERT_ARN" ] || err "A public deployment outside us-east-1 needs CERT_ARN_US_EAST_1: CloudFront and Cognito read their certificate from us-east-1."
+  # Only a custom domain needs a certificate carried north. Without one,
+  # CloudFront serves its own *.cloudfront.net certificate, exactly as it does
+  # for a us-east-1 deployment.
+  if [ -n "$CERT_ARN" ] && [ -z "$FE_CERT_ARN" ]; then
+    err "A public deployment outside us-east-1 with a custom domain needs CERT_ARN_US_EAST_1: CloudFront and Cognito read their certificate from us-east-1."
+  fi
   log "Frontend deploys to $FE_REGION; backend stays in $AWS_REGION"
 fi
 
