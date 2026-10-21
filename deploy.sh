@@ -510,11 +510,14 @@ prompt() {
   if [ -n "$default" ]; then
     prompt_text="$prompt_text [$default]"
   fi
+  # read reports failure at end of input, which set -e would turn into a silent
+  # exit — no terminal, no message, nothing to go on. The fallback below is the
+  # answer in that case, exactly as it is for someone who presses Enter.
   if [ "$is_secret" = "true" ]; then
-    read -rsp "$prompt_text: " value
+    read -rsp "$prompt_text: " value || true
     echo
   else
-    read -rp "$prompt_text: " value
+    read -rp "$prompt_text: " value || true
   fi
   value="${value:-$default}"
   printf -v "$var_name" '%s' "$value"
@@ -678,7 +681,7 @@ activate_hub_credentials
 # Verify credentials target the expected account
 CALLER_ACCOUNT=$(aws sts get-caller-identity --query 'Account' --output text)
 if [ "$CALLER_ACCOUNT" != "$AWS_ACCOUNT_ID" ]; then
-  err "Profile '$AWS_PROFILE_HUB' targets account $CALLER_ACCOUNT, expected $AWS_ACCOUNT_ID"
+  err "Profile '${AWS_PROFILE_HUB:-<none; credentials from the environment>}' targets account $CALLER_ACCOUNT, expected $AWS_ACCOUNT_ID"
 fi
 log "Hub account credentials verified: $AWS_ACCOUNT_ID"
 
