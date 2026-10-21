@@ -61,7 +61,7 @@
     "yauzl": "^3.2.1",
     "vite": "^7.3.7",
     "@nestjs/core": "^11.1.18",
-    "follow-redirects": "^1.16.0",
+    "follow-redirects": "^1.16.1",
     "uuid": "^14.0.0",
     "qs": "^6.15.2",
     "esbuild": "^0.28.1"
