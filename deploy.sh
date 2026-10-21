@@ -429,6 +429,17 @@ fi
 # ---------------------------------------------------------------------------
 step 0 "Validating prerequisites (CLI tools, AWS credentials, AWS Organization)"
 
+# Before the checks below, not after: corepack is how this repository supplies
+# yarn 4, so enabling it afterwards leaves a clean environment failing a gate
+# it could have passed. `enable` only installs the shims — the version comes
+# from the packageManager field of the directory you are in, and the root
+# declares none, so the frontend's is activated explicitly.
+if command -v node &>/dev/null && command -v corepack &>/dev/null; then
+  corepack enable 2>/dev/null || true
+  yarn_wanted=$(node -p "require('$REPO_ROOT/frontend/web/package.json').packageManager" 2>/dev/null || echo "")
+  [ -n "$yarn_wanted" ] && corepack prepare "$yarn_wanted" --activate 2>/dev/null || true
+fi
+
 for cmd in aws cdk node python uv jq yarn; do
   if ! command -v "$cmd" &>/dev/null; then
     err "Required command not found: $cmd"
@@ -468,10 +479,6 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
     warn "  cp -r $REPO_ROOT /tmp/vew && cd /tmp/vew"
     err "Cannot continue from a Windows filesystem path in WSL."
   fi
-fi
-
-if command -v corepack &>/dev/null; then
-  corepack enable 2>/dev/null || true
 fi
 
 if [ "$(uname -s)" != "Linux" ]; then
