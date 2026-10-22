@@ -55,7 +55,7 @@ progress_end() {
 
 run_cmd() {
   log "Running: $*"
-  "$@" 2>&1 | tee -a "$LOG_FILE"
+  "$@" 2>&1 | tee -a "$LOG_FILE" ${DIFF_CAPTURE:+"$DIFF_CAPTURE"}
   local rc=${PIPESTATUS[0]}
   if [ $rc -ne 0 ]; then
     err "Command failed (exit $rc): $*"
@@ -67,6 +67,9 @@ run_cmd() {
 # and set CDK_DEPLOY_EXTRA for flags that belong to deploy.
 cdk_run() {
   if [ "$DIFF_MODE" = "true" ]; then
+    # One file across every app: cdk reports its stack total per app, so the
+    # figure it prints last is not the total for the run.
+    DIFF_CAPTURE="${DIFF_CAPTURE:-$(mktemp)}"
     run_cmd cdk diff --all "$@"
   else
     # shellcheck disable=SC2086 # CDK_DEPLOY_EXTRA is a flag list, not one word
@@ -1107,6 +1110,12 @@ deactivate
 # ---------------------------------------------------------------------------
 if [ "$DIFF_MODE" = "true" ]; then
   echo ""
+  if [ -s "${DIFF_CAPTURE:-/dev/null}" ]; then
+    # Never fail the diff over the summary: the full output is already above.
+    python3 "$SCRIPT_DIR/scripts/diff-summary.py" "$DIFF_CAPTURE" || true
+    rm -f "$DIFF_CAPTURE"
+    echo ""
+  fi
   log "=== DIFF COMPLETE ==="
   log "The stack changes above are what a deploy would apply. Nothing was deployed."
   warn "Two writes still happen, because the diff itself needs them: the CDK"
