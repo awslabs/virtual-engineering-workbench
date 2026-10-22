@@ -57,6 +57,7 @@ def handle(
                     recipeVersionId=command.recipeVersionId.value, testExecutionId=command.testExecutionId.value
                 ),
                 testCommandId=test_command_id,
+                testCommandSubmittedAt=current_time,
                 # When we send the command it starts in PENDING status
                 testCommandStatus=recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Pending,
                 lastUpdateDate=current_time,

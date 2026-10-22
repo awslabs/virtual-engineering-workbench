@@ -46,6 +46,7 @@ def handle(
                         instanceId=component_version_test_execution_entity.instanceId,
                     ),
                     setupCommandId=setup_command_id,
+                    setupCommandSubmittedAt=current_time,
                     # When we send the command it starts in PENDING status
                     setupCommandStatus=component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending,
                     lastUpdateDate=current_time,
