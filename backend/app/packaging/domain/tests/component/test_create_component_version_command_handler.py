@@ -4,16 +4,12 @@ import assertpy
 import pytest
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.component import (
-    create_component_version_command_handler,
-)
+from app.packaging.domain.command_handlers.component import create_component_version_command_handler
 from app.packaging.domain.commands.component import create_component_version_command
 from app.packaging.domain.events.component import component_version_creation_started
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component, component_version
-from app.packaging.domain.model.shared.component_version_entry import (
-    ComponentVersionEntry,
-)
+from app.packaging.domain.model.shared.component_version_entry import ComponentVersionEntry
 from app.packaging.domain.tests.conftest import TEST_PROJECT_ID
 from app.packaging.domain.value_objects.component import component_id_value_object
 from app.packaging.domain.value_objects.component_version import (
@@ -120,7 +116,7 @@ def test_handle_should_create_new_version_if_version_in_repository(
     command.componentVersionReleaseType = component_version_release_type_value_object.from_str(release_type)
 
     # ACT
-    create_component_version_command_handler.handle(
+    result = create_component_version_command_handler.handle(
         command=command,
         uow=uow_mock,
         message_bus=message_bus_mock,
@@ -152,6 +148,7 @@ def test_handle_should_create_new_version_if_version_in_repository(
         )
     )
     uow_mock.commit.assert_called()
+    assert result == {"componentVersionId": "vers-11111111"}
     message_bus_mock.publish.assert_called_once_with(
         component_version_creation_started.ComponentVersionCreationStarted(
             component_id="comp-1234abcd",

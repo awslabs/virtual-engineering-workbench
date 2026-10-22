@@ -192,7 +192,7 @@ def test_handle_should_retire_version(
             pipelineId=retire_pipeline_command_mock.pipelineId.value,
         ),
         lastUpdateDate="2023-10-12T00:00:00+00:00",
-        lastUpdateBy=retire_pipeline_command_mock.lastUpdateBy.value,
+        lastUpdatedBy=retire_pipeline_command_mock.lastUpdateBy.value,
         status=pipeline.PipelineStatus.Updating,
     )
     uow_mock.commit.assert_called()

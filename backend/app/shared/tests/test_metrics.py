@@ -31,3 +31,15 @@ def test_metric_handlers_when_rest_operation_then_dimension_exists(lambda_contex
     results = json.loads(capsys.readouterr().out.strip())
     assertpy.assert_that(results).contains_key("operationName")
     assertpy.assert_that(results.get("operationName")).is_equal_to("GetProjectAccounts")
+
+
+def test_metric_handlers_reads_service_client_identity_from_oauth_claims():
+    event = {
+        "requestContext": {
+            "authorizer": {"claims": {"client_id": "terraform-prod"}},
+        }
+    }
+
+    _, user_name, _ = metric_handlers._get_data((event,), {})
+
+    assert user_name == "terraform-prod"

@@ -167,7 +167,7 @@ def test_handle_should_archive_component(
         recipe.RecipePrimaryKey(
             projectId=archive_recipe_command_mock.projectId.value, recipeId=archive_recipe_command_mock.recipeId.value
         ),
-        lastUpdateBy=archive_recipe_command_mock.lastUpdatedBy.value,
+        lastUpdatedBy=archive_recipe_command_mock.lastUpdatedBy.value,
         lastUpdateDate="2023-10-12T00:00:00+00:00",
         status=recipe.RecipeStatus.Archived,
     )
