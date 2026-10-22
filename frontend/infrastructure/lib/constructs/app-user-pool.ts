@@ -178,7 +178,8 @@ export class WebUserPool extends Construct {
         adminUserPassword: false,
         custom: false,
         userPassword: false,
-        userSrp: true
+        userSrp: false,
+        user: false,
       },
       disableOAuth: false,
       oAuth: {
