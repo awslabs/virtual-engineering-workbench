@@ -23,3 +23,7 @@
 
 ## Notes for reviewers
 <!-- Anything reviewers should focus on, known limitations, follow-ups. -->
+
+## Acknowledgment
+
+By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of the [project license](https://github.com/awslabs/virtual-engineering-workbench/blob/main/LICENSE).
