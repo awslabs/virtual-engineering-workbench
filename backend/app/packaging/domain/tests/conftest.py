@@ -72,6 +72,7 @@ from app.packaging.domain.ports import (
     component_version_testing_service,
     image_query_service,
     mandatory_components_list_query_service,
+    marketplace_image_service,
     parameter_service,
     pipeline_query_service,
     pipeline_service,
@@ -891,6 +892,11 @@ def recipe_version_service_mock():
     recipe_version_srv = mock.create_autospec(spec=recipe_version_service.RecipeVersionService)
 
     return recipe_version_srv
+
+
+@pytest.fixture()
+def marketplace_image_service_mock():
+    return mock.create_autospec(spec=marketplace_image_service.MarketplaceImageService)
 
 
 @pytest.fixture()

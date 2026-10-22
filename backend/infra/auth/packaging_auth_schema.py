@@ -25,6 +25,7 @@ class PackagingBCActions(enum.StrEnum):
     GetImages = "GetImages"
     GetMandatoryComponentsList = "GetMandatoryComponentsList"
     GetMandatoryComponentsLists = "GetMandatoryComponentsLists"
+    GetMarketplaceImages = "GetMarketplaceImages"
     GetPipeline = "GetPipeline"
     GetPipelines = "GetPipelines"
     GetPipelinesAllowedBuildTypes = "GetPipelinesAllowedBuildTypes"

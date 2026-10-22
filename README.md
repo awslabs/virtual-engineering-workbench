@@ -370,6 +370,8 @@ Platform engineers define what goes into a workbench image:
 1. Create **pipelines** — automated builds that produce AMIs from recipes (mapped to Image Builder pipelines)
 1. Run the pipeline to produce a tested, versioned **image**
 
+A recipe version builds on the default operating system image for its platform, or on an AWS Marketplace product chosen as its **base image**. The product list shows the AMI products the AMI factory account itself is subscribed to, limited to those that publish an AMI alias (`/aws/service/marketplace/<product-id>/latest`) in the deployment region and boot from `/dev/sda1`. A version builds on the AMI the alias points to when the version is created or updated. Like any base image, the product needs the SSM Agent for Image Builder and recipe testing. The built AMI keeps the Marketplace product code, so every account that launches workbenches from it needs the same subscription; AWS Marketplace can share one subscription across an organization through AWS License Manager.
+
 ### 2. Publishing — Create products in the catalog
 
 Platform engineers make images available to users:

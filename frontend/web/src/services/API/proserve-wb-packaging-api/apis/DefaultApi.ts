@@ -34,6 +34,7 @@ import type {
   GetImagesResponse,
   GetMandatoryComponentsListResponse,
   GetMandatoryComponentsListsResponse,
+  GetMarketplaceImagesResponse,
   GetPipelineResponse,
   GetPipelinesAllowedBuildTypesResponse,
   GetPipelinesResponse,
@@ -91,6 +92,8 @@ import {
     GetMandatoryComponentsListResponseToJSON,
     GetMandatoryComponentsListsResponseFromJSON,
     GetMandatoryComponentsListsResponseToJSON,
+    GetMarketplaceImagesResponseFromJSON,
+    GetMarketplaceImagesResponseToJSON,
     GetPipelineResponseFromJSON,
     GetPipelineResponseToJSON,
     GetPipelinesAllowedBuildTypesResponseFromJSON,
@@ -305,6 +308,11 @@ export interface GetMandatoryComponentsListsCorsRequest {
     projectId: string;
 }
 
+export interface GetMarketplaceImagesRequest {
+    authorization: string;
+    projectId: string;
+}
+
 export interface GetPipelineRequest {
     authorization: string;
     projectId: string;
@@ -383,6 +391,10 @@ export interface ImagesCorsRequest {
 export interface ImagesOperationsCorsRequest {
     projectId: string;
     imageId: string;
+}
+
+export interface MarketplaceImagesCorsRequest {
+    projectId: string;
 }
 
 export interface PipelinesAllowedBuildTypeCorsRequest {
@@ -1860,6 +1872,48 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Get the AWS Marketplace images available as recipe base images
+     */
+    async getMarketplaceImagesRaw(requestParameters: GetMarketplaceImagesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetMarketplaceImagesResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling getMarketplaceImages.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getMarketplaceImages.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace-images`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetMarketplaceImagesResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get the AWS Marketplace images available as recipe base images
+     */
+    async getMarketplaceImages(requestParameters: GetMarketplaceImagesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetMarketplaceImagesResponse> {
+        const response = await this.getMarketplaceImagesRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Get a specific pipeline
      */
     async getPipelineRaw(requestParameters: GetPipelineRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetPipelineResponse>> {
@@ -2494,6 +2548,36 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async imagesOperationsCors(requestParameters: ImagesOperationsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.imagesOperationsCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceImagesCorsRaw(requestParameters: MarketplaceImagesCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceImagesCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace-images`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceImagesCors(requestParameters: MarketplaceImagesCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceImagesCorsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

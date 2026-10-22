@@ -6,13 +6,18 @@ import {
   Header,
   Input,
   RadioGroup,
+  Select,
+  SelectProps,
   SpaceBetween,
 } from '@cloudscape-design/components';
 import { FC } from 'react';
 import { i18n } from './recipe-version-wizard.translations';
 import { RECIPE_VERSION_RELEASE_TYPE_MAP } from '../recipe-version-release-type-map';
+import { MarketplaceImage } from '../../../../../../services/API/proserve-wb-packaging-api';
 
 type Integration = { integrationId: string, name: string, type?: string, details?: string };
+
+const EMPTY = 0;
 
 type RecipeVersionIntegrationsProps = {
   availableIntegrations: Integration[],
@@ -35,6 +40,10 @@ export type RecipeVersionWizardStep1Props = {
   versionReleaseType: string,
   setVersionReleaseType: (versionReleaseType: string) => void,
   isVersionReleaseTypeValid: boolean,
+  marketplaceImages: MarketplaceImage[],
+  isMarketplaceImagesLoading: boolean,
+  parentImageProductId: string,
+  setParentImageProductId: (parentImageProductId: string) => void,
 } & RecipeVersionIntegrationsProps;
 
 const RecipeVersionIntegrations: FC<RecipeVersionIntegrationsProps> = () => {
@@ -59,7 +68,28 @@ export const RecipeVersionWizardStep1: FC<RecipeVersionWizardStep1Props> = ({
   isIntegrationsLoading,
   selectedIntegrations,
   setSelectedIntegrations,
+  marketplaceImages,
+  isMarketplaceImagesLoading,
+  parentImageProductId,
+  setParentImageProductId,
 }) => {
+  const defaultBaseImageOption: SelectProps.Option = { label: i18n.step1BaseImageDefault, value: '' };
+  const baseImageOptions: SelectProps.Option[] = [
+    defaultBaseImageOption,
+    ...marketplaceImages.map(image => ({
+      label: image.name,
+      value: image.productId,
+      description: image.productId,
+    })),
+  ];
+  if (parentImageProductId && !marketplaceImages.some(image => image.productId === parentImageProductId)) {
+    baseImageOptions.push({
+      label: parentImageProductId,
+      value: parentImageProductId,
+      description: i18n.step1BaseImageUnavailable,
+    });
+  }
+
   function getReleaseTypeOption(prodType: string) {
     return {
       label: RECIPE_VERSION_RELEASE_TYPE_MAP[prodType],
@@ -111,6 +141,23 @@ export const RecipeVersionWizardStep1: FC<RecipeVersionWizardStep1Props> = ({
             inputMode='numeric'
           />
         </FormField>
+        {(marketplaceImages.length > EMPTY || !!parentImageProductId) &&
+          <FormField
+            label={i18n.step1BaseImage}
+            description={i18n.step1BaseImageDescription}
+          >
+            <Select
+              selectedOption={
+                baseImageOptions.find(option => option.value === parentImageProductId)
+                || defaultBaseImageOption
+              }
+              onChange={({ detail }) => setParentImageProductId(detail.selectedOption.value || '')}
+              options={baseImageOptions}
+              statusType={isMarketplaceImagesLoading ? 'loading' : 'finished'}
+              loadingText={i18n.step1BaseImageLoading}
+              data-test="recipe-version-base-image"
+            />
+          </FormField>}
         {!isUpdate &&
           <FormField
             label={i18n.step1InputReleaseType}

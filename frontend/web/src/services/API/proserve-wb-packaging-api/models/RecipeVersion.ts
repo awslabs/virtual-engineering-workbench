@@ -69,6 +69,12 @@ export interface RecipeVersion {
      */
     recipeVersionIntegrations?: Array<string>;
     /**
+     * AWS Marketplace product the recipe version builds on, if any
+     * @type {string}
+     * @memberof RecipeVersion
+     */
+    parentImageProductId?: string;
+    /**
      * Status of the Recipe Version (CREATING/CREATED/TESTING/VALIDATED/UPDATING/RELEASED/RETIRED/FAILED)
      * @type {string}
      * @memberof RecipeVersion
@@ -137,6 +143,7 @@ export function RecipeVersionFromJSONTyped(json: any, ignoreDiscriminator: boole
         'recipeVersionName': json['recipeVersionName'],
         'recipeVersionVolumeSize': json['recipeVersionVolumeSize'],
         'recipeVersionIntegrations': !exists(json, 'recipeVersionIntegrations') ? undefined : json['recipeVersionIntegrations'],
+        'parentImageProductId': !exists(json, 'parentImageProductId') ? undefined : json['parentImageProductId'],
         'status': json['status'],
         'createDate': json['createDate'],
         'createdBy': json['createdBy'],
@@ -161,6 +168,7 @@ export function RecipeVersionToJSON(value?: RecipeVersion | null): any {
         'recipeVersionName': value.recipeVersionName,
         'recipeVersionVolumeSize': value.recipeVersionVolumeSize,
         'recipeVersionIntegrations': value.recipeVersionIntegrations,
+        'parentImageProductId': value.parentImageProductId,
         'status': value.status,
         'createDate': value.createDate,
         'createdBy': value.createdBy,
