@@ -67,6 +67,7 @@ def test_fail_launch_virtual_target_should_update_status_and_publish(
             userId="T0011AA",
             userDomains=["domain"],
             status=product_status.ProductStatus.ProvisioningError,
+            failedOperation="LAUNCH",
             productId="prod-123",
             productName="Pied Piper",
             productDescription="Compression",
@@ -488,3 +489,41 @@ def test_fail_launch_none_deployment_option_should_retry_with_insufficient_capac
         )
     )
     mock_unit_of_work.commit.assert_called_once()
+
+
+@freeze_time("2023-12-06")
+def test_fail_launch_records_the_stacks_root_cause(
+    mock_logger,
+    mock_publisher,
+    mock_provisioned_product_repo,
+    mock_provisioned_products_qs,
+    mock_products_srv,
+    get_provisioned_product,
+):
+    # the owner learns why, from the first failed resource in the product's stack.
+    mock_provisioned_products_qs.get_by_id.return_value = get_provisioned_product(
+        sc_provisioned_product_id="pp-sc-123",
+        provisioning_parameters=[
+            provisioning_parameter.ProvisioningParameter(key="InstanceType", value="g6.xlarge"),
+        ],
+    )
+    mock_products_srv.has_provisioned_product_insufficient_capacity_error.return_value = False
+    mock_products_srv.get_provisioned_product_failure_reason.return_value = (
+        "You have requested more vCPU capacity than your current vCPU limit of 0 allows (VcpuLimitExceeded)"
+    )
+
+    fail_launch.handle(
+        command=fail_product_launch_command.FailProductLaunchCommand(
+            provisioned_product_id=provisioned_product_id_value_object.from_str("pp-123")
+        ),
+        publisher=mock_publisher,
+        logger=mock_logger,
+        virtual_targets_qs=mock_provisioned_products_qs,
+        products_srv=mock_products_srv,
+    )
+
+    call = mock_provisioned_product_repo.update_entity.call_args
+    saved = call.kwargs["entity"] if "entity" in call.kwargs else call.args[1]
+    assert saved.status == product_status.ProductStatus.ProvisioningError
+    assert saved.failedOperation == "LAUNCH"
+    assert "VcpuLimitExceeded" in saved.statusReason

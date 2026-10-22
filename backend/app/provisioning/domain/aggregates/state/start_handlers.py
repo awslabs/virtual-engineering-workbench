@@ -6,12 +6,9 @@ from app.provisioning.domain.events.provisioned_product_state import (
     provisioned_product_start_failed,
     provisioned_product_started,
 )
-from app.provisioning.domain.exceptions import insufficient_capacity_exception
-from app.provisioning.domain.model import product_status, provisioned_product
-from app.provisioning.domain.ports import (
-    container_management_service,
-    instance_management_service,
-)
+from app.provisioning.domain.exceptions import instance_start_exception, insufficient_capacity_exception
+from app.provisioning.domain.model import product_status, provisioned_product, workbench_failure
+from app.provisioning.domain.ports import container_management_service, instance_management_service
 from app.shared.adapters.message_bus import message_bus
 
 
@@ -58,6 +55,10 @@ class ContainerHandler(handler.Handler):
             except insufficient_capacity_exception.InsufficientCapacityException:
                 current_state = product_status.TaskState.Stopped
                 provisioned_product.status = product_status.CONTAINER_TO_PRODUCT_STATE_MAP.get(current_state)
+                provisioned_product.statusReason = (
+                    provisioned_product_start_failed.StartFailedReason.InsufficientClusterCapacity.value
+                )
+                provisioned_product.failedOperation = workbench_failure.FailedOperation.Start.value
                 self.__logger.exception(provisioned_product_start_failed.StartFailedReason.InsufficientClusterCapacity)
 
                 return provisioned_product_start_failed.ProvisionedProductStartFailed(
@@ -143,6 +144,14 @@ class InstanceHandler(handler.Handler):
             reason = provisioned_product_start_failed.StartFailedReason.InsufficientInstanceCapacity
             self.__logger.error(error)
             provisioned_product.statusReason = str(error)
+            provisioned_product.failedOperation = workbench_failure.FailedOperation.Start.value
+        except instance_start_exception.InstanceStartException as error:
+            # EC2 refused the start (a quota, an unsupported zone, ...); the workbench stays stopped.
+            current_state = product_status.EC2InstanceState.Stopped
+            reason = provisioned_product_start_failed.StartFailedReason.InstanceStartError
+            self.__logger.error(error)
+            provisioned_product.statusReason = str(error)
+            provisioned_product.failedOperation = workbench_failure.FailedOperation.Start.value
 
         current_ec2_instance_state = product_status.EC2InstanceState(current_state)
         provisioned_product.status = product_status.EC2_TO_PRODUCT_STATE_MAP.get(current_ec2_instance_state)
