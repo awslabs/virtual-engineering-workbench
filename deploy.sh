@@ -1447,12 +1447,12 @@ if [ -z "$OIDC_CLIENT_ID" ]; then
   POOL_ID=$(aws ssm get-parameter \
     --name "/${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/user-pool-id" \
     --query 'Parameter.Value' --output text \
-    --region "$AWS_REGION" 2>/dev/null || echo "unknown")
+    --region "$COGNITO_REGION" 2>/dev/null || echo "unknown")
   echo "    aws cognito-idp admin-create-user \\"
   echo "      --user-pool-id $POOL_ID \\"
   echo "      --username $ADMIN_EMAIL \\"
   echo "      --user-attributes Name=email,Value=$ADMIN_EMAIL Name=email_verified,Value=true Name=custom:user_tid,Value=$ADMIN_USER_ID \\"
-  echo "      --region $AWS_REGION"
+  echo "      --region $COGNITO_REGION"
   echo ""
 fi
 
