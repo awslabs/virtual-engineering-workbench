@@ -17,6 +17,21 @@ export function compareSemanticVersions(): (
   return (a, b) => compare(a.versionName, b.versionName);
 }
 
+/**
+ * The version a launch pre-selects: the recommended one, else the newest release (1.0.10
+ * after 1.0.9), else the newest release candidate. `compareSemanticVersions` sorts newest first.
+ */
+export function preselectedVersion<T extends AvailableSemanticVersion & { isRecommendedVersion?: boolean }>(
+  versions: T[]
+): T | undefined {
+  const recommended = versions.find(v => v.isRecommendedVersion);
+  if (recommended) {
+    return recommended;
+  }
+  const newestFirst = [...versions].sort(compareSemanticVersions());
+  return newestFirst.find(v => !/rc/u.test(v.versionName)) ?? newestFirst[0];
+}
+
 
 function convertBrowserTimeToUTC0(time: number, timeZoneOffset: number): number {
   let timeInUTC0 = time - timeZoneOffset;
