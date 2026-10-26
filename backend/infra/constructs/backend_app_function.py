@@ -10,7 +10,7 @@ from aws_cdk import aws_ec2, aws_iam, aws_lambda, aws_sqs
 from jsii import implements, member
 
 from infra import constants
-from infra.constructs.bundling import DOCKER_STRIP_CMD, strip_bundle
+from infra.constructs.bundling import DOCKER_STRIP_CMD, strip_bundle, uv_target_args
 
 
 def _validate_path(path: str) -> None:
@@ -20,11 +20,18 @@ def _validate_path(path: str) -> None:
 
 @implements(aws_cdk.ILocalBundling)
 class LocalBundler:
-    def __init__(self, app_root: str, lambda_root: str) -> None:
+    def __init__(
+        self,
+        app_root: str,
+        lambda_root: str,
+        runtime: aws_lambda.Runtime = aws_lambda.Runtime.PYTHON_3_13,
+        architecture: aws_lambda.Architecture = constants.LAMBDA_ARCHITECTURE,
+    ) -> None:
         _validate_path(app_root)
         _validate_path(lambda_root)
         self.__app_root = app_root
         self.__lambda_root = lambda_root
+        self.__target_args = uv_target_args(runtime.name, architecture.name)
         lockfile = Path(f"{self.__lambda_root}/requirements.lock")
         txtfile = Path(f"{self.__lambda_root}/requirements.txt")
         self.__requirements_file = str(lockfile if lockfile.is_file() else txtfile)
@@ -39,7 +46,17 @@ class LocalBundler:
         try:
             if requirements_file.is_file():
                 subprocess.run(
-                    ["uv", "pip", "install", "-r", str(requirements_file), "-t", output_dir, "--no-compile"],
+                    [
+                        "uv",
+                        "pip",
+                        "install",
+                        "-r",
+                        str(requirements_file),
+                        "-t",
+                        output_dir,
+                        "--no-compile",
+                        *self.__target_args,
+                    ],
                     check=True,
                     shell=False,
                     capture_output=True,
@@ -133,7 +150,16 @@ class BackendAppFunction(constructs.Construct):
                 image=runtime.bundling_image,
                 user="root",
                 command=["bash", "-c", docker_command],
-                local=(LocalBundler(app_root=app_root, lambda_root=lambda_root) if local_bundling else None),
+                local=(
+                    LocalBundler(
+                        app_root=app_root,
+                        lambda_root=lambda_root,
+                        runtime=runtime,
+                        architecture=constants.LAMBDA_ARCHITECTURE,
+                    )
+                    if local_bundling
+                    else None
+                ),
             )
         else:
             bundling_options = aws_cdk.BundlingOptions(
@@ -143,7 +169,16 @@ class BackendAppFunction(constructs.Construct):
                     "-c",
                     f"rsync -r {lambda_root} /asset-output/{app_root}/ && {DOCKER_STRIP_CMD}",
                 ],
-                local=(LocalBundler(app_root=app_root, lambda_root=lambda_root) if local_bundling else None),
+                local=(
+                    LocalBundler(
+                        app_root=app_root,
+                        lambda_root=lambda_root,
+                        runtime=runtime,
+                        architecture=constants.LAMBDA_ARCHITECTURE,
+                    )
+                    if local_bundling
+                    else None
+                ),
             )
         code = aws_lambda.Code.from_asset(
             path=current_dir,

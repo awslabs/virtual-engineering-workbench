@@ -18,7 +18,10 @@ updates:
       interval: "weekly"
     labels:
       - "dependencies"
-      - "docker"
+    ignore:
+      # The image's Python must match the Lambda runtime (python3.13); bump both together.
+      - dependency-name: "docker/library/python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     commit-message:
       prefix: "build(deps)"
       include: "scope"
