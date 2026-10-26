@@ -26,4 +26,4 @@
 
 ## Acknowledgment
 
-By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of the [project license](https://github.com/awslabs/virtual-engineering-workbench/blob/main/LICENSE).
+By submitting this pull request, I confirm that my contribution is made under the terms of the [project license](https://github.com/awslabs/virtual-engineering-workbench/blob/main/LICENSE).
