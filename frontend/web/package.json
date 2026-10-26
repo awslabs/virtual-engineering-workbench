@@ -42,7 +42,7 @@
     "basic-ftp": "^6.2.1",
     "cross-spawn": "^7.0.6",
     "diff": "^8.0.3",
-    "dompurify": "^3.4.16",
+    "dompurify": "^3.4.17",
     "fast-xml-parser": "^5.10.1",
     "immutable": "^4.3.9",
     "js-yaml": "^4.3.2",
@@ -61,7 +61,7 @@
     "yauzl": "^3.2.1",
     "vite": "^7.3.7",
     "@nestjs/core": "^11.1.18",
-    "follow-redirects": "^1.16.0",
+    "follow-redirects": "^1.16.1",
     "uuid": "^14.0.0",
     "qs": "^6.15.2",
     "esbuild": "^0.28.1"
@@ -130,7 +130,7 @@
     "sass": "^1.97.3",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   },
   "dependenciesMeta": {
     "@nestjs/core": {
