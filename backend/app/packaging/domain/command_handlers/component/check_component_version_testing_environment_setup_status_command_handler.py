@@ -131,12 +131,13 @@ def handle(
             component_version_test_execution_entity.setupCommandId,
             component_version_test_execution_entity.instanceId,
             component_version_test_execution_entity.setupCommandStatus,
+            component_version_test_execution_entity.setupCommandSubmittedAt,
         )
         for component_version_test_execution_entity in component_version_test_execution_entities
     ]
     command_statuses = []
 
-    for command_id, instance_id, previous_command_status in command_details:
+    for command_id, instance_id, previous_command_status, command_submitted_at in command_details:
         # We update only the commands that are not in a
         # terminal setupCommandStatus (FAILED, SUCCESS)
         if previous_command_status not in [
@@ -144,7 +145,9 @@ def handle(
             component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Success,
         ]:
             current_command_status = component_version_test_execution_command_status_value_object.from_str(
-                component_version_testing_srv.get_testing_command_status(command_id=command_id, instance_id=instance_id)
+                component_version_testing_srv.get_testing_command_status(
+                    command_id=command_id, instance_id=instance_id, submitted_at=command_submitted_at
+                )
             ).value
             update_attributes = {"setupCommandStatus": current_command_status}
             # If the setupCommandStatus is FAILED, also the status

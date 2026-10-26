@@ -1,6 +1,10 @@
+import unittest.mock
+from datetime import datetime, timedelta, timezone
+
 import assertpy
 import pytest
 from botocore.exceptions import ClientError
+from freezegun import freeze_time
 
 from app.packaging.adapters.exceptions import adapter_exception
 from app.packaging.adapters.services import aws_recipe_version_testing_service
@@ -381,3 +385,70 @@ def test_launch_testing_environment_without_tags_sends_none(
 
     # ASSERT
     assertpy.assert_that(mock_ec2_launch_instances_call.call_args.kwargs["TagSpecifications"]).is_empty()
+
+
+@freeze_time("2026-10-19T12:00:00Z")
+@pytest.mark.parametrize(
+    "age_seconds, expected_status",
+    [(0, "PENDING"), (299, "PENDING"), (300, "FAILED"), (600, "FAILED"), (None, "FAILED")],
+)
+def test_missing_invocation_has_bounded_registration_grace_period(
+    mock_aws_recipe_version_testing_service, mock_ssm_client, age_seconds, expected_status
+):
+    # SSM answers InvocationDoesNotExist for a command it hasn't registered for the instance yet (seen
+    # right after SendCommand; it failed a recipe version test on 2026-10-08).
+    error = ClientError(
+        {"Error": {"Code": "InvocationDoesNotExist", "Message": "Invocation not found"}}, "GetCommandInvocation"
+    )
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", side_effect=error):
+        with unittest.mock.patch.object(
+            mock_aws_recipe_version_testing_service,
+            "_AwsRecipeVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            response = mock_aws_recipe_version_testing_service.get_testing_command_status(
+                command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                submitted_at=(
+                    (datetime.now(timezone.utc) - timedelta(seconds=age_seconds)).isoformat()
+                    if age_seconds is not None
+                    else None
+                ),
+            )
+
+    assertpy.assert_that(response).is_equal_to(expected_status)
+
+
+def test_testing_command_status_raises_other_ssm_errors(mock_aws_recipe_version_testing_service, mock_ssm_client):
+    error = ClientError({"Error": {"Code": "AccessDeniedException", "Message": "denied"}}, "GetCommandInvocation")
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", side_effect=error):
+        with unittest.mock.patch.object(
+            mock_aws_recipe_version_testing_service,
+            "_AwsRecipeVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            with pytest.raises(ClientError):
+                mock_aws_recipe_version_testing_service.get_testing_command_status(
+                    command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                    instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                )
+
+
+@freeze_time("2026-10-19T12:00:00Z")
+@pytest.mark.parametrize("ssm_status, expected_status", [("InProgress", "RUNNING"), ("Success", "SUCCESS")])
+def test_registered_invocation_can_run_beyond_registration_grace_period(
+    mock_aws_recipe_version_testing_service, mock_ssm_client, ssm_status, expected_status
+):
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", return_value={"Status": ssm_status}):
+        with unittest.mock.patch.object(
+            mock_aws_recipe_version_testing_service,
+            "_AwsRecipeVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            response = mock_aws_recipe_version_testing_service.get_testing_command_status(
+                command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                submitted_at="2026-10-19T11:40:00+00:00",
+            )
+
+    assertpy.assert_that(response).is_equal_to(expected_status)

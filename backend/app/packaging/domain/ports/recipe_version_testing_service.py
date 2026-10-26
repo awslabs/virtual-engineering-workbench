@@ -23,7 +23,7 @@ class RecipeVersionTestingService(ABC):
 
     @abstractmethod
     def get_testing_command_status(
-        self, command_id: str, instance_id: str
+        self, command_id: str, instance_id: str, submitted_at: str | None = None
     ) -> recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus: ...
 
     @abstractmethod
