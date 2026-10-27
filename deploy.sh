@@ -53,6 +53,15 @@ progress_end() {
   if [ -t 2 ]; then printf "\r\033[K" >&2; fi
 }
 
+# The --destroy lists are built as " a b c" (space-separated, leading space).
+# has_items: the list names at least one item. count_items: how many it names.
+has_items() { [[ "$1" = *[![:space:]]* ]]; }
+count_items() {
+  local n=0 _item
+  for _item in $1; do n=$(( n + 1 )); done
+  echo "$n"
+}
+
 run_cmd() {
   log "Running: $*"
   "$@" 2>&1 | tee -a "$LOG_FILE" ${DIFF_CAPTURE:+"$DIFF_CAPTURE"}
@@ -325,7 +334,7 @@ if [ "$DESTROY_MODE" = "true" ]; then
     for target in $TARGETS; do
       [ "${target%%|*}" = "$region" ] && REGION_STACKS="$REGION_STACKS ${target#*|}"
     done
-    [ -n "$(echo $REGION_STACKS)" ] || continue
+    has_items "$REGION_STACKS" || continue
     case "$REGIONS" in *" "*) log "Deleting stacks in $region" ;; esac
 
     # Lambda releases its VPC network interfaces lazily, minutes after the
@@ -348,9 +357,9 @@ if [ "$DESTROY_MODE" = "true" ]; then
     # Export dependencies are discovered, not assumed: a stack that refuses to
     # delete goes back in the queue and is retried once its importers are gone.
     PASS=0
-    while [ -n "$(echo $REMAINING)" ]; do
+    while has_items "$REMAINING"; do
       PASS=$(( PASS + 1 ))
-      [ "$PASS" -gt 1 ] && log "Retry pass $PASS ($(echo $REMAINING | wc -w | tr -d ' ') stack(s) still blocked)"
+      [ "$PASS" -gt 1 ] && log "Retry pass $PASS ($(count_items "$REMAINING") stack(s) still blocked)"
       BLOCKED=""
       MOVED=0
       for stack in $REMAINING; do
@@ -395,10 +404,11 @@ if [ "$DESTROY_MODE" = "true" ]; then
     done
   done
 
-  LEFT="$(echo $STRANDED $FAILED)"
+  LEFT=""
+  for stack in $STRANDED $FAILED; do LEFT="${LEFT:+$LEFT }$stack"; done
   if [ -n "$LEFT" ]; then
     warn "Could not delete: $LEFT"
-    [ -n "$(echo $STRANDED)" ] && warn "Last reason: ${BLOCK_REASON:-unknown}"
+    has_items "$STRANDED" && warn "Last reason: ${BLOCK_REASON:-unknown}"
   else
     log "All $STACK_TOTAL stack(s) deleted"
   fi
@@ -472,8 +482,8 @@ if [ "$DESTROY_MODE" = "true" ]; then
   progress_end
   log "Deleted $BUCKET_OK of $BUCKET_TOTAL bucket(s)"
 
-  if [ -n "$(echo ${LEFT:-})" ]; then
-    err "Destruction incomplete — these were not deleted:$(echo " ${LEFT}")"
+  if [ -n "${LEFT:-}" ]; then
+    err "Destruction incomplete — these were not deleted: ${LEFT}"
   fi
   log "Destruction complete"
   exit 0
