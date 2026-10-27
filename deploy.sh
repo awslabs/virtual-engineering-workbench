@@ -67,9 +67,6 @@ run_cmd() {
 # and set CDK_DEPLOY_EXTRA for flags that belong to deploy.
 cdk_run() {
   if [ "$DIFF_MODE" = "true" ]; then
-    # One file across every app: cdk reports its stack total per app, so the
-    # figure it prints last is not the total for the run.
-    DIFF_CAPTURE="${DIFF_CAPTURE:-$(mktemp)}"
     run_cmd cdk diff --all "$@"
   else
     # shellcheck disable=SC2086 # CDK_DEPLOY_EXTRA is a flag list, not one word
@@ -94,6 +91,15 @@ while [[ $# -gt 0 ]]; do
     *) err "Unknown argument: $1" ;;
   esac
 done
+
+# One capture file across every CDK app: cdk reports its stack total per app,
+# so the figure it prints last is not the total for the run. Created here, in
+# the parent shell, because every cdk_run call runs inside a ( cd ...; ) subshell
+# and a variable assigned there never reaches the summary at the end.
+DIFF_CAPTURE=""
+if [ "$DIFF_MODE" = "true" ]; then
+  DIFF_CAPTURE="$(mktemp)"
+fi
 
 # ---------------------------------------------------------------------------
 # Activate hub account credentials
