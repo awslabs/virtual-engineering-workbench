@@ -66,7 +66,7 @@ run_cmd() {
   log "Running: $*"
   "$@" 2>&1 | tee -a "$LOG_FILE" ${DIFF_CAPTURE:+"$DIFF_CAPTURE"}
   local rc=${PIPESTATUS[0]}
-  if [ $rc -ne 0 ]; then
+  if [ "$rc" -ne 0 ]; then
     err "Command failed (exit $rc): $*"
   fi
 }
