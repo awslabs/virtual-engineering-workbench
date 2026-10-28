@@ -8,6 +8,7 @@
 # Usage: ./deploy.sh [--config <path>] [--dry-run] [--destroy] [--yes]
 #   --config <path>  Load inputs from a config file instead of prompting
 #   --dry-run        Validate prerequisites and config without deploying
+#   --diff           Preview the CDK stack changes without deploying them
 #   --destroy        Tear down all VEW stacks and orphaned resources
 #   --yes            Auto-confirm interactive prompts (for CI/CD)
 #
@@ -22,6 +23,9 @@ CONFIG_FILE=""
 LOG_FILE="$SCRIPT_DIR/.deploy-logs/deploy-$(date +%Y%m%d-%H%M%S).log"
 mkdir -p "$SCRIPT_DIR/.deploy-logs"
 
+# shellcheck source=scripts/deploy-regions.sh
+source "$SCRIPT_DIR/scripts/deploy-regions.sh"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -34,12 +38,39 @@ warn() { echo -e "${YELLOW}[VEW]${NC} $1" | tee -a "$LOG_FILE"; }
 err()  { echo -e "${RED}[VEW]${NC} $1" | tee -a "$LOG_FILE"; exit 1; }
 step() { echo -e "\n${CYAN}━━━ Phase $1: $2 ━━━${NC}" | tee -a "$LOG_FILE"; }
 
+# Rewrites a single terminal line; the log file keeps only the per-item lines.
+progress() {
+  local pct=$1 label=$2 filled i bar=""
+  [ -t 2 ] || return 0
+  filled=$(( pct * 24 / 100 ))
+  for (( i = 0; i < 24; i++ )); do
+    if [ "$i" -lt "$filled" ]; then bar="${bar}█"; else bar="${bar}░"; fi
+  done
+  printf "\r${CYAN}[VEW]${NC} [%s] %3d%%  %-46.46s" "$bar" "$pct" "$label" >&2
+}
+
+progress_end() {
+  if [ -t 2 ]; then printf "\r\033[K" >&2; fi
+}
+
 run_cmd() {
   log "Running: $*"
-  "$@" 2>&1 | tee -a "$LOG_FILE"
+  "$@" 2>&1 | tee -a "$LOG_FILE" ${DIFF_CAPTURE:+"$DIFF_CAPTURE"}
   local rc=${PIPESTATUS[0]}
   if [ $rc -ne 0 ]; then
     err "Command failed (exit $rc): $*"
+  fi
+}
+
+# cdk diff rejects --require-approval, --force and --concurrency, so the verb
+# alone cannot be swapped: each takes its own flags. Callers pass context only,
+# and set CDK_DEPLOY_EXTRA for flags that belong to deploy.
+cdk_run() {
+  if [ "$DIFF_MODE" = "true" ]; then
+    run_cmd cdk diff --all "$@"
+  else
+    # shellcheck disable=SC2086 # CDK_DEPLOY_EXTRA is a flag list, not one word
+    run_cmd cdk deploy --all --require-approval never --force ${CDK_DEPLOY_EXTRA:-} "$@"
   fi
 }
 
@@ -48,27 +79,240 @@ run_cmd() {
 # ---------------------------------------------------------------------------
 DESTROY_MODE=false
 DRY_RUN=false
+DIFF_MODE=false
 AUTO_CONFIRM=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --config)  CONFIG_FILE="$2"; shift 2 ;;
     --destroy) DESTROY_MODE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --diff)    DIFF_MODE=true; shift ;;
     --yes)     AUTO_CONFIRM=true; shift ;;
     *) err "Unknown argument: $1" ;;
   esac
 done
 
+# One capture file across every CDK app: cdk reports its stack total per app,
+# so the figure it prints last is not the total for the run. Created here, in
+# the parent shell, because every cdk_run call runs inside a ( cd ...; ) subshell
+# and a variable assigned there never reaches the summary at the end.
+DIFF_CAPTURE=""
+if [ "$DIFF_MODE" = "true" ]; then
+  DIFF_CAPTURE="$(mktemp)"
+fi
+
+# ---------------------------------------------------------------------------
+# Activate hub account credentials
+# ---------------------------------------------------------------------------
+activate_hub_credentials() {
+  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+    log "Using existing env var credentials (AWS_ACCESS_KEY_ID set)"
+    return
+  fi
+  log "Activating credentials for hub account (profile: $AWS_PROFILE_HUB)"
+  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_HUB" --format env)"
+}
+
+activate_spoke_credentials() {
+  if [ -n "${AWS_SPOKE_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SPOKE_SECRET_ACCESS_KEY:-}" ]; then
+    export AWS_ACCESS_KEY_ID="$AWS_SPOKE_ACCESS_KEY_ID"
+    export AWS_SECRET_ACCESS_KEY="$AWS_SPOKE_SECRET_ACCESS_KEY"
+    export AWS_SESSION_TOKEN="${AWS_SPOKE_SESSION_TOKEN:-}"
+    log "Using existing env var credentials for spoke account"
+    return
+  fi
+  if [ -z "${AWS_PROFILE_SPOKE:-}" ]; then
+    err "No spoke account credentials available. Set AWS_PROFILE_SPOKE or AWS_SPOKE_ACCESS_KEY_ID/AWS_SPOKE_SECRET_ACCESS_KEY environment variables."
+  fi
+  log "Activating credentials for spoke account (profile: $AWS_PROFILE_SPOKE)"
+  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_SPOKE" --format env)"
+}
+
 # ---------------------------------------------------------------------------
 # --destroy: tear down all VEW stacks and orphaned resources
 # ---------------------------------------------------------------------------
+
+# CloudFront, Lambda@Edge and a CLOUDFRONT-scoped WAF exist only in us-east-1,
+# so a public deployment puts the frontend there wherever the backend runs. A
+# private deployment has no CloudFront and stays in one region. Both the deploy
+# and the destroy read this, so they cannot disagree about where to look.
+frontend_region() {
+  if [ "${PRIVATE_DEPLOYMENT:-false}" != "true" ] && [ "$1" != "us-east-1" ]; then
+    echo "us-east-1"
+  else
+    echo "$1"
+  fi
+}
+
+# Deletes one stack, reporting resource-level progress while it runs.
+# Returns 0 deleted, 1 blocked by a CloudFormation export, 2 failed.
+delete_one_stack() {
+  local stack=$1 position=$2 total=$3 region=${4:-$AWS_REGION}
+  local stack_id res_total res_left status reason pct overall elapsed start
+  local misses=0 stalls=0
+
+  stack_id=$(aws cloudformation describe-stacks --stack-name "$stack" \
+    --query 'Stacks[0].StackId' --output text --region "$region" 2>/dev/null) || return 0
+  # length() is evaluated per page, so count the rows instead: a stack with
+  # more than 100 resources would otherwise yield one number per page.
+  res_total=$(aws cloudformation list-stack-resources --stack-name "$stack_id" \
+    --query 'StackResourceSummaries[].ResourceStatus' --output text --region "$region" 2>/dev/null \
+    | tr '\t' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
+  log "Deleting stack: $stack ($res_total resources)"
+  aws cloudformation delete-stack --stack-name "$stack_id" --region "$region"
+  start=$(date +%s)
+
+  while :; do
+    status=$(aws cloudformation describe-stacks --stack-name "$stack_id" \
+      --query 'Stacks[0].StackStatus' --output text --region "$region" 2>/dev/null || echo UNKNOWN)
+    res_left=$(aws cloudformation list-stack-resources --stack-name "$stack_id" \
+      --query "StackResourceSummaries[?ResourceStatus!='DELETE_COMPLETE'].ResourceStatus" \
+      --output text --region "$region" 2>/dev/null \
+      | tr '\t' '\n' | sed '/^$/d' | wc -l | tr -d ' ')
+    if [ "$res_total" -gt 0 ]; then
+      pct=$(( (res_total - res_left) * 100 / res_total ))
+    else
+      pct=100
+    fi
+    elapsed=$(( $(date +%s) - start ))
+    overall=$(( (position * 100 + pct) / total ))
+    progress "$overall" "$stack  ${res_left}/${res_total} left  ${elapsed}s"
+
+    case "$status" in
+      DELETE_COMPLETE)
+        progress_end
+        log "Deleted: $stack (${elapsed}s)"
+        return 0 ;;
+      DELETE_FAILED)
+        progress_end
+        warn "Stack $stack is DELETE_FAILED after ${elapsed}s — check the console"
+        return 2 ;;
+      DELETE_IN_PROGRESS)
+        misses=0; stalls=0 ;;
+      UNKNOWN)
+        misses=$(( misses + 1 ))
+        if [ "$misses" -ge 3 ]; then
+          progress_end
+          warn "Lost track of $stack after ${elapsed}s — check the console"
+          return 2
+        fi ;;
+      *)
+        # CloudFormation cancels a delete within seconds when another stack
+        # imports one of this stack's exports; the status reverts unchanged.
+        reason=$(aws cloudformation describe-stack-events --stack-name "$stack_id" \
+          --region "$region" --max-items 1 \
+          --query 'StackEvents[0].ResourceStatusReason' --output text 2>/dev/null \
+          | head -1 || echo "")
+        case "$reason" in
+          *"Delete canceled"*|*"in use by"*)
+            progress_end
+            BLOCK_REASON="$reason"
+            return 1 ;;
+        esac
+        stalls=$(( stalls + 1 ))
+        if [ "$stalls" -ge 6 ]; then
+          progress_end
+          warn "$stack did not start deleting (status $status) — skipping"
+          return 1
+        fi ;;
+    esac
+    sleep 10
+  done
+}
+
+# s3 rb --force deletes current objects only. CDK enables versioning on its
+# buckets, so non-current versions and delete markers survive it and the bucket
+# cannot be removed.
+empty_versioned_bucket() {
+  local bucket=$1 payload region
+  # A bucket answers only in its own region; the frontend's live in
+  # us-east-1 while the backend's do not.
+  region=$(aws s3api get-bucket-location --bucket "$bucket" \
+    --query 'LocationConstraint' --output text 2>/dev/null || echo None)
+  if [ "$region" = "None" ] || [ -z "$region" ]; then region="us-east-1"; fi
+  while :; do
+    payload=$(aws s3api list-object-versions --bucket "$bucket" --region "$region" \
+      --max-items 1000 \
+      --query '{Objects: [Versions, DeleteMarkers][][].{Key:Key,VersionId:VersionId}}' \
+      --output json 2>/dev/null || echo '{"Objects":null}')
+    case "$payload" in
+      *'"Objects": null'*|*'"Objects": []'*) return 0 ;;
+    esac
+    aws s3api delete-objects --bucket "$bucket" --region "$region" \
+      --delete "$payload" >/dev/null 2>&1 || return 1
+  done
+}
+
 if [ "$DESTROY_MODE" = "true" ]; then
   if [ -z "$CONFIG_FILE" ]; then
     err "--destroy requires --config <path> to identify resources by prefix"
   fi
   source "$CONFIG_FILE"
   PREFIX="${ORG_PREFIX}-${APP_PREFIX}"
-  warn "This will delete ALL VEW stacks and orphaned resources with prefix '$PREFIX' in $AWS_REGION"
+  # Stacks end in the environment (<prefix>-<name>-<env>); buckets and some log
+  # groups carry it mid-name. Without this, destroying dev in an account that
+  # also holds qa would match qa's resources, which only matters now that the
+  # destroy does anything.
+  ENV_SUFFIX="-${ENVIRONMENT}"
+  ENV_INFIX="-${ENVIRONMENT}-"
+
+  activate_hub_credentials
+  log "Target account: $(aws sts get-caller-identity --query Account --output text)"
+
+  # A public deployment leaves the frontend stacks in us-east-1 while the
+  # backend's stay put, so sweeping only AWS_REGION strands CloudFront, the
+  # Lambda@Edge functions and the WAF.
+  FE_REGION=$(frontend_region "$AWS_REGION")
+  REGIONS="$AWS_REGION"
+  if [ "$FE_REGION" != "$AWS_REGION" ]; then
+    REGIONS="$AWS_REGION $FE_REGION"
+    log "Also sweeping $FE_REGION for the frontend stacks"
+  fi
+
+  # -- CloudFormation stacks -------------------------------------------------
+  # Everything to be deleted is resolved first, across every region, so the
+  # operator approves one list rather than one per region.
+  TARGETS=""
+  for region in $REGIONS; do
+    STACKS=$(aws cloudformation list-stacks \
+      --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
+      --query "StackSummaries[?starts_with(StackName, '${PREFIX}') \
+        && ends_with(StackName, '${ENV_SUFFIX}')].StackName" \
+      --output text --region "$region" | tr '\t' ' ')
+
+    # The CDK app names some stacks without the configured prefix, so the
+    # filter above misses them. Anything importing a VEW export is part of
+    # this deployment and has to be deleted before the stack that exports to
+    # it. Exports do not cross a region, so this resolves within each.
+    log "Resolving stacks that import VEW exports in $region..."
+    DEPENDENTS=""
+    for export_name in $(aws cloudformation list-exports --region "$region" \
+      --query "Exports[?starts_with(Name,'${PREFIX}')].Name" --output text); do
+      for importer in $(aws cloudformation list-imports --export-name "$export_name" \
+        --region "$region" --query 'Imports' --output text 2>/dev/null || true); do
+        case " $STACKS $DEPENDENTS " in
+          *" $importer "*) ;;
+          *) DEPENDENTS="$DEPENDENTS $importer"
+             log "Also deleting: $importer (imports ${export_name%%:*})" ;;
+        esac
+      done
+    done
+
+    for stack in $DEPENDENTS $STACKS; do
+      TARGETS="$TARGETS ${region}|${stack}"
+    done
+  done
+
+  STACK_TOTAL=$(echo "$TARGETS" | wc -w | tr -d ' ')
+  DELETED=0
+  FAILED=""
+  STRANDED=""
+  warn "This will delete $STACK_TOTAL stack(s) in ${REGIONS// /, }, and any orphaned"
+  warn "log groups, ECR repositories and S3 buckets left behind by them:"
+  for target in $TARGETS; do
+    printf '    %-10s %s\n' "${target%%|*}" "${target#*|}"
+  done
+  warn "Matching '${PREFIX}' in environment '${ENVIRONMENT}'."
   if [ "$AUTO_CONFIRM" = "true" ]; then
     CONFIRM="destroy"
   else
@@ -76,43 +320,161 @@ if [ "$DESTROY_MODE" = "true" ]; then
   fi
   [[ "$CONFIRM" == "destroy" ]] || err "Destruction cancelled"
 
-  activate_hub_credentials 2>/dev/null || true
+  for region in $REGIONS; do
+    REGION_STACKS=""
+    for target in $TARGETS; do
+      [ "${target%%|*}" = "$region" ] && REGION_STACKS="$REGION_STACKS ${target#*|}"
+    done
+    [ -n "$(echo $REGION_STACKS)" ] || continue
+    case "$REGIONS" in *" "*) log "Deleting stacks in $region" ;; esac
 
-  log "Deleting CloudFormation stacks..."
-  STACKS=$(aws cloudformation list-stacks \
-    --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE UPDATE_ROLLBACK_COMPLETE \
-    --query "StackSummaries[?starts_with(StackName, '${PREFIX}')].StackName" \
-    --output text --region "$AWS_REGION" 2>/dev/null || echo "")
-  for stack in $STACKS; do
-    log "Deleting stack: $stack"
-    aws cloudformation delete-stack --stack-name "$stack" --region "$AWS_REGION"
-    aws cloudformation wait stack-delete-complete --stack-name "$stack" --region "$AWS_REGION" || \
-      warn "Stack $stack deletion may have failed — check console"
-  done
+    # Lambda releases its VPC network interfaces lazily, minutes after the
+    # function is gone, so whatever owns the VPC and subnets is deleted last and
+    # retried rather than taken in list order.
+    NETWORK_STACKS=""
+    APP_STACKS=""
+    for stack in $REGION_STACKS; do
+      if aws cloudformation list-stack-resources --stack-name "$stack" --region "$region" \
+        --query "StackResourceSummaries[?ResourceType=='AWS::EC2::VPC'||ResourceType=='AWS::EC2::Subnet'].LogicalResourceId" \
+        --output text 2>/dev/null | grep -q '[^[:space:]]'; then
+        NETWORK_STACKS="$NETWORK_STACKS $stack"
+        log "Holding until last: $stack (owns VPC or subnets)"
+      else
+        APP_STACKS="$APP_STACKS $stack"
+      fi
+    done
+    REMAINING="$APP_STACKS"
 
-  log "Cleaning orphaned CloudWatch log groups..."
-  for prefix_pattern in "$PREFIX" "aws-waf-logs-${PREFIX}"; do
-    aws logs describe-log-groups --log-group-name-prefix "$prefix_pattern" --region "$AWS_REGION" \
-      --query 'logGroups[].logGroupName' --output text 2>/dev/null | tr '\t' '\n' | while read -r lg; do
-      [ -n "$lg" ] && aws logs delete-log-group --log-group-name "$lg" --region "$AWS_REGION" \
-        && log "Deleted log group: $lg"
+    # Export dependencies are discovered, not assumed: a stack that refuses to
+    # delete goes back in the queue and is retried once its importers are gone.
+    PASS=0
+    while [ -n "$(echo $REMAINING)" ]; do
+      PASS=$(( PASS + 1 ))
+      [ "$PASS" -gt 1 ] && log "Retry pass $PASS ($(echo $REMAINING | wc -w | tr -d ' ') stack(s) still blocked)"
+      BLOCKED=""
+      MOVED=0
+      for stack in $REMAINING; do
+        BLOCK_REASON=""
+        if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL" "$region"; then
+          DELETED=$(( DELETED + 1 )); MOVED=1
+        else
+          RC=$?
+          if [ "$RC" -eq 1 ]; then
+            BLOCKED="$BLOCKED $stack"
+            log "Blocked, will retry: $stack"
+          else
+            # A stack that would not delete is not deleted. Keeping it here
+            # is what stops the run reporting success over it.
+            FAILED="$FAILED $stack"
+          fi
+        fi
+      done
+      REMAINING="$BLOCKED"
+      if [ "$MOVED" -eq 0 ]; then
+        break
+      fi
+    done
+    STRANDED="$STRANDED $REMAINING"
+
+    for stack in $NETWORK_STACKS; do
+      ATTEMPT=1
+      while [ "$ATTEMPT" -le 4 ]; do
+        if delete_one_stack "$stack" "$DELETED" "$STACK_TOTAL" "$region"; then
+          DELETED=$(( DELETED + 1 ))
+          break
+        fi
+        if [ "$ATTEMPT" -eq 4 ]; then
+          warn "$stack still has dependencies after 4 attempts — check for leftover network interfaces"
+          FAILED="$FAILED $stack"
+          break
+        fi
+        warn "$stack not ready (attempt $ATTEMPT) — waiting 3 min for network interfaces to be released"
+        sleep 180
+        ATTEMPT=$(( ATTEMPT + 1 ))
+      done
     done
   done
 
-  log "Cleaning orphaned ECR repositories..."
-  aws ecr describe-repositories --region "$AWS_REGION" \
-    --query "repositories[?starts_with(repositoryName, '${PREFIX}')].repositoryName" \
-    --output text 2>/dev/null | tr '\t' '\n' | while read -r repo; do
-    [ -n "$repo" ] && aws ecr delete-repository --repository-name "$repo" --force \
-      --region "$AWS_REGION" && log "Deleted ECR repo: $repo"
+  LEFT="$(echo $STRANDED $FAILED)"
+  if [ -n "$LEFT" ]; then
+    warn "Could not delete: $LEFT"
+    [ -n "$(echo $STRANDED)" ] && warn "Last reason: ${BLOCK_REASON:-unknown}"
+  else
+    log "All $STACK_TOTAL stack(s) deleted"
+  fi
+
+  # -- Orphaned resources ----------------------------------------------------
+  # CDK nests log groups under /aws/lambda/ and /pipes/, and WAF requires its
+  # own aws-waf-logs- prefix, so the name is matched at one of four known
+  # starts rather than anywhere in the string — a bare substring would also
+  # claim another stack's group that happens to contain this prefix.
+  for region in $REGIONS; do
+    log "Cleaning orphaned CloudWatch log groups in $region..."
+    LOG_GROUPS=$(aws logs describe-log-groups --region "$region" \
+      --query "logGroups[?starts_with(logGroupName, '${PREFIX}') \
+        || starts_with(logGroupName, '/aws/lambda/${PREFIX}') \
+        || starts_with(logGroupName, '/pipes/${PREFIX}') \
+        || starts_with(logGroupName, 'aws-waf-logs-${PREFIX}')].logGroupName \
+        | [?ends_with(@, '${ENV_SUFFIX}') || contains(@, '${ENV_INFIX}')]" --output text)
+    LG_TOTAL=$(echo "$LOG_GROUPS" | wc -w | tr -d ' ')
+    LG_IDX=0; LG_OK=0
+    for lg in $LOG_GROUPS; do
+      LG_IDX=$(( LG_IDX + 1 ))
+      progress $(( LG_IDX * 100 / LG_TOTAL )) "$lg"
+      if aws logs delete-log-group --log-group-name "$lg" --region "$region" 2>/dev/null; then
+        LG_OK=$(( LG_OK + 1 ))
+      else
+        progress_end
+        warn "Could not delete log group: $lg"
+      fi
+    done
+    progress_end
+    log "Deleted $LG_OK of $LG_TOTAL log group(s)"
+
+    log "Cleaning orphaned ECR repositories in $region..."
+    REPOS=$(aws ecr describe-repositories --region "$region" \
+      --query "repositories[?starts_with(repositoryName, '${PREFIX}') \
+        && (ends_with(repositoryName, '${ENV_SUFFIX}') || contains(repositoryName, '${ENV_INFIX}'))].repositoryName" \
+      --output text 2>/dev/null || echo "")
+    REPO_TOTAL=$(echo "$REPOS" | wc -w | tr -d ' ')
+    REPO_IDX=0; REPO_OK=0
+    for repo in $REPOS; do
+      REPO_IDX=$(( REPO_IDX + 1 ))
+      progress $(( REPO_IDX * 100 / REPO_TOTAL )) "$repo"
+      if aws ecr delete-repository --repository-name "$repo" --force --region "$region" >/dev/null 2>&1; then
+        REPO_OK=$(( REPO_OK + 1 ))
+      else
+        progress_end
+        warn "Could not delete ECR repo: $repo"
+      fi
+    done
+    progress_end
+    log "Deleted $REPO_OK of $REPO_TOTAL ECR repositor(ies)"
   done
 
   log "Cleaning orphaned S3 buckets..."
-  aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}')].Name" \
-    --output text 2>/dev/null | tr '\t' '\n' | while read -r bucket; do
-    [ -n "$bucket" ] && aws s3 rb "s3://$bucket" --force && log "Deleted S3 bucket: $bucket"
+  BUCKETS=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '${PREFIX}') \
+      && (ends_with(Name, '${ENV_SUFFIX}') || contains(Name, '${ENV_INFIX}'))].Name" \
+    --output text 2>/dev/null || echo "")
+  BUCKET_TOTAL=$(echo "$BUCKETS" | wc -w | tr -d ' ')
+  BUCKET_IDX=0; BUCKET_OK=0
+  for bucket in $BUCKETS; do
+    BUCKET_IDX=$(( BUCKET_IDX + 1 ))
+    progress $(( BUCKET_IDX * 100 / BUCKET_TOTAL )) "$bucket"
+    empty_versioned_bucket "$bucket" || true
+    if aws s3 rb "s3://$bucket" --force >/dev/null 2>&1; then
+      BUCKET_OK=$(( BUCKET_OK + 1 ))
+    else
+      progress_end
+      warn "Could not delete S3 bucket: $bucket"
+    fi
   done
+  progress_end
+  log "Deleted $BUCKET_OK of $BUCKET_TOTAL bucket(s)"
 
+  if [ -n "$(echo ${LEFT:-})" ]; then
+    err "Destruction incomplete — these were not deleted:$(echo " ${LEFT}")"
+  fi
   log "Destruction complete"
   exit 0
 fi
@@ -121,6 +483,17 @@ fi
 # Phase 0: Validate prerequisites
 # ---------------------------------------------------------------------------
 step 0 "Validating prerequisites (CLI tools, AWS credentials, AWS Organization)"
+
+# Before the checks below, not after: corepack is how this repository supplies
+# yarn 4, so enabling it afterwards leaves a clean environment failing a gate
+# it could have passed. `enable` only installs the shims — the version comes
+# from the packageManager field of the directory you are in, and the root
+# declares none, so the frontend's is activated explicitly.
+if command -v node &>/dev/null && command -v corepack &>/dev/null; then
+  corepack enable 2>/dev/null || true
+  yarn_wanted=$(node -p "require('$REPO_ROOT/frontend/web/package.json').packageManager" 2>/dev/null || echo "")
+  [ -n "$yarn_wanted" ] && corepack prepare "$yarn_wanted" --activate 2>/dev/null || true
+fi
 
 for cmd in aws cdk node python uv jq yarn; do
   if ! command -v "$cmd" &>/dev/null; then
@@ -163,10 +536,6 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
   fi
 fi
 
-if command -v corepack &>/dev/null; then
-  corepack enable 2>/dev/null || true
-fi
-
 if [ "$(uname -s)" != "Linux" ]; then
   if ! docker info &>/dev/null; then
     err "Docker is required on non-Linux systems for Lambda bundling and ECS image builds. Install Docker and ensure the daemon is running."
@@ -203,11 +572,14 @@ prompt() {
   if [ -n "$default" ]; then
     prompt_text="$prompt_text [$default]"
   fi
+  # read reports failure at end of input, which set -e would turn into a silent
+  # exit — no terminal, no message, nothing to go on. The fallback below is the
+  # answer in that case, exactly as it is for someone who presses Enter.
   if [ "$is_secret" = "true" ]; then
-    read -rsp "$prompt_text: " value
+    read -rsp "$prompt_text: " value || true
     echo
   else
-    read -rp "$prompt_text: " value
+    read -rp "$prompt_text: " value || true
   fi
   value="${value:-$default}"
   printf -v "$var_name" '%s' "$value"
@@ -223,12 +595,43 @@ if [ -n "$CONFIG_FILE" ]; then
   source "$CONFIG_FILE"
 fi
 
+# Not prompted for, and absent from every config written before it existed, so
+# it needs a default under set -u.
+HUB_VPC_NAME="${HUB_VPC_NAME:-}"
+HUB_SUBNET_NAMES="${HUB_SUBNET_NAMES:-}"
+# A stray space matches nothing in either describe-vpcs or Vpc.from_lookup,
+# while the name still reads as correct in the resulting error.
+HUB_VPC_NAME="${HUB_VPC_NAME#"${HUB_VPC_NAME%%[![:space:]]*}"}"
+HUB_VPC_NAME="${HUB_VPC_NAME%"${HUB_VPC_NAME##*[![:space:]]}"}"
+
+# Both are written to the saved config, sourced on the next run, and
+# interpolated into sed expressions, so restrict them to what a Name tag needs.
+for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
+  case "${!_var}" in
+    *[!a-zA-Z0-9.,_\ -]*) err "$_var may contain only letters, digits, and . , _ - and spaces" ;;
+  esac
+done
+RESOURCE_TAGS="${RESOURCE_TAGS:-}"
+if [ -z "$RESOURCE_TAGS" ]; then
+  RESOURCE_TAGS='{}'
+fi
+# The saved config writes this single-quoted and is sourced on the next run, so
+# a quote or a backslash here would be executed rather than read back.
+case "$RESOURCE_TAGS" in
+  *"'"*) err "RESOURCE_TAGS must not contain a single quote" ;;
+  *\\*)  err "RESOURCE_TAGS must not contain a backslash" ;;
+esac
+
 if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   prompt AWS_PROFILE_HUB "AWS CLI profile for hub account (empty for default)" "default"
 fi
 prompt AWS_ACCOUNT_ID    "AWS Account ID (12 digits)"          ""
 [[ "$AWS_ACCOUNT_ID" =~ ^[0-9]{12}$ ]] || err "Invalid AWS Account ID: $AWS_ACCOUNT_ID"
 prompt AWS_REGION         "AWS Region"                          "us-east-1"
+prompt ENABLED_WORKBENCH_REGIONS "Enabled workbench regions (comma-separated)" "$AWS_REGION"
+ENABLED_WORKBENCH_REGIONS="${ENABLED_WORKBENCH_REGIONS:-$AWS_REGION}"
+ENABLED_WORKBENCH_REGIONS=$(normalize_workbench_regions "$ENABLED_WORKBENCH_REGIONS") || \
+  err "ENABLED_WORKBENCH_REGIONS must be a comma-separated list of AWS regions"
 prompt ENVIRONMENT        "Environment (dev/qa/prod)"           "dev"
 [[ "$ENVIRONMENT" =~ ^(dev|qa|prod)$ ]] || err "Invalid environment: $ENVIRONMENT"
 prompt ORG_PREFIX         "Organization prefix"                 "proserve"
@@ -249,6 +652,8 @@ log "OIDC federation (leave empty to use manual Cognito users):"
 prompt OIDC_CLIENT_ID     "OIDC Client ID"                     ""
 prompt OIDC_CLIENT_SECRET "OIDC Client Secret"                 "" true
 prompt OIDC_ISSUER_URL    "OIDC Issuer URL"                    ""
+prompt OIDC_USER_ID_CLAIM "OIDC claim containing the VEW user ID" "sub"
+prompt OIDC_LOGOUT_URL    "OIDC provider logout URL (optional; {appDns} = application URL)" ""
 
 echo ""
 log "TLS and DNS (leave empty for no custom domain):"
@@ -277,13 +682,41 @@ if [ "$PRIVATE_DEPLOYMENT" != "true" ] && [ "$AWS_REGION" != "us-east-1" ] && [ 
   prompt CERT_ARN_US_EAST_1 "TLS Certificate ARN in us-east-1 (for Cognito)" ""
 fi
 
+# ---------------------------------------------------------------------------
+# Which region each part of the deployment lives in
+# ---------------------------------------------------------------------------
+# A public deployment puts the frontend in us-east-1 and names the backend's
+# region with be-region, which is the split the CDK apps are built for:
+# CloudFront, Lambda@Edge and a CLOUDFRONT-scoped web ACL exist only there, and
+# the apps create their own regional stacks for whatever the backend needs.
+# A private deployment has no CloudFront and stays in one region.
+FE_REGION=$(frontend_region "$AWS_REGION")
+FE_CERT_ARN="$CERT_ARN"
+if [ "$FE_REGION" != "$AWS_REGION" ]; then
+  # CloudFront and the Cognito hosted UI read their certificate from the
+  # frontend's own region; CERT_ARN stays with the backend's API domain.
+  FE_CERT_ARN="$CERT_ARN_US_EAST_1"
+  # Only a custom domain needs a certificate carried north. Without one,
+  # CloudFront serves its own *.cloudfront.net certificate, exactly as it does
+  # for a us-east-1 deployment.
+  if [ -n "$CERT_ARN" ] && [ -z "$FE_CERT_ARN" ]; then
+    err "A public deployment outside us-east-1 with a custom domain needs CERT_ARN_US_EAST_1: CloudFront and Cognito read their certificate from us-east-1."
+  fi
+  log "Frontend deploys to $FE_REGION; backend stays in $AWS_REGION"
+fi
+
+# The user pool is created by the frontend stack, so it lives wherever that is.
+# If the pool is ever split into a stack of its own, this is the only line that
+# changes. The backend reads it to reach the pool and to build the JWKS URI.
+COGNITO_REGION="$FE_REGION"
+
 echo ""
 log "Spoke account (optional):"
 prompt SPOKE_ACCOUNT_ID   "Spoke Account ID (empty to skip)"   ""
 if [ -n "$SPOKE_ACCOUNT_ID" ]; then
   prompt SPOKE_VPC_ID        "Spoke VPC ID (empty to create a new VPC)"  ""
   if [ -z "$SPOKE_VPC_ID" ]; then
-    warn "No Spoke VPC ID provided — a new VPC will be created in the spoke account during bootstrap."
+    warn "No Spoke VPC ID provided — a new VPC will be created in the spoke account during bootstrap. Set it where networking is provisioned centrally: such an organisation may also deny ec2:CreateVpc, which fails the bootstrap with an authorization error rather than a missing VPC."
   fi
   prompt AWS_PROFILE_SPOKE   "AWS CLI profile for spoke account"  ""
   [[ -n "$AWS_PROFILE_SPOKE" ]] || warn "AWS profile for spoke not specified. Will fallback to using AWS_SPOKE_ACCESS_KEY_ID, AWS_SPOKE_SECRET_ACCESS_KEY and AWS_SPOKE_SESSION_TOKEN environment variables."
@@ -297,13 +730,16 @@ DEPLOYMENT_QUALIFIER=$(echo -n "$AWS_ACCOUNT_ID" | md5sum | cut -c1-5)
 ADMIN_USER_ID=$(echo "$ADMIN_USER_ID" | tr '[:lower:]' '[:upper:]')
 SPOKE_CDK_QUALIFIER="ioc760get"
 PROJECTS_TABLE="${ORG_PREFIX}-${APP_PREFIX}-projects-table-${ENVIRONMENT}"
-VPC_NAME="vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}"
+VPC_NAME="${HUB_VPC_NAME:-vpc-${ORG_PREFIX}-${APP_PREFIX}-${ENVIRONMENT}}"
 
 # Save config for re-runs (excluding secrets)
 CONFIG_OUT="$SCRIPT_DIR/.deploy-config-${ENVIRONMENT}"
+printf -v OIDC_USER_ID_CLAIM_CONFIG '%q' "$OIDC_USER_ID_CLAIM"
+printf -v OIDC_LOGOUT_URL_CONFIG '%q' "$OIDC_LOGOUT_URL"
 cat > "$CONFIG_OUT" <<CONF
 AWS_ACCOUNT_ID="$AWS_ACCOUNT_ID"
 AWS_REGION="$AWS_REGION"
+ENABLED_WORKBENCH_REGIONS="$ENABLED_WORKBENCH_REGIONS"
 ENVIRONMENT="$ENVIRONMENT"
 ORG_PREFIX="$ORG_PREFIX"
 APP_PREFIX="$APP_PREFIX"
@@ -311,6 +747,8 @@ ADMIN_EMAIL="$ADMIN_EMAIL"
 ADMIN_USER_ID="$ADMIN_USER_ID"
 OIDC_CLIENT_ID="$OIDC_CLIENT_ID"
 OIDC_ISSUER_URL="$OIDC_ISSUER_URL"
+OIDC_USER_ID_CLAIM=$OIDC_USER_ID_CLAIM_CONFIG
+OIDC_LOGOUT_URL=$OIDC_LOGOUT_URL_CONFIG
 CERT_ARN="$CERT_ARN"
 CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
 CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
@@ -322,42 +760,18 @@ AWS_PROFILE_SPOKE="${AWS_PROFILE_SPOKE:-}"
 PRIVATE_DEPLOYMENT="$PRIVATE_DEPLOYMENT"
 PRIVATE_DNS_AUTOMATE="${PRIVATE_DNS_AUTOMATE:-true}"
 PRIVATE_DNS_ZONE="${PRIVATE_DNS_ZONE:-}"
+HUB_VPC_NAME='${HUB_VPC_NAME}'
+HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
+RESOURCE_TAGS='${RESOURCE_TAGS}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
-
-# ---------------------------------------------------------------------------
-# Activate hub account credentials
-# ---------------------------------------------------------------------------
-activate_hub_credentials() {
-  if [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-    log "Using existing env var credentials (AWS_ACCESS_KEY_ID set)"
-    return
-  fi
-  log "Activating credentials for hub account (profile: $AWS_PROFILE_HUB)"
-  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_HUB" --format env)"
-}
-
-activate_spoke_credentials() {
-  if [ -n "${AWS_SPOKE_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SPOKE_SECRET_ACCESS_KEY:-}" ]; then
-    export AWS_ACCESS_KEY_ID="$AWS_SPOKE_ACCESS_KEY_ID"
-    export AWS_SECRET_ACCESS_KEY="$AWS_SPOKE_SECRET_ACCESS_KEY"
-    export AWS_SESSION_TOKEN="${AWS_SPOKE_SESSION_TOKEN:-}"
-    log "Using existing env var credentials for spoke account"
-    return
-  fi
-  if [ -z "${AWS_PROFILE_SPOKE:-}" ]; then
-    err "No spoke account credentials available. Set AWS_PROFILE_SPOKE or AWS_SPOKE_ACCESS_KEY_ID/AWS_SPOKE_SECRET_ACCESS_KEY environment variables."
-  fi
-  log "Activating credentials for spoke account (profile: $AWS_PROFILE_SPOKE)"
-  eval "$(aws configure export-credentials --profile "$AWS_PROFILE_SPOKE" --format env)"
-}
 
 activate_hub_credentials
 
 # Verify credentials target the expected account
 CALLER_ACCOUNT=$(aws sts get-caller-identity --query 'Account' --output text)
 if [ "$CALLER_ACCOUNT" != "$AWS_ACCOUNT_ID" ]; then
-  err "Profile '$AWS_PROFILE_HUB' targets account $CALLER_ACCOUNT, expected $AWS_ACCOUNT_ID"
+  err "Profile '${AWS_PROFILE_HUB:-<none; credentials from the environment>}' targets account $CALLER_ACCOUNT, expected $AWS_ACCOUNT_ID"
 fi
 log "Hub account credentials verified: $AWS_ACCOUNT_ID"
 
@@ -371,6 +785,7 @@ if [ "$DRY_RUN" = "true" ]; then
   log "=== DRY RUN SUMMARY ==="
   log "Account:       $AWS_ACCOUNT_ID (verified: $CALLER_ACCOUNT)"
   log "Region:        $AWS_REGION"
+  log "Workbench regions: $ENABLED_WORKBENCH_REGIONS"
   log "Environment:   $ENVIRONMENT"
   log "Org prefix:    $ORG_PREFIX"
   log "App prefix:    $APP_PREFIX"
@@ -400,11 +815,13 @@ log "Patching $BACKEND_CONFIG"
 sed -i.bak \
   -e "s/^ORGANIZATION_PREFIX = \".*\"/ORGANIZATION_PREFIX = \"${ORG_PREFIX}\"/" \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
-  -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${AWS_REGION}\"/" \
-  -e "s/\"enabled-workbench-regions\": \[\"[^\"]*\"\]/\"enabled-workbench-regions\": [\"${AWS_REGION}\"]/" \
-  -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${AWS_REGION}/g" \
+  -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
+  -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
+  -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${COGNITO_REGION}\"/" \
+  -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${COGNITO_REGION}/g" \
   "$BACKEND_CONFIG"
 rm -f "${BACKEND_CONFIG}.bak"
+patch_workbench_regions_config "$BACKEND_CONFIG" "$ENABLED_WORKBENCH_REGIONS"
 
 # --- backend/infra/constants.py ---
 BACKEND_CONSTANTS="$REPO_ROOT/backend/infra/constants.py"
@@ -444,22 +861,29 @@ rm -f "${BACKEND_CONSTANTS}.bak"
 # --- frontend/infrastructure/cdk.json ---
 log "Patching $FE_CDK_JSON"
 
-OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-dev/oidc"
+OIDC_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 if [ -z "$OIDC_CLIENT_ID" ]; then
   ALLOW_CUSTOM_LOGIN="true"
-  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName)'
+  OIDC_FILTER='| del(.context.config.dev.OIDCSecretName) | del(.context.config.dev.OIDCUserIdClaim) | del(.context.config.dev.LogoutUrl)'
 else
   ALLOW_CUSTOM_LOGIN="false"
-  OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc'
+  if [ -n "$OIDC_LOGOUT_URL" ]; then
+    OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.OIDCUserIdClaim = $uid_claim | .context.config.dev.LogoutUrl = $logout'
+  else
+    OIDC_FILTER='| .context.config.dev.OIDCSecretName = $oidc | .context.config.dev.OIDCUserIdClaim = $uid_claim | del(.context.config.dev.LogoutUrl)'
+  fi
 fi
 
 jq --arg app_name "$APP_NAME" \
    --arg qualifier "$DEPLOYMENT_QUALIFIER" \
    --arg oidc "$OIDC_NAME" \
+   --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+   --arg logout "$OIDC_LOGOUT_URL" \
    --arg vpcname "$VPC_NAME" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
    --argjson private "$PRIVATE_DEPLOYMENT" \
-   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname $OIDC_FILTER" \
+   --argjson adoptedvpc "$([ -n "$HUB_VPC_NAME" ] && echo true || echo false)" \
+   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname | .context.config.dev.AdoptedVPC = \$adoptedvpc $OIDC_FILTER" \
    "$FE_CDK_JSON" > "${FE_CDK_JSON}.tmp" && mv "${FE_CDK_JSON}.tmp" "$FE_CDK_JSON"
 
 # --- frontend/infrastructure/lib/public-access-deployment-stack.ts ---
@@ -477,18 +901,19 @@ log "Configuration files patched"
 # ---------------------------------------------------------------------------
 # Phase 3: CDK bootstrap (default qualifier)
 # ---------------------------------------------------------------------------
-step 3 "CDK bootstrapping account $AWS_ACCOUNT_ID in $AWS_REGION"
+BOOTSTRAP_REGIONS=$(required_bootstrap_regions \
+  "$AWS_REGION" \
+  "$ENABLED_WORKBENCH_REGIONS" \
+  "$PRIVATE_DEPLOYMENT")
 
-run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${AWS_REGION}" \
-  --trust "$AWS_ACCOUNT_ID" \
-  --cloudformation-execution-policies "arn:aws:iam::aws:policy/AdministratorAccess"
+step 3 "CDK bootstrapping account $AWS_ACCOUNT_ID in required regions"
 
-if [ "$AWS_REGION" != "us-east-1" ] && [ "$PRIVATE_DEPLOYMENT" != "true" ]; then
-  log "Bootstrapping us-east-1 for Cognito/CloudFront resources"
-  run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/us-east-1" \
+while IFS= read -r bootstrap_region; do
+  log "Bootstrapping hub account in $bootstrap_region"
+  run_cmd cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${bootstrap_region}" \
     --trust "$AWS_ACCOUNT_ID" \
     --cloudformation-execution-policies "arn:aws:iam::aws:policy/AdministratorAccess"
-fi
+done < <(workbench_regions_lines "$BOOTSTRAP_REGIONS")
 
 # ---------------------------------------------------------------------------
 # Phase 4: Create prerequisite resources (SSM parameters, VPC, service roles)
@@ -511,7 +936,11 @@ put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/dns-records" '{"records"
 put_ssm "/${ORG_PREFIX}-${APP_PREFIX}-backend-${ENVIRONMENT}/image-service-account-id" "$AWS_ACCOUNT_ID"
 
 # Ensure Image Builder service-linked role exists (required by packaging stacks)
-aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
+if [ "$DIFF_MODE" = "true" ]; then
+  log "Skipping the Image Builder service-linked role (--diff)"
+else
+  aws iam create-service-linked-role --aws-service-name imagebuilder.amazonaws.com 2>/dev/null || true
+fi
 
 # --- VPC ---
 EXISTING_VPC=$(aws ec2 describe-vpcs \
@@ -520,6 +949,18 @@ EXISTING_VPC=$(aws ec2 describe-vpcs \
   --region "$AWS_REGION" 2>/dev/null || echo "None")
 
 if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
+  # The lookup cannot distinguish an absent VPC from a denied DescribeVpcs, so an
+  # explicitly configured name that misses is an operator error either way.
+  if [ -n "$HUB_VPC_NAME" ]; then
+    err "HUB_VPC_NAME is set to '$HUB_VPC_NAME' but no such VPC resolved in $AWS_REGION. Check the name, the region, and DescribeVpcs permission. Refusing to create a VPC."
+  fi
+  # --diff only diffs the VPC stack, so the VPC is never created. The backend
+  # stacks resolve it with Vpc.from_lookup while synthesizing, which would then
+  # fail inside CDK with "Could not find any VPCs matching". Refuse here
+  # instead, where the reason can be given.
+  if [ "$DIFF_MODE" = "true" ]; then
+    err "--diff needs a VPC named '$VPC_NAME' in $AWS_REGION: the backend stacks look it up while synthesizing, and a preview does not create one. Deploy once before previewing, or set HUB_VPC_NAME to an existing VPC."
+  fi
   warn "VPC '$VPC_NAME' not found in $AWS_REGION"
   warn "A development VPC will be created. This is intended for dev/testing only — not for production use."
   if [ "$AUTO_CONFIRM" = "true" ]; then
@@ -539,7 +980,7 @@ if [ "$EXISTING_VPC" = "None" ] || [ -z "$EXISTING_VPC" ]; then
   (
     cd "$BACKEND_DIR"
     cp cdk-vpc.json cdk.json
-    run_cmd cdk deploy --all --require-approval never --force \
+    cdk_run \
       -c "environment=$ENVIRONMENT" \
       -c "account=$AWS_ACCOUNT_ID" \
       -c "region=$AWS_REGION"
@@ -552,7 +993,12 @@ else
 fi
 
 # --- Self-signed TLS certificate (private deployment, no CERT_ARN provided) ---
-if [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+# A preview must not mint and import a certificate. Without one the
+# frontend stack is diffed as it would be with CERT_ARN unset, which is
+# the honest comparison for a deployment that has none yet.
+if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+  warn "Skipping the self-signed certificate import (--diff); the frontend diff assumes no CERT_ARN"
+elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
   command -v openssl >/dev/null || err "openssl is required to generate a self-signed certificate (no CERT_ARN provided)."
   log "Generating self-signed certificate for $CUSTOM_DOMAIN, $API_CUSTOM_DOMAIN"
 
@@ -610,13 +1056,17 @@ step 5 "Configuring identity federation"
 
 OIDC_SECRET_NAME="${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/oidc"
 
-if [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUER_URL" ]; then
+# put-secret-value overwrites a live secret, so a preview never writes it.
+if [ "$DIFF_MODE" = "true" ] && [ -n "$OIDC_CLIENT_ID" ]; then
+  warn "Skipping the OIDC secret write (--diff); it would overwrite the live secret"
+elif [ -n "$OIDC_CLIENT_ID" ] && [ -n "$OIDC_CLIENT_SECRET" ] && [ -n "$OIDC_ISSUER_URL" ]; then
   log "Creating OIDC secret: $OIDC_SECRET_NAME"
   OIDC_JSON=$(jq -n \
     --arg cid "$OIDC_CLIENT_ID" \
     --arg cs "$OIDC_CLIENT_SECRET" \
     --arg iss "$OIDC_ISSUER_URL" \
-    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss}')
+    --arg uid_claim "$OIDC_USER_ID_CLAIM" \
+    '{ClientID: $cid, ClientSecret: $cs, Issuer: $iss, UserIDClaim: $uid_claim}')
 
   if aws secretsmanager describe-secret --secret-id "$OIDC_SECRET_NAME" --region "$AWS_REGION" &>/dev/null; then
     aws secretsmanager put-secret-value \
@@ -647,13 +1097,18 @@ run_cmd yarn --cwd "$FRONTEND_DIR" install --frozen-lockfile
 FE_CDK_CONTEXT=(
   -c "environment=$ENVIRONMENT"
   -c "account=$AWS_ACCOUNT_ID"
-  -c "region=$AWS_REGION"
+  -c "region=$FE_REGION"
   -c "app-name=$APP_NAME"
   -c "deployment-qualifier=$DEPLOYMENT_QUALIFIER"
+  -c "resource-tags=$RESOURCE_TAGS"
 )
 
-if [ -n "$CERT_ARN" ]; then
-  FE_CDK_CONTEXT+=(-c "cert-arn=$CERT_ARN")
+if [ "$FE_REGION" != "$AWS_REGION" ]; then
+  FE_CDK_CONTEXT+=(-c "be-region=$AWS_REGION")
+fi
+
+if [ -n "$FE_CERT_ARN" ]; then
+  FE_CDK_CONTEXT+=(-c "cert-arn=$FE_CERT_ARN")
 fi
 if [ -n "$CUSTOM_DOMAIN" ]; then
   FE_CDK_CONTEXT+=(-c "use-custom-domain=$CUSTOM_DOMAIN")
@@ -665,8 +1120,7 @@ fi
 log "Deploying frontend CDK stacks"
 (
   cd "$FRONTEND_DIR"
-  run_cmd cdk deploy --all --require-approval never --force \
-    "${FE_CDK_CONTEXT[@]}"
+  cdk_run "${FE_CDK_CONTEXT[@]}"
 )
 
 # ---------------------------------------------------------------------------
@@ -690,6 +1144,7 @@ BE_CDK_CONTEXT=(
   -c "catalog-service-account=$AWS_ACCOUNT_ID"
   -c "catalog-service-region=$AWS_REGION"
   -c "organization-id=$ORG_ID"
+  -c "resource-tags=$RESOURCE_TAGS"
 )
 
 if [ -n "$API_CUSTOM_DOMAIN" ]; then
@@ -703,10 +1158,12 @@ if [ -n "${CI_COMMIT_SHA:-}" ]; then
 fi
 
 FE_STACK_NAME="${APP_NAME}-${ENVIRONMENT}"
+# The frontend stack follows FE_REGION, which is us-east-1 for a public
+# deployment outside it.
 FE_OUTPUTS=$(aws cloudformation describe-stacks \
   --stack-name "$FE_STACK_NAME" \
   --query 'Stacks[0].Outputs' \
-  --output json --region "$AWS_REGION" 2>/dev/null || echo "[]")
+  --output json --region "$FE_REGION" 2>/dev/null || echo "[]")
 
 CORS_ORIGIN=$(echo "$FE_OUTPUTS" | jq -r '.[] | select(.OutputKey=="cdncustomfqdnoutput") | .OutputValue // empty')
 if [ -z "$CORS_ORIGIN" ] || [ "$CORS_ORIGIN" = "not available" ]; then
@@ -738,9 +1195,7 @@ log "Deploying backend CDK stacks"
     CDK_CONCURRENCY=10
   fi
 
-  run_cmd cdk deploy --all --require-approval never --force \
-    --concurrency $CDK_CONCURRENCY \
-    "${BE_CDK_CONTEXT[@]}"
+  CDK_DEPLOY_EXTRA="--concurrency $CDK_CONCURRENCY" cdk_run "${BE_CDK_CONTEXT[@]}"
   rm -f cdk.json
 )
 
@@ -749,17 +1204,40 @@ deactivate
 # ---------------------------------------------------------------------------
 # Phase 8: Build and deploy frontend web application
 # ---------------------------------------------------------------------------
+if [ "$DIFF_MODE" = "true" ]; then
+  echo ""
+  if [ -s "${DIFF_CAPTURE:-/dev/null}" ]; then
+    # Never fail the diff over the summary: the full output is already above.
+    python3 "$SCRIPT_DIR/scripts/diff-summary.py" "$DIFF_CAPTURE" || true
+    rm -f "$DIFF_CAPTURE"
+    echo ""
+  fi
+  log "=== DIFF COMPLETE ==="
+  log "The stack changes above are what a deploy would apply. Nothing was deployed."
+  warn "Two writes still happen, because the diff itself needs them: the CDK"
+  warn "bootstrap stack, and the SSM parameters the stacks read while"
+  warn "synthesizing. Both are no-ops on an account already deployed."
+  warn "Everything else is skipped: the service-linked role, the self-signed"
+  warn "certificate import, and the OIDC secret."
+  log "Run without --diff to apply."
+  exit 0
+fi
+
 step 8 "Building frontend web application and uploading to S3"
 
 WEB_DIR="$REPO_ROOT/frontend/web"
 
+# configure_auth.sh reads the UI stack for the Cognito pool, client and domain,
+# so it needs the frontend's region; the backend APIs keep their own. Its
+# describe-stacks calls fall back to an empty string, so a wrong region here
+# yields a config with blank Cognito fields instead of an error.
 log "Generating frontend configuration (aws-exports.js)"
 (
   cd "$WEB_DIR"
   APP_NAME="$APP_NAME" \
   BACKEND_APP_NAME="$BACKEND_APP_NAME" \
   ENVIRONMENT_NAME="$ENVIRONMENT" \
-  AWS_DEFAULT_REGION="$AWS_REGION" \
+  AWS_DEFAULT_REGION="$FE_REGION" \
   AWS_REGION_BE_API="$AWS_REGION" \
   UPLOAD_ENV="remote" \
   bash configure_auth.sh
@@ -780,7 +1258,7 @@ fi
 
 if [ -n "$S3_BUCKET" ] && [ "$S3_BUCKET" != "null" ]; then
   log "Uploading web app to s3://$S3_BUCKET"
-  run_cmd aws s3 sync "$WEB_DIR/dist" "s3://$S3_BUCKET" --delete --region "$AWS_REGION"
+  run_cmd aws s3 sync "$WEB_DIR/dist" "s3://$S3_BUCKET" --delete --region "$FE_REGION"
 
   if [ -n "$CF_DIST_ID" ] && [ "$CF_DIST_ID" != "null" ]; then
     log "Invalidating CloudFront distribution $CF_DIST_ID"
@@ -1039,12 +1517,12 @@ if [ -z "$OIDC_CLIENT_ID" ]; then
   POOL_ID=$(aws ssm get-parameter \
     --name "/${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/user-pool-id" \
     --query 'Parameter.Value' --output text \
-    --region "$AWS_REGION" 2>/dev/null || echo "unknown")
+    --region "$COGNITO_REGION" 2>/dev/null || echo "unknown")
   echo "    aws cognito-idp admin-create-user \\"
   echo "      --user-pool-id $POOL_ID \\"
   echo "      --username $ADMIN_EMAIL \\"
   echo "      --user-attributes Name=email,Value=$ADMIN_EMAIL Name=email_verified,Value=true Name=custom:user_tid,Value=$ADMIN_USER_ID \\"
-  echo "      --region $AWS_REGION"
+  echo "      --region $COGNITO_REGION"
   echo ""
 fi
 

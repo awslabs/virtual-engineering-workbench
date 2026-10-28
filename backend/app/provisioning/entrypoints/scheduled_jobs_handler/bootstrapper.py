@@ -230,6 +230,7 @@ def bootstrap(  # noqa: C901
             cf_boto_client_provider=_get_cf_boto_client,
             sc_boto_client_provider=_get_sc_boto_client,
             logger=logger,
+            resource_tags=app_config.get_resource_tags(),
         ),
         request_context_manager=app,
         sc_boto_client_provider=_get_sc_boto_client,

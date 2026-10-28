@@ -1,3 +1,4 @@
+import json
 import os
 
 from pydantic import BaseModel
@@ -63,3 +64,7 @@ class AppConfig(BaseModel):
 
     def get_topic_name(self) -> str:
         return os.environ.get("TOPIC_NAME", "")
+
+    def get_resource_tags(self) -> dict[str, str]:
+        """Tags to stamp on resources this deployment provisions at runtime."""
+        return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))

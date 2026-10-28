@@ -1,3 +1,4 @@
+import json
 import os
 
 from app.shared import config
@@ -42,3 +43,7 @@ class AppConfig(config.VEWBaseConfig):
 
     def get_provisioned_product_cleanup_config(self) -> dict:
         return os.environ.get("PROVISIONED_PRODUCT_CLEANUP_CONFIG")
+
+    def get_resource_tags(self) -> dict[str, str]:
+        """Tags to stamp on resources this deployment provisions at runtime."""
+        return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))

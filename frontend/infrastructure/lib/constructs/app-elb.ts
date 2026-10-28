@@ -168,9 +168,13 @@ export class AppElb extends Construct {
 
     const vpc = ec2.Vpc.fromLookup(this, 'vpc', { vpcName: appConfig.vpcName });
 
-    vpc.addGatewayEndpoint('S3GatewayEndpoint', {
-      service: ec2.GatewayVpcEndpointAwsService.S3
-    });
+    // An adopted VPC is managed elsewhere and already carries the S3 and
+    // DynamoDB gateway endpoints; adding them again fails on the existing route.
+    if (!appConfig.adoptedVpc) {
+      vpc.addGatewayEndpoint('S3GatewayEndpoint', {
+        service: ec2.GatewayVpcEndpointAwsService.S3
+      });
+    }
 
     const vpcEndpointSecurityGroup = new ec2.SecurityGroup(this, 'S3EndpointSG', {
       allowAllOutbound: false,

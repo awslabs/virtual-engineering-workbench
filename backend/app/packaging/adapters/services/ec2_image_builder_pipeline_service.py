@@ -34,7 +34,9 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
         pipelines_configuration_mapping: dict,
         boto_session: Any = None,
         max_results: int | None = None,
+        resource_tags: dict[str, str] | None = None,
     ):
+        self._resource_tags = resource_tags or {}
         self._admin_role = admin_role
         self._ami_factory_aws_account_id = ami_factory_aws_account_id
         self._ami_factory_subnet_names = ami_factory_subnet_names
@@ -118,7 +120,7 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 distributions=[
                     {
                         "amiDistributionConfiguration": {
-                            "amiTags": image_tags,
+                            "amiTags": {**self._resource_tags, **image_tags},
                             "kmsKeyId": f"arn:aws:kms:{self._region}:{self._ami_factory_aws_account_id}:alias/{self._image_key_name}",
                         },
                         "region": self._region,
@@ -159,6 +161,10 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 instanceProfileName=self._instance_profile_name,
                 instanceTypes=instance_types,
                 name=name,
+                # Stamped on the build instance and its volumes at RunInstances.
+                # An organisation that requires tags on create denies the build
+                # without them.
+                resourceTags=self._resource_tags,
                 securityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                 snsTopicArn=self._topic_arn,
                 subnetId=subnet_id,
@@ -277,7 +283,7 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 distributions=[
                     {
                         "amiDistributionConfiguration": {
-                            "amiTags": image_tags,
+                            "amiTags": {**self._resource_tags, **image_tags},
                             "kmsKeyId": f"arn:aws:kms:{self._region}:{self._ami_factory_aws_account_id}:alias/{self._image_key_name}",
                         },
                         "region": self._region,
@@ -319,6 +325,10 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 instanceMetadataOptions={"httpTokens": "required"},
                 instanceProfileName=self._instance_profile_name,
                 instanceTypes=instance_types,
+                # An update replaces the configuration rather than patching it,
+                # so omitting this here would strip the tags on the first
+                # redeploy of an existing pipeline.
+                resourceTags=self._resource_tags,
                 securityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                 snsTopicArn=self._topic_arn,
                 subnetId=subnet_id,

@@ -7,7 +7,7 @@ from aws_cdk import aws_lambda
 from jsii import implements, member
 
 from infra import constants
-from infra.constructs.bundling import DOCKER_STRIP_CMD, strip_bundle
+from infra.constructs.bundling import DOCKER_STRIP_CMD, strip_bundle, uv_target_args
 
 
 def _validate_path(path: str) -> None:
@@ -23,9 +23,15 @@ def _resolve_requirements(entry: str) -> str:
 
 @implements(aws_cdk.ILocalBundling)
 class MyLocalBundler:
-    def __init__(self, entry: str) -> None:
+    def __init__(
+        self,
+        entry: str,
+        runtime: aws_lambda.Runtime = aws_lambda.Runtime.PYTHON_3_13,
+        architecture: aws_lambda.Architecture = constants.LAMBDA_ARCHITECTURE,
+    ) -> None:
         _validate_path(entry)
         self._entry = entry
+        self._target_args = uv_target_args(runtime.name, architecture.name)
 
     @member(jsii_name="tryBundle")
     def try_bundle(self, output_dir: str, options: aws_cdk.BundlingOptions) -> bool:
@@ -38,7 +44,7 @@ class MyLocalBundler:
 
         try:
             subprocess.run(
-                ["uv", "pip", "install", "-r", reqfile, "-t", str(python_dir), "--no-compile"],
+                ["uv", "pip", "install", "-r", reqfile, "-t", str(python_dir), "--no-compile", *self._target_args],
                 check=True,
                 shell=False,
                 capture_output=True,
@@ -110,6 +116,8 @@ class SharedLayer(constructs.Construct):
                 ],
                 local=MyLocalBundler(
                     entry=entry,
+                    runtime=runtime,
+                    architecture=constants.LAMBDA_ARCHITECTURE,
                 ),
             ),
             asset_hash=asset_hash,

@@ -160,7 +160,10 @@ def bootstrap(  # noqa: C901
     )
 
     products_srv = sc_products_service.ServiceCatalogProductsService(
-        cf_boto_client_provider=_get_cf_boto_client, sc_boto_client_provider=_get_sc_boto_client, logger=logger
+        cf_boto_client_provider=_get_cf_boto_client,
+        sc_boto_client_provider=_get_sc_boto_client,
+        logger=logger,
+        resource_tags=app_config.get_resource_tags(),
     )
 
     versions_qry_srv = dynamodb_versions_query_service.DynamoDBVersionsQueryService(

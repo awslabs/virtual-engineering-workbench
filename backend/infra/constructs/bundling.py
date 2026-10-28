@@ -17,3 +17,29 @@ def strip_bundle(root: Path) -> None:
 
     for f in root.rglob("*.pyc"):
         f.unlink(missing_ok=True)
+
+
+# Lambda Python runtimes run on Amazon Linux 2023 (glibc 2.34), so manylinux_2_28 wheels are safe.
+_PLATFORM_BY_ARCHITECTURE = {
+    "arm64": "aarch64-manylinux_2_28",
+    "x86_64": "x86_64-manylinux_2_28",
+}
+
+
+def uv_target_args(runtime_name: str, architecture_name: str) -> list[str]:
+    """uv flags that build for the Lambda runtime instead of the host Python.
+
+    Local bundling runs `uv pip install -t` on the deploy host (e.g. inside the deployer image).
+    Without these flags uv picks wheels for whatever Python that host has, and a cp315 native
+    module (pydantic-core, cryptography, ...) cannot be imported by a python3.13 Lambda.
+    """
+    if not runtime_name.startswith("python"):
+        raise ValueError(f"Not a Python Lambda runtime: {runtime_name}")
+    if architecture_name not in _PLATFORM_BY_ARCHITECTURE:
+        raise ValueError(f"Unsupported Lambda architecture: {architecture_name}")
+    return [
+        "--python-version",
+        runtime_name.removeprefix("python"),
+        "--python-platform",
+        _PLATFORM_BY_ARCHITECTURE[architecture_name],
+    ]

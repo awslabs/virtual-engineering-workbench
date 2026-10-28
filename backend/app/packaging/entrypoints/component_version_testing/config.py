@@ -1,3 +1,4 @@
+import json
 import os
 
 from pydantic import BaseModel
@@ -12,6 +13,10 @@ class AppConfig(BaseModel):
 
     def get_ami_factory_vpc_name(self) -> str:
         return os.environ.get("AMI_FACTORY_VPC_NAME", "")
+
+    def get_resource_tags(self) -> dict[str, str]:
+        """Tags to stamp on resources this deployment provisions at runtime."""
+        return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))
 
     def get_domain_event_bus_name(self) -> str:
         return os.environ.get("DOMAIN_EVENT_BUS_ARN", "")

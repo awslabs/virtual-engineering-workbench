@@ -169,7 +169,10 @@ def bootstrap(  # noqa: C901
         return _get_boto_client_for(client_name="ecs", aws_account_id=aws_account_id, region=region, user_id=user_id)
 
     products_srv = sc_products_service.ServiceCatalogProductsService(
-        cf_boto_client_provider=_get_cf_boto_client, sc_boto_client_provider=_get_sc_boto_client, logger=logger
+        cf_boto_client_provider=_get_cf_boto_client,
+        sc_boto_client_provider=_get_sc_boto_client,
+        logger=logger,
+        resource_tags=app_config.get_resource_tags(),
     )
 
     instance_mgmt_srv = ec2_instance_management_service.EC2InstanceManagementService(

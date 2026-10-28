@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import json
+
 import aws_cdk
 import cdk_nag
 
@@ -12,15 +14,11 @@ from infra.usecase import (
 
 app = aws_cdk.App()
 
-# Required tags for all resources
-required_tags = [
-    {"Key": "Application", "Value": "VEW"},
-    {"Key": "vew:cost-category", "Value": "shared"},
-]
-
-# Apply required tags to all resources in the app
-# for tag in required_tags:
-# aws_cdk.Tags.of(app).add(tag["Key"], tag["Value"])
+# Tags stamped on this app's resources. An organisation whose SCPs require tags
+# on create denies the stacks without them.
+resource_tags = json.loads(app.node.try_get_context("resource-tags") or "{}")
+for _key, _value in resource_tags.items():
+    aws_cdk.Tags.of(app).add(_key, _value)
 
 environment = app.node.try_get_context("environment")
 prerequisites = app.node.try_get_context("prerequisites")

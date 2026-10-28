@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: MIT-0
 import 'source-map-support/register';
-import { App } from 'aws-cdk-lib';
+import { App, Tags } from 'aws-cdk-lib';
 import { PublicAccessDeploymentStack } from '../lib/public-access-deployment-stack';
 import { getResourceName, getStackName } from './conventions';
 import { AppConfig } from '../lib/app-config';
@@ -17,6 +17,13 @@ const appEnvironment = app.node.tryGetContext('environment');
 const account = app.node.tryGetContext('account');
 const region = app.node.tryGetContext('region');
 const beRegion = app.node.tryGetContext('be-region');
+
+// An organisation whose SCPs require tags on create denies resources without
+// them; these stacks create log groups, load balancers and roles.
+const resourceTags = JSON.parse(app.node.tryGetContext('resource-tags') || '{}');
+for (const [key, value] of Object.entries(resourceTags)) {
+  Tags.of(app).add(key, String(value));
+}
 
 const allowedEnvironments = new Set(['dev', 'qa', 'prod']);
 

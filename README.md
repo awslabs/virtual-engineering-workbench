@@ -227,6 +227,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | --- | --- | --- |
 | `AWS_ACCOUNT_ID` | — | 12-digit AWS account ID |
 | `AWS_REGION` | `us-east-1` | Deployment region |
+| `ENABLED_WORKBENCH_REGIONS` | value of `AWS_REGION` | Comma-separated regions where spoke workbenches may be provisioned |
 | `ENVIRONMENT` | `dev` | Environment name (`dev`, `qa`, `prod`) |
 | `ORG_PREFIX` | `proserve` | Organization prefix for resource naming |
 | `APP_PREFIX` | `wb` | Application prefix for resource naming |
@@ -237,6 +238,8 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `OIDC_CLIENT_ID` | — | OIDC client ID (empty = manual Cognito users) |
 | `OIDC_CLIENT_SECRET` | — | OIDC client secret |
 | `OIDC_ISSUER_URL` | — | OIDC issuer URL |
+| `OIDC_USER_ID_CLAIM` | `sub` | OIDC claim mapped to VEW's stable user ID |
+| `OIDC_LOGOUT_URL` | — | Optional provider logout URL; `{appDns}` is replaced with the application origin |
 | `CERT_ARN` | — | TLS certificate ARN in deployment region |
 | `CERT_ARN_US_EAST_1` | — | TLS certificate ARN in us-east-1 (required if deploying to another region) |
 | `CUSTOM_DOMAIN` | — | Custom domain for the web app (e.g., `dev.workbench.company.com`) |
@@ -246,6 +249,9 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
 | `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
+| `HUB_VPC_NAME` | — | Name tag of an existing VPC in the hub account to deploy into. Empty derives the name from the prefixes and creates the VPC if absent |
+| `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |
+| `RESOURCE_TAGS` | `{}` | JSON object of tags applied to resources VEW provisions at runtime — Image Builder instances and AMIs, Service Catalog products, and the instances launched by component and recipe testing. Needed where an organisation denies resource creation without required tags |
 
 Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 
@@ -256,7 +262,6 @@ Additional configuration not managed by `deploy.sh` (edit manually for advanced 
 | `backend/infra/config.py` | `rest-api-cors-origins` | `*` | Restrict to your domain in production |
 | `backend/infra/config.py` | `retain_resources` | `False` | `True` in production to prevent data loss on stack deletion |
 | `backend/infra/config.py` | `backup-resources` | `False` | `True` in production to enable DynamoDB PITR and S3 versioning |
-| `backend/infra/config.py` | `enabled-workbench-regions` | `["us-east-1"]` | Regions where workbenches can be provisioned |
 | `backend/infra/config.py` | `allowed-cidrs-for-private-api-endpoint` | RFC 1918 ranges | CIDR ranges allowed to reach private API endpoints |
 | `backend/infra/config.py` | `user-role-stage-access` | all roles → `["dev"]` | Which spoke account stages each VEW role can provision into |
 | `backend/infra/config.py` | `disabled-components` | `[]` | Bounded contexts to disable per environment |
@@ -271,7 +276,7 @@ The deploy script replaces default values in source files before deploying:
 | --- | --- |
 | `backend/infra/config.py` | Org/app prefix, Cognito region, enabled workbench regions |
 | `backend/infra/constants.py` | Lambda architecture (ARM/x86), local bundling flag, private API endpoint toggle |
-| `frontend/infrastructure/cdk.json` | App name, deployment qualifier, OIDC secret name, private deployment flag, VPC name |
+| `frontend/infrastructure/cdk.json` | App name, deployment qualifier, OIDC settings, private deployment flag, VPC name |
 | `frontend/infrastructure/lib/public-access-deployment-stack.ts` | Monitoring resource name prefix |
 
 If you deploy with the defaults (`proserve`/`wb`/`us-east-1`), no patching occurs.

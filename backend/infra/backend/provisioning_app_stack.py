@@ -82,11 +82,14 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         custom_api_domain: typing.Optional[str],
         catalog_service_topics: list[aws_sns.ITopic],
         organization_id: str,
+        resource_tags: dict[str, str] | None = None,
         provision_private_endpoint: bool = False,
         vpc_endpoint: aws_ec2.IVpcEndpoint | None = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, id, app_config=app_config, **kwargs)
+
+        self._resource_tags = json.dumps(resource_tags or {})
 
         self._tools_account_id = None
         self.configure_event_buses(app_config, catalog_service_topics, organization_id)
@@ -313,6 +316,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/api",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PROVISIONING,
                         "STRIP_PREFIXES": f"{constants.CUSTOM_DNS_API_PATH_PROVISIONING},{constants.CUSTOM_DNS_IAM_API_PATH_PROVISIONING}",
@@ -412,6 +416,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/s2s_api",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_S2S_API_PATH_PROVISIONING,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_S2S_API_PATH_PROVISIONING,
@@ -442,6 +447,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/publishing_event_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                     },
                     permissions=[
@@ -477,6 +483,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/domain_event_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "LAMBDA_IAM_ROLE": f"{scheduler_role.role_arn}",
                     },
                     permissions=[
@@ -528,7 +535,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     app_root="app",
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/provisioned_product_event_handlers",
-                    environment={},
+                    environment={"RESOURCE_TAGS": self._resource_tags},
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
@@ -558,7 +565,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     app_root="app",
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/provisioned_product_state_event_handler",
-                    environment={},
+                    environment={"RESOURCE_TAGS": self._resource_tags},
                     permissions=[
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
@@ -587,6 +594,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/projects_event_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "AVAILABLE_NETWORKS_SSM_PARAMETER_NAME": available_networks_param.parameter_name,
                     },
                     permissions=[
@@ -611,6 +619,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/scheduled_jobs_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "AVAILABLE_NETWORKS_SSM_PARAMETER_NAME": available_networks_param.parameter_name,
                         "PROVISIONED_PRODUCT_CLEANUP_CONFIG": json.dumps(
                             app_config.component_specific["pp-cleanup-config"]
@@ -650,6 +659,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/provisioned_product_configuration_event_handler",
                     environment={
+                        "RESOURCE_TAGS": self._resource_tags,
                         "PROVISIONED_PRODUCT_CONFIGURATION_DOCUMENT_MAPPING_PARAM_NAME": provisioned_product_configuration_document_mapping_param.parameter_name,
                     },
                     permissions=[

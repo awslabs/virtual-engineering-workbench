@@ -179,6 +179,10 @@ Resources:
             # Define root volume size based on a use case
             VolumeSize: !Ref VolumeSize
             VolumeType: gp3
+      # Tags reach the instance from Service Catalog, but volumes created by
+      # BlockDeviceMappings do not inherit them without this, and a policy
+      # requiring tags on volume/* then denies the launch.
+      PropagateTagsToVolumeOnCreation: true
       IamInstanceProfile: !Ref InstanceProfile
       InstanceType: !Ref InstanceType
       ImageId: !FindInMap

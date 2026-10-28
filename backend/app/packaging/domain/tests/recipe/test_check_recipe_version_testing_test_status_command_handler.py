@@ -31,6 +31,7 @@ def get_test_recipe_version_test_execution_with_specific_instance_id_and_test_co
             setupCommandOutput="This is an example output",
             setupCommandStatus="SUCCESS",
             testCommandId=test_command_id,
+            testCommandSubmittedAt="2026-10-19T11:00:00+00:00",
             testCommandStatus=test_command_status,
             createDate="2000-01-01",
             lastUpdateDate="2000-01-01",
@@ -130,6 +131,7 @@ def test_handle_should_check_recipe_version_testing_test_status(
     # ASSERT
     assertpy.assert_that(testing_environment_setup_command_status).is_equal_to(desired_command_status)
     recipe_version_testing_service_mock.get_testing_command_status.assert_any_call(
+        submitted_at="2026-10-19T11:00:00+00:00",
         command_id=command_id,
         instance_id=instance_id,
     )

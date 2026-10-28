@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import json
+
 import aws_cdk
 import cdk_nag
 
@@ -29,20 +31,16 @@ environment = app.node.try_get_context("environment")
 cert_arn = app.node.try_get_context("cert-arn")
 custom_domain = app.node.try_get_context("use-custom-domain")
 organization_id = app.node.try_get_context("organization-id")
+# Tags stamped both on what VEW provisions at runtime and on the stacks' own
+# resources. An organisation whose SCPs require tags on create denies either
+# without them.
+resource_tags = json.loads(app.node.try_get_context("resource-tags") or "{}")
+for _key, _value in resource_tags.items():
+    aws_cdk.Tags.of(app).add(_key, _value)
 ci_commit_sha = app.node.try_get_context("ci-commit-sha") or "latest"
 qualifier = (
     app.node.try_get_context("@aws-cdk/core:bootstrapQualifier") or aws_cdk.DefaultStackSynthesizer.DEFAULT_QUALIFIER
 )
-# List of required tags that every stack must have
-required_tags = [
-    {"Key": "Application", "Value": "VEW"},
-    {"Key": "vew:cost-category", "Value": "shared"},
-]
-
-# Apply required tags to all resources in the app
-# for tag in required_tags:
-# aws_cdk.Tags.of(app).add(tag["Key"], tag["Value"])
-
 base_config = config.BaseConfig(
     environment=environment,
     account=app.node.try_get_context("account"),
@@ -182,6 +180,7 @@ projects_stack = projects_app_stack.ProjectsAppStack(
     catalog_service_account_id=base_config.catalog_service_account,
     ci_commit_sha=ci_commit_sha,
     qualifier=qualifier,
+    resource_tags=resource_tags,
     provision_private_endpoint=constants.PRIVATE_API_ENDPOINT,
     vpc_endpoint=(prerequisites_app_stack.vpc_endpoint if constants.PRIVATE_API_ENDPOINT else None),
 )
@@ -248,6 +247,7 @@ packaging_stack = packaging_app_stack.PackagingAppStack(
     env=aws_cdk.Environment(account=packaging_app_config.account, region=packaging_app_config.region),
     product_packaging_topic=product_packaging_stack.product_packaging_topic,
     custom_api_domain=custom_domain if custom_domain else "",
+    resource_tags=resource_tags,
     provision_private_endpoint=constants.PRIVATE_API_ENDPOINT,
     vpc_endpoint=(prerequisites_app_stack.vpc_endpoint if constants.PRIVATE_API_ENDPOINT else None),
 )
@@ -295,6 +295,7 @@ provisioning_stack = provisioning_app_stack.ProvisioningAppStack(
     env=aws_cdk.Environment(account=provisioning_app_config.account, region=provisioning_app_config.region),
     catalog_service_topics=catalog_service_topics,
     organization_id=organization_id,
+    resource_tags=resource_tags,
     custom_api_domain=custom_domain if custom_domain else "",
     provision_private_endpoint=constants.PRIVATE_API_ENDPOINT,
     vpc_endpoint=(prerequisites_app_stack.vpc_endpoint if constants.PRIVATE_API_ENDPOINT else None),

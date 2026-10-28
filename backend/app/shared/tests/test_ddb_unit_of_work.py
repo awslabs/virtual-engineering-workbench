@@ -756,3 +756,48 @@ def test_entity_when_has_changes_but_refresh():
     assertpy.assert_that(e0.has_changes).is_false()
     assertpy.assert_that(e1.has_changes).is_false()
     assertpy.assert_that(e2.has_changes).is_false()
+
+
+@pytest.mark.parametrize(
+    "expected, should_update",
+    [
+        ({"name": "Name"}, True),
+        ({"name": "Changed meanwhile"}, False),
+        ({"nickname": None}, True),
+        ({"status": None}, False),
+    ],
+)
+def test_repository_update_entity_when_expected_should_update_only_if_it_holds(
+    mock_dynamodb, backend_app_dynamodb_table, test_table_name, expected, should_update
+):
+    # ARRANGE
+    uow = dynamodb_unit_of_work.DynamoDBUnitOfWork(
+        table_name=test_table_name,
+        dynamodb_client=mock_dynamodb.meta.client,
+        repo_factories=EntityConfigurator(table_name=test_table_name).repo_factories(),
+        logger=mock.create_autospec(spec=logging.Logger),
+    )
+    entity = Garage(id_1="123", id_2="321", name="Name", status="Active")
+    with uow:
+        uow.get_repository(GarageId, Garage).add(entity)
+        uow.commit()
+
+    # ACT
+    entity.status = "Inactive"
+
+    def update():
+        with uow:
+            uow.get_repository(GarageId, Garage).update_entity(
+                GarageId(id_1="123", id_2="321"), entity, expected=expected
+            )
+            uow.commit()
+
+    if should_update:
+        update()
+    else:
+        with pytest.raises(repository_exception.ConditionalCheckFailedException):
+            update()
+
+    # ASSERT
+    item = backend_app_dynamodb_table.get_item(Key={"PK": "ENTITY2#123", "SK": "ID2#321"})
+    assertpy.assert_that(item["Item"]["status"]).is_equal_to("Inactive" if should_update else "Active")

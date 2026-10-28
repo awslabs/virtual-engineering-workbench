@@ -1,6 +1,10 @@
+import unittest.mock
+from datetime import datetime, timedelta, timezone
+
 import assertpy
 import pytest
 from botocore.exceptions import ClientError
+from freezegun import freeze_time
 
 from app.packaging.adapters.exceptions import adapter_exception
 from app.packaging.adapters.services import aws_component_version_testing_service
@@ -310,3 +314,136 @@ def test_should_teardown_testing_environment(
         "terminated"
     )
     assertpy.assert_that(response).is_none()
+
+
+def test_launch_testing_environment_should_tag_instance_and_volume(
+    mock_aws_component_version_testing_service_factory,
+    mock_instance_profile,
+    mock_security_group,
+    mock_moto_ec2_calls,
+    mock_ec2_launch_instances_call,
+    mock_ec2_client,
+    mock_vpc,
+):
+    """RunInstances authorizes against the instance and the volume, so a policy
+    requiring tags on create needs both carried on the call."""
+    # ARRANGE
+    mock_ec2_client.create_subnet(
+        CidrBlock="10.0.100.0/24",
+        VpcId=mock_vpc.get("Vpc").get("VpcId"),
+        TagSpecifications=[{"ResourceType": "subnet", "Tags": [{"Key": "Name", "Value": "subnet-0"}]}],
+    )
+    mock_ec2_launch_instances_call.side_effect = [{"Instances": [{"InstanceId": "i-0000000000"}]}]
+    service = mock_aws_component_version_testing_service_factory(
+        ami_factory_subnet_names=["subnet-0"], resource_tags={"Lab": "CDX", "Owner": "CDX"}
+    )
+
+    # ACT
+    service.launch_testing_environment(
+        image_upstream_id=GlobalVariables.TEST_AMI_ID.value,
+        instance_type=GlobalVariables.TEST_INSTANCE_TYPE.value,
+    )
+
+    # ASSERT
+    specs = mock_ec2_launch_instances_call.call_args.kwargs["TagSpecifications"]
+    assertpy.assert_that([s["ResourceType"] for s in specs]).is_equal_to(["instance", "volume"])
+    for spec in specs:
+        assertpy.assert_that(spec["Tags"]).is_equal_to(
+            [{"Key": "Lab", "Value": "CDX"}, {"Key": "Owner", "Value": "CDX"}]
+        )
+
+
+def test_launch_testing_environment_without_tags_sends_none(
+    mock_aws_component_version_testing_service_factory,
+    mock_instance_profile,
+    mock_security_group,
+    mock_moto_ec2_calls,
+    mock_ec2_launch_instances_call,
+    mock_ec2_client,
+    mock_vpc,
+):
+    """Upstream behaviour when no tags are configured."""
+    # ARRANGE
+    mock_ec2_client.create_subnet(
+        CidrBlock="10.0.101.0/24",
+        VpcId=mock_vpc.get("Vpc").get("VpcId"),
+        TagSpecifications=[{"ResourceType": "subnet", "Tags": [{"Key": "Name", "Value": "subnet-0"}]}],
+    )
+    mock_ec2_launch_instances_call.side_effect = [{"Instances": [{"InstanceId": "i-0000000000"}]}]
+    service = mock_aws_component_version_testing_service_factory(ami_factory_subnet_names=["subnet-0"])
+
+    # ACT
+    service.launch_testing_environment(
+        image_upstream_id=GlobalVariables.TEST_AMI_ID.value,
+        instance_type=GlobalVariables.TEST_INSTANCE_TYPE.value,
+    )
+
+    # ASSERT
+    assertpy.assert_that(mock_ec2_launch_instances_call.call_args.kwargs["TagSpecifications"]).is_empty()
+
+
+@freeze_time("2026-10-19T12:00:00Z")
+@pytest.mark.parametrize(
+    "age_seconds, expected_status",
+    [(0, "PENDING"), (299, "PENDING"), (300, "FAILED"), (600, "FAILED"), (None, "FAILED")],
+)
+def test_missing_invocation_has_bounded_registration_grace_period(
+    mock_aws_component_version_testing_service, mock_ssm_client, age_seconds, expected_status
+):
+    # SSM answers InvocationDoesNotExist for a command it hasn't registered for the instance yet (seen
+    # right after SendCommand; it failed a recipe version test on 2026-10-08).
+    error = ClientError(
+        {"Error": {"Code": "InvocationDoesNotExist", "Message": "Invocation not found"}}, "GetCommandInvocation"
+    )
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", side_effect=error):
+        with unittest.mock.patch.object(
+            mock_aws_component_version_testing_service,
+            "_AwsComponentVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            response = mock_aws_component_version_testing_service.get_testing_command_status(
+                command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                submitted_at=(
+                    (datetime.now(timezone.utc) - timedelta(seconds=age_seconds)).isoformat()
+                    if age_seconds is not None
+                    else None
+                ),
+            )
+
+    assertpy.assert_that(response).is_equal_to(expected_status)
+
+
+def test_testing_command_status_raises_other_ssm_errors(mock_aws_component_version_testing_service, mock_ssm_client):
+    error = ClientError({"Error": {"Code": "AccessDeniedException", "Message": "denied"}}, "GetCommandInvocation")
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", side_effect=error):
+        with unittest.mock.patch.object(
+            mock_aws_component_version_testing_service,
+            "_AwsComponentVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            with pytest.raises(ClientError):
+                mock_aws_component_version_testing_service.get_testing_command_status(
+                    command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                    instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                )
+
+
+@freeze_time("2026-10-19T12:00:00Z")
+@pytest.mark.parametrize("ssm_status, expected_status", [("InProgress", "RUNNING"), ("Success", "SUCCESS")])
+def test_registered_invocation_can_run_beyond_registration_grace_period(
+    mock_aws_component_version_testing_service, mock_ssm_client, ssm_status, expected_status
+):
+    with unittest.mock.patch.object(mock_ssm_client, "get_command_invocation", return_value={"Status": ssm_status}):
+        with unittest.mock.patch.object(
+            mock_aws_component_version_testing_service,
+            "_AwsComponentVersionTestingService__get_ssm_client",
+            return_value=mock_ssm_client,
+        ):
+            response = mock_aws_component_version_testing_service.get_testing_command_status(
+                command_id="adf701bd-8720-44bc-b842-4f7f9c0c3809",
+                instance_id=GlobalVariables.TEST_INSTANCE_ID.value,
+                submitted_at="2026-10-19T11:40:00+00:00",
+            )
+
+    assertpy.assert_that(response).is_equal_to(expected_status)

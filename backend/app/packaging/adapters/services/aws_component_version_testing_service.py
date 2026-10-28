@@ -8,6 +8,7 @@ from mypy_boto3_ec2 import client as ec2_client
 from mypy_boto3_ssm import client as ssm_client
 
 from app.packaging.adapters.exceptions import adapter_exception
+from app.packaging.adapters.services.ssm_command_registration import invocation_is_registering
 from app.packaging.domain.model.component import component_version_test_execution
 from app.packaging.domain.ports import component_version_testing_service
 from app.shared.api import sts_api
@@ -55,8 +56,10 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
         volume_size: int,
         ssm_run_command_timeout: int,
         component_test_s3_bucket_name: str,
+        resource_tags: dict[str, str] | None = None,
         boto_session: Any = None,
     ):
+        self._resource_tags = resource_tags or {}
         self._admin_role = admin_role
         self._ami_factory_aws_account_id = ami_factory_aws_account_id
         self._ami_factory_subnet_names = ami_factory_subnet_names
@@ -68,6 +71,17 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
         self._ssm_run_command_timeout = ssm_run_command_timeout
         self._boto_session = boto_session
         self._component_test_s3_bucket_name = component_test_s3_bucket_name
+
+    def _tag_specifications(self) -> list[dict]:
+        """RunInstances is authorized against the instance and the volume, so a
+        policy requiring tags on create needs both carried on the call."""
+        if not self._resource_tags:
+            return []
+        tags = [{"Key": k, "Value": v} for k, v in self._resource_tags.items()]
+        return [
+            {"ResourceType": "instance", "Tags": tags},
+            {"ResourceType": "volume", "Tags": tags},
+        ]
 
     def __get_attr_from_system_configuration(self, architecture: str, attr: str, os_version: str, platform: str) -> str:
         return self._system_configuration_mapping.get(platform).get(architecture).get(os_version).get(attr)
@@ -238,6 +252,7 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
                         MinCount=1,
                         SecurityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                         SubnetId=subnet.get("SubnetId"),
+                        TagSpecifications=self._tag_specifications(),
                     )
                 except ClientError as error:
                     if error.response["Error"]["Code"] in ("InsufficientInstanceCapacity", "Unsupported"):
@@ -307,7 +322,7 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
         )
 
     def get_testing_command_status(
-        self, command_id: str, instance_id: str
+        self, command_id: str, instance_id: str, submitted_at: str | None = None
     ) -> component_version_test_execution.ComponentVersionTestExecutionCommandStatus:
         with sts_api.STSAPI(
             self._ami_factory_aws_account_id, self._region, self._admin_role, SESSION_USER, self._boto_session
@@ -320,9 +335,16 @@ class AwsComponentVersionTestingService(component_version_testing_service.Compon
 
             ssm_client = self.__get_ssm_client(access_key_id, secret_access_key, session_token)
 
-            ssm_command_status = ssm_client.get_command_invocation(CommandId=command_id, InstanceId=instance_id).get(
-                "Status"
-            )
+            try:
+                ssm_command_status = ssm_client.get_command_invocation(
+                    CommandId=command_id, InstanceId=instance_id
+                ).get("Status")
+            except ClientError as error:
+                return (
+                    component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending
+                    if invocation_is_registering(error, submitted_at)
+                    else component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Failed
+                )
 
             if ssm_command_status in SSMCommandStatusMapping.Failed.value:
                 return component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Failed
