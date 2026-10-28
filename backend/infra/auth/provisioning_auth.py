@@ -43,7 +43,6 @@ provisioning_bc_auth_policies: list[backend_app_api_auth.CedarPolicy] = [
                 action in {provisioning_auth_schema.get_full_action_names([
                     provisioning_auth_schema.ProvisioningBCActions.GetAvailableProducts,
                     provisioning_auth_schema.ProvisioningBCActions.AuthorizeUserIpAddress,
-                    provisioning_auth_schema.ProvisioningBCActions.GetAvailableProducts,
                     provisioning_auth_schema.ProvisioningBCActions.GetAvailableProductVersions,
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProduct,
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProductActivities,

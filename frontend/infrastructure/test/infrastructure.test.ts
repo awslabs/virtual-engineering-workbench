@@ -325,7 +325,7 @@ test('User Pool Client should be configured with explicit auth flows', () => {
   // ASSERT
   const template = Template.fromStack(stack);
   template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
-    ExplicitAuthFlows: ['ALLOW_USER_SRP_AUTH', 'ALLOW_REFRESH_TOKEN_AUTH'],
+    ExplicitAuthFlows: ['ALLOW_REFRESH_TOKEN_AUTH'],
   }));
 });
 

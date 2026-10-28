@@ -87,9 +87,10 @@ class GenericRepository(ABC, Generic[TPrimaryKey, T]):
         ...
 
     @abstractmethod
-    def update_entity(self, pk: TPrimaryKey, entity: T) -> None:
+    def update_entity(self, pk: TPrimaryKey, entity: T, expected: Optional[dict[str, Any]] = None) -> None:
         """
         Updates arbitrary entity attributes in the database in a type safe manner.
+        With `expected`, only if the stored attributes still have those values (None: absent).
         """
         ...
 

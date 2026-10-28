@@ -23,7 +23,11 @@ def handle(
     instance_id = recipe_version_test_execution_entity.instanceId
 
     command_status = recipe_version_test_execution_command_status_value_object.from_str(
-        recipe_version_testing_srv.get_testing_command_status(command_id=command_id, instance_id=instance_id)
+        recipe_version_testing_srv.get_testing_command_status(
+            command_id=command_id,
+            instance_id=instance_id,
+            submitted_at=recipe_version_test_execution_entity.setupCommandSubmittedAt,
+        )
     ).value
     update_attributes = {"setupCommandStatus": command_status}
 

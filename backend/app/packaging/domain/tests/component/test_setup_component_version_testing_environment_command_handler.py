@@ -137,6 +137,7 @@ def test_handle_should_setup_component_version_testing_environment(
                 instanceId=instance_id,
             ),
             setupCommandId=desired_command_ids[index],
+            setupCommandSubmittedAt="2023-09-29T00:00:00+00:00",
             setupCommandStatus=component_version_test_execution.ComponentVersionTestExecutionCommandStatus.Pending.value,
             lastUpdateDate="2023-09-29T00:00:00+00:00",
             status=component_version_test_execution.ComponentVersionTestExecutionStatus.Running.value,

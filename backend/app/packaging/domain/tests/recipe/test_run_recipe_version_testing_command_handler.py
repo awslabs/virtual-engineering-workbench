@@ -125,6 +125,7 @@ def test_handle_should_run_recipe_version_testing(
             testExecutionId=get_test_execution_id,
         ),
         testCommandId=get_test_command_id,
+        testCommandSubmittedAt="2023-09-29T00:00:00+00:00",
         testCommandStatus=recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Pending,
         lastUpdateDate="2023-09-29T00:00:00+00:00",
         status=recipe_version_test_execution.RecipeVersionTestExecutionStatus.Running,

@@ -97,6 +97,7 @@ def test_handle_should_setup_component_version_testing_environment(
                 instanceId=instance_id,
             ),
             setupCommandId=desired_command_ids[index],
+            setupCommandSubmittedAt="2023-09-29T00:00:00+00:00",
             setupCommandStatus=recipe_version_test_execution.RecipeVersionTestExecutionCommandStatus.Pending,
             lastUpdateDate="2023-09-29T00:00:00+00:00",
             status=recipe_version_test_execution.RecipeVersionTestExecutionStatus.Running,
