@@ -5,9 +5,9 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import AnyUrl, BaseModel, ConfigDict
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
 
 class Component(BaseModel):
@@ -25,13 +25,13 @@ class Component(BaseModel):
 
 
 class ComponentVersionEntry(BaseModel):
-    componentId: str
-    componentName: str
-    componentVersionId: str
-    componentVersionName: str
-    componentVersionType: str | None = None
-    order: int | None = None
-    position: str | None = None
+    componentId: str = Field(..., max_length=64)
+    componentName: str = Field(..., max_length=100)
+    componentVersionId: str = Field(..., max_length=64)
+    componentVersionName: str = Field(..., max_length=64)
+    componentVersionType: str | None = Field(None, max_length=64)
+    order: int | None = Field(None, ge=0, le=10000)
+    position: str | None = Field(None, max_length=64)
 
 
 class ComponentVersion(BaseModel):
@@ -41,7 +41,7 @@ class ComponentVersion(BaseModel):
     componentVersionName: str
     componentVersionDependencies: list[ComponentVersionEntry] | None = None
     associatedComponentsVersions: list[ComponentVersionEntry] | None = None
-    associatedRecipesVersions: list[Any] | None = None
+    associatedRecipesVersions: list[dict[str, Any]] | None = None
     softwareVendor: str
     softwareVersion: str
     licenseDashboard: str | None = None
@@ -55,39 +55,39 @@ class ComponentVersion(BaseModel):
 
 class CreateComponentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    componentName: str
-    componentDescription: str
-    componentPlatform: str
-    componentSupportedArchitectures: list[str]
-    componentSupportedOsVersions: list[str]
+    componentName: str = Field(..., max_length=100)
+    componentDescription: str = Field(..., max_length=1024)
+    componentPlatform: str = Field(..., max_length=64)
+    componentSupportedArchitectures: list[Annotated[str, Field(max_length=64)]] = Field(..., max_length=20)
+    componentSupportedOsVersions: list[Annotated[str, Field(max_length=64)]] = Field(..., max_length=50)
 
 
 class UpdateComponentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    componentDescription: str
+    componentDescription: str = Field(..., max_length=1024)
 
 
 class CreateComponentVersionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    componentVersionDescription: str
-    componentVersionDependencies: list[ComponentVersionEntry] | None = None
-    componentVersionReleaseType: str
-    componentVersionYamlDefinition: str
-    softwareVendor: str
-    softwareVersion: str
-    licenseDashboard: str | None = None
-    notes: str | None = None
+    componentVersionDescription: str = Field(..., max_length=1024)
+    componentVersionDependencies: list[ComponentVersionEntry] | None = Field(None, max_length=100)
+    componentVersionReleaseType: str = Field(..., max_length=64)
+    componentVersionYamlDefinition: str = Field(..., max_length=131072)
+    softwareVendor: str = Field(..., max_length=256)
+    softwareVersion: str = Field(..., max_length=256)
+    licenseDashboard: str | None = Field(None, max_length=2048)
+    notes: str | None = Field(None, max_length=4096)
 
 
 class UpdateComponentVersionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    componentVersionDescription: str
-    componentVersionDependencies: list[ComponentVersionEntry] | None = None
-    componentVersionYamlDefinition: str
-    softwareVendor: str
-    softwareVersion: str
-    licenseDashboard: str | None = None
-    notes: str | None = None
+    componentVersionDescription: str = Field(..., max_length=1024)
+    componentVersionDependencies: list[ComponentVersionEntry] | None = Field(None, max_length=100)
+    componentVersionYamlDefinition: str = Field(..., max_length=131072)
+    softwareVendor: str = Field(..., max_length=256)
+    softwareVersion: str = Field(..., max_length=256)
+    licenseDashboard: str | None = Field(None, max_length=2048)
+    notes: str | None = Field(None, max_length=4096)
 
 
 class ComponentResponse(BaseModel):
@@ -125,7 +125,7 @@ class ReleaseType(Enum):
 class ProblemDetails(BaseModel):
     type: AnyUrl
     title: str
-    status: int
+    status: int = Field(..., ge=100, le=599)
     detail: str
     code: str
     requestId: str | None = None
@@ -147,12 +147,12 @@ class Recipe(BaseModel):
 
 
 class RecipeComponentVersion(BaseModel):
-    componentId: str
-    componentName: str
-    componentVersionId: str
-    componentVersionName: str
-    componentVersionType: str
-    order: int
+    componentId: str = Field(..., max_length=64)
+    componentName: str = Field(..., max_length=100)
+    componentVersionId: str = Field(..., max_length=64)
+    componentVersionName: str = Field(..., max_length=64)
+    componentVersionType: str = Field(..., max_length=64)
+    order: int = Field(..., ge=0, le=10000)
 
 
 class RecipeVersion(BaseModel):
@@ -172,28 +172,28 @@ class RecipeVersion(BaseModel):
 
 class CreateRecipeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    recipeDescription: str
-    recipeName: str
-    recipePlatform: str
-    recipeArchitecture: str
-    recipeOsVersion: str
+    recipeDescription: str = Field(..., max_length=100)
+    recipeName: str = Field(..., max_length=128)
+    recipePlatform: str = Field(..., max_length=64)
+    recipeArchitecture: str = Field(..., max_length=64)
+    recipeOsVersion: str = Field(..., max_length=64)
 
 
 class CreateRecipeVersionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    recipeComponentsVersions: list[RecipeComponentVersion]
-    recipeVersionDescription: str
+    recipeComponentsVersions: list[RecipeComponentVersion] = Field(..., max_length=100)
+    recipeVersionDescription: str = Field(..., max_length=100)
     recipeVersionReleaseType: ReleaseType
-    recipeVersionVolumeSize: str
-    recipeVersionIntegrations: list[str] | None = None
+    recipeVersionVolumeSize: str = Field(..., max_length=8)
+    recipeVersionIntegrations: list[Annotated[str, Field(max_length=128)]] | None = Field(None, max_length=50)
 
 
 class UpdateRecipeVersionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    recipeComponentsVersions: list[RecipeComponentVersion]
-    recipeVersionDescription: str
-    recipeVersionVolumeSize: str
-    recipeVersionIntegrations: list[str] | None = None
+    recipeComponentsVersions: list[RecipeComponentVersion] = Field(..., max_length=100)
+    recipeVersionDescription: str = Field(..., max_length=100)
+    recipeVersionVolumeSize: str = Field(..., max_length=8)
+    recipeVersionIntegrations: list[Annotated[str, Field(max_length=128)]] | None = Field(None, max_length=50)
 
 
 class RecipePage(BaseModel):
@@ -222,21 +222,21 @@ class RecipeVersionActionResponse(BaseModel):
 
 class CreatePipelineRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    buildInstanceTypes: list[str]
-    pipelineDescription: str
-    pipelineName: str
-    pipelineSchedule: str
-    recipeId: str
-    recipeVersionId: str
-    productId: str | None = None
+    buildInstanceTypes: list[Annotated[str, Field(max_length=64)]] = Field(..., max_length=50)
+    pipelineDescription: str = Field(..., max_length=1024)
+    pipelineName: str = Field(..., max_length=128)
+    pipelineSchedule: str = Field(..., max_length=256)
+    recipeId: str = Field(..., max_length=64)
+    recipeVersionId: str = Field(..., max_length=64)
+    productId: str | None = Field(None, max_length=64)
 
 
 class UpdatePipelineRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    buildInstanceTypes: list[str] | None = None
-    pipelineSchedule: str | None = None
-    recipeVersionId: str | None = None
-    productId: str | None = None
+    buildInstanceTypes: list[Annotated[str, Field(max_length=64)]] | None = Field(None, max_length=50)
+    pipelineSchedule: str | None = Field(None, max_length=256)
+    recipeVersionId: str | None = Field(None, max_length=64)
+    productId: str | None = Field(None, max_length=64)
 
 
 class Pipeline(BaseModel):
@@ -275,7 +275,7 @@ class PipelineActionResponse(BaseModel):
 
 class CreateImageRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    pipelineId: str
+    pipelineId: str = Field(..., max_length=64)
 
 
 class CreateImageResponse(BaseModel):

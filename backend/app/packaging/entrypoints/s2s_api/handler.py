@@ -4,6 +4,7 @@ from aws_lambda_powertools import logging, tracing
 from aws_lambda_powertools.event_handler import api_gateway
 from aws_lambda_powertools.event_handler.exceptions import NotFoundError
 from aws_lambda_powertools.event_handler.middlewares.openapi_validation import RequestValidationError
+from aws_lambda_powertools.event_handler.openapi.exceptions import RequestUnsupportedContentType
 from aws_lambda_powertools.metrics import MetricUnit
 from aws_lambda_powertools.utilities import typing
 
@@ -11,7 +12,6 @@ from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.exceptions.s2s_exception import S2SException
 from app.packaging.entrypoints.s2s_api import bootstrapper, config, problem_details
 from app.packaging.entrypoints.s2s_api.routers import common, component_versions, components, pipelines, recipes
-from app.shared.logging.helpers import clear_auth_headers
 from app.shared.middleware import authorization
 from app.shared.middleware.metric import metric_handlers
 from app.shared.middleware.metric.types import MetricDimensionNames
@@ -36,11 +36,27 @@ app.include_router(pipelines.init(dependencies))
 
 @app.exception_handler(RequestValidationError)
 def handle_validation_error(error: RequestValidationError):
-    logger.info("Packaging S2S request validation failed", errors=error.errors())
+    # Field paths and error types only: the raw errors carry the submitted values.
+    logger.info(
+        "Packaging S2S request validation failed",
+        errors=[{"loc": item.get("loc"), "type": item.get("type")} for item in error.errors()],
+    )
     return problem_details.api_response(
         HTTPStatus.BAD_REQUEST,
         detail="The request does not match the API contract.",
         code="INVALID_REQUEST",
+        request_id=request_id(app.current_event.raw_event),
+        retryable=False,
+    )
+
+
+@app.exception_handler(RequestUnsupportedContentType)
+def handle_unsupported_content_type(error: RequestUnsupportedContentType):
+    # Without this, Powertools answers with its own 415 body instead of the documented problem+json.
+    return problem_details.api_response(
+        HTTPStatus.UNSUPPORTED_MEDIA_TYPE,
+        detail="The request body must be application/json.",
+        code="UNSUPPORTED_MEDIA_TYPE",
         request_id=request_id(app.current_event.raw_event),
         retryable=False,
     )
@@ -73,6 +89,20 @@ def append_correlation_fields(event: dict) -> None:
     )
 
 
+def request_metadata(event: dict) -> dict:
+    # Request metadata only. Body, headers and query values stay out of the logs.
+    request_context = event.get("requestContext") or {}
+    return {
+        "httpMethod": event.get("httpMethod"),
+        "resource": event.get("resource"),
+        "path": event.get("path"),
+        "stage": request_context.get("stage"),
+        "sourceIp": (request_context.get("identity") or {}).get("sourceIp"),
+        "queryParameterNames": sorted((event.get("queryStringParameters") or {}).keys()),
+        "hasBody": bool(event.get("body")),
+    }
+
+
 def add_cors(response: dict, event: dict) -> dict:
     response["headers"].update(cors_config.to_dict(origin=(event.get("headers") or {}).get("origin")))
     return response
@@ -90,7 +120,7 @@ def add_cors(response: dict, event: dict) -> dict:
 def handler(event: dict, context: typing.LambdaContext):
     common.api_metrics.add_metric(name="APIRequests", unit=MetricUnit.Count, value=1)
     append_correlation_fields(event)
-    logger.info(clear_auth_headers(event))
+    logger.info("Packaging S2S request received", request=request_metadata(event))
     try:
         resolved = app.resolve(event, context)
         if "headers" not in resolved and "multiValueHeaders" in resolved:

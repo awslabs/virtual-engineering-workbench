@@ -151,20 +151,10 @@ class IntegrationOauthStack(aws_cdk.Stack):
             client_construct_id="ProjectsAssignmentManagementOAuthClient",
         )
 
-        backend_app_api_oauth_client.BackendAppApiOAuthClient(
-            self,
-            "PlatformProjectsBootstrapClient",
-            app_config=app_config,
-            user_pool=user_pool,
-            resource_servers=[
-                backend_app_api_oauth_client.AppClientResourceServer(
-                    resource_server=projects_resource_server,
-                    scopes=["client_assignment.read", "client_assignment.write", "client_assignment.bootstrap"],
-                ),
-            ],
-            client_name="platform-projects-bootstrap",
-            client_construct_id="PlatformProjectsBootstrapOAuthClient",
-        )
+        # No client holding clients/projects/client_assignment.bootstrap is provisioned. The bootstrap path can
+        # assign any client to a project without service-client assignments, so it is a break-glass admin
+        # credential: create it by hand only to recover an orphaned project, then delete it
+        # (see docs/packaging-s2s-api.md, "Recover an existing orphaned project").
 
         # backend_app_api_oauth_client.BackendAppApiOAuthClient(
         #     self,

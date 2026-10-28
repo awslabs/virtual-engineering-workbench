@@ -7,7 +7,7 @@ from infra import config
 from infra.backend.integration_oauth_stack import IntegrationOauthStack
 
 
-def test_bootstrap_scope_is_isolated_from_sample_and_packaging_clients():
+def test_bootstrap_scope_is_defined_but_not_granted_to_any_provisioned_client():
     app = aws_cdk.App()
     app_config = config.AppConfig(
         account="111111111111",
@@ -31,20 +31,10 @@ def test_bootstrap_scope_is_isolated_from_sample_and_packaging_clients():
     projects = next(
         server["Properties"] for server in servers.values() if server["Properties"]["Identifier"] == "clients/projects"
     )
+    # The scope stays defined so a break-glass client can be created by hand for orphan recovery.
     assert "client_assignment.bootstrap" in {scope["ScopeName"] for scope in projects["Scopes"]}
     clients = template.find_resources("AWS::Cognito::UserPoolClient")
-    assert len(clients) == 3
-    bootstrap = next(client for key, client in clients.items() if "PlatformProjectsBootstrap" in key)
-    sample = next(client for key, client in clients.items() if "sample-s2s" in client["Properties"]["ClientName"])
-    bootstrap_scopes = json.dumps(bootstrap["Properties"]["AllowedOAuthScopes"])
-    sample_scopes = json.dumps(sample["Properties"]["AllowedOAuthScopes"])
-    assert "client_assignment.bootstrap" not in sample_scopes
-    assert all(
-        scope in bootstrap_scopes
-        for scope in [
-            "client_assignment.read",
-            "client_assignment.write",
-            "client_assignment.bootstrap",
-        ]
-    )
-    assert "clients/packaging" not in bootstrap_scopes
+    assert len(clients) == 2
+    assert not any("PlatformProjectsBootstrap" in key for key in clients)
+    for client in clients.values():
+        assert "client_assignment.bootstrap" not in json.dumps(client["Properties"]["AllowedOAuthScopes"])

@@ -1,3 +1,20 @@
+# kics-scan disable=a92be1d5-d762-484a-86d6-8cd0907ba100,00b78adf-b83f-419c-8ed8-c6018441dd3a,8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85,6998389e-66b2-473d-8d05-c8d71ac4d04d,9f88c88d-824d-4d9a-b985-e22977046042,6c35d2c6-09f2-4e5c-a094-e0e91327071d,86e3702f-c868-44b2-b61d-ea5316c18110,d172a060-8569-4412-8045-3560ebd477e8,fb7d81e7-4150-48c4-b914-92fc05da6a2f,37140f7f-724a-4c87-a536-e9cee1d61533,40e1d1bf-11a9-4f63-a3a2-a8b84c602839,5915c20f-dffa-4cee-b5d4-f457ddc0151a,2bd608ae-8a1f-457f-b710-c237883cb313,237402e2-c2f0-46c9-9cf5-286160cf7bfc,f5b2e6af-76f5-496d-8482-8f898c5fdb4a
+# - a92be1d5-d762-484a-86d6-8cd0907ba100: False positive: KICS does not follow $ref into components.responses. Every referenced response has a body schema (test_every_response_reference_has_a_body_schema).
+# - 00b78adf-b83f-419c-8ed8-c6018441dd3a: Request strings are length-bounded instead (see 8c8261c2). Fixed formats (names, recipe descriptions, cron, allowed platforms/architectures/OS versions/release types) are checked in domain value objects; free text, YAML and opaque IDs have no fixed format. Other hits are responses, headers and path parameters.
+# - 8c8261c2-19a9-4ef7-ad37-b8bc7bdd4d85: Every request-body string has maxLength, enforced by the API Gateway body validator on every body operation and again by the Pydantic request models (test_every_request_body_field_is_bounded, test_body_operations_use_the_gateway_body_validator, test_request_models_enforce_the_schema_bounds). Remaining hits: response fields, Retry-After headers, path IDs.
+# - 6998389e-66b2-473d-8d05-c8d71ac4d04d: Every request-body array has maxItems, enforced the same way as 8c8261c2. Remaining hits are response arrays.
+# - 9f88c88d-824d-4d9a-b985-e22977046042: Request bodies set additionalProperties: false (API Gateway) and extra='forbid' (Pydantic). Remaining hits: response schemas, and ComponentVersionEntry, which is shared with responses; unknown keys in nested entries are dropped by Pydantic.
+# - 6c35d2c6-09f2-4e5c-a094-e0e91327071d: Remaining hits are the two release operations, which take no body, so 415 cannot occur. Body operations document 415 (test_body_operations_use_the_gateway_body_validator).
+# - 86e3702f-c868-44b2-b61d-ea5316c18110: Each operation lists explicit problem+json codes; API Gateway method responses need explicit codes (test_method_responses_use_explicit_status_codes_for_api_gateway). Gateway responses cover the rest with the same format.
+# - d172a060-8569-4412-8045-3560ebd477e8: False positive: KICS treats operation tags, x-amazon-apigateway-integration responses and response header objects as objects with required fields; OpenAPI 3.0 defines none.
+# - fb7d81e7-4150-48c4-b914-92fc05da6a2f: x-amazon-apigateway-* are vendor extensions (integration, authorizer, validators, gateway responses).
+# - 37140f7f-724a-4c87-a536-e9cee1d61533: ClientCredentials is a Cognito user pool authorizer; API Gateway reads the per-operation scope list as the required OAuth scopes. OpenAPI expects no scopes for apiKey schemes, so KICS flags the API Gateway convention.
+# - 40e1d1bf-11a9-4f63-a3a2-a8b84c602839: Not an API key: ClientCredentials is a Cognito authorizer declared the API Gateway way (type apiKey + x-amazon-apigateway-authtype cognito_user_pools); the header carries a short-lived OAuth access token over TLS.
+# - 5915c20f-dffa-4cee-b5d4-f457ddc0151a: Global security default ClientCredentials: []; every operation overrides it with its own scopes.
+# - 2bd608ae-8a1f-457f-b710-c237883cb313: False positive: KICS does not resolve $ref properties. Every required property is defined (test_every_required_property_is_defined).
+# - 237402e2-c2f0-46c9-9cf5-286160cf7bfc: False positive: templated paths of the same shape differ by literal segments (components, recipes, pipelines, images).
+# - f5b2e6af-76f5-496d-8482-8f898c5fdb4a: ComponentVersionId and RecipeVersionId are both named versionId but sit on different paths (components vs recipes) and never meet in one operation.
+# checkov:skip=CKV_OPENAPI_21: Every request-body array has maxItems (test_every_request_body_field_is_bounded). The remaining arrays are response schemas: server output, and list endpoints are not capped.
 openapi: 3.0.1
 info:
   title: Virtual Engineering Workbench Packaging S2S API
@@ -8,6 +25,8 @@ servers:
     variables:
       Host:
         default: example.invalid
+security:
+  - ClientCredentials: []
 x-amazon-apigateway-request-validators:
   all:
     validateRequestBody: true
@@ -84,6 +103,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -132,6 +152,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -201,6 +222,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -251,6 +273,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -321,6 +344,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -370,7 +394,7 @@ paths:
       tags: [ALL]
       parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/RecipeId'}]
       responses:
-        '200': {description: Recipe archived.}
+        '200': {$ref: '#/components/responses/EmptyRecipeAction'}
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '403': {$ref: '#/components/responses/Problem'}
@@ -400,6 +424,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -460,6 +485,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -521,6 +547,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -581,6 +608,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -623,6 +651,7 @@ paths:
         '403': {$ref: '#/components/responses/Problem'}
         '404': {$ref: '#/components/responses/Problem'}
         '409': {$ref: '#/components/responses/Problem'}
+        '415': {$ref: '#/components/responses/Problem'}
         '422': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
         '500': {$ref: '#/components/responses/Problem'}
@@ -752,7 +781,12 @@ components:
       description: Component updated or archived.
       content:
         application/json:
-          schema: {type: object}
+          schema: {type: object, additionalProperties: false}
+    EmptyRecipeAction:
+      description: Recipe archived.
+      content:
+        application/json:
+          schema: {type: object, additionalProperties: false}
     Problem:
       description: RFC problem response.
       content:
@@ -865,20 +899,29 @@ components:
       properties:
         componentId:
           type: "string"
+          maxLength: 64
         componentName:
           type: "string"
+          maxLength: 100
         componentVersionId:
           type: "string"
+          maxLength: 64
         componentVersionName:
           type: "string"
+          maxLength: 64
         componentVersionType:
           type: "string"
+          maxLength: 64
           nullable: true
         order:
           type: "integer"
+          format: int32
+          minimum: 0
+          maximum: 10000
           nullable: true
         position:
           type: "string"
+          maxLength: 64
           nullable: true
       required: ["componentId","componentName","componentVersionId","componentVersionName"]
       type: "object"
@@ -903,7 +946,7 @@ components:
           type: "array"
           nullable: true
         associatedRecipesVersions:
-          items: {}
+          items: {type: object}
           type: "array"
           nullable: true
         softwareVendor:
@@ -933,18 +976,25 @@ components:
       properties:
         componentName:
           type: "string"
+          maxLength: 100
         componentDescription:
           type: "string"
+          maxLength: 1024
         componentPlatform:
           type: "string"
+          maxLength: 64
         componentSupportedArchitectures:
           items:
             type: "string"
+            maxLength: 64
           type: "array"
+          maxItems: 20
         componentSupportedOsVersions:
           items:
             type: "string"
+            maxLength: 64
           type: "array"
+          maxItems: 50
       required: ["componentName","componentDescription","componentPlatform","componentSupportedArchitectures","componentSupportedOsVersions"]
       type: "object"
     UpdateComponentRequest:
@@ -952,6 +1002,7 @@ components:
       properties:
         componentDescription:
           type: "string"
+          maxLength: 1024
       required: ["componentDescription"]
       type: "object"
     CreateComponentVersionRequest:
@@ -959,24 +1010,32 @@ components:
       properties:
         componentVersionDescription:
           type: "string"
+          maxLength: 1024
         componentVersionDependencies:
           items:
             $ref: "#/components/schemas/ComponentVersionEntry"
           type: "array"
+          maxItems: 100
           nullable: true
         componentVersionReleaseType:
           type: "string"
+          maxLength: 64
         componentVersionYamlDefinition:
           type: "string"
+          maxLength: 131072
         softwareVendor:
           type: "string"
+          maxLength: 256
         softwareVersion:
           type: "string"
+          maxLength: 256
         licenseDashboard:
           type: "string"
+          maxLength: 2048
           nullable: true
         notes:
           type: "string"
+          maxLength: 4096
           nullable: true
       required: ["componentVersionDescription","componentVersionReleaseType","componentVersionYamlDefinition","softwareVendor","softwareVersion"]
       type: "object"
@@ -985,22 +1044,29 @@ components:
       properties:
         componentVersionDescription:
           type: "string"
+          maxLength: 1024
         componentVersionDependencies:
           items:
             $ref: "#/components/schemas/ComponentVersionEntry"
           type: "array"
+          maxItems: 100
           nullable: true
         componentVersionYamlDefinition:
           type: "string"
+          maxLength: 131072
         softwareVendor:
           type: "string"
+          maxLength: 256
         softwareVersion:
           type: "string"
+          maxLength: 256
         licenseDashboard:
           type: "string"
+          maxLength: 2048
           nullable: true
         notes:
           type: "string"
+          maxLength: 4096
           nullable: true
       required: ["componentVersionDescription","componentVersionYamlDefinition","softwareVendor","softwareVersion"]
       type: "object"
@@ -1056,12 +1122,12 @@ components:
       additionalProperties: false
       required: [componentId, componentName, componentVersionId, componentVersionName, componentVersionType, order]
       properties:
-        componentId: {type: string}
-        componentName: {type: string}
-        componentVersionId: {type: string}
-        componentVersionName: {type: string}
-        componentVersionType: {type: string}
-        order: {type: integer}
+        componentId: {type: string, maxLength: 64}
+        componentName: {type: string, maxLength: 100}
+        componentVersionId: {type: string, maxLength: 64}
+        componentVersionName: {type: string, maxLength: 64}
+        componentVersionType: {type: string, maxLength: 64}
+        order: {type: integer, format: int32, minimum: 0, maximum: 10000}
     Recipe:
       type: object
       required: [recipeId, recipeDescription, recipeName, recipePlatform, recipeArchitecture, recipeOsVersion, status, createDate, createdBy, lastUpdateDate, lastUpdatedBy]
@@ -1103,11 +1169,11 @@ components:
       additionalProperties: false
       required: [recipeDescription, recipeName, recipePlatform, recipeArchitecture, recipeOsVersion]
       properties:
-        recipeDescription: {type: string}
-        recipeName: {type: string}
-        recipePlatform: {type: string}
-        recipeArchitecture: {type: string}
-        recipeOsVersion: {type: string}
+        recipeDescription: {type: string, maxLength: 100}
+        recipeName: {type: string, maxLength: 128}
+        recipePlatform: {type: string, maxLength: 64}
+        recipeArchitecture: {type: string, maxLength: 64}
+        recipeOsVersion: {type: string, maxLength: 64}
     CreateRecipeVersionRequest:
       type: object
       additionalProperties: false
@@ -1115,13 +1181,15 @@ components:
       properties:
         recipeComponentsVersions:
           type: array
+          maxItems: 100
           items: {$ref: '#/components/schemas/RecipeComponentVersion'}
-        recipeVersionDescription: {type: string}
+        recipeVersionDescription: {type: string, maxLength: 100}
         recipeVersionReleaseType: {type: string, enum: [MAJOR, MINOR, PATCH]}
-        recipeVersionVolumeSize: {type: string}
+        recipeVersionVolumeSize: {type: string, maxLength: 8}
         recipeVersionIntegrations:
           type: array
-          items: {type: string}
+          maxItems: 50
+          items: {type: string, maxLength: 128}
     UpdateRecipeVersionRequest:
       type: object
       additionalProperties: false
@@ -1129,12 +1197,14 @@ components:
       properties:
         recipeComponentsVersions:
           type: array
+          maxItems: 100
           items: {$ref: '#/components/schemas/RecipeComponentVersion'}
-        recipeVersionDescription: {type: string}
-        recipeVersionVolumeSize: {type: string}
+        recipeVersionDescription: {type: string, maxLength: 100}
+        recipeVersionVolumeSize: {type: string, maxLength: 8}
         recipeVersionIntegrations:
           type: array
-          items: {type: string}
+          maxItems: 50
+          items: {type: string, maxLength: 128}
     CreateRecipeResponse:
       type: object
       required: [recipeId]
@@ -1152,24 +1222,26 @@ components:
       properties:
         buildInstanceTypes:
           type: array
-          items: {type: string}
-        pipelineDescription: {type: string}
-        pipelineName: {type: string}
-        pipelineSchedule: {type: string}
-        recipeId: {type: string}
-        recipeVersionId: {type: string}
-        productId: {type: string, nullable: true}
+          maxItems: 50
+          items: {type: string, maxLength: 64}
+        pipelineDescription: {type: string, maxLength: 1024}
+        pipelineName: {type: string, maxLength: 128}
+        pipelineSchedule: {type: string, maxLength: 256}
+        recipeId: {type: string, maxLength: 64}
+        recipeVersionId: {type: string, maxLength: 64}
+        productId: {type: string, nullable: true, maxLength: 64}
     UpdatePipelineRequest:
       type: object
       additionalProperties: false
       properties:
         buildInstanceTypes:
           type: array
-          items: {type: string}
+          maxItems: 50
+          items: {type: string, maxLength: 64}
           nullable: true
-        pipelineSchedule: {type: string, nullable: true}
-        recipeVersionId: {type: string, nullable: true}
-        productId: {type: string, nullable: true}
+        pipelineSchedule: {type: string, nullable: true, maxLength: 256}
+        recipeVersionId: {type: string, nullable: true, maxLength: 64}
+        productId: {type: string, nullable: true, maxLength: 64}
     Pipeline:
       type: object
       required: [projectId, pipelineId, buildInstanceTypes, pipelineDescription, pipelineName, pipelineSchedule, recipeId, recipeName, recipeVersionId, recipeVersionName, status, createDate, createdBy, lastUpdateDate, lastUpdatedBy]
@@ -1217,7 +1289,7 @@ components:
       additionalProperties: false
       required: [pipelineId]
       properties:
-        pipelineId: {type: string}
+        pipelineId: {type: string, maxLength: 64}
     CreateImageResponse:
       type: object
       required: [imageId]
@@ -1288,6 +1360,9 @@ components:
           type: string
         status:
           type: integer
+          format: int32
+          minimum: 100
+          maximum: 599
         detail:
           type: string
         code:
