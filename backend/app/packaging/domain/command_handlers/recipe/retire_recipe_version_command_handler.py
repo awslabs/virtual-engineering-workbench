@@ -49,7 +49,8 @@ def handle(
             f"Version {command.recipeVersionId.value} of recipe {command.recipeId.value} can't be retired while in {recipe_version_entity.status} status."
         )
     if (
-        not any([item.value in acceptable_roles_for_released_retirement for item in command.userRoles])
+        not command.serviceAuthorized
+        and not any([item.value in acceptable_roles_for_released_retirement for item in command.userRoles])
         and recipe_version_parsed.prerelease is None
     ):
         raise DomainException(f"Version {recipe_version_name} of recipe {command.recipeId.value} has been released.")
@@ -63,7 +64,7 @@ def handle(
                 recipeVersionId=command.recipeVersionId.value,
             ),
             lastUpdateDate=current_time,
-            lastUpdateBy=command.lastUpdatedBy.value,
+            lastUpdatedBy=command.lastUpdatedBy.value,
             status=recipe_version.RecipeVersionStatus.Updating,
         )
         uow.commit()

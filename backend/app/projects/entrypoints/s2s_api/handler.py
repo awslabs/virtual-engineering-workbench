@@ -5,7 +5,7 @@ from aws_xray_sdk.core import patch_all
 
 from app.projects.domain.exceptions import domain_exception
 from app.projects.entrypoints.s2s_api import bootstrapper, config
-from app.projects.entrypoints.s2s_api.routers import assignments, enrolments, projects
+from app.projects.entrypoints.s2s_api.routers import assignments, enrolments, projects, service_clients
 from app.shared.logging.helpers import clear_auth_headers
 from app.shared.middleware import authorization, exception_handler
 from app.shared.middleware.metric import metric_handlers
@@ -32,6 +32,7 @@ app.use(middlewares=[authorization.require_auth_context])
 app.include_router(assignments.init(dependencies=dependencies))
 app.include_router(projects.init(dependencies=dependencies))
 app.include_router(enrolments.init(dependencies=dependencies))
+app.include_router(service_clients.init(dependencies=dependencies))
 
 
 @tracer.capture_lambda_handler  # type: ignore

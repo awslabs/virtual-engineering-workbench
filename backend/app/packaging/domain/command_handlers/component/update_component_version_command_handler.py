@@ -162,6 +162,7 @@ def handle(
             component_version_entity,
         )
         uow.commit()
+
     __update_downstream_dependencies(
         update_component_version_name=update_component_version_name,
         component_version_entity=component_version_entity,
@@ -179,3 +180,4 @@ def handle(
             previousComponentVersionDependencies=previous_component_version_dependencies,
         )
     )
+    return {"componentVersionId": command.componentVersionId.value}

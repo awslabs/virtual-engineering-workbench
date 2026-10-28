@@ -11,14 +11,11 @@ from app.projects.domain.model import (
     project,
     project_account,
     project_assignment,
+    service_client_assignment,
     technology,
     user,
 )
-from app.projects.domain.ports import (
-    enrolment_query_service,
-    projects_query_service,
-    technologies_query_service,
-)
+from app.projects.domain.ports import enrolment_query_service, projects_query_service, technologies_query_service
 from app.shared.adapters.boto import paging_utils
 from app.shared.adapters.unit_of_work_v2 import dynamodb_repo_config
 
@@ -54,6 +51,41 @@ class DynamoDBProjectsQueryService(projects_query_service.ProjectsQueryService):
         self._gsi_aws_accounts = gsi_aws_accounts
         self._gsi_entities = gsi_entities
         self._default_page_size = default_page_size
+
+    def list_service_client_assignments(
+        self, project_id: str
+    ) -> list[service_client_assignment.ServiceClientAssignment]:
+        assignments = []
+        params: dict[str, Any] = {
+            "TableName": self._table_name,
+            "IndexName": self._gsi_inverted_primary_key,
+            "KeyConditionExpression": Key("SK").eq(f"{dynamo_entity_config.DBPrefix.PROJECT}#{project_id}")
+            & Key("PK").begins_with(f"{dynamo_entity_config.DBPrefix.CLIENT}#"),
+        }
+        while True:
+            result = self._dynamodb_client.query(**params)
+            assignments.extend(
+                service_client_assignment.ServiceClientAssignment.model_validate(item)
+                for item in result.get("Items", [])
+            )
+            if not result.get("LastEvaluatedKey"):
+                break
+            params["ExclusiveStartKey"] = result["LastEvaluatedKey"]
+        return assignments
+
+    def get_service_client_assignment(
+        self, project_id: str, client_id: str
+    ) -> service_client_assignment.ServiceClientAssignment | None:
+        result = self._dynamodb_client.get_item(
+            TableName=self._table_name,
+            ConsistentRead=True,
+            Key={
+                "PK": f"{dynamo_entity_config.DBPrefix.CLIENT.value}#{client_id}",
+                "SK": f"{dynamo_entity_config.DBPrefix.PROJECT.value}#{project_id}",
+            },
+        )
+        item = result.get("Item")
+        return service_client_assignment.ServiceClientAssignment.model_validate(item) if item else None
 
     def list_projects_by_user(
         self, user_id: str, page_size: int, next_token: Any

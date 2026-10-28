@@ -35,7 +35,7 @@ def handle(
                 projectId=command.projectId.value,
                 recipeId=command.recipeId.value,
             ),
-            lastUpdateBy=command.lastUpdatedBy.value,
+            lastUpdatedBy=command.lastUpdatedBy.value,
             lastUpdateDate=current_time,
             status=recipe.RecipeStatus.Archived,
         )

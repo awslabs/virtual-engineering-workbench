@@ -6,9 +6,7 @@ import pytest
 import semver
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.component import (
-    deploy_component_version_command_handler,
-)
+from app.packaging.domain.command_handlers.component import deploy_component_version_command_handler
 from app.packaging.domain.commands.component import deploy_component_version_command
 from app.packaging.domain.events.component import component_version_published
 from app.packaging.domain.exceptions import domain_exception

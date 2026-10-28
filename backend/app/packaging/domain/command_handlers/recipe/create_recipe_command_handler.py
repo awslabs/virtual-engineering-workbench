@@ -28,3 +28,5 @@ def handle(
     with uow:
         uow.get_repository(repo_key=recipe.RecipePrimaryKey, repo_type=recipe.Recipe).add(recipe_entity)
         uow.commit()
+
+    return {"recipeId": recipe_entity.recipeId}

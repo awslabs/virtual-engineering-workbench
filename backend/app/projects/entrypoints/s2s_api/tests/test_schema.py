@@ -59,3 +59,11 @@ def test_api_schema_should_have_auth_configured(api_schema):
 
     # ASSERT
     assertpy.assert_that(methods_wo_auth).described_as("Methods without auth detected").is_empty()
+
+
+def test_service_client_assignment_routes_use_dedicated_scopes(api_schema):
+    operations = api_schema["paths"]["/projects/{projectId}/clients/{clientId}"]
+
+    assert operations["get"]["security"] == [{"ClientCredentials": ["clients/projects/client_assignment.read"]}]
+    for method in ("put", "delete"):
+        assert operations[method]["security"] == [{"ClientCredentials": ["clients/projects/client_assignment.write"]}]

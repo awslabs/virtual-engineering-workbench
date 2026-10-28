@@ -4,17 +4,13 @@ import assertpy
 import pytest
 from freezegun import freeze_time
 
-from app.packaging.domain.command_handlers.component import (
-    update_component_version_command_handler,
-)
+from app.packaging.domain.command_handlers.component import update_component_version_command_handler
 from app.packaging.domain.commands.component import update_component_version_command
 from app.packaging.domain.events.component import component_version_update_started
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.shared import component_version_entry
-from app.packaging.domain.model.shared.component_version_entry import (
-    ComponentVersionEntry,
-)
+from app.packaging.domain.model.shared.component_version_entry import ComponentVersionEntry
 from app.packaging.domain.tests.conftest import (
     TEST_COMPONENT_ID,
     TEST_COMPONENT_NAME,
@@ -94,7 +90,7 @@ def test_handle_should_update_version(
     uow_mock.get_repository.side_effect = lambda pk, x: repos_dict.get(x)
 
     # ACT
-    update_component_version_command_handler.handle(
+    result = update_component_version_command_handler.handle(
         command=update_component_version_command_mock,
         uow=uow_mock,
         message_bus=message_bus_mock,
@@ -126,6 +122,7 @@ def test_handle_should_update_version(
         component_version_entity,
     )
     uow_mock.commit.assert_called()
+    assert result == {"componentVersionId": "vers-1234abcd"}
     message_bus_mock.publish.assert_called_once_with(
         component_version_update_started.ComponentVersionUpdateStarted(
             component_id="comp-1234abcd",

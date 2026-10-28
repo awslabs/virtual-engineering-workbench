@@ -12,12 +12,20 @@ from app.projects.domain.command_handlers.enrolments import (
     approve_enrolments_command_handler,
     enrol_user_to_program_command_handler,
 )
+from app.projects.domain.command_handlers.service_clients import (
+    put_service_client_assignment_command_handler,
+    revoke_service_client_assignment_command_handler,
+)
 from app.projects.domain.command_handlers.users import (
     assign_user_command_handler,
     reassign_user_command_handler,
     unassign_user_command_handler,
 )
 from app.projects.domain.commands.enrolments import approve_enrolments_command, enrol_user_to_program_command
+from app.projects.domain.commands.service_clients import (
+    put_service_client_assignment_command,
+    revoke_service_client_assignment_command,
+)
 from app.projects.domain.commands.users import assign_user_command, reassign_user_command, unassign_user_command
 from app.projects.domain.ports import enrolment_query_service, projects_query_service, technologies_query_service
 from app.projects.entrypoints.s2s_api import config
@@ -158,6 +166,22 @@ def bootstrap(
                 unit_of_work=shared_uow_v2,
                 projects_query_service=projects_query_service,
                 message_bus=message_bus,
+            ),
+        )
+        .register_handler(
+            put_service_client_assignment_command.PutServiceClientAssignmentCommand,
+            lambda command: put_service_client_assignment_command_handler.handle_put_service_client_assignment_command(
+                cmd=command,
+                uow=shared_uow_v2,
+                projects_query_service=projects_query_service,
+            ),
+        )
+        .register_handler(
+            revoke_service_client_assignment_command.RevokeServiceClientAssignmentCommand,
+            lambda command: revoke_service_client_assignment_command_handler.handle_revoke_service_client_assignment_command(
+                cmd=command,
+                uow=shared_uow_v2,
+                projects_query_service=projects_query_service,
             ),
         )
     )
