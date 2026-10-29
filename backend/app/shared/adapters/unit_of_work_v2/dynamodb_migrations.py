@@ -1,9 +1,10 @@
 import enum
 import logging
 import typing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pydantic
+from aws_lambda_powertools.metrics import MetricUnit, single_metric
 from mypy_boto3_dynamodb import service_resource
 
 from app.shared.adapters.unit_of_work_v2 import (
@@ -16,6 +17,14 @@ from app.shared.adapters.unit_of_work_v2 import (
 MigrationScript: typing.TypeAlias = typing.Callable[[service_resource.Table], None]
 
 MIGRATION_ENTITY_NAME = "MIGRATION"
+MIGRATION_FAILED_METRIC_NAME = "DynamoDBMigrationFailed"
+DEFAULT_RETRY_BACKOFF = timedelta(minutes=5)
+
+
+class MigrationFailedError(Exception):
+    """A migration script failed. Its state (and that of every later script) is saved as FAILED first, so
+    a later start retries it once the retry back-off has passed; raising makes the failure visible - the
+    Lambda does not start against a half-migrated table."""
 
 
 class MigrationsScriptState(enum.StrEnum):
@@ -33,6 +42,7 @@ class DynamoDBMigrationScript(pydantic.BaseModel):
     sequence: int = pydantic.Field(..., title="sequence")
     state: MigrationsScriptState = pydantic.Field(..., title="state")
     createDate: str = pydantic.Field(..., title="createDate")
+    lastAttemptDate: str | None = pydantic.Field(None, title="lastAttemptDate")
 
 
 class DynamoDBMigration(unit_of_work.Entity):
@@ -79,11 +89,18 @@ class MigrationsEntityConfigurator(dynamodb_repository.DynamoDBEntityConfigurato
 
 class DynamoDBMigrator:
 
-    def __init__(self, ddb_resource: service_resource.DynamoDBServiceResource, table_name: str, logger: logging.Logger):
+    def __init__(
+        self,
+        ddb_resource: service_resource.DynamoDBServiceResource,
+        table_name: str,
+        logger: logging.Logger,
+        retry_backoff: timedelta = DEFAULT_RETRY_BACKOFF,
+    ):
         self.__migrations = []
         self.__ddb_resource = ddb_resource
         self.__table_name = table_name
         self.__logger = logger
+        self.__retry_backoff = retry_backoff
 
         self.__ddb_table = self.__ddb_resource.Table(self.__table_name)
 
@@ -99,12 +116,20 @@ class DynamoDBMigrator:
             self.__logger.debug("No DB migrations registered.")
             return
 
+        try:
+            self.__migrate()
+        except MigrationFailedError:
+            self.__publish_failure_metric()
+            raise
+
+    def __migrate(self):
         self.__logger.info("Running DB migrations")
         self.__logger.debug(f"Table name: {self.__table_name}")
 
         migrations_meta = self.__get_executed_migration_scripts()
 
         self.__validate_migrations_state(migrations_meta=migrations_meta)
+        self.__raise_if_retry_backing_off(migrations_meta=migrations_meta)
 
         migrations_meta = (
             self.__merge_code_migrations_with_meta(migrations_meta)
@@ -116,31 +141,64 @@ class DynamoDBMigrator:
             self.__logger.debug("No new DB migrations.")
             return
 
-        failed = False
-        for migration_script in migrations_meta.migrationScripts:
-
-            if failed:
-                migration_script.state = MigrationsScriptState.Failed
-                continue
-
-            if migration_script.state != MigrationsScriptState.Running:
-                continue
-
-            _, script = self.__migrations[migration_script.sequence]
-            self.__logger.info(f"Running migration {migration_script.name}...")
-            try:
-                script(self.__ddb_table)
-                migration_script.state = MigrationsScriptState.Completed
-            except Exception:
-                self.__logger.exception(f"Unable to apply {migration_script.name} migration")
-                migration_script.state = MigrationsScriptState.Failed
-                failed = True
+        failed_error = self.__run_scripts(migrations_meta)
 
         with self.__uow as uow:
             uow.get_repository(DynamoDBMigrationPrimaryKey, DynamoDBMigration).update_entity(
                 DynamoDBMigrationPrimaryKey(), migrations_meta
             )
             uow.commit()
+
+        if failed_error:
+            raise failed_error
+
+    def __run_scripts(self, migrations_meta: DynamoDBMigration) -> "MigrationFailedError | None":
+        """Runs the RUNNING scripts in order; after a failure, marks it and every later script FAILED."""
+        failed_error: MigrationFailedError | None = None
+        for migration_script in migrations_meta.migrationScripts:
+            if failed_error:
+                migration_script.state = MigrationsScriptState.Failed
+                continue
+            if migration_script.state != MigrationsScriptState.Running:
+                continue
+
+            _, script = self.__migrations[migration_script.sequence]
+            self.__logger.info(f"Running migration {migration_script.name}...")
+            migration_script.lastAttemptDate = datetime.now(timezone.utc).isoformat()
+            try:
+                script(self.__ddb_table)
+                migration_script.state = MigrationsScriptState.Completed
+            except Exception as error:
+                self.__logger.exception(f"Unable to apply {migration_script.name} migration")
+                migration_script.state = MigrationsScriptState.Failed
+                failed_error = MigrationFailedError(f"Migration {migration_script.name} failed: {error}")
+        return failed_error
+
+    def __raise_if_retry_backing_off(self, migrations_meta: DynamoDBMigration | None):
+        """Each Lambda init re-runs FAILED migrations, and a failed init is retried on the next invocation, so
+        without a back-off a migration that keeps failing would run once per request."""
+        if not migrations_meta:
+            return
+
+        now = datetime.now(timezone.utc)
+        for migration_script in migrations_meta.migrationScripts:
+            if migration_script.state != MigrationsScriptState.Failed or not migration_script.lastAttemptDate:
+                continue
+
+            retry_after = datetime.fromisoformat(migration_script.lastAttemptDate) + self.__retry_backoff
+            if now < retry_after:
+                raise MigrationFailedError(
+                    f"Migration {migration_script.name} failed at {migration_script.lastAttemptDate}; "
+                    f"not retrying before {retry_after.isoformat()}"
+                )
+
+    def __publish_failure_metric(self):
+        try:
+            with single_metric(name=MIGRATION_FAILED_METRIC_NAME, unit=MetricUnit.Count, value=1) as metric:
+                metric.add_dimension(name="TableName", value=self.__table_name)
+        except Exception:
+            # The metric must not hide the migration failure that is being raised
+            self.__logger.exception("Unable to publish the DB migration failure metric")
 
     def register_migration(self, name: str, script: MigrationScript) -> typing.Self:
         self.__logger.debug(f"Registering DB migration {name} for {self.__table_name}")
