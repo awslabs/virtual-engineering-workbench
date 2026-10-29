@@ -89,7 +89,6 @@ def test_should_create_infrastructure_configuration(
         instanceProfileName=GlobalVariables.TEST_INSTANCE_PROFILE_NAME.value,
         instanceTypes=instance_types,
         name=pipeline_id,
-        resourceTags={},
         securityGroupIds=[mock_security_group.get("GroupId")],
         snsTopicArn=GlobalVariables.TEST_PIPELINE_SNS_TOPIC_ARN.value,
         subnetId=mock_subnets.get("Subnet").get("SubnetId"),
@@ -278,7 +277,6 @@ def test_should_update_infrastructure_configuration(
         instanceMetadataOptions={"httpTokens": "required"},
         instanceProfileName=GlobalVariables.TEST_INSTANCE_PROFILE_NAME.value,
         instanceTypes=instance_types,
-        resourceTags={},
         securityGroupIds=[mock_security_group.get("GroupId")],
         snsTopicArn=GlobalVariables.TEST_PIPELINE_SNS_TOPIC_ARN.value,
         subnetId=mock_subnets.get("Subnet").get("SubnetId"),
@@ -318,3 +316,40 @@ def test_should_update_pipeline(get_test_ec2_image_builder_pipeline_srv, mock_mo
     assertpy.assert_that(response).is_equal_to(
         GlobalVariables.TEST_PIPELINE_ARN.value,
     )
+
+
+def test_should_create_infrastructure_configuration_with_resource_tags(
+    get_test_ec2_image_builder_pipeline_srv_with_tags, mock_moto_calls, mock_security_group, mock_subnets
+):
+    # ARRANGE
+    description = GlobalVariables.TEST_PIPELINE_DESCRIPTION.value
+    instance_types = ["m8a.4xlarge"]
+    pipeline_id = GlobalVariables.TEST_PIPELINE_ID.value
+
+    # ACT
+    get_test_ec2_image_builder_pipeline_srv_with_tags.create_infrastructure_config(
+        description=description, instance_types=instance_types, name=pipeline_id
+    )
+
+    # ASSERT
+    _, kwargs = mock_moto_calls["CreateInfrastructureConfiguration"].call_args
+    assertpy.assert_that(kwargs["resourceTags"]).is_equal_to({"cost-center": "1234"})
+
+
+def test_should_update_infrastructure_configuration_with_resource_tags(
+    get_test_ec2_image_builder_pipeline_srv_with_tags, mock_moto_calls, mock_security_group, mock_subnets
+):
+    # ARRANGE
+    description = GlobalVariables.TEST_PIPELINE_DESCRIPTION.value
+    instance_types = ["m8a.4xlarge"]
+
+    # ACT
+    get_test_ec2_image_builder_pipeline_srv_with_tags.update_infrastructure_config(
+        description=description,
+        infrastructure_config_arn=GlobalVariables.TEST_PIPELINE_INFRASTRUCTURE_CONFIG_ARN.value,
+        instance_types=instance_types,
+    )
+
+    # ASSERT
+    _, kwargs = mock_moto_calls["UpdateInfrastructureConfiguration"].call_args
+    assertpy.assert_that(kwargs["resourceTags"]).is_equal_to({"cost-center": "1234"})
