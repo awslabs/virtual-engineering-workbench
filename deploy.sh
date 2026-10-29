@@ -622,15 +622,24 @@ for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
   esac
 done
 RESOURCE_TAGS="${RESOURCE_TAGS:-}"
+ADDITIONAL_APP_CLIENTS="${ADDITIONAL_APP_CLIENTS:-}"
 if [ -z "$RESOURCE_TAGS" ]; then
   RESOURCE_TAGS='{}'
 fi
-# The saved config writes this single-quoted and is sourced on the next run, so
+if [ -z "$ADDITIONAL_APP_CLIENTS" ]; then
+  ADDITIONAL_APP_CLIENTS='[]'
+fi
+# The saved config writes these single-quoted and is sourced on the next run, so
 # a quote or a backslash here would be executed rather than read back.
-case "$RESOURCE_TAGS" in
-  *"'"*) err "RESOURCE_TAGS must not contain a single quote" ;;
-  *\\*)  err "RESOURCE_TAGS must not contain a backslash" ;;
-esac
+for _var in RESOURCE_TAGS ADDITIONAL_APP_CLIENTS; do
+  case "${!_var}" in
+    *"'"*) err "$_var must not contain a single quote" ;;
+    *\\*)  err "$_var must not contain a backslash" ;;
+  esac
+done
+# The entries themselves are checked when the frontend stack synthesizes.
+echo "$ADDITIONAL_APP_CLIENTS" | jq -e 'type == "array"' >/dev/null 2>&1 || \
+  err "ADDITIONAL_APP_CLIENTS must be a JSON list"
 
 if [ -z "${AWS_ACCESS_KEY_ID:-}" ]; then
   prompt AWS_PROFILE_HUB "AWS CLI profile for hub account (empty for default)" "default"
@@ -773,6 +782,7 @@ PRIVATE_DNS_ZONE="${PRIVATE_DNS_ZONE:-}"
 HUB_VPC_NAME='${HUB_VPC_NAME}'
 HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
 RESOURCE_TAGS='${RESOURCE_TAGS}'
+ADDITIONAL_APP_CLIENTS='${ADDITIONAL_APP_CLIENTS}'
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -890,10 +900,11 @@ jq --arg app_name "$APP_NAME" \
    --arg uid_claim "$OIDC_USER_ID_CLAIM" \
    --arg logout "$OIDC_LOGOUT_URL" \
    --arg vpcname "$VPC_NAME" \
+   --argjson app_clients "$ADDITIONAL_APP_CLIENTS" \
    --argjson allow_login "$ALLOW_CUSTOM_LOGIN" \
    --argjson private "$PRIVATE_DEPLOYMENT" \
    --argjson adoptedvpc "$([ -n "$HUB_VPC_NAME" ] && echo true || echo false)" \
-   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname | .context.config.dev.AdoptedVPC = \$adoptedvpc $OIDC_FILTER" \
+   ".context[\"app-name\"] = \$app_name | .context[\"deployment-qualifier\"] = \$qualifier | .context.config.dev.AllowCustomUserLogin = \$allow_login | .context.config.dev.PrivateDeployment = \$private | .context.config.dev.VPCName = \$vpcname | .context.config.dev.AdoptedVPC = \$adoptedvpc | .context.config.dev.AdditionalAppClients = \$app_clients $OIDC_FILTER" \
    "$FE_CDK_JSON" > "${FE_CDK_JSON}.tmp" && mv "${FE_CDK_JSON}.tmp" "$FE_CDK_JSON"
 
 # --- frontend/infrastructure/lib/public-access-deployment-stack.ts ---
@@ -1533,6 +1544,24 @@ if [ -z "$OIDC_CLIENT_ID" ]; then
   echo "      --username $ADMIN_EMAIL \\"
   echo "      --user-attributes Name=email,Value=$ADMIN_EMAIL Name=email_verified,Value=true Name=custom:user_tid,Value=$ADMIN_USER_ID \\"
   echo "      --region $COGNITO_REGION"
+  echo ""
+fi
+
+if [ "$(echo "$ADDITIONAL_APP_CLIENTS" | jq length)" -gt 0 ]; then
+  APP_CLIENTS_POOL_ID=$(aws ssm get-parameter \
+    --name "/${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/user-pool-id" \
+    --query 'Parameter.Value' --output text \
+    --region "$COGNITO_REGION" 2>/dev/null || echo "unknown")
+  echo "  Additional Cognito app clients (user pool $APP_CLIENTS_POOL_ID):"
+  for _name in $(echo "$ADDITIONAL_APP_CLIENTS" | jq -r '.[].Name'); do
+    _output_key="appclient${_name//-/}idoutput"
+    _client_id=$(echo "$FE_OUTPUTS" | jq -r --arg key "$_output_key" '.[] | select(.OutputKey==$key) | .OutputValue // empty')
+    echo "    $_name: ${_client_id:-unknown}"
+  done
+  echo "  Read a client's secret with:"
+  echo "    aws cognito-idp describe-user-pool-client \\"
+  echo "      --user-pool-id $APP_CLIENTS_POOL_ID --client-id <client id> \\"
+  echo "      --query 'UserPoolClient.ClientSecret' --output text --region $COGNITO_REGION"
   echo ""
 fi
 
