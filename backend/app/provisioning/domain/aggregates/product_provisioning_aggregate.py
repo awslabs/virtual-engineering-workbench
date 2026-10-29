@@ -382,6 +382,9 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         )
 
         self._provisioned_product.status = product_status.ProductStatus.Updating
+        # a new attempt; an earlier failure (e.g. a start) no longer applies once the update ends.
+        self._provisioned_product.statusReason = None
+        self._provisioned_product.failedOperation = None
         version_distribution = self.__get_version_distribution(
             versions_qs=versions_qs,
             product_id=self._provisioned_product.productId,
@@ -1226,13 +1229,11 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         except Exception as e:
             self._logger.exception("Unable to complete provisioned product upgrade operation.")
 
-            self._provisioned_product.statusReason = str(e)
-            self._provisioned_product.status = product_status.ProductStatus.ProvisioningError
-
-            self._publish(
+            self.__fail(
                 provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed(
                     provisionedProductId=self._provisioned_product.provisionedProductId,
-                )
+                ),
+                reason=str(e),
             )
 
     def stop_after_update(
@@ -1448,11 +1449,11 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         except Exception as e:
             self._logger.exception("Unable to fetch provisioned product parameters after a failed upgrade.")
 
-            self._provisioned_product.statusReason = str(e)
             self.__fail(
                 provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed(
                     provisionedProductId=self._provisioned_product.provisionedProductId,
-                )
+                ),
+                reason=str(e),
             )
 
     def authorize_user_ip_address(

@@ -110,12 +110,16 @@ def describe_failure(
     only when its last start did (failed_operation START), or when an older record's reason is a
     capacity or quota error from a start; other reasons on a stopped workbench (an idle stop) aren't
     failures.
+
+    Every ProvisioningError now records its operation, so one without is a record written before
+    failedOperation existed; only those are assumed to be a launch, and only for a launch-type reason.
     """
     operation = FailedOperation(failed_operation) if failed_operation in FailedOperation.__members__.values() else None
     code = classify_reason(status_reason)
 
     if status in _FAILED_STATUSES:
-        if operation is None and code in (FailureCode.Capacity, FailureCode.Quota, FailureCode.UnsupportedInAz):
+        is_legacy_record = failed_operation is None
+        if is_legacy_record and code in (FailureCode.Capacity, FailureCode.Quota, FailureCode.UnsupportedInAz):
             operation = FailedOperation.Launch
     elif status in START_FAILURE_STATUSES:
         if operation != FailedOperation.Start:

@@ -106,6 +106,17 @@ def test_an_older_failed_launch_without_an_operation_is_a_launch_when_capacity()
     assertpy.assert_that(failure.operation).is_equal_to(FailedOperation.Launch)
 
 
+def test_a_failed_update_is_not_described_as_a_launch():
+    failure = describe_failure(
+        status=product_status.ProductStatus.ProvisioningError,
+        status_reason="InsufficientInstanceCapacity: We currently do not have sufficient g6.xlarge capacity",
+        failed_operation="UPDATE",
+    )
+
+    assertpy.assert_that(failure.code).is_equal_to(FailureCode.Capacity)
+    assertpy.assert_that(failure.operation).is_equal_to(FailedOperation.Update)
+
+
 def test_a_provisioning_error_without_a_reason_is_unknown():
     failure = describe_failure(status=product_status.ProductStatus.ProvisioningError, status_reason=None)
 

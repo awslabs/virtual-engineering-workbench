@@ -12,6 +12,7 @@ SENSITIVE_OUTPUT_PARAMETERS = {
 def map_provisioned_product(
     provisioned_product_entity: provisioned_product.ProvisionedProduct,
     include_sensitive: bool = False,
+    include_status_reason: bool = False,
 ) -> api_model.ProvisionedProduct:
     provisioned_product_response = (
         api_model.ProvisionedProductInternal.model_validate(provisioned_product_entity.model_dump())
@@ -36,6 +37,10 @@ def map_provisioned_product(
     provisioned_product_response.failure = (
         api_model.WorkbenchFailure.model_validate(failure.model_dump()) if failure else None
     )
+    # the raw AWS reason can carry the spoke account ID and role or KMS key ARNs: owners get the
+    # classified failure only, admins (include_status_reason) the reason too.
+    if not (include_sensitive or include_status_reason):
+        provisioned_product_response.statusReason = None
     return provisioned_product_response
 
 

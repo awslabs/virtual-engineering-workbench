@@ -180,6 +180,8 @@ def test_handle_should_set_to_provisioning_error_if_fails_to_fetch_status(
     stored_entity: provisioned_product.ProvisionedProduct = kwargs.get("entity")
 
     assertpy.assert_that(stored_entity.status).is_equal_to(product_status.ProductStatus.ProvisioningError)
+    assertpy.assert_that(stored_entity.statusReason).is_equal_to("Error")
+    assertpy.assert_that(stored_entity.failedOperation).is_equal_to("UPDATE")
 
 
 @freeze_time("2023-12-07")

@@ -52,7 +52,48 @@ def test_a_failed_launch_carries_its_failure():
     assertpy.assert_that(response.failure.model_dump()).is_equal_to(
         {"code": "CAPACITY", "operation": "LAUNCH", "instanceType": "g6.xlarge", "gpu": True}
     )
-    # The raw reason stays for admins.
+
+
+def test_an_owner_gets_the_failure_without_the_raw_reason():
+    # The raw reason can carry the spoke account ID and role or KMS key ARNs.
+    response = api_model_mappers.map_provisioned_product(
+        _workbench(
+            product_status.ProductStatus.ProvisioningError,
+            status_reason="API: iam:PassRole User: arn:aws:sts::001234567890:assumed-role/x is not authorized",
+            failed_operation="LAUNCH",
+        )
+    )
+
+    assertpy.assert_that(response.failure.code).is_equal_to("PERMISSIONS")
+    assertpy.assert_that(response.statusReason).is_none()
+
+
+def test_an_admin_gets_the_raw_reason():
+    response = api_model_mappers.map_provisioned_product(
+        _workbench(
+            product_status.ProductStatus.ProvisioningError,
+            status_reason="InsufficientCapacityInAllAvailabilityZones",
+            failed_operation="LAUNCH",
+        ),
+        include_status_reason=True,
+    )
+
+    assertpy.assert_that(response.failure.code).is_equal_to("CAPACITY")
+    assertpy.assert_that(response.statusReason).is_equal_to("InsufficientCapacityInAllAvailabilityZones")
+    assertpy.assert_that(response.model_dump()).does_not_contain_key("keyPairId")
+
+
+def test_the_sensitive_path_keeps_the_raw_reason():
+    response = api_model_mappers.map_provisioned_product(
+        _workbench(
+            product_status.ProductStatus.ProvisioningError,
+            status_reason="InsufficientCapacityInAllAvailabilityZones",
+            failed_operation="LAUNCH",
+        ),
+        include_sensitive=True,
+    )
+
+    assertpy.assert_that(response.failure.code).is_equal_to("CAPACITY")
     assertpy.assert_that(response.statusReason).is_equal_to("InsufficientCapacityInAllAvailabilityZones")
 
 
