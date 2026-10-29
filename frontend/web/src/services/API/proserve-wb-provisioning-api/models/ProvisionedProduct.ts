@@ -13,6 +13,11 @@
  */
 
 import { exists, mapValues } from '../runtime';
+import type { WorkbenchFailure } from './WorkbenchFailure';
+import {
+    WorkbenchFailureFromJSON,
+    WorkbenchFailureToJSON,
+} from './WorkbenchFailure';
 import type { AdditionalConfiguration } from './AdditionalConfiguration';
 import {
     AdditionalConfigurationFromJSON,
@@ -86,6 +91,12 @@ export interface ProvisionedProduct {
      * @memberof ProvisionedProduct
      */
     statusReason?: string;
+    /**
+     * Why the workbench failed, when it has.
+     * @type {WorkbenchFailure}
+     * @memberof ProvisionedProduct
+     */
+    failure?: WorkbenchFailure;
     /**
      * Product Id.
      * @type {string}
@@ -320,6 +331,7 @@ export function ProvisionedProductFromJSONTyped(json: any, ignoreDiscriminator: 
         'userId': json['userId'],
         'status': json['status'],
         'statusReason': !exists(json, 'statusReason') ? undefined : json['statusReason'],
+        'failure': !exists(json, 'failure') ? undefined : WorkbenchFailureFromJSON(json['failure']),
         'productId': json['productId'],
         'productName': json['productName'],
         'productDescription': !exists(json, 'productDescription') ? undefined : json['productDescription'],
@@ -371,6 +383,7 @@ export function ProvisionedProductToJSON(value?: ProvisionedProduct | null): any
         'userId': value.userId,
         'status': value.status,
         'statusReason': value.statusReason,
+        'failure': WorkbenchFailureToJSON(value.failure),
         'productId': value.productId,
         'productName': value.productName,
         'productDescription': value.productDescription,

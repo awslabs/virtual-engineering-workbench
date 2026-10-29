@@ -40,11 +40,7 @@ from app.provisioning.domain.query_services import (
     user_profile_domain_query_service,
     versions_domain_query_service,
 )
-from app.provisioning.domain.read_models import (
-    component_version_detail,
-    product,
-    version,
-)
+from app.provisioning.domain.read_models import component_version_detail, product, version
 from app.provisioning.domain.value_objects import (
     product_id_value_object,
     product_name_value_object,
@@ -60,10 +56,7 @@ from app.provisioning.domain.value_objects import (
 )
 from app.provisioning.entrypoints.api import bootstrapper
 from app.provisioning.entrypoints.api.model import api_model
-from app.shared.adapters.feature_toggling import (
-    frontend_feature,
-    frontend_feature_toggles,
-)
+from app.shared.adapters.feature_toggling import frontend_feature, frontend_feature_toggles
 from app.shared.adapters.message_bus import in_memory_command_bus
 
 TEST_OS_VERSION = "Ubuntu 24"
@@ -1310,6 +1303,88 @@ def test_internal_get_all_provisioned_products(
             ],
             pagingKey=json.dumps({"string": "NextPagingKey"}),
         )
+    )
+
+
+RAW_FAILURE_REASON = "API: iam:PassRole User: arn:aws:sts::12345678912:assumed-role/x is not authorized"
+
+
+def _with_roles(event, roles):
+    event["requestContext"]["authorizer"]["userRoles"] = json.dumps(roles)
+    return event
+
+
+@pytest.mark.parametrize(
+    "roles,sees_reason",
+    [
+        (["ADMIN"], True),
+        (["PROGRAM_OWNER"], True),
+        (["PLATFORM_USER"], False),
+        (["POWER_USER", "BETA_USER"], False),
+    ],
+)
+def test_get_provisioned_product_returns_the_raw_failure_reason_to_admins_only(
+    roles,
+    sees_reason,
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_virtual_targets_domain_query_service,
+):
+    # ARRANGE
+    from app.provisioning.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    failed, version_metadata = mocked_virtual_targets_domain_query_service.get_provisioned_product.return_value
+    failed.status = product_status.ProductStatus.ProvisioningError
+    failed.statusReason = RAW_FAILURE_REASON
+    failed.failedOperation = "LAUNCH"
+    event = _with_roles(
+        authenticated_event(None, "/projects/proj-12345/products/provisioned/vt-1", "GET"),
+        roles,
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    response = api_model.GetProvisionedProductResponse.model_validate(json.loads(result["body"]))
+    # everyone gets the classified failure.
+    assertpy.assert_that(response.provisionedProduct.failure.code).is_equal_to("PERMISSIONS")
+    assertpy.assert_that(response.provisionedProduct.statusReason).is_equal_to(
+        RAW_FAILURE_REASON if sees_reason else None
+    )
+
+
+@pytest.mark.parametrize("roles,sees_reason", [(["PROGRAM_OWNER"], True), (["PLATFORM_USER"], False)])
+def test_get_user_provisioned_products_returns_the_raw_failure_reason_to_admins_only(
+    roles,
+    sees_reason,
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_virtual_targets_domain_query_service,
+):
+    # ARRANGE
+    from app.provisioning.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    for failed in mocked_virtual_targets_domain_query_service.get_provisioned_products.return_value:
+        failed.status = product_status.ProductStatus.ProvisioningError
+        failed.statusReason = RAW_FAILURE_REASON
+    event = _with_roles(
+        authenticated_event(None, "/projects/proj-12345/products/provisioned", "GET", {"productType": "virtualTarget"}),
+        roles,
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    response = api_model.GetProvisionedProductsResponse.model_validate(json.loads(result["body"]))
+    assertpy.assert_that([pp.statusReason for pp in response.provisionedProducts]).is_equal_to(
+        [RAW_FAILURE_REASON if sees_reason else None] * 5
     )
 
 

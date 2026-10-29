@@ -5,18 +5,10 @@ import pytest
 from freezegun import freeze_time
 
 from app.provisioning.domain.command_handlers.product_provisioning import start_update
-from app.provisioning.domain.commands.product_provisioning import (
-    start_provisioned_product_update_command,
-)
-from app.provisioning.domain.events.product_provisioning import (
-    provisioned_product_update_initialized,
-)
+from app.provisioning.domain.commands.product_provisioning import start_provisioned_product_update_command
+from app.provisioning.domain.events.product_provisioning import provisioned_product_update_initialized
 from app.provisioning.domain.exceptions import domain_exception
-from app.provisioning.domain.model import (
-    product_status,
-    provisioned_product,
-    provisioning_parameter,
-)
+from app.provisioning.domain.model import product_status, provisioned_product, provisioning_parameter
 from app.provisioning.domain.ports import versions_query_service
 from app.provisioning.domain.read_models import version
 from app.provisioning.domain.value_objects import (
@@ -693,3 +685,39 @@ def test_handle_should_set_vpc_is_ssm_param_to_use_previous_value_in_new_provisi
         region="us-east-1",
         stage=version.VersionStage.DEV,
     )
+
+
+@freeze_time("2023-12-05")
+def test_handle_should_clear_the_last_failure(
+    mock_publisher,
+    mock_versions_query_service,
+    mock_logger,
+    mock_provisioned_products_qs,
+    get_provisioned_product,
+    get_command,
+    mock_provisioned_product_repo,
+):
+    # ARRANGE: a stopped workbench whose last start failed; the update ends STOPPED again, so the old
+    # failure would come back.
+    stopped = get_provisioned_product(
+        status=product_status.ProductStatus.Stopped,
+        status_reason="Insufficient instance capacity error",
+    )
+    stopped.failedOperation = "START"
+    mock_provisioned_products_qs.get_by_id.return_value = stopped
+
+    # ACT
+    start_update.handle(
+        command=get_command(),
+        publisher=mock_publisher,
+        versions_qs=mock_versions_query_service,
+        logger=mock_logger,
+        provisioned_products_qs=mock_provisioned_products_qs,
+    )
+
+    # ASSERT
+    args, kwargs = mock_provisioned_product_repo.update_entity.call_args
+    stored_entity: provisioned_product.ProvisionedProduct = kwargs.get("entity")
+    assertpy.assert_that(stored_entity.status).is_equal_to(product_status.ProductStatus.Updating)
+    assertpy.assert_that(stored_entity.statusReason).is_none()
+    assertpy.assert_that(stored_entity.failedOperation).is_none()

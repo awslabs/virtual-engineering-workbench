@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 from mypy_boto3_ec2 import client
 
 from app.provisioning.adapters.exceptions import adapter_exception
-from app.provisioning.domain.exceptions import insufficient_capacity_exception
+from app.provisioning.domain.exceptions import instance_start_exception, insufficient_capacity_exception
 from app.provisioning.domain.model import (
     block_device_mappings,
     instance_details,
@@ -133,11 +133,14 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
         try:
             response = ec2_client.start_instances(InstanceIds=[instance_id])
         except ClientError as error:
+            # keep EC2's code and message, so the portal can tell the owner why.
             error_code = error.response["Error"]["Code"]
+            error_message = error.response["Error"].get("Message", "")
             if error_code == "InsufficientInstanceCapacity":
                 raise insufficient_capacity_exception.InsufficientCapacityException(
-                    "Insufficient instance capacity error"
+                    f"Insufficient instance capacity error: {error_message}".rstrip(": ")
                 )
+            raise instance_start_exception.InstanceStartException(f"{error_code}: {error_message}".rstrip(": "))
         except Exception:
             raise adapter_exception.AdapterException("Unable to start the instance")
 

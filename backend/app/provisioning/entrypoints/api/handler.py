@@ -91,6 +91,9 @@ TAG_USER_PROFILE = "User Profile"
 TAG_MAINTENANCE_WINDOWS = "Maintenance Windows"
 TAG_PROVISIONING_INFRASTRUCTURE = "Provisioning Infrastructure"
 
+# the project roles that see a workbench's raw AWS failure reason (statusReason).
+STATUS_REASON_ROLES = {authorization.VirtualWorkbenchRoles.Admin, authorization.VirtualWorkbenchRoles.ProgramOwner}
+
 
 @tracer.capture_method
 @app.get("/projects/<project_id>/products/available", tags=[TAG_AVAILABLE_PRODUCTS])
@@ -283,10 +286,14 @@ def get_user_provisioned_products(
         return_technical_params=False,
     )
 
+    include_status_reason = _can_see_status_reason()
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetProvisionedProductsResponse(
-            provisionedProducts=[api_model_mappers.map_provisioned_product(pp) for pp in provisioned_products]
+            provisionedProducts=[
+                api_model_mappers.map_provisioned_product(pp, include_status_reason=include_status_reason)
+                for pp in provisioned_products
+            ]
         ),
         content_type=content_types.APPLICATION_JSON,
     )
@@ -304,10 +311,14 @@ def get_project_provisioned_products(
         return_technical_params=False,
     )
 
+    include_status_reason = _can_see_status_reason()
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetAllProvisionedProductsResponse(
-            provisionedProducts=[api_model_mappers.map_provisioned_product(pp) for pp in provisioned_products]
+            provisionedProducts=[
+                api_model_mappers.map_provisioned_product(pp, include_status_reason=include_status_reason)
+                for pp in provisioned_products
+            ]
         ),
         content_type=content_types.APPLICATION_JSON,
     )
@@ -351,10 +362,14 @@ def get_project_provisioned_products_paginated(
 
     paging_key = json.dumps(paging_key) if paging_key else None
 
+    include_status_reason = _can_see_status_reason()
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetPaginatedProvisionedProductsResponse(
-            provisionedProducts=[api_model_mappers.map_provisioned_product(pp) for pp in provisioned_products],
+            provisionedProducts=[
+                api_model_mappers.map_provisioned_product(pp, include_status_reason=include_status_reason)
+                for pp in provisioned_products
+            ],
             pagingKey=paging_key,
         ),
         content_type=content_types.APPLICATION_JSON,
@@ -380,7 +395,9 @@ def get_provisioned_product(
         user_id=user_id_value_object.from_str(app.context.get("user_principal").user_name),
     )
     provisioned_product_parsed = api_model.ProvisionedProduct.model_validate(
-        api_model_mappers.map_provisioned_product(provisioned_product_entity).model_dump()
+        api_model_mappers.map_provisioned_product(
+            provisioned_product_entity, include_status_reason=_can_see_status_reason()
+        ).model_dump()
     )
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -770,6 +787,11 @@ def internal_get_provisioning_subnets(
         ),
         content_type=content_types.APPLICATION_JSON,
     )
+
+
+def _can_see_status_reason() -> bool:
+    """the caller is an admin or program owner of the requested project (roles are project-scoped)."""
+    return bool(STATUS_REASON_ROLES.intersection(app.context.get("user_principal").user_roles or []))
 
 
 @tracer.capture_lambda_handler  # type: ignore

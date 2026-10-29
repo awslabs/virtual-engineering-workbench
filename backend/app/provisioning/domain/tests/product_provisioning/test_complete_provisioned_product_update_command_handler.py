@@ -246,6 +246,8 @@ def test_when_unsuccessful_should_fetch_state_and_publish_failed_event(
 
     assertpy.assert_that(stored_entity.statusReason).is_equal_to("Test")
     assertpy.assert_that(stored_entity.status).is_equal_to(product_status.ProductStatus.ProvisioningError)
+    # a failed update, not a failed launch: the workbench still exists.
+    assertpy.assert_that(stored_entity.failedOperation).is_equal_to("UPDATE")
 
 
 def test_when_no_new_version_was_published_during_upgrade_should_unmark_for_upgrade(
