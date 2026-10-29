@@ -60,7 +60,11 @@ projects.
 | --- | --- | --- |
 | `projects-assignment-management` | `program.read`, `program.write`, `client_assignment.read`, `client_assignment.write` | None |
 | `sample-s2s` | Existing read and other Projects scopes, without `client_assignment.write` or bootstrap | Packaging operation scopes |
-| `platform-projects-bootstrap` | `client_assignment.read`, `client_assignment.write`, `client_assignment.bootstrap` | None |
+
+The stack does not provision a client with the `client_assignment.bootstrap`
+scope. That scope can assign any client to a project that has no active
+service-client assignments, so treat it as a break-glass admin credential
+(see [Recover an existing orphaned project](#recover-an-existing-orphaned-project)).
 
 Projects scopes in the table use the `clients/projects/` prefix. Configure
 separate Terraform provider aliases or API callers with the management and
@@ -118,16 +122,36 @@ manager later.
 
 ### Recover an existing orphaned project
 
-For orphan-project recovery, obtain a token from the separate
-`platform-projects-bootstrap` client requesting both
-`clients/projects/client_assignment.write` and
-`clients/projects/client_assignment.bootstrap`. Use that token to assign the
-management client's ID to an existing project with no active service-client
-assignments. Then use the management client's token to assign the Packaging
-client. The bootstrap client cannot assign itself, and it has no Packaging
-scopes. The successful bootstrap PUT does not give the recovery caller access
+No bootstrap client is provisioned by default. To recover an orphaned project,
+a Cognito administrator creates a temporary app client with the client
+credentials grant and only the `clients/projects/client_assignment.write` and
+`clients/projects/client_assignment.bootstrap` scopes, and no Packaging
+scopes:
+
+```bash
+aws cognito-idp create-user-pool-client \
+  --user-pool-id "$USER_POOL_ID" \
+  --client-name "<prefix>-platform-projects-bootstrap-<env>" \
+  --generate-secret \
+  --allowed-o-auth-flows client_credentials \
+  --allowed-o-auth-flows-user-pool-client \
+  --allowed-o-auth-scopes \
+    clients/projects/client_assignment.write \
+    clients/projects/client_assignment.bootstrap
+```
+
+Use a token from that client to assign the management client's ID to an
+existing project with no active service-client assignments. Then use the
+management client's token to assign the Packaging client. The bootstrap client
+cannot assign itself, and the successful bootstrap PUT does not give it access
 to read or revoke assignments. Use the now-assigned management client's
-credentials for subsequent reads, grants, and revocations.
+credentials for subsequent reads, grants, and revocations. Delete the
+temporary bootstrap client when recovery is done:
+
+```bash
+aws cognito-idp delete-user-pool-client \
+  --user-pool-id "$USER_POOL_ID" --client-id "$BOOTSTRAP_CLIENT_ID"
+```
 
 Projects with active service clients require an already assigned client with
 `clients/projects/client_assignment.write` to grant the manager access;
@@ -335,8 +359,7 @@ through the existing Image Builder and event-processing workflow.
 
 Pipeline creates and image-build requests are not deduplicated. After a lost response,
 inspect the project pipeline/image lists before retrying; repeating `POST /images`
-can launch another billable build. No deployment or live build has been performed
-as part of local verification.
+can launch another billable build.
 
 ## Errors
 
@@ -357,3 +380,8 @@ Errors use `application/problem+json` and a stable machine-readable `code`:
 Clients should branch on `code`, not `title` or `detail`. Retry transient errors only
 when `retryable` is `true`, and inspect current state before replaying any
 non-idempotent request.
+
+Request bodies are bounded: every string has a maximum length and every array a
+maximum number of items, as declared in the OpenAPI schema. A body that exceeds a
+bound or fails validation returns `400` with code `INVALID_REQUEST`. A body that is
+not `application/json` returns `415` with code `UNSUPPORTED_MEDIA_TYPE`.

@@ -1,5 +1,8 @@
 from openapi_spec_validator import validate_spec
 
+from app.packaging.entrypoints.s2s_api.model import api_model
+from app.shared.test_utils import request_bounds
+
 
 def test_schema_is_valid(api_schema):
     validate_spec(api_schema)
@@ -159,3 +162,45 @@ def test_components_use_generated_internal_ids_without_operation_resources(api_s
     assert parameters["ComponentVersionId"]["name"] == "versionId"
     assert "IfMatch" not in parameters
     assert "ExternalId" not in parameters
+
+
+def test_every_request_body_field_is_bounded(api_schema):
+    # Backs the KICS maxLength / maxItems / numeric suppressions in the schema header.
+    assert request_bounds.unbounded_request_fields(api_schema) == []
+
+
+def test_request_models_enforce_the_schema_bounds(api_schema):
+    models = request_bounds.pydantic_models(api_model)
+    assert request_bounds.model_bound_mismatches(api_schema, models) == []
+
+
+def test_body_operations_use_the_gateway_body_validator(api_schema):
+    # The bounds are enforced by API Gateway before Lambda only if the body validator is on.
+    validators = api_schema["x-amazon-apigateway-request-validators"]
+    for path, methods in api_schema["paths"].items():
+        for method, operation in methods.items():
+            if "requestBody" in operation:
+                validator = operation.get("x-amazon-apigateway-request-validator")
+                assert validators[validator]["validateRequestBody"] is True, (method, path)
+                # Powertools answers non-JSON bodies with 415; the handler maps it to a problem response.
+                assert operation["responses"]["415"] == {"$ref": "#/components/responses/Problem"}, (method, path)
+            else:
+                assert "415" not in operation["responses"], (method, path)
+
+
+def test_every_response_reference_has_a_body_schema(api_schema):
+    # Backs the KICS a92be1d5 suppression: KICS does not follow $ref into components.responses.
+    responses = api_schema["components"]["responses"]
+    for path, methods in api_schema["paths"].items():
+        for method, operation in methods.items():
+            for code, response in operation["responses"].items():
+                name = response["$ref"].split("/")[-1]
+                content = responses[name]["content"]
+                assert all("schema" in media for media in content.values()), (method, path, code)
+
+
+def test_every_required_property_is_defined(api_schema):
+    # Backs the KICS 2bd608ae suppression: remaining hits come from $ref properties KICS does not resolve.
+    for name, schema in api_schema["components"]["schemas"].items():
+        missing = set(schema.get("required", [])) - set(schema.get("properties", {}))
+        assert not missing, (name, missing)
