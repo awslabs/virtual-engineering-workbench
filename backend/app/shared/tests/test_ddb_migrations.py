@@ -480,3 +480,32 @@ def test_migrations_when_retrying_failed_migration_should_save_claim_time_before
     assertpy.assert_that(saved_while_running["state"]).is_equal_to("RUNNING")
     claimed_at = datetime.fromisoformat(saved_while_running["lastAttemptDate"])
     assertpy.assert_that(datetime.now(timezone.utc) - claimed_at).is_less_than(timedelta(minutes=1))
+
+
+def test_migrations_when_a_failed_attempt_has_no_timezone_should_still_back_off(
+    mock_dynamodb, backend_app_dynamodb_table, test_table_name
+):
+    """The documented way to unstick a migration is editing the MIGRATION item
+    by hand, so a timestamp written without a timezone is realistic. Comparing
+    it to an aware ``now`` raised TypeError and killed the Lambda init instead
+    of applying the back-off."""
+    # ARRANGE
+    item = _failed_migration_item(last_attempt_date=datetime.now(timezone.utc) - timedelta(minutes=1))
+    item["migrationScripts"][0]["lastAttemptDate"] = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    ).isoformat()
+    backend_app_dynamodb_table.put_item(Item=item)
+    script = mock.Mock()
+    migrations = dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=mock_dynamodb,
+        table_name=test_table_name,
+        logger=mock.create_autospec(spec=logging.Logger),
+        retry_backoff=timedelta(minutes=5),
+    ).register_migration(name="001.TestMigration", script=script)
+
+    # ACT
+    with pytest.raises(dynamodb_migrations.MigrationFailedError, match="001.TestMigration"):
+        migrations.migrate()
+
+    # ASSERT
+    script.assert_not_called()

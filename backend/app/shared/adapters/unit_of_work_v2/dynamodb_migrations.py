@@ -190,7 +190,7 @@ class DynamoDBMigrator:
             if migration_script.state != MigrationsScriptState.Failed or not migration_script.lastAttemptDate:
                 continue
 
-            retry_after = datetime.fromisoformat(migration_script.lastAttemptDate) + self.__retry_backoff
+            retry_after = self.__parse_date(migration_script.lastAttemptDate) + self.__retry_backoff
             if now < retry_after:
                 raise MigrationFailedError(
                     f"Migration {migration_script.name} failed at {migration_script.lastAttemptDate}; "
