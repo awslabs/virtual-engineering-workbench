@@ -141,7 +141,7 @@ class BackendAppFunction(constructs.Construct):
                 else f"{lambda_root}/requirements.txt"
             )
             docker_command = (
-                "curl -LsSf https://astral.sh/uv/0.11.2/install.sh | sh"
+                "curl -LsSf https://astral.sh/uv/0.11.3/install.sh | sh"
                 f" && /root/.local/bin/uv pip install --no-compile -r {reqfile} -t /asset-output/"
                 f" && rsync -r {lambda_root} /asset-output/{app_root}/"
                 f" && {DOCKER_STRIP_CMD}"
