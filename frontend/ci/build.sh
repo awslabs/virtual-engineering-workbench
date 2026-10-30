@@ -16,7 +16,7 @@ echo_fail() {
 }
 
 fail_if_empty () {
-  [ -z $1 ] && echo_fail "$2" && exit 1
+  [ -z "$1" ] && echo_fail "$2" && exit 1
   return 0
 }
 
@@ -34,7 +34,7 @@ fail_if_empty "$api_region" "API Region not specified"
 
 echo_info "Using application name: $app_name"
 echo_info "Using environment name: $environment_name"
-echo_info "Using region name: $region_name"
+echo_info "Using region name: $region"
 echo_info "Using API region name: $api_region"
 
 CWD=$(pwd)
@@ -46,6 +46,7 @@ export ENVIRONMENT_NAME=$environment_name
 export AWS_DEFAULT_REGION=$region
 export AWS_REGION_BE_API=$api_region
 
-cd $CWD/web && . configure_auth.sh
+# shellcheck source=/dev/null # configure_auth.sh is linted separately
+cd "$CWD/web" && . ./configure_auth.sh
 
 yarn build
