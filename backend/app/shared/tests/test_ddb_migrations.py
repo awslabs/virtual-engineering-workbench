@@ -378,3 +378,134 @@ def test_migrations_when_migration_failed_error_raised_should_publish_metric(
     metric = json.loads(capsys.readouterr().out.strip())
     assertpy.assert_that(metric).contains_entry({dynamodb_migrations.MIGRATION_FAILED_METRIC_NAME: [1.0]})
     assertpy.assert_that(metric).contains_entry({"TableName": test_table_name})
+
+
+def _running_migration_item(create_date: str, last_attempt_date: str | None) -> dict:
+    script = {"name": "001.TestMigration", "sequence": 0, "state": "RUNNING", "createDate": create_date}
+    if last_attempt_date:
+        script["lastAttemptDate"] = last_attempt_date
+    return {"PK": "MIGRATION", "SK": "MIGRATION", "sequenceNo": 1, "migrationScripts": [script]}
+
+
+@pytest.mark.parametrize(
+    "create_date,last_attempt_minutes_ago",
+    [
+        # Claimed by a retry that died 20 minutes ago
+        ("2022-01-01T00:00:00+00:00", 20),
+        # Entry written before lastAttemptDate existed, without a timezone
+        ("2022-01-01T00:00:00", None),
+    ],
+)
+def test_migrations_when_running_migration_is_stale_should_retry(
+    create_date, last_attempt_minutes_ago, mock_dynamodb, backend_app_dynamodb_table, test_table_name
+):
+    # ARRANGE
+    last_attempt_date = (
+        (datetime.now(timezone.utc) - timedelta(minutes=last_attempt_minutes_ago)).isoformat()
+        if last_attempt_minutes_ago
+        else None
+    )
+    backend_app_dynamodb_table.put_item(Item=_running_migration_item(create_date, last_attempt_date))
+    script = mock.Mock()
+    migrations = dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=mock_dynamodb,
+        table_name=test_table_name,
+        logger=mock.create_autospec(spec=logging.Logger),
+        stale_running_timeout=timedelta(minutes=15),
+    ).register_migration(name="001.TestMigration", script=script)
+
+    # ACT
+    migrations.migrate()
+
+    # ASSERT
+    script.assert_called_once()
+    items = backend_app_dynamodb_table.scan()
+    assertpy.assert_that(items["Items"]).is_length(1)
+    assertpy.assert_that(items["Items"][0]["migrationScripts"][0]["state"]).is_equal_to("COMPLETED")
+
+
+def test_migrations_when_running_migration_is_recent_should_raise_without_running(
+    mock_dynamodb, backend_app_dynamodb_table, test_table_name
+):
+    # ARRANGE
+    backend_app_dynamodb_table.put_item(
+        Item=_running_migration_item(
+            create_date="2022-01-01T00:00:00+00:00",
+            last_attempt_date=(datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat(),
+        )
+    )
+    script = mock.Mock()
+    migrations = dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=mock_dynamodb,
+        table_name=test_table_name,
+        logger=mock.create_autospec(spec=logging.Logger),
+        stale_running_timeout=timedelta(minutes=15),
+    ).register_migration(name="001.TestMigration", script=script)
+
+    # ACT
+    with pytest.raises(Exception, match="already a migration in progress"):
+        migrations.migrate()
+
+    # ASSERT
+    script.assert_not_called()
+    items = backend_app_dynamodb_table.scan()
+    assertpy.assert_that(items["Items"][0]["sequenceNo"]).is_equal_to(1)
+    assertpy.assert_that(items["Items"][0]["migrationScripts"][0]["state"]).is_equal_to("RUNNING")
+
+
+def test_migrations_when_retrying_failed_migration_should_save_claim_time_before_running(
+    mock_dynamodb, backend_app_dynamodb_table, test_table_name
+):
+    # ARRANGE
+    backend_app_dynamodb_table.put_item(
+        Item=_failed_migration_item(last_attempt_date=datetime.now(timezone.utc) - timedelta(minutes=10))
+    )
+    saved_while_running = {}
+
+    def script(table):
+        item = table.get_item(Key={"PK": "MIGRATION", "SK": "MIGRATION"})["Item"]
+        saved_while_running.update(item["migrationScripts"][0])
+
+    migrations = dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=mock_dynamodb,
+        table_name=test_table_name,
+        logger=mock.create_autospec(spec=logging.Logger),
+        retry_backoff=timedelta(minutes=5),
+    ).register_migration(name="001.TestMigration", script=script)
+
+    # ACT
+    migrations.migrate()
+
+    # ASSERT: a later start can tell how old this claim is if the execution dies mid-script
+    assertpy.assert_that(saved_while_running["state"]).is_equal_to("RUNNING")
+    claimed_at = datetime.fromisoformat(saved_while_running["lastAttemptDate"])
+    assertpy.assert_that(datetime.now(timezone.utc) - claimed_at).is_less_than(timedelta(minutes=1))
+
+
+def test_migrations_when_a_failed_attempt_has_no_timezone_should_still_back_off(
+    mock_dynamodb, backend_app_dynamodb_table, test_table_name
+):
+    """The documented way to unstick a migration is editing the MIGRATION item
+    by hand, so a timestamp written without a timezone is realistic. Comparing
+    it to an aware ``now`` raised TypeError and killed the Lambda init instead
+    of applying the back-off."""
+    # ARRANGE
+    item = _failed_migration_item(last_attempt_date=datetime.now(timezone.utc) - timedelta(minutes=1))
+    item["migrationScripts"][0]["lastAttemptDate"] = (
+        datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    ).isoformat()
+    backend_app_dynamodb_table.put_item(Item=item)
+    script = mock.Mock()
+    migrations = dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=mock_dynamodb,
+        table_name=test_table_name,
+        logger=mock.create_autospec(spec=logging.Logger),
+        retry_backoff=timedelta(minutes=5),
+    ).register_migration(name="001.TestMigration", script=script)
+
+    # ACT
+    with pytest.raises(dynamodb_migrations.MigrationFailedError, match="001.TestMigration"):
+        migrations.migrate()
+
+    # ASSERT
+    script.assert_not_called()

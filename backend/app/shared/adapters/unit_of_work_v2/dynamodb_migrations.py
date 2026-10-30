@@ -19,6 +19,9 @@ MigrationScript: typing.TypeAlias = typing.Callable[[service_resource.Table], No
 MIGRATION_ENTITY_NAME = "MIGRATION"
 MIGRATION_FAILED_METRIC_NAME = "DynamoDBMigrationFailed"
 DEFAULT_RETRY_BACKOFF = timedelta(minutes=5)
+# Migrations run during Lambda init, and a Lambda cannot run longer than 15 minutes. A RUNNING script whose
+# attempt started earlier than this belongs to an execution that died (timeout, crash), not to one in progress.
+DEFAULT_STALE_RUNNING_TIMEOUT = timedelta(minutes=15)
 
 
 class MigrationFailedError(Exception):
@@ -95,12 +98,14 @@ class DynamoDBMigrator:
         table_name: str,
         logger: logging.Logger,
         retry_backoff: timedelta = DEFAULT_RETRY_BACKOFF,
+        stale_running_timeout: timedelta = DEFAULT_STALE_RUNNING_TIMEOUT,
     ):
         self.__migrations = []
         self.__ddb_resource = ddb_resource
         self.__table_name = table_name
         self.__logger = logger
         self.__retry_backoff = retry_backoff
+        self.__stale_running_timeout = stale_running_timeout
 
         self.__ddb_table = self.__ddb_resource.Table(self.__table_name)
 
@@ -185,7 +190,7 @@ class DynamoDBMigrator:
             if migration_script.state != MigrationsScriptState.Failed or not migration_script.lastAttemptDate:
                 continue
 
-            retry_after = datetime.fromisoformat(migration_script.lastAttemptDate) + self.__retry_backoff
+            retry_after = self.__parse_date(migration_script.lastAttemptDate) + self.__retry_backoff
             if now < retry_after:
                 raise MigrationFailedError(
                     f"Migration {migration_script.name} failed at {migration_script.lastAttemptDate}; "
@@ -211,6 +216,9 @@ class DynamoDBMigrator:
         return self
 
     def __validate_migrations_state(self, migrations_meta: DynamoDBMigration):
+        if migrations_meta:
+            self.__fail_stale_running_scripts(migrations_meta)
+
         if migrations_meta and next(
             (ms for ms in migrations_meta.migrationScripts if ms.state == MigrationsScriptState.Running), None
         ):
@@ -218,6 +226,29 @@ class DynamoDBMigrator:
 
         if migrations_meta and len(migrations_meta.migrationScripts) > len(self.__migrations):
             raise Exception("There are more migrations in the DB than in the code. Migration code cannot be removed.")
+
+    def __fail_stale_running_scripts(self, migrations_meta: DynamoDBMigration):
+        """A RUNNING script left behind by an execution that died would block every later start with "already in
+        progress". Once it is older than the stale timeout it is treated as FAILED, so it is retried. The retry
+        write uses optimistic concurrency, so only one execution takes it over."""
+        stale_before = datetime.now(timezone.utc) - self.__stale_running_timeout
+        for migration_script in migrations_meta.migrationScripts:
+            if migration_script.state != MigrationsScriptState.Running:
+                continue
+
+            started = self.__parse_date(migration_script.lastAttemptDate or migration_script.createDate)
+            if started < stale_before:
+                self.__logger.warning(
+                    f"Migration {migration_script.name} has been RUNNING since {started.isoformat()}; "
+                    "treating it as failed and retrying it"
+                )
+                migration_script.state = MigrationsScriptState.Failed
+
+    @staticmethod
+    def __parse_date(value: str) -> datetime:
+        parsed = datetime.fromisoformat(value)
+        # Older entries were written without a timezone; they are UTC
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
     def __get_executed_migration_scripts(self) -> DynamoDBMigration | None:
         migration_info = self.__ddb_table.get_item(Key={"PK": MIGRATION_ENTITY_NAME, "SK": MIGRATION_ENTITY_NAME})
@@ -242,6 +273,8 @@ class DynamoDBMigrator:
 
                 if migrations_meta.migrationScripts[idx].state == MigrationsScriptState.Failed:
                     migrations_meta.migrationScripts[idx].state = MigrationsScriptState.Running
+                    # Saved with the RUNNING state, so a stale claim can be detected if this execution dies
+                    migrations_meta.migrationScripts[idx].lastAttemptDate = create_date
                     new_migrations = True
 
             else:
