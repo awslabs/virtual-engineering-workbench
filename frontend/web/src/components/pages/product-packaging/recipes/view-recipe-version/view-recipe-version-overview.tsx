@@ -61,6 +61,12 @@ export const ViewRecipeVersionOverview = ({
             <UserDate date={recipeVersion.lastUpdateDate} />
           </ValueWithLabel>
         </SpaceBetween>
+        {recipeVersion.parentImageProductId &&
+          <SpaceBetween size="l">
+            <ValueWithLabel label={i18n.detailsBaseImage} data-test="base-image">
+              {recipeVersion.parentImageProductId}
+            </ValueWithLabel>
+          </SpaceBetween>}
       </ColumnLayout>
     </Container>
   );

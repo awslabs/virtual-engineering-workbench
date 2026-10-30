@@ -99,6 +99,7 @@ def test_handle_should_create_new_recipe_version_with_updated_component():
         ],
         status=recipe_version.RecipeVersionStatus.Released,
         parentImageUpstreamId="ami-12345",
+        parentImageProductId="prod-testmarketplace1",
         recipeVersionVolumeSize="8",
         recipeVersionIntegrations=[],
         createDate="2023-09-28T00:00:00+00:00",
@@ -138,6 +139,9 @@ def test_handle_should_create_new_recipe_version_with_updated_component():
     assertpy.assert_that(added_recipe_version.recipeId).is_equal_to("recipe-12345")
     assertpy.assert_that(added_recipe_version.recipeVersionName).is_equal_to("1.0.1-rc.1")
     assertpy.assert_that(added_recipe_version.status).is_equal_to(recipe_version.RecipeVersionStatus.Creating)
+    assertpy.assert_that(added_recipe_version.parentImageProductId).is_equal_to(
+        last_released_version.parentImageProductId
+    )
 
     component_entries = added_recipe_version.recipeComponentsVersions
     assertpy.assert_that(component_entries).is_length(2)
