@@ -13,6 +13,7 @@ import {
 } from 'aws-cdk-lib';
 import { ProviderAttribute, UserPoolIdentityProviderOidc } from 'aws-cdk-lib/aws-cognito';
 import { NagSuppressions } from 'cdk-nag';
+import { AdditionalAppClient } from '../app-config';
 
 
 export class WebUserPool extends Construct {
@@ -22,6 +23,7 @@ export class WebUserPool extends Construct {
   private readonly _environment: string;
   private _userPoolWebAppClient: cognito.UserPoolClient;
   private _userPoolAppClients: cognito.UserPoolClient[];
+  private _additionalAppClients: Map<string, cognito.UserPoolClient>;
   private _userPoolDomain: cognito.UserPoolDomain;
   private _userPoolCustomDomain: cognito.CfnUserPoolDomain;
   private _allowCustomUserLogin: boolean;
@@ -38,6 +40,7 @@ export class WebUserPool extends Construct {
     this._environment = props.environment;
     this._allowCustomUserLogin = props.allowCustomUserLogin ?? false;
     this._userPoolAppClients = [];
+    this._additionalAppClients = new Map();
 
     this._userPool = new cognito.UserPool(this, 'my-app-user-pool', {
       userPoolName: `${this._appName.replace(/[^a-zA-Z0-9]/gu, '-')}-user-pool`,
@@ -163,7 +166,31 @@ export class WebUserPool extends Construct {
     return this;
   }
 
-  private _withClient(name: string, callbackUrls: string[], callbackUrlsLogout: string[], generateSecret = false): cognito.UserPoolClient {
+  /*
+    Must run after withIdentityProvider, so the clients get the same identity
+    providers as the web client, and before the client ids are written to SSM.
+  */
+  withAdditionalClients(clients: AdditionalAppClient[]): WebUserPool {
+    for (const client of clients) {
+      const refreshTokenValidity = client.refreshTokenValidityHours === undefined ?
+        undefined :
+        Duration.hours(client.refreshTokenValidityHours);
+      const userPoolClient = this._withClient(
+        client.name, client.callbackUrls, client.logoutUrls, client.generateSecret, refreshTokenValidity
+      );
+      this._userPoolAppClients.push(userPoolClient);
+      this._additionalAppClients.set(client.name, userPoolClient);
+    }
+    return this;
+  }
+
+  private _withClient(
+    name: string,
+    callbackUrls: string[],
+    callbackUrlsLogout: string[],
+    generateSecret = false,
+    refreshTokenValidity = Duration.hours(48),
+  ): cognito.UserPoolClient {
     const supportedIdentityProviders: cognito.UserPoolClientIdentityProvider[] = this._userPool.identityProviders.map(
       idp => cognito.UserPoolClientIdentityProvider.custom(idp.providerName)
     );
@@ -192,7 +219,7 @@ export class WebUserPool extends Construct {
         callbackUrls,
         logoutUrls: callbackUrlsLogout,
       },
-      refreshTokenValidity: Duration.hours(48),
+      refreshTokenValidity,
       accessTokenValidity: Duration.minutes(60),
       idTokenValidity: Duration.minutes(60),
       generateSecret,
@@ -281,6 +308,10 @@ export class WebUserPool extends Construct {
 
   getUserPoolClientIds(): string[] {
     return this._userPoolAppClients.map(x => x.userPoolClientId);
+  }
+
+  getAdditionalClientIds(): Map<string, string> {
+    return new Map([...this._additionalAppClients].map(([name, client]) => [name, client.userPoolClientId]));
   }
 
   getProviderName(): string {
