@@ -332,3 +332,88 @@ def test_authorizer_lambda_handler_when_not_in_a_project_scope(
             "principalId": "T00112233",
         }
     )
+
+
+DENY = {
+    "policyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [{"Action": "execute-api:Invoke", "Effect": "Deny", "Resource": "*"}],
+    },
+    "principalId": "me",
+}
+
+
+@mock.patch("urllib.request.build_opener")
+@freeze_time("2025-05-02 09:00:00+00:00")
+def test_authorizer_lambda_handler_accepts_a_client_added_after_deploy(
+    mock_build_opener,
+    lambda_context,
+    mock_user_info_endpoint,
+    mocked_assignments_data,
+    mock_auth_event,
+    mocked_jwks_response,
+    backend_app_dynamodb_table,
+    ssm_mock,
+):
+    # ARRANGE
+    mocked_assignments_data()
+    mm = mock.MagicMock()
+    mm.__enter__.return_value = mocked_jwks_response
+    mock_build_opener.return_value.open.return_value = mm
+    from aws_lambda_powertools.utilities import parameters
+
+    from app.authorization.entrypoints.api_gateway_authorizer_request_event_handler import (
+        handler,
+    )
+
+    handler.dependencies.jwk_client.fetch_data()
+    ssm_mock.put_parameter(Name="user-pool-client-ids-param", Value="other-client-id", Type="String", Overwrite=True)
+    parameters.clear_caches()
+
+    # ACT
+    before = handler.handler(mock_auth_event(), lambda_context)
+    ssm_mock.put_parameter(
+        Name="user-pool-client-ids-param", Value="other-client-id,test-client-id", Type="String", Overwrite=True
+    )
+    parameters.clear_caches()
+    after = handler.handler(mock_auth_event(), lambda_context)
+    parameters.clear_caches()
+
+    # ASSERT
+    assertpy.assert_that(before).is_equal_to(DENY)
+    assertpy.assert_that(after["policyDocument"]["Statement"][0]["Effect"]).is_equal_to("Allow")
+
+
+@mock.patch("urllib.request.build_opener")
+@freeze_time("2025-05-02 09:00:00+00:00")
+def test_authorizer_lambda_handler_denies_when_no_client_ids_are_configured(
+    mock_build_opener,
+    lambda_context,
+    mock_user_info_endpoint,
+    mocked_assignments_data,
+    mock_auth_event,
+    mocked_jwks_response,
+    backend_app_dynamodb_table,
+    ssm_mock,
+):
+    # ARRANGE
+    mocked_assignments_data()
+    mm = mock.MagicMock()
+    mm.__enter__.return_value = mocked_jwks_response
+    mock_build_opener.return_value.open.return_value = mm
+    from aws_lambda_powertools.utilities import parameters
+
+    from app.authorization.entrypoints.api_gateway_authorizer_request_event_handler import (
+        handler,
+    )
+
+    handler.dependencies.jwk_client.fetch_data()
+    ssm_mock.put_parameter(Name="user-pool-client-ids-param", Value=",", Type="String", Overwrite=True)
+    parameters.clear_caches()
+
+    # ACT
+    result = handler.handler(mock_auth_event(), lambda_context)
+    parameters.clear_caches()
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to(DENY)

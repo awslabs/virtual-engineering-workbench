@@ -83,8 +83,11 @@ class AuthorizationAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             app_config.environment_config["cognito-userpool-id-ssm-param"].format(environment=app_config.environment),
         )
 
-        user_pool_client_id = aws_ssm.StringParameter.value_for_string_parameter(
+        # The authorizer reads the client ids at run time. Resolving them here would bake them into the function's
+        # configuration, where a deploy that only changes the clients never reaches the alias API Gateway invokes.
+        user_pool_client_ids_param = aws_ssm.StringParameter.from_string_parameter_name(
             self,
+            "UserPoolClientIdsParam",
             app_config.environment_config["cognito-userpool-client-ids-ssm-param"].format(
                 environment=app_config.environment
             ),
@@ -112,7 +115,7 @@ class AuthorizationAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "USER_POOL_URL": f"https://{user_pool_url}",
                         "USER_POOL_ID": user_pool_id,
-                        "USER_POOL_CLIENT_IDS": user_pool_client_id,
+                        "USER_POOL_CLIENT_IDS_SSM_PARAM": user_pool_client_ids_param.parameter_name,
                         "USER_POOL_REGION": user_pool_region,
                         "JWKS_URI": f"https://cognito-idp.{user_pool_region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json",
                         "JWK_TIMEOUT": "3",
@@ -141,6 +144,7 @@ class AuthorizationAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                             )
                         ),
                         lambda lambda_f: user_role_stage_access_param.grant_read(lambda_f),
+                        lambda lambda_f: user_pool_client_ids_param.grant_read(lambda_f),
                         lambda lambda_f: storage.table.grant_read_data(lambda_f),
                     ],
                     reserved_concurrency=app_config.component_specific.get(

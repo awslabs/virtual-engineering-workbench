@@ -17,6 +17,8 @@ from app.authorization.entrypoints.api_gateway_authorizer_request_event_handler 
 )
 from app.shared.logging import boto_logger
 
+USER_POOL_CLIENT_IDS_MAX_AGE_SECONDS = 60
+
 
 class Dependencies(BaseModel):
     authorizer: authorizer.Authorizer
@@ -66,6 +68,18 @@ def bootstrap(  # noqa: C901
 
     __reload_config_params()
 
+    def __user_pool_client_ids() -> list[str]:
+        # Read at run time rather than deploy time: a deploy that only adds or removes an app client changes no
+        # value in the template, so it publishes no new function version and the alias would keep the old list.
+        value = parameters.get_parameter(
+            app_config.get_user_pool_client_ids_ssm_param(), max_age=USER_POOL_CLIENT_IDS_MAX_AGE_SECONDS
+        )
+        client_ids = [client_id for client_id in value.split(",") if client_id]
+        if not client_ids:
+            # An empty list would turn the audience check off, so deny instead.
+            raise ValueError("The user pool client id parameter holds no client ids")
+        return client_ids
+
     def __api_config_provider(api_id: str) -> authorizer.APIAuthConfig | None:
         if api_id not in api_policy_stores:
             __reload_config_params()
@@ -82,7 +96,7 @@ def bootstrap(  # noqa: C901
                     logger=logger,
                     metrics=metrics_client,
                     issuer=f"https://cognito-idp.{app_config.get_user_pool_region()}.amazonaws.com/{app_config.get_user_pool_id()}",
-                    audiences=app_config.get_user_pool_client_ids(),
+                    audiences=__user_pool_client_ids,
                 ),
                 authorizer_steps.CognitoAuthorizer(auth_srv=cognito_srv, logger=logger, metrics=metrics_client),
                 authorizer_steps.ProjectsBCContextEnricher(

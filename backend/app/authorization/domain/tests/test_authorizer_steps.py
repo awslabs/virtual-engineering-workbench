@@ -794,6 +794,47 @@ def test_jwt_authorizer_when_wrong_audience_should_deny(
 
 
 @freeze_time("2025-05-02 09:00:00+00:00")
+def test_jwt_authorizer_reads_audiences_from_a_provider_on_every_call(
+    mock_logger, mock_metrics, mock_auth_service, mocked_jwks_response, user_auth_jwt, jwt_issuer
+):
+    # ARRANGE
+    mock_auth_service.get_signing_key_from_jwt.return_value = (True, mocked_jwks_response)
+    audiences = [["other-client-id"], ["other-client-id", "audience-id"]]
+
+    verify_jwt = authorizer_steps.JWTAuthorizer(
+        auth_srv=mock_auth_service,
+        metrics=mock_metrics,
+        logger=mock_logger,
+        issuer=jwt_issuer,
+        audiences=lambda: audiences.pop(0),
+    )
+
+    def invoke():
+        return verify_jwt.invoke(
+            request=authorizer.AuthorizationRequest(
+                auth_token=user_auth_jwt(),
+                api_id="api-id",
+                operation_id="UpdateProject",
+                resource_ids={},
+                resource="test",
+                resource_path="/path",
+            ),
+            context=authorizer.AuthorizationContext(
+                user_name="test-user",
+                api_auth_cfg={},
+            ),
+        )
+
+    # ACT
+    before = invoke()
+    after = invoke()
+
+    # ASSERT
+    assertpy.assert_that(before).is_false()
+    assertpy.assert_that(after).is_true()
+
+
+@freeze_time("2025-05-02 09:00:00+00:00")
 def test_jwt_authorizer_when_jwt_has_wrong_use_should_deny(
     mock_logger, mock_metrics, mock_auth_service, mocked_jwks_response, user_auth_jwt, jwt_issuer
 ):
