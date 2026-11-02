@@ -17,16 +17,18 @@ class FEStack {
     logoutUrl: string | null = 'http://localhost',
     oidcUserIdClaim?: string,
     domainName?: string,
+    additionalAppClients?: unknown,
   ) {
-    const cdkCfg: { [key: string]: string } = {};
-    if (logoutUrl !== null) {
-      cdkCfg.LogoutUrl = logoutUrl;
-    }
-    if (oidcSecretName !== undefined) {
-      cdkCfg.OIDCSecretName = oidcSecretName;
-    }
-    if (oidcUserIdClaim !== undefined) {
-      cdkCfg.OIDCUserIdClaim = oidcUserIdClaim;
+    const cdkCfg: { [key: string]: unknown } = {
+      LogoutUrl: logoutUrl ?? undefined,
+      OIDCSecretName: oidcSecretName,
+      OIDCUserIdClaim: oidcUserIdClaim,
+      AdditionalAppClients: additionalAppClients,
+    };
+    for (const key of Object.keys(cdkCfg)) {
+      if (cdkCfg[key] === undefined) {
+        delete cdkCfg[key];
+      }
     }
 
     const app = new App({
@@ -340,6 +342,94 @@ test('User Pool Client should be configured with openid, email and profile scope
   template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
     AllowedOAuthScopes: ['openid', 'email', 'profile'],
   }));
+});
+
+const APP_CLIENT = {
+  Name: 'example-app',
+  CallbackUrls: ['https://app.example.com/callback'],
+  GenerateSecret: true,
+  RefreshTokenValidityHours: 720,
+};
+
+test('should contain an additional User Pool Client per configured app client', () => {
+  // ACT
+  const stack = FEStack.get(undefined, 'http://localhost', undefined, undefined, [APP_CLIENT]);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.resourceCountIs('AWS::Cognito::UserPoolClient', 2);
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
+    ClientName: 'my-app-dev-example-app',
+    CallbackURLs: ['https://app.example.com/callback'],
+    LogoutURLs: [],
+    GenerateSecret: true,
+    AllowedOAuthFlows: ['code'],
+    AllowedOAuthScopes: ['openid', 'email', 'profile'],
+    ExplicitAuthFlows: ['ALLOW_REFRESH_TOKEN_AUTH'],
+    RefreshTokenValidity: 720 * 60,
+  }));
+});
+
+test('Additional User Pool Client should keep the web client refresh token validity by default', () => {
+  // ACT
+  const stack = FEStack.get(undefined, 'http://localhost', undefined, undefined, [
+    { Name: 'example-app', CallbackUrls: APP_CLIENT.CallbackUrls },
+  ]);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
+    ClientName: 'my-app-dev-example-app',
+    GenerateSecret: false,
+    RefreshTokenValidity: 48 * 60,
+  }));
+});
+
+test('Additional User Pool Client should be configured only with the corporate identity provider', () => {
+  // ACT
+  const stack = FEStack.get('oidc-secret', 'http://localhost', undefined, undefined, [APP_CLIENT]);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
+    ClientName: 'my-app-dev-example-app',
+    SupportedIdentityProviders: Match.not(Match.arrayWith(['COGNITO'])),
+  }));
+});
+
+test('Additional User Pool Client id should be accepted by the API authorizer', () => {
+  // ACT
+  const stack = FEStack.get(undefined, 'http://localhost', undefined, undefined, [APP_CLIENT]);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  const [appClientId] = Object.keys(template.findResources('AWS::Cognito::UserPoolClient', {
+    Properties: { ClientName: 'my-app-dev-example-app' },
+  }));
+  const [webClientId] = Object.keys(template.findResources('AWS::Cognito::UserPoolClient', {
+    Properties: { ClientName: 'my-app-dev-web-client' },
+  }));
+  template.hasResourceProperties('AWS::SSM::Parameter', {
+    Name: '/my-app-dev/user-pool-client-ids',
+    Value: { 'Fn::Join': ['', [{ Ref: appClientId }, ',', { Ref: webClientId }]] },
+  });
+  template.hasOutput('appclientexampleappidoutput', { Value: { Ref: appClientId } });
+});
+
+test.each([
+  ['a name with upper case', [{ ...APP_CLIENT, Name: 'ExampleApp' }]],
+  ['the web client name', [{ ...APP_CLIENT, Name: 'web-client' }]],
+  ['a duplicate name', [APP_CLIENT, APP_CLIENT]],
+  ['names that differ only in dashes', [APP_CLIENT, { ...APP_CLIENT, Name: 'exampleapp' }]],
+  ['an entry that is not an object', [null]],
+  ['a GenerateSecret that is not a boolean', [{ ...APP_CLIENT, GenerateSecret: 'true' }]],
+  ['no callback URL', [{ ...APP_CLIENT, CallbackUrls: [] }]],
+  ['a plain http callback URL', [{ ...APP_CLIENT, CallbackUrls: ['http://app.example.com/callback'] }]],
+  ['a fractional refresh token validity', [{ ...APP_CLIENT, RefreshTokenValidityHours: 1.5 }]],
+  ['a value that is not a list', APP_CLIENT],
+])('Additional app clients should reject %s', (_, clients) => {
+  expect(() => FEStack.get(undefined, 'http://localhost', undefined, undefined, clients))
+    .toThrow(/AdditionalAppClients/u);
 });
 
 test('should have CloudFront distribution', () => {

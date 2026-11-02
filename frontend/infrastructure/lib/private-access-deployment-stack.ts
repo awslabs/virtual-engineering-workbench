@@ -54,6 +54,8 @@ export class PrivateAccessDeploymentStack extends Stack {
       webUserPool.withCustomLoginDomain(props.appConfig.domainNameLogin, props.appConfig.certArnLogin);
     }
 
+    webUserPool.withAdditionalClients(props.appConfig.additionalAppClients);
+
     const cdn = new AppElb(this, 'web-app-elb', {
       appName: props.appName,
       appEnvironment: props.appEnvironment,
@@ -107,6 +109,13 @@ export class PrivateAccessDeploymentStack extends Stack {
 
 
     this.tryOutputCognitoLoginCustomDNSOutputs(props.appConfig, webUserPool);
+
+    for (const [name, clientId] of webUserPool.getAdditionalClientIds()) {
+      new CfnOutput(this, `app-client-${name}-id-output`, {
+        description: `Cognito app client id of ${name}`,
+        value: clientId,
+      });
+    }
 
     /* cdk-nag checks */
     Aspects.of(this).add(new AwsSolutionsChecks({ reports: true, verbose: true }));

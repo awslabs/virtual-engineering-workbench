@@ -252,6 +252,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `HUB_VPC_NAME` | — | Name tag of an existing VPC in the hub account to deploy into. Empty derives the name from the prefixes and creates the VPC if absent |
 | `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |
 | `RESOURCE_TAGS` | `{}` | JSON object of tags applied to resources VEW provisions at runtime — Image Builder instances and AMIs, Service Catalog products, and the instances launched by component and recipe testing. Needed where an organisation denies resource creation without required tags |
+| `ADDITIONAL_APP_CLIENTS` | `[]` | JSON list of Cognito app clients besides the web client, for applications that call the API with their users' own tokens. Each signs in through the web client's identity providers with the authorization code grant, and its id is added to the clients the API accepts. Fields: `Name`, `CallbackUrls`, and optionally `LogoutUrls`, `GenerateSecret`, `RefreshTokenValidityHours` (default 48). The deploy summary lists the client ids |
 
 Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 
@@ -259,6 +260,7 @@ Additional configuration not managed by `deploy.sh` (edit manually for advanced 
 | --- | --- | --- | --- |
 | `frontend/infrastructure/cdk.json` | `RequireCustomUserLogin2FA` | `true` | Require MFA for Cognito-native users |
 | `frontend/infrastructure/cdk.json` | `CustomLoginDNSEnabled` | `false` | Enable custom DNS for Cognito login page |
+| `frontend/infrastructure/cdk.json` | `AdditionalAppClients` | `[]` | Extra Cognito app clients the API accepts: `Name`, `CallbackUrls`, and optionally `LogoutUrls`, `GenerateSecret`, `RefreshTokenValidityHours`. `deploy.sh` rewrites it from `ADDITIONAL_APP_CLIENTS` |
 | `backend/infra/config.py` | `rest-api-cors-origins` | `*` | Restrict to your domain in production |
 | `backend/infra/config.py` | `retain_resources` | `False` | `True` in production to prevent data loss on stack deletion |
 | `backend/infra/config.py` | `backup-resources` | `False` | `True` in production to enable DynamoDB PITR and S3 versioning |
