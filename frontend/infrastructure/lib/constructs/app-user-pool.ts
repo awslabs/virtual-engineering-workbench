@@ -9,6 +9,7 @@ import {
   Duration,
   aws_wafv2,
   aws_lambda as lambda,
+  aws_ssm as ssm,
   RemovalPolicy,
 } from 'aws-cdk-lib';
 import { ProviderAttribute, UserPoolIdentityProviderOidc } from 'aws-cdk-lib/aws-cognito';
@@ -161,14 +162,11 @@ export class WebUserPool extends Construct {
     return this;
   }
 
-  withClient(name: string, callbackUrls: string[], callbackUrlsLogout: string[], generateSecret = false): WebUserPool {
-    this._userPoolAppClients.push(this._withClient(name, callbackUrls, callbackUrlsLogout, generateSecret));
-    return this;
-  }
-
   /*
     Must run after withIdentityProvider, so the clients get the same identity
     providers as the web client, and before the client ids are written to SSM.
+    Each client's id is also written to its own parameter, so an application
+    such as a CLI can look its id up at run time by name.
   */
   withAdditionalClients(clients: AdditionalAppClient[]): WebUserPool {
     for (const client of clients) {
@@ -180,6 +178,11 @@ export class WebUserPool extends Construct {
       );
       this._userPoolAppClients.push(userPoolClient);
       this._additionalAppClients.set(client.name, userPoolClient);
+
+      new ssm.StringParameter(this, `app-client-${client.name}-id`, {
+        parameterName: `/${this._appName}/app-client-id/${client.name}`,
+        stringValue: userPoolClient.userPoolClientId,
+      });
     }
     return this;
   }

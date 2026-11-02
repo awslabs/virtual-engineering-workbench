@@ -5,6 +5,7 @@ import {
 } from 'aws-cdk-lib/assertions';
 import { App, Stack } from 'aws-cdk-lib';
 import * as Infrastructure from '../lib/public-access-deployment-stack';
+import { PrivateAccessDeploymentStack } from '../lib/private-access-deployment-stack';
 import { AppConfig } from '../lib/app-config';
 
 /* eslint jest/expect-expect: "off" */
@@ -344,6 +345,36 @@ test('User Pool Client should be configured with openid, email and profile scope
   }));
 });
 
+function getPrivateStack(additionalAppClients?: unknown) {
+  const app = new App({
+    context: {
+      'use-custom-domain': 'app.example.com',
+      'cert-arn': 'arn:aws:acm:us-east-1:123456789012:certificate/abc',
+      config: {
+        dev: {
+          LogoutUrl: 'http://localhost',
+          VPCName: 'vpc-test',
+          PrivateDeployment: true,
+          AdditionalAppClients: additionalAppClients,
+        }
+      }
+    }
+  });
+
+  return new PrivateAccessDeploymentStack(app, 'MyPrivateTestStack', {
+    stackName: 'ui-test',
+    deploymentQualifier: 'abc',
+    env: {
+      account: '123456789012',
+      region: 'us-east-1'
+    },
+    appName: 'my-app',
+    appEnvironment: 'dev',
+    formatResourceName: (resourceName: string) => `test-${resourceName}`,
+    appConfig: AppConfig.loadForEnvironment(app, 'dev'),
+  });
+}
+
 const APP_CLIENT = {
   Name: 'example-app',
   CallbackUrls: ['https://app.example.com/callback'],
@@ -416,6 +447,62 @@ test('Additional User Pool Client id should be accepted by the API authorizer', 
   template.hasOutput('appclientexampleappidoutput', { Value: { Ref: appClientId } });
 });
 
+test('Additional User Pool Client id should be written to its own SSM parameter', () => {
+  // ACT
+  const stack = FEStack.get(undefined, 'http://localhost', undefined, undefined, [APP_CLIENT]);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  const [appClientId] = Object.keys(template.findResources('AWS::Cognito::UserPoolClient', {
+    Properties: { ClientName: 'my-app-dev-example-app' },
+  }));
+  template.hasResourceProperties('AWS::SSM::Parameter', {
+    Name: '/my-app-dev/app-client-id/example-app',
+    Type: 'String',
+    Value: { Ref: appClientId },
+  });
+});
+
+test('Private deployment should create, accept, output and publish additional User Pool Clients', () => {
+  // ACT
+  const stack = getPrivateStack([APP_CLIENT]);
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.resourceCountIs('AWS::Cognito::UserPoolClient', 2);
+  template.hasResourceProperties('AWS::Cognito::UserPoolClient', Match.objectLike({
+    ClientName: 'my-app-dev-example-app',
+    CallbackURLs: ['https://app.example.com/callback'],
+    GenerateSecret: true,
+    AllowedOAuthFlows: ['code'],
+    RefreshTokenValidity: 720 * 60,
+  }));
+  const [appClientId] = Object.keys(template.findResources('AWS::Cognito::UserPoolClient', {
+    Properties: { ClientName: 'my-app-dev-example-app' },
+  }));
+  const [webClientId] = Object.keys(template.findResources('AWS::Cognito::UserPoolClient', {
+    Properties: { ClientName: 'my-app-dev-web-client' },
+  }));
+  template.hasResourceProperties('AWS::SSM::Parameter', {
+    Name: '/my-app-dev/user-pool-client-ids',
+    Value: { 'Fn::Join': ['', [{ Ref: appClientId }, ',', { Ref: webClientId }]] },
+  });
+  template.hasResourceProperties('AWS::SSM::Parameter', {
+    Name: '/my-app-dev/app-client-id/example-app',
+    Value: { Ref: appClientId },
+  });
+  template.hasOutput('appclientexampleappidoutput', { Value: { Ref: appClientId } });
+});
+
+test('Private deployment should create only the web User Pool Client by default', () => {
+  // ACT
+  const stack = getPrivateStack();
+
+  // ASSERT
+  const template = Template.fromStack(stack);
+  template.resourceCountIs('AWS::Cognito::UserPoolClient', 1);
+});
+
 test.each([
   ['a name with upper case', [{ ...APP_CLIENT, Name: 'ExampleApp' }]],
   ['the web client name', [{ ...APP_CLIENT, Name: 'web-client' }]],
@@ -425,6 +512,8 @@ test.each([
   ['a GenerateSecret that is not a boolean', [{ ...APP_CLIENT, GenerateSecret: 'true' }]],
   ['no callback URL', [{ ...APP_CLIENT, CallbackUrls: [] }]],
   ['a plain http callback URL', [{ ...APP_CLIENT, CallbackUrls: ['http://app.example.com/callback'] }]],
+  ['a callback URL with a fragment', [{ ...APP_CLIENT, CallbackUrls: ['https://app.example.com/callback#done'] }]],
+  ['a logout URL with a fragment', [{ ...APP_CLIENT, LogoutUrls: ['https://app.example.com/#/logout'] }]],
   ['a fractional refresh token validity', [{ ...APP_CLIENT, RefreshTokenValidityHours: 1.5 }]],
   ['a value that is not a list', APP_CLIENT],
 ])('Additional app clients should reject %s', (_, clients) => {

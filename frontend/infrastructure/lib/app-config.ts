@@ -145,8 +145,12 @@ export class AppConfig {
       throw new Error(`AdditionalAppClients ${clientName}: ${field} must be a list.`);
     }
     return raw.map(url => {
-      // Cognito allows http only for localhost.
-      if (typeof url !== 'string' || !/^(?:https:\/\/|http:\/\/localhost(?:[:/]|$))/u.test(url)) {
+      // Cognito allows http only for localhost, and no fragment.
+      if (
+        typeof url !== 'string' ||
+        !/^(?:https:\/\/|http:\/\/localhost(?:[:/]|$))/u.test(url) ||
+        url.includes('#')
+      ) {
         throw new Error(
           `AdditionalAppClients ${clientName}: ${field} has an invalid URL ${JSON.stringify(url)}.`
         );
