@@ -1,4 +1,7 @@
-import { ProductParameter } from '../../services/API/proserve-wb-provisioning-api/index.ts';
+import {
+  GetProvisioningLimitResponse,
+  ProductParameter,
+} from '../../services/API/proserve-wb-provisioning-api/index.ts';
 import { compare } from '../../utils/semantic-versioning.ts';
 import { REGULAR_EXPRESSIONS, MINUTES_PER_DAY, LOWER_BOUND } from '.';
 
@@ -120,4 +123,14 @@ export function hiddenParameters(parameter: ProductParameter): boolean {
   return parameter.parameterKey === 'Experimental' ||
     new RegExp(REGULAR_EXPRESSIONS.securityGroupId, 'giu').test(parameter.parameterType || '') ||
     new RegExp(REGULAR_EXPRESSIONS.ssmParameter, 'giu').test(parameter.parameterType || '');
+}
+
+const NO_LAUNCHES_LEFT = 0;
+
+/**
+ * Whether the user may launch no more of the product in the stage. Unknown (not loaded, or the lookup
+ * failed) counts as not reached: the launch itself still enforces the limit.
+ */
+export function isProvisioningLimitReached(limit?: GetProvisioningLimitResponse): boolean {
+  return limit !== undefined && limit.remaining <= NO_LAUNCHES_LEFT;
 }

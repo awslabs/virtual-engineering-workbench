@@ -11,6 +11,7 @@ import {
   AdditionalConfigurationParameter,
   AvailableProduct,
   AvailableVersionDistribution,
+  GetProvisioningLimitResponse,
   ProductParameter,
   ProductParameterMetaData
 } from '../../services/API/proserve-wb-provisioning-api/index.ts';
@@ -73,6 +74,12 @@ export function useProvisionProduct({
   }>();
   const isFeatureAccessible = useRoleAccessToggle();
   const [selectedAvailableProduct, setSelectedAvailableProduct] = useState<AvailableProduct | undefined>();
+  const [stageProvisioningLimit, setStageProvisioningLimit] = useState<{
+    stage: string,
+    limit: GetProvisioningLimitResponse,
+  }>();
+  const provisioningLimit = stageProvisioningLimit?.stage === selectedVersionStage ?
+    stageProvisioningLimit.limit : undefined;
 
   // eslint-disable-next-line complexity
   useEffect(() => {
@@ -156,6 +163,25 @@ export function useProvisionProduct({
     });
 
   }, [productId]);
+
+  useEffect(() => {
+    if (!selectedProject.projectId || !selectedVersionStage) {
+      return undefined;
+    }
+
+    // Only a notice: the launch itself still enforces the limit, so a failed lookup shows nothing.
+    let stale = false;
+    provisioningAPI.getProvisioningLimit(selectedProject.projectId, productId, selectedVersionStage)
+      .then(limit => {
+        if (!stale) {
+          setStageProvisioningLimit({ stage: selectedVersionStage, limit });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [selectedProject.projectId, productId, selectedVersionStage]);
 
   useEffect(() => {
     setProductVersionMetadata(undefined);
@@ -277,5 +303,6 @@ export function useProvisionProduct({
     setIsExperimentalWorkbench,
     isExperimentalWorkbenchAvailable,
     selectedAvailableProduct,
+    provisioningLimit,
   };
 }

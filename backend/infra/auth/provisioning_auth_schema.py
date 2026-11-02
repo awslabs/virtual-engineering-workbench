@@ -17,6 +17,7 @@ class ProvisioningBCActions(enum.StrEnum):
     GetProvisionedProducts = "GetProvisionedProducts"
     GetProvisionedProductSSHKey = "GetProvisionedProductSSHKey"
     GetProvisionedProductUserCredentials = "GetProvisionedProductUserCredentials"
+    GetProvisioningLimit = "GetProvisioningLimit"
     GetSwaggerSpec = "GetSwaggerSpec"
     GetUserProfile = "GetUserProfile"
     GetUsersWithinMaintenanceWindow = "GetUsersWithinMaintenanceWindow"

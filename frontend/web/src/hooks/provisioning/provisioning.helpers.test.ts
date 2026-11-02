@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { preselectedVersion } from './provisioning.helpers';
+import { isProvisioningLimitReached, preselectedVersion } from './provisioning.helpers';
 
 const v = (versionName: string, isRecommendedVersion = false) => ({ versionName, isRecommendedVersion });
 
@@ -23,5 +23,24 @@ describe('preselectedVersion', () => {
 
   it('selects nothing without versions', () => {
     expect(preselectedVersion([])).toBeUndefined();
+  });
+});
+
+describe('isProvisioningLimitReached', () => {
+  const LIMIT = 5;
+  const ONE_LEFT = 1;
+  const NONE_LEFT = 0;
+
+  it('is reached when none are left', () => {
+    expect(isProvisioningLimitReached({ limit: LIMIT, provisioned: LIMIT, remaining: NONE_LEFT })).toBe(true);
+  });
+
+  it('is not reached while some are left', () => {
+    expect(isProvisioningLimitReached({ limit: LIMIT, provisioned: LIMIT - ONE_LEFT, remaining: ONE_LEFT }))
+      .toBe(false);
+  });
+
+  it('is not reached while the limit is unknown', () => {
+    expect(isProvisioningLimitReached(undefined)).toBe(false);
   });
 });

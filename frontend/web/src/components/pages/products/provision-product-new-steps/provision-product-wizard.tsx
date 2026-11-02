@@ -10,8 +10,11 @@ import {
   Step3SelectedVersion,
 } from '.';
 import { ConsentForm } from './consent-form';
-import { ProductParameter } from '../../../../services/API/proserve-wb-provisioning-api';
-import { ProductParameterState } from '../../../../hooks/provisioning';
+import {
+  GetProvisioningLimitResponse,
+  ProductParameter,
+} from '../../../../services/API/proserve-wb-provisioning-api';
+import { ProductParameterState, isProvisioningLimitReached } from '../../../../hooks/provisioning';
 import { StepsTranslations } from '../../../../hooks/provisioning/provision-product.logic';
 
 interface Translations {
@@ -64,6 +67,7 @@ interface Step1Params {
   vvVersion?: string,
   vvArtifactUpstreamPath?: string,
   productType?: string,
+  provisioningLimit?: GetProvisioningLimitResponse,
 }
 
 interface Step2Params {
@@ -114,6 +118,7 @@ interface Params {
   setActiveStepIndex: (string: number) => any,
 }
 
+const FIRST_STEP_INDEX = 0;
 const STEP_1_CONFIGURE_SETTINGS_INDEX = 1;
 
 export const ProvisionProductWizard: FC<Params> = ({
@@ -134,6 +139,12 @@ export const ProvisionProductWizard: FC<Params> = ({
   const [showConsentForm, setShowConsentForm] = useState(false);
 
   const handleSubmit = () => {
+    // allowSkipTo can reach the last step without passing step 1, which says why the launch would fail.
+    if (isProvisioningLimitReached(step1Params.provisioningLimit)) {
+      setActiveStepIndex(FIRST_STEP_INDEX);
+      activeStepChanged?.(FIRST_STEP_INDEX);
+      return;
+    }
     if (step3Params.isExperimentalWorkbench) {
       setShowConsentForm(true);
     } else {
@@ -209,7 +220,7 @@ export const ProvisionProductWizard: FC<Params> = ({
 
   function isStep1DataValid() {
     setShowStep1ValidationErrors(true);
-    return isSelectedVersionValid();
+    return isSelectedVersionValid() && !isProvisioningLimitReached(step1Params.provisioningLimit);
   }
 
   function isSelectedVersionValid() {

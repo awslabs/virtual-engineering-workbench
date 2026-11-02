@@ -1510,6 +1510,93 @@ paths:
         requestTemplates:
           application/json: '{"statusCode": 200}'
         passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/{productId}/provisioning-limit:
+    get:
+      description: "Get how many more of a product the caller may launch in a stage"
+      operationId: "GetProvisioningLimit"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: stage
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProvisioningLimitResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProvisioningLimitCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
   /projects/{projectId}/products/provisioned/{provisionedProductId}/user-ip-address:
     patch:
       description: "Authorize user IP address"
@@ -2551,6 +2638,26 @@ components:
           type: array
           items:
             "$ref": "#/components/schemas/AvailableVersionDistribution"
+    GetProvisioningLimitResponse:
+      title: GetProvisioningLimitResponse
+      type: object
+      required:
+        - limit
+        - provisioned
+        - remaining
+      properties:
+        limit:
+          title: Limit
+          type: integer
+          description: How many the user may hold at once.
+        provisioned:
+          title: Provisioned
+          type: integer
+          description: How many the user holds now, not counting those being removed.
+        remaining:
+          title: Remaining
+          type: integer
+          description: How many more the user may launch.
     GetUserProfileResponseFeature:
       title: GetUserProfileResponseFeature
       type: object

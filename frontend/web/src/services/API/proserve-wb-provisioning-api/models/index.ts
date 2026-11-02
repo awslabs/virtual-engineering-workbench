@@ -17,6 +17,7 @@ export * from './GetProvisionedProductResponse';
 export * from './GetProvisionedProductSSHKeyResponse';
 export * from './GetProvisionedProductUserSecretResponse';
 export * from './GetProvisionedProductsResponse';
+export * from './GetProvisioningLimitResponse';
 export * from './GetUserProfileResponse';
 export * from './GetUserProfileResponseFeature';
 export * from './GetUsersWithinMaintenanceWindowResponse';
