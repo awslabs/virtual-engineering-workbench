@@ -92,6 +92,29 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
                     statement=aws_iam.PolicyStatement(
+                        # RunInstances carrying TagSpecifications is authorized against
+                        # ec2:CreateTags too. The condition holds the grant to tagging on
+                        # create, which is all a launch does.
+                        actions=[
+                            "ec2:CreateTags",
+                        ],
+                        effect=aws_iam.Effect.ALLOW,
+                        resources=[
+                            self.format_arn(
+                                account=self.account,
+                                partition=self.partition,
+                                region=self.region,
+                                resource=resource,
+                                resource_name="*",
+                                service="ec2",
+                            )
+                            for resource in ["instance", "volume"]
+                        ],
+                        conditions={"StringEquals": {"ec2:CreateAction": "RunInstances"}},
+                    ),
+                ),
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
                         actions=[
                             "ssm:DescribeParameters",
                             "ssm:GetParameter",
