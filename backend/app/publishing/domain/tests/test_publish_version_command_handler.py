@@ -1,9 +1,11 @@
 import logging
+import pathlib
 import tempfile
 from unittest import mock
 
 import assertpy
 import pytest
+import yaml
 from freezegun import freeze_time
 from jinja2.exceptions import SecurityError
 
@@ -1100,3 +1102,47 @@ def test_handle_ami_product_without_an_image_in_the_distributions_account_should
         publish_version_command_handler._handle_ami_product(
             b"{{ ami_ids }}", shared_amis_query_service_mock, get_version(), get_product()
         )
+
+
+class _CfnLoader(yaml.SafeLoader):
+    """CloudFormation shorthand tags (!Ref, !Sub, ...) are not plain YAML."""
+
+
+_CfnLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+TEMPLATES_DIR = pathlib.Path(__file__).parents[4] / "infra/backend/resources/product_publishing_app_stack/templates"
+
+
+@pytest.mark.parametrize("template_file", ("workbench-template.yml", "virtual-target-template.yml"))
+def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, get_product, template_file):
+    """A template that names one region renders an empty AMI id everywhere else, and
+    the stack then cannot resolve an image at all. Render the shipped templates against
+    a share outside us-east-1 and require the map to carry that region."""
+    # ARRANGE
+    version_entity = get_version()
+    product_entity = get_product()
+
+    shared_amis_qry_srv_mock = mock.create_autospec(spec=shared_amis_query_service.SharedAMIsQueryService)
+    shared_amis_qry_srv_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-eunorth1",
+            awsAccountId=version_entity.awsAccountId,
+            region="eu-north-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+
+    # ACT
+    rendered = publish_version_command_handler._handle_ami_product(
+        template=(TEMPLATES_DIR / template_file).read_bytes(),
+        shared_amis_qry_srv=shared_amis_qry_srv_mock,
+        vers=version_entity,
+        prod=product_entity,
+    )
+
+    # ASSERT
+    region_map = yaml.load(rendered, Loader=_CfnLoader)["Mappings"]["RegionMap"]
+    assertpy.assert_that(region_map).contains_key("eu-north-1")
+    assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
