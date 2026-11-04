@@ -195,6 +195,7 @@ def bootstrap(  # noqa: C901
                 component_qry_srv=component_query_service,
                 component_version_qry_srv=component_version_query_service,
                 recipe_version_query_service=recipe_version_qry_srv,
+                message_bus=message_bus,
             )
 
         return _handle_command
