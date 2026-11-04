@@ -26,13 +26,13 @@ export interface GetProvisioningLimitResponse {
      */
     limit: number;
     /**
-     * How many the user holds now, not counting those being removed.
+     * How many the user holds now. Failed ones count until removed; ones being removed do not.
      * @type {number}
      * @memberof GetProvisioningLimitResponse
      */
     provisioned: number;
     /**
-     * How many more the user may launch.
+     * How many more the user may launch, as of now. Advisory: the launch enforces the limit.
      * @type {number}
      * @memberof GetProvisioningLimitResponse
      */

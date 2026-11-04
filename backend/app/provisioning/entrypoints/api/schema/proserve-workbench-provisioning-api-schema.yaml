@@ -2653,11 +2653,11 @@ components:
         provisioned:
           title: Provisioned
           type: integer
-          description: How many the user holds now, not counting those being removed.
+          description: "How many the user holds now. Failed ones count until removed; ones being removed do not."
         remaining:
           title: Remaining
           type: integer
-          description: How many more the user may launch.
+          description: "How many more the user may launch, as of now. Advisory: the launch enforces the limit."
     GetUserProfileResponseFeature:
       title: GetUserProfileResponseFeature
       type: object

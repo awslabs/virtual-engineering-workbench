@@ -326,9 +326,15 @@ class GetProvisioningLimitResponse(BaseModel):
 
     limit: int = Field(..., description="How many the user may hold at once.", title="Limit")
     provisioned: int = Field(
-        ..., description="How many the user holds now, not counting those being removed.", title="Provisioned"
+        ...,
+        description="How many the user holds now. Failed ones count until removed; ones being removed do not.",
+        title="Provisioned",
     )
-    remaining: int = Field(..., description="How many more the user may launch.", title="Remaining")
+    remaining: int = Field(
+        ...,
+        description="How many more the user may launch, as of now. Advisory: the launch enforces the limit.",
+        title="Remaining",
+    )
 
 
 class GetUserProfileResponseFeature(BaseModel):
