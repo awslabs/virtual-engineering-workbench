@@ -15,13 +15,18 @@ echo_fail() {
 }
 
 fail_if_empty () {
-  [ -z $1 ] && echo_fail "$2" && exit 1
+  [ -z "$1" ] && echo_fail "$2" && exit 1
   return 0
 }
 
 app_name=${1:-$APP_NAME}
 environment_name=${2:-$ENVIRONMENT_NAME}
 default_region=${3:-$AWS_DEFAULT_REGION}
+
+# Optional: a caller may export profile="--profile <name>". Split it into
+# separate arguments so it can be passed through safely.
+# shellcheck disable=SC2154 # set by the caller, if at all
+read -r -a profile_args <<< "${profile:-}"
 
 fail_if_empty "$app_name" "Application name not specified"
 fail_if_empty "$environment_name" "Environment name not specified"
@@ -37,19 +42,19 @@ export UPLOAD_ENV="remote"
 
 ui_stack_name="$app_name-$environment_name"
 
-ui_stack_outputs=$(aws cloudformation describe-stacks --stack-name $ui_stack_name --query 'Stacks[0].Outputs' --output json --region $default_region)
+ui_stack_outputs=$(aws cloudformation describe-stacks --stack-name "$ui_stack_name" --query 'Stacks[0].Outputs' --output json --region "$default_region")
 
-distribution_id=$(jq -r '.[] | select(.OutputKey=="cdndistributionidoutput") | .OutputValue' <<< $ui_stack_outputs)
-s3_bucket_name=$(jq -r '.[] | select(.OutputKey=="icfrontends3output") | .OutputValue' <<< $ui_stack_outputs)
+distribution_id=$(jq -r '.[] | select(.OutputKey=="cdndistributionidoutput") | .OutputValue' <<< "$ui_stack_outputs")
+s3_bucket_name=$(jq -r '.[] | select(.OutputKey=="icfrontends3output") | .OutputValue' <<< "$ui_stack_outputs")
 CWD=$(pwd)
 
-cd $CWD/web/dist
+cd "$CWD/web/dist"
 
 # Redeploy main web app
-aws s3 rm s3://$s3_bucket_name/static/ $profile --recursive
-aws s3 cp ./ s3://$s3_bucket_name/ $profile --recursive
+aws s3 rm "s3://$s3_bucket_name/static/" "${profile_args[@]}" --recursive
+aws s3 cp ./ "s3://$s3_bucket_name/" "${profile_args[@]}" --recursive
 
-if [ ! -z $distribution_id ]; then
+if [ -n "$distribution_id" ]; then
  echo_info "Invalidating CloudFront distribution $distribution_id..."
- aws cloudfront create-invalidation --distribution-id $distribution_id $profile --paths "/*"
+ aws cloudfront create-invalidation --distribution-id "$distribution_id" "${profile_args[@]}" --paths "/*"
 fi

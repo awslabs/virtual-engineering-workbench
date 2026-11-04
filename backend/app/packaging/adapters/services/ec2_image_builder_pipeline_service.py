@@ -164,13 +164,19 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 # Stamped on the build instance and its volumes at RunInstances.
                 # An organisation that requires tags on create denies the build
                 # without them.
-                resourceTags=self._resource_tags,
+                **self.__resource_tags_kwargs(),
                 securityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                 snsTopicArn=self._topic_arn,
                 subnetId=subnet_id,
             )
 
             return response.get("infrastructureConfigurationArn")
+
+    def __resource_tags_kwargs(self) -> dict:
+        """Image Builder rejects an empty resourceTags map (min 1 item), so an
+        empty RESOURCE_TAGS, the documented "apply none" default, must leave
+        the field out instead of sending {}."""
+        return {"resourceTags": self._resource_tags} if self._resource_tags else {}
 
     def create_pipeline(
         self,
@@ -328,7 +334,7 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 # An update replaces the configuration rather than patching it,
                 # so omitting this here would strip the tags on the first
                 # redeploy of an existing pipeline.
-                resourceTags=self._resource_tags,
+                **self.__resource_tags_kwargs(),
                 securityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                 snsTopicArn=self._topic_arn,
                 subnetId=subnet_id,

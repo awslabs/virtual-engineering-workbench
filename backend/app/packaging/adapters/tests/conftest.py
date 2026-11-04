@@ -1506,6 +1506,26 @@ def get_test_ec2_image_builder_pipeline_srv(mock_pipelines_configuration_mapping
 
 
 @pytest.fixture
+def get_test_ec2_image_builder_pipeline_srv_with_tags(mock_pipelines_configuration_mapping):
+    return ec2_image_builder_pipeline_service.Ec2ImageBuilderPipelineService(
+        admin_role=GlobalVariables.TEST_ADMIN_ROLE.value,
+        ami_factory_aws_account_id=GlobalVariables.TEST_AMI_FACTORY_AWS_ACCOUNT_ID.value,
+        ami_factory_subnet_names=GlobalVariables.TEST_AMI_FACTORY_SUBNET_NAMES.value,
+        image_key_name=GlobalVariables.TEST_IMAGE_KEY_NAME.value,
+        instance_profile_name=GlobalVariables.TEST_INSTANCE_PROFILE_NAME.value,
+        instance_security_group_name=GlobalVariables.TEST_INSTANCE_SECURITY_GROUP_NAME.value,
+        pipelines_configuration_mapping=mock_pipelines_configuration_mapping,
+        region=GlobalVariables.TEST_REGION.value,
+        topic_arn=(
+            f"arn:aws:sns:{GlobalVariables.TEST_REGION.value}"
+            f":{GlobalVariables.TEST_AMI_FACTORY_AWS_ACCOUNT_ID.value}"
+            f":{GlobalVariables.TEST_TOPIC_NAME.value}"
+        ),
+        resource_tags={"cost-center": "1234"},
+    )
+
+
+@pytest.fixture
 def get_mock_parameter(mock_ssm_client):
     def _get_mock_parameter(
         parameter_name: str = GlobalVariables.TEST_PARAMETER_NAME.value,

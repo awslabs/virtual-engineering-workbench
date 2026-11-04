@@ -27,3 +27,18 @@ def test_bootstrapper_wires_component_retirement_to_handler_signature(monkeypatc
 
     handler.assert_called_once()
     assert handler.call_args.kwargs["command"] is command
+
+
+def test_bootstrapper_wires_recipe_update_on_component_update_to_handler_signature(monkeypatch):
+    handler = mock.create_autospec(bootstrapper.update_recipe_version_on_component_update_command_handler.handle)
+    monkeypatch.setattr(bootstrapper.update_recipe_version_on_component_update_command_handler, "handle", handler)
+    dependencies = bootstrapper.bootstrap(app_config=config.AppConfig(), logger=logging.getLogger())
+    command = (
+        bootstrapper.update_recipe_version_on_component_update_command.UpdateRecipeVersionOnComponentUpdateCommand.model_construct()
+    )
+
+    dependencies.command_bus.handle(command)
+
+    handler.assert_called_once()
+    assert handler.call_args.kwargs["command"] is command
+    assert handler.call_args.kwargs["message_bus"] is not None
