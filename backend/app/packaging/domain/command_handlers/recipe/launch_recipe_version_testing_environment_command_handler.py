@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from app.packaging.domain.commands.recipe import (
@@ -25,6 +26,7 @@ def handle(
     recipe_version_qry_srv: recipe_version_query_service.RecipeVersionQueryService,
     recipe_version_testing_srv: recipe_version_testing_service.RecipeVersionTestingService,
     uow: unit_of_work.UnitOfWork,
+    logger: logging.Logger,
 ):
     recipe_entity = recipe_qry_srv.get_recipe(project_id=command.projectId.value, recipe_id=command.recipeId.value)
     if recipe_entity is None:
@@ -58,6 +60,14 @@ def handle(
             volume_size=int(recipe_version_entity.recipeVersionVolumeSize),
         )
     ).value
+
+    # The instance exists before the row that records it. If the write below fails,
+    # nothing holds its id and nothing will terminate it, so emit the id first.
+    logger.info(
+        "Launched testing instance %s for recipe version %s",
+        instance_id,
+        command.recipeVersionId.value,
+    )
 
     component_version_test_execution_entity = recipe_version_test_execution.RecipeVersionTestExecution(
         recipeVersionId=command.recipeVersionId.value,
