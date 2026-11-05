@@ -103,3 +103,42 @@ def test_handle_should_complete_recipe_version_testing(
         status=desired_recipe_status,
     )
     uow_mock.commit.assert_called()
+
+
+@freeze_time("2023-09-29")
+def test_handle_should_fail_the_version_when_the_test_execution_is_missing(
+    complete_recipe_version_testing_command_mock,
+    recipe_query_service_mock,
+    recipe_version_test_execution_query_service_mock,
+    recipe_version_testing_service_mock,
+    generic_repo_mock,
+    uow_mock,
+    mock_recipe_version_object,
+    mock_recipe_object,
+):
+    """A launch that fails writes no test execution, and every task in the testing
+    state machine catches to this handler. It must still fail the version, or the
+    version stays in TESTING with nothing left to move it."""
+    # ARRANGE
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    recipe_version_test_execution_query_service_mock.get_recipe_version_test_execution.return_value = None
+
+    # ACT
+    result = complete_recipe_version_testing_command_handler.handle(
+        command=complete_recipe_version_testing_command_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+        recipe_version_test_execution_qry_srv=recipe_version_test_execution_query_service_mock,
+        recipe_version_testing_srv=recipe_version_testing_service_mock,
+        uow=uow_mock,
+    )
+
+    # ASSERT
+    assert result == recipe_version_test_execution.RecipeVersionTestExecutionStatus.Failed
+    recipe_version_testing_service_mock.teardown_testing_environment.assert_not_called()
+    generic_repo_mock.update_attributes.assert_called_with(
+        recipe_version.RecipeVersionPrimaryKey(
+            recipeId=mock_recipe_object.recipeId, recipeVersionId=mock_recipe_version_object.recipeVersionId
+        ),
+        status=recipe_version.RecipeVersionStatus.Failed,
+    )
+    uow_mock.commit.assert_called()

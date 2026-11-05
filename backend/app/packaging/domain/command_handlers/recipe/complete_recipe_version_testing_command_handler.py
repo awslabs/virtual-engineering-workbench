@@ -24,6 +24,24 @@ def handle(
     recipe_version_test_execution_entity = recipe_version_test_execution_qry_srv.get_recipe_version_test_execution(
         version_id=command.recipeVersionId.value, test_execution_id=command.testExecutionId.value
     )
+
+    # Every task in the testing state machine catches to this handler, including
+    # LaunchTestEnvironment, which writes no test execution when it fails. There
+    # is then no instance to tear down, and dereferencing the missing execution
+    # here leaves the version in TESTING with nothing left to move it.
+    if recipe_version_test_execution_entity is None:
+        with uow:
+            uow.get_repository(recipe_version.RecipeVersionPrimaryKey, recipe_version.RecipeVersion).update_attributes(
+                recipe_version.RecipeVersionPrimaryKey(
+                    recipeId=command.recipeId.value,
+                    recipeVersionId=command.recipeVersionId.value,
+                ),
+                status=recipe_version.RecipeVersionStatus.Failed,
+            )
+            uow.commit()
+
+        return recipe_version_test_execution.RecipeVersionTestExecutionStatus.Failed
+
     instance_id = recipe_version_test_execution_entity.instanceId
     test_status = (
         recipe_version_test_execution.RecipeVersionTestExecutionStatus.Success
