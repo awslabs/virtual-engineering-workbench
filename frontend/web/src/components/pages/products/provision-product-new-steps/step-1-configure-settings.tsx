@@ -473,7 +473,7 @@ const configureSettingsStep: FC<ConfigureSettingsStepParams> = ({
 
     if (isProvisioningLimitReached(provisioningLimit)) {
       return <Alert
-        type="error"
+        type="warning"
         header={i18nSteps.provisioningLimitReachedHeader}
         data-test="provisioning-limit"
       >
