@@ -27,7 +27,7 @@ class JWTAuthorizer(authorizer.AuthorizerStep):
         logger: Logger,
         metrics: Metrics,
         issuer: str,
-        audiences: list[str] = [],
+        audiences: list[str] | typing.Callable[[], list[str]] = [],
     ):
         self.__auth_srv = auth_srv
         self.__logger = logger
@@ -84,9 +84,10 @@ class JWTAuthorizer(authorizer.AuthorizerStep):
         return False
 
     def __validate_audience(self, token: dict):
-        if self.__audiences:
+        audiences = self.__audiences() if callable(self.__audiences) else self.__audiences
+        if audiences:
             token_client_id = token.get("aud") or token.get("client_id")
-            if token_client_id not in self.__audiences:
+            if token_client_id not in audiences:
                 self.__logger.error("The JWT token has an invalid audience")
                 raise jwt.exceptions.InvalidAudienceError("Invalid client ID")
 

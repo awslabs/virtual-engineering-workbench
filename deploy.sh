@@ -1556,7 +1556,7 @@ if [ "$(echo "$ADDITIONAL_APP_CLIENTS" | jq length)" -gt 0 ]; then
   for _name in $(echo "$ADDITIONAL_APP_CLIENTS" | jq -r '.[].Name'); do
     _output_key="appclient${_name//-/}idoutput"
     _client_id=$(echo "$FE_OUTPUTS" | jq -r --arg key "$_output_key" '.[] | select(.OutputKey==$key) | .OutputValue // empty')
-    echo "    $_name: ${_client_id:-unknown}"
+    echo "    $_name: ${_client_id:-unknown} (SSM /${ORG_PREFIX}-${APP_PREFIX}-ui-${ENVIRONMENT}/app-client-id/$_name)"
   done
   echo "  Read a client's secret with:"
   echo "    aws cognito-idp describe-user-pool-client \\"

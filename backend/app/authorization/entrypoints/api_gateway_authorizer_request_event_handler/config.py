@@ -22,8 +22,8 @@ class AppConfig(config.VEWBaseConfig):
     def get_user_pool_url(self) -> str:
         return os.environ.get("USER_POOL_URL", "")
 
-    def get_user_pool_client_ids(self) -> list[str]:
-        return os.environ.get("USER_POOL_CLIENT_IDS", "").split(",")
+    def get_user_pool_client_ids_ssm_param(self) -> str:
+        return os.environ.get("USER_POOL_CLIENT_IDS_SSM_PARAM", "")
 
     def get_jwks_uri(self) -> str:
         return os.environ.get("JWKS_URI", "")

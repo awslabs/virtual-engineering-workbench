@@ -67,7 +67,7 @@ def aws_credentials(monkeypatch, mocked_user_pool_url, mocked_user_pool_id, mock
     monkeypatch.setenv("USER_POOL_URL", mocked_user_pool_url)
     monkeypatch.setenv("USER_POOL_ID", mocked_user_pool_id)
     monkeypatch.setenv("USER_POOL_REGION", mocked_user_pool_region)
-    monkeypatch.setenv("USER_POOL_CLIENT_IDS", "test-client-id,test-client-id-2")
+    monkeypatch.setenv("USER_POOL_CLIENT_IDS_SSM_PARAM", "user-pool-client-ids-param")
     monkeypatch.setenv("TABLE_NAME", mock_table_name)
     monkeypatch.setenv("GSI_NAME_INVERTED_PK", "gsi_inverted_pk")
 
@@ -211,6 +211,15 @@ def mock_api_policy_stores(ssm_mock: mypy_boto3_ssm.Client, mocked_projects_url)
                 "auth_features": ["ProjectAssignments"],
             }
         ),
+        Type="String",
+    )
+
+
+@pytest.fixture(autouse=True)
+def mock_user_pool_client_ids(ssm_mock: mypy_boto3_ssm.Client):
+    ssm_mock.put_parameter(
+        Name="user-pool-client-ids-param",
+        Value="test-client-id,test-client-id-2",
         Type="String",
     )
 
