@@ -1111,9 +1111,19 @@ class _CfnLoader(yaml.SafeLoader):
 _CfnLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 TEMPLATES_DIR = pathlib.Path(__file__).parents[4] / "infra/backend/resources/product_publishing_app_stack/templates"
+EXAMPLES_DIR = pathlib.Path(__file__).parents[5] / "examples"
+
+# The examples are what the tutorial tells people to copy, so they carry the same
+# contract as the shipped defaults.
+AMI_TEMPLATES = (
+    TEMPLATES_DIR / "workbench-template.yml",
+    TEMPLATES_DIR / "virtual-target-template.yml",
+    EXAMPLES_DIR / "freertos" / "product.yaml",
+    EXAMPLES_DIR / "android-cuttlefish" / "product.yaml",
+)
 
 
-@pytest.mark.parametrize("template_file", ("workbench-template.yml", "virtual-target-template.yml"))
+@pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
 def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, get_product, template_file):
     """A template that names one region renders an empty AMI id everywhere else, and
     the stack then cannot resolve an image at all. Render the shipped templates against
@@ -1136,7 +1146,7 @@ def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, g
 
     # ACT
     rendered = publish_version_command_handler._handle_ami_product(
-        template=(TEMPLATES_DIR / template_file).read_bytes(),
+        template=template_file.read_bytes(),
         shared_amis_qry_srv=shared_amis_qry_srv_mock,
         vers=version_entity,
         prod=product_entity,
@@ -1148,7 +1158,7 @@ def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, g
     assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
 
 
-@pytest.mark.parametrize("template_file", ("workbench-template.yml", "virtual-target-template.yml"))
+@pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
 def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_product, template_file):
     """The templates emit one mapping per ami_ids entry. SharedAmi is keyed by
     (originalAmiId, awsAccountId) with no region, so the repository cannot supply more
@@ -1179,7 +1189,7 @@ def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_p
 
     # ACT
     rendered = publish_version_command_handler._handle_ami_product(
-        template=(TEMPLATES_DIR / template_file).read_bytes(),
+        template=template_file.read_bytes(),
         shared_amis_qry_srv=shared_amis_qry_srv_mock,
         vers=version_entity,
         prod=product_entity,

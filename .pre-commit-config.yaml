@@ -9,7 +9,11 @@ repos:
         # Jinja source rendered per product version, not YAML: a {% %} tag
         # cannot tokenize. The rendered output is parsed in
         # test_publish_version_command_handler.py instead.
-        exclude: ^backend/infra/backend/resources/product_publishing_app_stack/templates/
+        exclude: |
+          (?x)^(
+            backend/infra/backend/resources/product_publishing_app_stack/templates/
+            |examples/[^/]+/product\.yaml$
+          )
       - id: check-json
       - id: check-added-large-files
         args: [--maxkb=1024]
