@@ -119,6 +119,7 @@ def bootstrap(  # noqa: C901
                 recipe_version_qry_srv=recipe_version_qry_srv,
                 recipe_version_testing_srv=recipe_version_testing_srv,
                 uow=shared_uow,
+                logger=logger,
             )
 
         return _handle_command

@@ -1,3 +1,5 @@
+import logging
+
 import assertpy
 import pytest
 from freezegun import freeze_time
@@ -40,6 +42,7 @@ def test_handle_should_launch_recipe_version_testing(
         recipe_version_qry_srv=recipe_version_query_service_mock,
         recipe_version_testing_srv=recipe_version_testing_service_mock,
         uow=uow_mock,
+        logger=logging.getLogger(),
     )
 
     # ASSERT
@@ -96,6 +99,7 @@ def test_handle_should_raise_exception_when_recipe_is_none(
             recipe_version_qry_srv=recipe_version_query_service_mock,
             recipe_version_testing_srv=recipe_version_testing_service_mock,
             uow=uow_mock,
+            logger=logging.getLogger(),
         )
 
     # ASSERT
@@ -122,9 +126,46 @@ def test_handle_should_raise_exception_when_recipe_version_is_none(
             recipe_version_qry_srv=recipe_version_query_service_mock,
             recipe_version_testing_srv=recipe_version_testing_service_mock,
             uow=uow_mock,
+            logger=logging.getLogger(),
         )
 
     # ASSERT
     assertpy.assert_that(str(e.value)).is_equal_to(
         f"Recipe version {launch_recipe_version_testing_environment_command_mock.recipeVersionId.value} does not exist."
     )
+
+
+@freeze_time("2023-09-29")
+def test_handle_should_log_the_instance_id_before_recording_it(
+    recipe_query_service_mock,
+    recipe_version_query_service_mock,
+    recipe_version_testing_service_mock,
+    launch_recipe_version_testing_environment_command_mock,
+    uow_mock,
+    mock_recipe_object,
+    mock_recipe_version_object,
+    get_test_instance_id,
+    get_test_instance_type,
+    caplog,
+):
+    """The instance exists before the row that records it. If that write fails, the
+    log line is the only thing holding the id, so an orphan stays findable."""
+    # ARRANGE
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    recipe_version_query_service_mock.get_recipe_version.return_value = mock_recipe_version_object
+    recipe_version_testing_service_mock.get_testing_environment_instance_type.return_value = get_test_instance_type
+    recipe_version_testing_service_mock.launch_testing_environment.return_value = get_test_instance_id
+
+    # ACT
+    with caplog.at_level(logging.INFO):
+        launch_recipe_version_testing_environment_command_handler.handle(
+            command=launch_recipe_version_testing_environment_command_mock,
+            recipe_qry_srv=recipe_query_service_mock,
+            recipe_version_qry_srv=recipe_version_query_service_mock,
+            recipe_version_testing_srv=recipe_version_testing_service_mock,
+            uow=uow_mock,
+            logger=logging.getLogger(),
+        )
+
+    # ASSERT
+    assertpy.assert_that(caplog.text).contains(get_test_instance_id)
