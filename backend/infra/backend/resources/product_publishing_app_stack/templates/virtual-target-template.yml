@@ -4,8 +4,10 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Version {{ product_version }} template for {{ product_name }} Virtual Target
 Mappings:
   RegionMap:
-    us-east-1:
-      AMIId: "{{ ami_ids['us-east-1'] }}"
+{%- for region, ami_id in ami_ids.items() %}
+    {{ region }}:
+      AMIId: "{{ ami_id }}"
+{%- endfor %}
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterLabels:

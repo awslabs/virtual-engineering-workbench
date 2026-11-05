@@ -1,9 +1,11 @@
 import logging
+import pathlib
 import tempfile
 from unittest import mock
 
 import assertpy
 import pytest
+import yaml
 from freezegun import freeze_time
 from jinja2.exceptions import SecurityError
 
@@ -1100,3 +1102,101 @@ def test_handle_ami_product_without_an_image_in_the_distributions_account_should
         publish_version_command_handler._handle_ami_product(
             b"{{ ami_ids }}", shared_amis_query_service_mock, get_version(), get_product()
         )
+
+
+class _CfnLoader(yaml.SafeLoader):
+    """CloudFormation shorthand tags (!Ref, !Sub, ...) are not plain YAML."""
+
+
+_CfnLoader.add_multi_constructor("!", lambda loader, suffix, node: None)
+
+TEMPLATES_DIR = pathlib.Path(__file__).parents[4] / "infra/backend/resources/product_publishing_app_stack/templates"
+EXAMPLES_DIR = pathlib.Path(__file__).parents[5] / "examples"
+
+# The examples are what the tutorial tells people to copy, so they carry the same
+# contract as the shipped defaults.
+AMI_TEMPLATES = (
+    TEMPLATES_DIR / "workbench-template.yml",
+    TEMPLATES_DIR / "virtual-target-template.yml",
+    EXAMPLES_DIR / "freertos" / "product.yaml",
+    EXAMPLES_DIR / "android-cuttlefish" / "product.yaml",
+)
+
+
+@pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, get_product, template_file):
+    """A template that names one region renders an empty AMI id everywhere else, and
+    the stack then cannot resolve an image at all. Render the shipped templates against
+    a share outside us-east-1 and require the map to carry that region."""
+    # ARRANGE
+    version_entity = get_version()
+    product_entity = get_product()
+
+    shared_amis_qry_srv_mock = mock.create_autospec(spec=shared_amis_query_service.SharedAMIsQueryService)
+    shared_amis_qry_srv_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-eunorth1",
+            awsAccountId=version_entity.awsAccountId,
+            region="eu-north-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+
+    # ACT
+    rendered = publish_version_command_handler._handle_ami_product(
+        template=template_file.read_bytes(),
+        shared_amis_qry_srv=shared_amis_qry_srv_mock,
+        vers=version_entity,
+        prod=product_entity,
+    )
+
+    # ASSERT
+    region_map = yaml.load(rendered, Loader=_CfnLoader)["Mappings"]["RegionMap"]
+    assertpy.assert_that(region_map).contains_key("eu-north-1")
+    assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
+
+
+@pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_product, template_file):
+    """The templates emit one mapping per ami_ids entry. SharedAmi is keyed by
+    (originalAmiId, awsAccountId) with no region, so the repository cannot supply more
+    than one entry today; this pins the templates' behaviour if it ever does."""
+    # ARRANGE
+    version_entity = get_version()
+    product_entity = get_product()
+
+    shared_amis_qry_srv_mock = mock.create_autospec(spec=shared_amis_query_service.SharedAMIsQueryService)
+    shared_amis_qry_srv_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-eunorth1",
+            awsAccountId=version_entity.awsAccountId,
+            region="eu-north-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-useast1",
+            awsAccountId=version_entity.awsAccountId,
+            region="us-east-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+
+    # ACT
+    rendered = publish_version_command_handler._handle_ami_product(
+        template=template_file.read_bytes(),
+        shared_amis_qry_srv=shared_amis_qry_srv_mock,
+        vers=version_entity,
+        prod=product_entity,
+    )
+
+    # ASSERT
+    region_map = yaml.load(rendered, Loader=_CfnLoader)["Mappings"]["RegionMap"]
+    assertpy.assert_that(region_map).is_length(2)
+    assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
+    assertpy.assert_that(region_map["us-east-1"]["AMIId"]).is_equal_to("ami-useast1")
