@@ -476,6 +476,12 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     entry="app/packaging/entrypoints/domain_event_handler",
                     environment={
                         "RESOURCE_TAGS": self._resource_tags,
+                        # The build instance role can already write to the recipe test bucket.
+                        "BUILD_LOGS_S3_BUCKET_NAME": app_config.component_specific["recipe-test-s3-bucket-name"].format(
+                            environment=app_config.environment,
+                            image_service_account_id=self.get_image_service_account_id(app_config),
+                            region=app_config.region,
+                        ),
                         "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
                         "AMI_FACTORY_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
                         "AMI_FACTORY_VPC_NAME": app_config.component_specific.get("ami-factory-vpc-name"),

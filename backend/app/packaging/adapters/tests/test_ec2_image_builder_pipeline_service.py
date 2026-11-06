@@ -353,3 +353,37 @@ def test_should_update_infrastructure_configuration_with_resource_tags(
     # ASSERT
     _, kwargs = mock_moto_calls["UpdateInfrastructureConfiguration"].call_args
     assertpy.assert_that(kwargs["resourceTags"]).is_equal_to({"cost-center": "1234"})
+
+
+def test_should_create_infrastructure_configuration_with_build_logs(
+    get_test_ec2_image_builder_pipeline_srv_with_build_logs, mock_moto_calls, mock_security_group, mock_subnets
+):
+    # ACT
+    get_test_ec2_image_builder_pipeline_srv_with_build_logs.create_infrastructure_config(
+        description=GlobalVariables.TEST_PIPELINE_DESCRIPTION.value,
+        instance_types=["m8a.4xlarge"],
+        name=GlobalVariables.TEST_PIPELINE_ID.value,
+    )
+
+    # ASSERT
+    _, kwargs = mock_moto_calls["CreateInfrastructureConfiguration"].call_args
+    assertpy.assert_that(kwargs["logging"]).is_equal_to(
+        {"s3Logs": {"s3BucketName": "build-logs-bucket", "s3KeyPrefix": "image-builds"}}
+    )
+
+
+def test_should_update_infrastructure_configuration_with_build_logs(
+    get_test_ec2_image_builder_pipeline_srv_with_build_logs, mock_moto_calls, mock_security_group, mock_subnets
+):
+    # ACT
+    get_test_ec2_image_builder_pipeline_srv_with_build_logs.update_infrastructure_config(
+        description=GlobalVariables.TEST_PIPELINE_DESCRIPTION.value,
+        infrastructure_config_arn=GlobalVariables.TEST_PIPELINE_INFRASTRUCTURE_CONFIG_ARN.value,
+        instance_types=["m8a.4xlarge"],
+    )
+
+    # ASSERT
+    _, kwargs = mock_moto_calls["UpdateInfrastructureConfiguration"].call_args
+    assertpy.assert_that(kwargs["logging"]).is_equal_to(
+        {"s3Logs": {"s3BucketName": "build-logs-bucket", "s3KeyPrefix": "image-builds"}}
+    )
