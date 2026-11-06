@@ -31,9 +31,15 @@ Outputs:
   InstanceId:
     Description: InstanceId of the newly created EC2 instance
     Value: !Ref Workbench
+  KeyPairId:
+    Description: Key pair the workbench was launched with
+    Value: !GetAtt KeyPair.KeyPairId
   PrivateIP:
     Description: Private IP address of the newly created EC2 instance
     Value: !GetAtt Workbench.PrivateIp
+  SSHKeyPair:
+    Description: SSM parameter holding the generated private key, which VEW reveals to the workbench owner
+    Value: !Join ["", ["/ec2/keypair/", !GetAtt KeyPair.KeyPairId]]
 Parameters:
   # Modify both the AllowedValues and Default accordingly to the product requirements
   InstanceType:
@@ -147,6 +153,11 @@ Resources:
             Version: 2012-10-17
           PolicyName: S3ForNiceDcvLicense
     Type: AWS::IAM::Role
+  KeyPair:
+    Properties:
+      KeyName: !Join ["-", ["KeyPair", !Select [4, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]]]
+      KeyType: ed25519
+    Type: AWS::EC2::KeyPair
   SecurityGroup:
     Properties:
       GroupDescription: Default rules for {{ product_name }} Workbench
@@ -187,6 +198,7 @@ Resources:
       PropagateTagsToVolumeOnCreation: true
       IamInstanceProfile: !Ref InstanceProfile
       InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
       ImageId: !FindInMap
         - RegionMap
         - !Ref AWS::Region
