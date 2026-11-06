@@ -2,6 +2,7 @@ import boto3
 from aws_lambda_powertools import logging
 from pydantic import BaseModel, ConfigDict
 
+from app.publishing.adapters.query_services import dynamodb_shared_amis_query_service
 from app.publishing.adapters.repository import dynamo_entity_config
 from app.publishing.adapters.services import ec2_image_service
 from app.publishing.domain.command_handlers import (
@@ -112,8 +113,16 @@ def bootstrap(  # noqa: C901
         .register_handler(fail_ami_sharing_command.FailAmiSharingCommand, _fail_ami_sharing_cmd_handler_factory())
     )
 
+    shared_amis_qry_svc = dynamodb_shared_amis_query_service.DynamoDBSharedAMIsQueryService(
+        table_name=app_config.get_table_name(),
+        dynamodb_client=dynamodb.meta.client,
+        gsi_name_entities=app_config.get_gsi_name_entities(),
+    )
     shared_amis_domain_qry_svc = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
-        unit_of_work=shared_uow, image_svc=ec2_img_srv, default_original_ami_region=app_config.get_default_region()
+        unit_of_work=shared_uow,
+        image_svc=ec2_img_srv,
+        shared_amis_qry_svc=shared_amis_qry_svc,
+        default_original_ami_region=app_config.get_default_region(),
     )
     return Dependencies(
         command_bus=command_bus,

@@ -2,8 +2,8 @@ import enum
 import typing
 
 from app.publishing.domain.exceptions import domain_exception
-from app.publishing.domain.model import product, shared_ami, version
-from app.publishing.domain.ports import image_service
+from app.publishing.domain.model import product, version
+from app.publishing.domain.ports import image_service, shared_amis_query_service
 from app.publishing.domain.value_objects import (
     ami_id_value_object,
     aws_account_id_value_object,
@@ -30,10 +30,12 @@ class SharedAMIsDomainQueryService:
         self,
         unit_of_work: unit_of_work.UnitOfWork,
         image_svc: image_service.ImageService,
+        shared_amis_qry_svc: shared_amis_query_service.SharedAMIsQueryService,
         default_original_ami_region: str,
     ) -> None:
         self._uow = unit_of_work
         self._image_svc = image_svc
+        self._shared_amis_qry_svc = shared_amis_qry_svc
         self._default_original_ami_region = default_original_ami_region
 
     def make_share_ami_decision(
@@ -43,8 +45,6 @@ class SharedAMIsDomainQueryService:
         aws_account_id: aws_account_id_value_object.AWSAccountIDValueObject,
         product_type: product_type_value_object.ProductTypeValueObject,
     ) -> typing.Tuple[ShareAmiDecision, str, str, str]:
-        # Get the version entity & shared ami entity
-        shared_ami_entity = None
         with self._uow:
             version_entity: version.Version = self._uow.get_repository(version.VersionPrimaryKey, version.Version).get(
                 pk=version.VersionPrimaryKey(
@@ -54,11 +54,16 @@ class SharedAMIsDomainQueryService:
             # lets add a skip decision is its a container product type
             if product_type.value == product.ProductType.Container:
                 return ShareAmiDecision.NOT_REQUIRED, version_entity.region, "", ""
-            shared_ami_entity = self._uow.get_repository(shared_ami.SharedAmiPrimaryKey, shared_ami.SharedAmi).get(
-                pk=shared_ami.SharedAmiPrimaryKey(
-                    originalAmiId=version_entity.originalAmiId, awsAccountId=aws_account_id.value
-                )
-            )
+
+        # Records written before region joined the key are still found by this query, so no migration is needed.
+        shared_ami_entity = next(
+            (
+                ami
+                for ami in self._shared_amis_qry_svc.get_shared_amis(original_ami_id=version_entity.originalAmiId)
+                if ami.awsAccountId == aws_account_id.value and ami.region == version_entity.region
+            ),
+            None,
+        )
 
         # Make the decision
         copied_ami_id = None
