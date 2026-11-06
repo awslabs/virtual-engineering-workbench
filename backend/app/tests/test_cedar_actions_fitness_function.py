@@ -4,23 +4,34 @@ The authorizer sends the operation name to Verified Permissions as the action, s
 missing from the bounded context's actions is denied for every caller.
 """
 
-import enum
+import ast
 import pathlib
 
 import pytest
 import yaml
 
-from infra.auth.packaging_auth_schema import PackagingBCActions
-from infra.auth.projects_auth_schema import ProjectsBCActions
-from infra.auth.provisioning_auth_schema import ProvisioningBCActions
-from infra.auth.publishing_auth_schema import PublishingBCActions
-
 APP_DIR = pathlib.Path(__file__).parents[1]
-BC_ACTIONS: dict[str, type[enum.StrEnum]] = {
-    "packaging": PackagingBCActions,
-    "projects": ProjectsBCActions,
-    "provisioning": ProvisioningBCActions,
-    "publishing": PublishingBCActions,
+AUTH_DIR = APP_DIR.parent / "infra" / "auth"
+
+
+def _action_names(bounded_context: str) -> frozenset[str]:
+    """Read Cedar action enum members without importing CDK, which requires Node in CI."""
+    module = ast.parse((AUTH_DIR / f"{bounded_context}_auth_schema.py").read_text())
+    actions_class = next(
+        node for node in module.body if isinstance(node, ast.ClassDef) and node.name.endswith("BCActions")
+    )
+    return frozenset(
+        target.id
+        for node in actions_class.body
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    )
+
+
+BC_ACTIONS: dict[str, frozenset[str]] = {
+    bounded_context: _action_names(bounded_context)
+    for bounded_context in ("packaging", "projects", "provisioning", "publishing")
 }
 METHODS = ("get", "put", "post", "delete", "patch")
 
@@ -42,4 +53,4 @@ def _avp_operations():
 
 @pytest.mark.parametrize("bounded_context,operation_id", _avp_operations())
 def test_avp_operation_is_a_bounded_context_action(bounded_context, operation_id):
-    assert operation_id in BC_ACTIONS[bounded_context].__members__
+    assert operation_id in BC_ACTIONS[bounded_context]
