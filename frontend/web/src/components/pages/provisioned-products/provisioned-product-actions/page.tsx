@@ -221,10 +221,10 @@ function provisionedProductLogin({
   }
 
   function renderConnectionChoice() {
-    i18n.loginPromptHeader = 'Select your network and connection type';
     if (!enabledLoginOptions.length) {
-      return <></>;
+      return <Alert type="info">{i18n.loginNoConnectionOptions}</Alert>;
     }
+    i18n.loginPromptHeader = 'Select your network and connection type';
 
     return (
       <FormField description={i18n.loginConnectionChoiceDescription}>
