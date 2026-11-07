@@ -17,7 +17,12 @@ import {
 import { RoleBasedFeature } from '../../../../state';
 import { FC, useState, useEffect } from 'react';
 import { EnabledRegion, REGION_NAMES } from '../../../user-preferences';
-import { compareSemanticVersions, preselectedVersion } from '../../../../hooks/provisioning';
+import {
+  compareSemanticVersions,
+  isProvisioningLimitReached,
+  preselectedVersion,
+} from '../../../../hooks/provisioning';
+import { GetProvisioningLimitResponse } from '../../../../services/API/proserve-wb-provisioning-api';
 import { useRoleAccessToggle } from '../../../../hooks/role-access-toggle';
 import { useFeatureToggles } from '../../../feature-toggles/feature-toggle.hook';
 import { Feature } from '../../../feature-toggles/feature-toggle.state';
@@ -105,6 +110,7 @@ interface ConfigureSettingsStepParams {
   vvVersion?: string,
   vvArtifactUpstreamPath?: string,
   productType?: string,
+  provisioningLimit?: GetProvisioningLimitResponse,
 }
 
 // eslint-disable-next-line complexity
@@ -128,7 +134,8 @@ const configureSettingsStep: FC<ConfigureSettingsStepParams> = ({
   vvPlatform,
   vvVersion,
   vvArtifactUpstreamPath,
-  productType
+  productType,
+  provisioningLimit,
 }) => {
   const { isFeatureEnabled } = useFeatureToggles();
   const isFeatureAccessible = useRoleAccessToggle();
@@ -292,6 +299,7 @@ const configureSettingsStep: FC<ConfigureSettingsStepParams> = ({
       <SpaceBetween direction="vertical" size="l">
         {renderRegionSelector()}
         {renderStageSelector()}
+        {renderProvisioningLimit()}
         {renderVersionSelector()}
         {!isFeatureEnabled(Feature.ProductMetadata) && renderMetadata()}
         {isFeatureEnabled(Feature.ProductMetadata) && renderVersionDetails()}
@@ -455,6 +463,27 @@ const configureSettingsStep: FC<ConfigureSettingsStepParams> = ({
         </SpaceBetween>
       </FormField>
     }</>;
+  }
+
+  function renderProvisioningLimit() {
+    if (!provisioningLimit) {
+      return <></>;
+    }
+    const { provisioned, limit } = provisioningLimit;
+
+    if (isProvisioningLimitReached(provisioningLimit)) {
+      return <Alert
+        type="warning"
+        header={i18nSteps.provisioningLimitReachedHeader}
+        data-test="provisioning-limit"
+      >
+        {i18nSteps.provisioningLimitReached(provisioned, limit, selectedVersionStage)}
+      </Alert>;
+    }
+
+    return <Alert type="info" data-test="provisioning-limit">
+      {i18nSteps.provisioningLimitInfo(provisioned, limit, selectedVersionStage)}
+    </Alert>;
   }
 
   function renderVersionSelector() {

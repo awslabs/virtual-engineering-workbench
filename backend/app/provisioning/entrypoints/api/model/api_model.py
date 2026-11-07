@@ -321,6 +321,22 @@ class GetAvailableProductVersionsResponse(BaseModel):
     )
 
 
+class GetProvisioningLimitResponse(BaseModel):
+    """How many provisioned products of one product the user may still launch in a stage."""
+
+    limit: int = Field(..., description="How many the user may hold at once.", title="Limit")
+    provisioned: int = Field(
+        ...,
+        description="How many the user holds now. Failed ones count until removed; ones being removed do not.",
+        title="Provisioned",
+    )
+    remaining: int = Field(
+        ...,
+        description="How many more the user may launch, as of now. Advisory: the launch enforces the limit.",
+        title="Remaining",
+    )
+
+
 class GetUserProfileResponseFeature(BaseModel):
     version: Optional[str] = Field(None, description="Version of the feature", title="Version")
     feature: Optional[str] = Field(None, description="Feature name", title="Feature")

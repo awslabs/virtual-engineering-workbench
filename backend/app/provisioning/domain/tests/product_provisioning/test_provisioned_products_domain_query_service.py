@@ -9,6 +9,7 @@ from app.provisioning.domain.model import (
     product_status,
     provisioned_product,
     provisioned_product_output,
+    provisioning_limit,
     provisioning_parameter,
     user_credential,
 )
@@ -26,6 +27,7 @@ from app.provisioning.domain.tests.product_provisioning.conftest import (
     TEST_OS_VERSION,
 )
 from app.provisioning.domain.value_objects import (
+    product_id_value_object,
     product_name_value_object,
     product_status_value_object,
     product_version_name_value_object,
@@ -582,3 +584,48 @@ def test_get_paginated_provisioned_products(
     assertpy.assert_that(provisioned_products).is_length(5)
     assertpy.assert_that(paging_token).is_equal_to({"PK": "proj-1", "SK": "pp-1"})
     provisioned_product_query_service_mock.get_provisioned_products_by_project_id_paginated.assert_called_once()
+
+
+@pytest.mark.parametrize("stage,limit", [("DEV", 5), ("QA", 6), ("PROD", 5)])
+def test_get_provisioning_limit_counts_the_users_products_of_that_product_and_stage(
+    stage,
+    limit,
+    provisioned_product_query_service_mock,
+    make_sample_provisioned_product,
+    versions_query_service_mock,
+    network_qry_srv_mock,
+    parameter_service_mock,
+):
+    # ARRANGE
+    provisioned_product_query_service_mock.get_provisioned_products_by_user_id.return_value = [
+        make_sample_provisioned_product(f"vt-{i}", "prod-1") for i in range(2)
+    ]
+    products_domain_qry_srv = provisioned_products_domain_query_service.ProvisionedProductsDomainQueryService(
+        provisioned_products_qry_srv=provisioned_product_query_service_mock,
+        version_qry_srv=versions_query_service_mock,
+        networking_qry_srv=network_qry_srv_mock,
+        parameter_srv=parameter_service_mock,
+    )
+
+    # ACT
+    result = products_domain_qry_srv.get_provisioning_limit(
+        project_id=project_id_value_object.from_str("proj-12345"),
+        user_id=user_id_value_object.from_str("user-1"),
+        product_id=product_id_value_object.from_str("prod-1"),
+        stage=provisioned_product_stage_value_object.from_str(stage),
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to(provisioning_limit.ProvisioningLimit(limit=limit, provisioned=2))
+    assertpy.assert_that(result.remaining).is_equal_to(limit - 2)
+    provisioned_product_query_service_mock.get_provisioned_products_by_user_id.assert_called_once_with(
+        user_id="user-1",
+        project_id="proj-12345",
+        stage=provisioned_product_stage_value_object.from_str(stage).value,
+        product_id="prod-1",
+        exclude_status=[product_status.ProductStatus.Terminated, product_status.ProductStatus.Deprovisioning],
+    )
+
+
+def test_provisioning_limit_never_reports_a_negative_remainder():
+    assertpy.assert_that(provisioning_limit.ProvisioningLimit(limit=5, provisioned=7).remaining).is_equal_to(0)

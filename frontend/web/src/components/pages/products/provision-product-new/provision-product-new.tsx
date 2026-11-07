@@ -97,6 +97,7 @@ const ProvisionProductNew: FC<ProvisionProductProps> = ({
     setIsExperimentalWorkbench,
     isExperimentalWorkbenchAvailable,
     selectedAvailableProduct,
+    provisioningLimit,
   } = useProvisionProduct({
     productId: id || '',
     availableRegions: availableRegions || [],
@@ -145,6 +146,7 @@ const ProvisionProductNew: FC<ProvisionProductProps> = ({
           vvVersion,
           vvArtifactUpstreamPath,
           productType,
+          provisioningLimit,
         }}
         step2Params={{
           productParameters: productParameters ?? [],

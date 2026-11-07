@@ -4,11 +4,7 @@ from typing import List, Optional, Tuple
 from aws_lambda_powertools.event_handler.exceptions import NotFoundError
 
 from app.provisioning.domain.exceptions import domain_exception
-from app.provisioning.domain.model import (
-    product_status,
-    provisioned_product,
-    user_credential,
-)
+from app.provisioning.domain.model import product_status, provisioned_product, provisioning_limit, user_credential
 from app.provisioning.domain.ports import (
     networking_query_service,
     parameter_service,
@@ -17,6 +13,7 @@ from app.provisioning.domain.ports import (
 )
 from app.provisioning.domain.read_models import version
 from app.provisioning.domain.value_objects import (
+    product_id_value_object,
     product_name_value_object,
     product_status_value_object,
     product_version_name_value_object,
@@ -114,6 +111,27 @@ class ProvisionedProductsDomainQueryService:
                 ]
 
         return provisioned_products
+
+    def get_provisioning_limit(
+        self,
+        project_id: project_id_value_object.ProjectIdValueObject,
+        user_id: user_id_value_object.UserIdValueObject,
+        product_id: product_id_value_object.ProductIdValueObject,
+        stage: provisioned_product_stage_value_object.ProvisionedProductStageValueObject,
+    ) -> provisioning_limit.ProvisioningLimit:
+        """How many of a product the user holds in a stage, against how many they may hold."""
+        counted = self._provisioned_products_qry_srv.get_provisioned_products_by_user_id(
+            user_id=user_id.value,
+            project_id=project_id.value,
+            stage=stage.value,
+            product_id=product_id.value,
+            exclude_status=provisioning_limit.UNCOUNTED_STATUSES,
+        )
+
+        return provisioning_limit.ProvisioningLimit(
+            limit=provisioning_limit.limit_for_stage(stage.value),
+            provisioned=len(counted),
+        )
 
     def get_provisioned_product(
         self,

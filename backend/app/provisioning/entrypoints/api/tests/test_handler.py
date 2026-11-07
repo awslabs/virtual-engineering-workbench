@@ -29,6 +29,7 @@ from app.provisioning.domain.model import (
     product_status,
     provisioned_product,
     provisioned_product_output,
+    provisioning_limit,
     provisioning_parameter,
     user_credential,
     user_profile,
@@ -1941,3 +1942,56 @@ def test_get_paginated_project_provisioned_products(
             pagingKey=json.dumps({"string": "NextPagingKey"}),
         )
     )
+
+
+def test_get_provisioning_limit_returns_the_callers_limit_for_the_product_and_stage(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_virtual_targets_domain_query_service,
+):
+    # ARRANGE
+    from app.provisioning.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_virtual_targets_domain_query_service.get_provisioning_limit.return_value = (
+        provisioning_limit.ProvisioningLimit(limit=5, provisioned=2)
+    )
+    event = authenticated_event(
+        None, "/projects/proj-12345/products/prod-1/provisioning-limit", "GET", {"stage": "DEV"}
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    assertpy.assert_that(api_model.GetProvisioningLimitResponse.model_validate(json.loads(result["body"]))).is_equal_to(
+        api_model.GetProvisioningLimitResponse(limit=5, provisioned=2, remaining=3)
+    )
+    mocked_virtual_targets_domain_query_service.get_provisioning_limit.assert_called_once_with(
+        project_id=project_id_value_object.from_str("proj-12345"),
+        user_id=user_id_value_object.from_str("T00123122"),
+        product_id=product_id_value_object.from_str("prod-1"),
+        stage=provisioned_product_stage_value_object.from_str("DEV"),
+    )
+
+
+def test_get_provisioning_limit_without_a_stage_is_rejected(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_virtual_targets_domain_query_service,
+):
+    # ARRANGE
+    from app.provisioning.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    event = authenticated_event(None, "/projects/proj-12345/products/prod-1/provisioning-limit", "GET")
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(422)
+    mocked_virtual_targets_domain_query_service.get_provisioning_limit.assert_not_called()

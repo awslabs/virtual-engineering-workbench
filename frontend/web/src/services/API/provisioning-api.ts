@@ -17,6 +17,7 @@ import {
   AdditionalConfiguration,
   GetProvisionedProductUserSecretResponse,
   GetAllProvisionedProductsResponse,
+  GetProvisioningLimitResponse,
 } from './proserve-wb-provisioning-api';
 import { getAccessToken } from '..';
 
@@ -102,6 +103,21 @@ export const provisioningAPI = {
       productId: productId,
       stage: stage,
       region: region,
+    });
+  },
+
+  getProvisioningLimit: async (
+    projectId: string,
+    productId: string,
+    stage: string,
+  ): Promise<GetProvisioningLimitResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.getProvisioningLimit({
+      authorization: `Bearer ${access}`,
+      projectId: projectId,
+      productId: productId,
+      stage: stage,
     });
   },
 

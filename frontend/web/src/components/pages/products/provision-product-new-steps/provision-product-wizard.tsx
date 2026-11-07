@@ -10,7 +10,10 @@ import {
   Step3SelectedVersion,
 } from '.';
 import { ConsentForm } from './consent-form';
-import { ProductParameter } from '../../../../services/API/proserve-wb-provisioning-api';
+import {
+  GetProvisioningLimitResponse,
+  ProductParameter,
+} from '../../../../services/API/proserve-wb-provisioning-api';
 import { ProductParameterState } from '../../../../hooks/provisioning';
 import { StepsTranslations } from '../../../../hooks/provisioning/provision-product.logic';
 
@@ -64,6 +67,7 @@ interface Step1Params {
   vvVersion?: string,
   vvArtifactUpstreamPath?: string,
   productType?: string,
+  provisioningLimit?: GetProvisioningLimitResponse,
 }
 
 interface Step2Params {

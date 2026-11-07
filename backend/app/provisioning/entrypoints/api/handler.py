@@ -270,6 +270,34 @@ def get_available_product_versions(
 
 
 @tracer.capture_method
+@app.get(
+    "/projects/<project_id>/products/<product_id>/provisioning-limit",
+    tags=[TAG_AVAILABLE_PRODUCTS],
+)
+def get_provisioning_limit(
+    project_id: str,
+    product_id: str,
+    stage: Annotated[str, Query()],
+) -> api_gateway.Response[api_model.GetProvisioningLimitResponse]:
+    """How many more of a product the caller may launch in a stage before a launch is refused."""
+
+    limit = dependencies.virtual_targets_domain_qry_srv.get_provisioning_limit(
+        project_id=project_id_value_object.from_str(project_id),
+        user_id=user_id_value_object.from_str(app.context.get("user_principal").user_name),
+        product_id=product_id_value_object.from_str(product_id),
+        stage=provisioned_product_stage_value_object.from_str(stage),
+    )
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetProvisioningLimitResponse(
+            limit=limit.limit, provisioned=limit.provisioned, remaining=limit.remaining
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
 @app.get("/projects/<project_id>/products/provisioned", tags=[TAG_PROVISIONED_PRODUCTS])
 def get_user_provisioned_products(
     project_id: str,

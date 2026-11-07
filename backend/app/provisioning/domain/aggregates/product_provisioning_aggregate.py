@@ -56,6 +56,7 @@ from app.provisioning.domain.model import (
     network_subnet,
     product_status,
     provisioned_product,
+    provisioning_limit,
     user_profile,
     workbench_failure,
 )
@@ -211,18 +212,11 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
             user_id=command.user_id.value,
             project_id=command.project_id.value,
             stage=command.stage.value,
-            exclude_status=[
-                product_status.ProductStatus.Terminated,
-                product_status.ProductStatus.Deprovisioning,
-            ],
+            exclude_status=provisioning_limit.UNCOUNTED_STATUSES,
             product_id=command.product_id.value,
         )
 
-        provisioned_product_limit_per_type_and_user = 5
-        if command.stage.value == provisioned_product.ProvisionedProductStage.QA:
-            provisioned_product_limit_per_type_and_user += 1
-
-        if len(existing_user_provisioned_products) >= provisioned_product_limit_per_type_and_user:
+        if len(existing_user_provisioned_products) >= provisioning_limit.limit_for_stage(command.stage.value):
             raise domain_exception.DomainException(
                 "Number of allowed provisioned products per product type is reached. You must deprovision a product of the same type before provisioning a new product."
             )

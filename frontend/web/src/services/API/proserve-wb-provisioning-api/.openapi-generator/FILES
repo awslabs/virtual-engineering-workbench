@@ -18,6 +18,7 @@ models/GetProvisionedProductResponse.ts
 models/GetProvisionedProductSSHKeyResponse.ts
 models/GetProvisionedProductUserSecretResponse.ts
 models/GetProvisionedProductsResponse.ts
+models/GetProvisioningLimitResponse.ts
 models/GetUserProfileResponse.ts
 models/GetUserProfileResponseFeature.ts
 models/GetUsersWithinMaintenanceWindowResponse.ts

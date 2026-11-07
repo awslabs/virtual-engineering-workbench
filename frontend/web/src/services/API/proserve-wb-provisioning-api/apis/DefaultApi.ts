@@ -23,6 +23,7 @@ import type {
   GetProvisionedProductSSHKeyResponse,
   GetProvisionedProductUserSecretResponse,
   GetProvisionedProductsResponse,
+  GetProvisioningLimitResponse,
   GetUserProfileResponse,
   GetUsersWithinMaintenanceWindowResponse,
   InternalGetProvisionedProductResponse,
@@ -52,6 +53,8 @@ import {
     GetProvisionedProductUserSecretResponseToJSON,
     GetProvisionedProductsResponseFromJSON,
     GetProvisionedProductsResponseToJSON,
+    GetProvisioningLimitResponseFromJSON,
+    GetProvisioningLimitResponseToJSON,
     GetUserProfileResponseFromJSON,
     GetUserProfileResponseToJSON,
     GetUsersWithinMaintenanceWindowResponseFromJSON,
@@ -180,6 +183,18 @@ export interface GetProvisionedProductsRequest {
     authorization: string;
     projectId: string;
     productType: string;
+}
+
+export interface GetProvisioningLimitRequest {
+    authorization: string;
+    projectId: string;
+    productId: string;
+    stage: string;
+}
+
+export interface GetProvisioningLimitCORSRequest {
+    projectId: string;
+    productId: string;
 }
 
 export interface GetSwaggerSpecRequest {
@@ -1070,6 +1085,94 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async getProvisionedProducts(requestParameters: GetProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductsResponse> {
         const response = await this.getProvisionedProductsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get how many more of a product the caller may launch in a stage
+     */
+    async getProvisioningLimitRaw(requestParameters: GetProvisioningLimitRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisioningLimitResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling getProvisioningLimit.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getProvisioningLimit.');
+        }
+
+        if (requestParameters.productId === null || requestParameters.productId === undefined) {
+            throw new runtime.RequiredError('productId','Required parameter requestParameters.productId was null or undefined when calling getProvisioningLimit.');
+        }
+
+        if (requestParameters.stage === null || requestParameters.stage === undefined) {
+            throw new runtime.RequiredError('stage','Required parameter requestParameters.stage was null or undefined when calling getProvisioningLimit.');
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters.stage !== undefined) {
+            queryParameters['stage'] = requestParameters.stage;
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/products/{productId}/provisioning-limit`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"productId"}}`, encodeURIComponent(String(requestParameters.productId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetProvisioningLimitResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get how many more of a product the caller may launch in a stage
+     */
+    async getProvisioningLimit(requestParameters: GetProvisioningLimitRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisioningLimitResponse> {
+        const response = await this.getProvisioningLimitRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async getProvisioningLimitCORSRaw(requestParameters: GetProvisioningLimitCORSRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getProvisioningLimitCORS.');
+        }
+
+        if (requestParameters.productId === null || requestParameters.productId === undefined) {
+            throw new runtime.RequiredError('productId','Required parameter requestParameters.productId was null or undefined when calling getProvisioningLimitCORS.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/products/{productId}/provisioning-limit`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"productId"}}`, encodeURIComponent(String(requestParameters.productId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async getProvisioningLimitCORS(requestParameters: GetProvisioningLimitCORSRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.getProvisioningLimitCORSRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

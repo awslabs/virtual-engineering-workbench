@@ -90,6 +90,12 @@ export const i18nVirtualTargetSteps = {
   instanceType: 'Instance type',
   editButton: 'Edit',
 
+  provisioningLimitInfo: (provisioned: number, limit: number, stage: string) =>
+    `You have ${provisioned} of ${limit} virtual targets of this product in ${stage}.`,
+  provisioningLimitReachedHeader: 'Limit reached',
+  provisioningLimitReached: (provisioned: number, limit: number, stage: string) =>
+    `You have ${provisioned} of ${limit} virtual targets of this product in ${stage}. Remove one before launching another.`,
+
   estimatedCostsLabel: 'Estimated costs',
   estimatedCostsDescription: 'The estimated costs of running this workbench over a selected period of time.',
   hourly: 'Hourly',
