@@ -50,6 +50,12 @@ export interface UpdateRecipeVersionRequest {
      * @memberof UpdateRecipeVersionRequest
      */
     recipeVersionIntegrations?: Array<string>;
+    /**
+     * AWS Marketplace product to build on instead of the default base image
+     * @type {string}
+     * @memberof UpdateRecipeVersionRequest
+     */
+    parentImageProductId?: string;
 }
 
 /**
@@ -78,6 +84,7 @@ export function UpdateRecipeVersionRequestFromJSONTyped(json: any, ignoreDiscrim
         'recipeVersionDescription': json['recipeVersionDescription'],
         'recipeVersionVolumeSize': json['recipeVersionVolumeSize'],
         'recipeVersionIntegrations': !exists(json, 'recipeVersionIntegrations') ? undefined : json['recipeVersionIntegrations'],
+        'parentImageProductId': !exists(json, 'parentImageProductId') ? undefined : json['parentImageProductId'],
     };
 }
 
@@ -94,5 +101,6 @@ export function UpdateRecipeVersionRequestToJSON(value?: UpdateRecipeVersionRequ
         'recipeVersionDescription': value.recipeVersionDescription,
         'recipeVersionVolumeSize': value.recipeVersionVolumeSize,
         'recipeVersionIntegrations': value.recipeVersionIntegrations,
+        'parentImageProductId': value.parentImageProductId,
     };
 }

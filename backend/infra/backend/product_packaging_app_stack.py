@@ -66,6 +66,18 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                 lambda lambda_f: lambda_f.add_to_policy(
                     statement=aws_iam.PolicyStatement(
                         actions=[
+                            "aws-marketplace:GetProduct",
+                            "aws-marketplace:SearchAgreements",
+                        ],
+                        effect=aws_iam.Effect.ALLOW,
+                        resources=[
+                            "*",
+                        ],
+                    ),
+                ),
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=[
                             "ec2:RunInstances",
                             "ec2:TerminateInstances",
                         ],

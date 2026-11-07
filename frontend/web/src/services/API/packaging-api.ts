@@ -29,6 +29,7 @@ import {
   CreatePipelineRequest,
   UpdatePipelineRequest,
   GetPipelinesAllowedBuildTypesResponse,
+  GetMarketplaceImagesResponse,
   GetPipelineResponse,
   GetImagesResponse,
   CreateImageRequest,
@@ -505,6 +506,15 @@ export const packagingAPI = {
       authorization: `Bearer ${access}`,
       projectId: projectId,
       recipeId: recipeId,
+    });
+  },
+
+  getMarketplaceImages: async(projectId: string): Promise<GetMarketplaceImagesResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.getMarketplaceImages({
+      authorization: `Bearer ${access}`,
+      projectId: projectId,
     });
   },
 

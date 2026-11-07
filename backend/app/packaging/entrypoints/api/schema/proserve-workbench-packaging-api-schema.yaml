@@ -2965,6 +2965,81 @@ paths:
         requestTemplates:
           application/json: '{"statusCode": 200}'
         passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace-images:
+    get:
+      description: Get the AWS Marketplace images available as recipe base images
+      operationId: GetMarketplaceImages
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMarketplaceImagesResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceImagesCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
 components:
   schemas:
     ArchiveRecipeResponse:
@@ -3150,6 +3225,10 @@ components:
           items:
             type: string
           description: List of the selected integrations for the recipe version
+        parentImageProductId:
+          title: ParentImageProductId
+          type: string
+          description: AWS Marketplace product the recipe version builds on, if any
         status:
           title: Status
           type: string
@@ -3203,6 +3282,10 @@ components:
           type: array
           items:
             type: string
+        parentImageProductId:
+          title: ParentImageProductId
+          type: string
+          description: AWS Marketplace product to build on instead of the default base image
     CreateRecipeVersionResponse:
       title: CreateRecipeVersionResponse
       type: object
@@ -3998,6 +4081,10 @@ components:
           type: array
           items:
             type: string
+        parentImageProductId:
+          title: ParentImageProductId
+          type: string
+          description: AWS Marketplace product to build on instead of the default base image
     UpdateRecipeVersionResponse:
       title: CreateRecipeVersionResponse
       type: object
@@ -4427,6 +4514,42 @@ components:
           type: array
           items:
             type: string
+    MarketplaceImage:
+      title: MarketplaceImage
+      type: object
+      required:
+        - productId
+        - name
+        - platform
+        - architecture
+      properties:
+        productId:
+          title: ProductId
+          type: string
+          description: AWS Marketplace product ID
+        name:
+          title: Name
+          type: string
+          description: Product name
+        platform:
+          title: Platform
+          type: string
+          description: Platform (Linux|Windows)
+        architecture:
+          title: Architecture
+          type: string
+          description: Architecture (amd64|arm64)
+    GetMarketplaceImagesResponse:
+      title: GetMarketplaceImagesResponse
+      type: object
+      required:
+        - images
+      properties:
+        images:
+          title: Images
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketplaceImage"
     ReleaseComponentVersionRequest:
       title: ReleaseComponentVersionRequest
       description: Request body for releasing a component version

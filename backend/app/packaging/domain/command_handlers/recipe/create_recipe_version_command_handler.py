@@ -15,6 +15,7 @@ from app.packaging.domain.ports import (
     component_query_service,
     component_version_query_service,
     mandatory_components_list_query_service,
+    marketplace_image_service,
     parameter_service,
     recipe_query_service,
     recipe_version_query_service,
@@ -217,6 +218,30 @@ def __assemble_recipe_components(
     return recipe_component_versions
 
 
+def __get_marketplace_image_ami_id(
+    marketplace_image_srv: marketplace_image_service.MarketplaceImageService,
+    parent_image_product_id: str,
+    recipe_entity: recipe.Recipe,
+    volume_size: str,
+) -> str:
+    image = marketplace_image_srv.get_image(parent_image_product_id)
+    if not image:
+        raise domain_exception.DomainException(
+            f"Product {parent_image_product_id} is not a subscribed AWS Marketplace image available in this region."
+        )
+    if image.platform != recipe_entity.recipePlatform or image.architecture != recipe_entity.recipeArchitecture:
+        raise domain_exception.DomainException(
+            f"Product {parent_image_product_id} is a {image.platform} {image.architecture} image, "
+            f"but the recipe is {recipe_entity.recipePlatform} {recipe_entity.recipeArchitecture}."
+        )
+    if int(volume_size) < image.rootVolumeSize:
+        raise domain_exception.DomainException(
+            f"Product {parent_image_product_id} needs a volume size of at least {image.rootVolumeSize} GB."
+        )
+
+    return recipe_version_parent_image_upstream_id_value_object.from_str(image.amiId).value
+
+
 def handle(
     command: create_recipe_version_command.CreateRecipeVersionCommand,
     uow: unit_of_work.UnitOfWork,
@@ -228,6 +253,7 @@ def handle(
     mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     system_configuration_mapping: dict,
     component_qry_srv: component_query_service.ComponentQueryService,
+    marketplace_image_srv: marketplace_image_service.MarketplaceImageService,
 ):
     recipe_entity = __get_recipe_entity(
         recipe_qry_srv=recipe_qry_srv,
@@ -238,19 +264,25 @@ def handle(
     latest_recipe_version_name = recipe_version_qry_srv.get_latest_recipe_version_name(command.recipeId.value)
     new_recipe_version_name = __calculate_new_version_name(command, latest_recipe_version_name)
 
-    try:
-        parent_image_upstream_id = recipe_version_parent_image_upstream_id_value_object.from_str(
-            parameter_srv.get_parameter_value(
-                system_configuration_mapping.get(recipe_entity.recipePlatform)
-                .get(recipe_entity.recipeArchitecture)
-                .get(recipe_entity.recipeOsVersion)
-                .get(SystemConfigurationMappingAttributes.AMI_SSM_PARAM_NAME.value)
-            )
-        ).value
-    except boto3.client("ssm").exceptions.ParameterNotFound:
-        raise domain_exception.DomainException(
-            f"Parameter {SystemConfigurationMappingAttributes.AMI_SSM_PARAM_NAME.value} not found."
+    parent_image_product_id = command.parentImageProductId.value if command.parentImageProductId else None
+    if parent_image_product_id:
+        parent_image_upstream_id = __get_marketplace_image_ami_id(
+            marketplace_image_srv, parent_image_product_id, recipe_entity, command.recipeVersionVolumeSize.value
         )
+    else:
+        try:
+            parent_image_upstream_id = recipe_version_parent_image_upstream_id_value_object.from_str(
+                parameter_srv.get_parameter_value(
+                    system_configuration_mapping.get(recipe_entity.recipePlatform)
+                    .get(recipe_entity.recipeArchitecture)
+                    .get(recipe_entity.recipeOsVersion)
+                    .get(SystemConfigurationMappingAttributes.AMI_SSM_PARAM_NAME.value)
+                )
+            ).value
+        except boto3.client("ssm").exceptions.ParameterNotFound:
+            raise domain_exception.DomainException(
+                f"Parameter {SystemConfigurationMappingAttributes.AMI_SSM_PARAM_NAME.value} not found."
+            )
 
     (
         mandatory_component_versions,
@@ -278,6 +310,7 @@ def handle(
         recipeId=command.recipeId.value,
         recipeVersionName=recipe_version_name_value_object.from_str(new_recipe_version_name).value,
         parentImageUpstreamId=parent_image_upstream_id,
+        parentImageProductId=parent_image_product_id,
         recipeComponentsVersions=recipe_version_components_versions_value_object.from_list(
             recipe_component_versions
         ).value,
