@@ -10,6 +10,8 @@ export const i18n = {
   loginPromptConfirm: 'Continue',
   loginIPChoiceDescription: '',
   loginConnectionChoiceDescription: 'Choose the connection option',
+  loginNoConnectionOptions: 'This product offers no way to log in: its template enables neither ' +
+    'RDP nor DCV and emits no SSH key. Ask the product owner to update the template.',
   loginConnectionChoiceSSHLabel: 'SSH',
   loginConnectionChoiceSSHDescription: 'You will be presented with an SSH key to log in.',
   loginConnectionChoiceRDPLabel: 'RDP',
