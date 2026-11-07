@@ -9,6 +9,7 @@ import { ProductParameterState } from './../../../../hooks/provisioning/provisio
 import { useNotifications } from '../../../../components/layout';
 import { extractErrorResponseMessage } from '../../../../utils/api-helpers';
 import { ProductParameter } from '../../../../services/API/proserve-wb-provisioning-api';
+import { compare } from '../../../../utils/semantic-versioning';
 
 
 export interface ServiceAPI {
@@ -84,8 +85,11 @@ export function upgradeProvisionedProduct({
         (v) => v.versionId === provisionedProduct.versionId
       );
 
-      const versionsToUpdate = response.availableProductVersions.filter(
-        version => version.versionId !== provisionedProduct.versionId);
+      // Only newer versions are an update: an older one would be a downgrade.
+      const versionsToUpdate = response.availableProductVersions
+        .filter(version => version.versionId !== provisionedProduct.versionId)
+        .filter(version => isNewerVersion(version.versionName, provisionedProduct.versionName))
+        .sort((a, b) => compare(a.versionName, b.versionName));
       setAvailableVersionsToUpdate(versionsToUpdate);
       setSelectedVersion(versionsToUpdate[0]);
 
@@ -171,4 +175,14 @@ export function upgradeProvisionedProduct({
     setSelectedVersion,
     availableVersionsToUpdate
   };
+}
+
+/** `candidate` is a later version than `current` (1.0.10 after 1.0.9, 1.0.6 after 1.0.6-rc.1). */
+export function isNewerVersion(candidate?: string, current?: string): boolean {
+  if (!candidate || !current) {
+    return false;
+  }
+  // `compare` sorts newest first: 1 means `current` sorts after `candidate`.
+  const currentSortsAfter = 1;
+  return compare(current, candidate) === currentSortsAfter;
 }
