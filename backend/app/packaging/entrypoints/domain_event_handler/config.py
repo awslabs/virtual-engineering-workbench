@@ -65,6 +65,9 @@ class AppConfig(BaseModel):
     def get_topic_name(self) -> str:
         return os.environ.get("TOPIC_NAME", "")
 
+    def get_build_logs_s3_bucket_name(self) -> str:
+        return os.environ.get("BUILD_LOGS_S3_BUCKET_NAME", "")
+
     def get_resource_tags(self) -> dict[str, str]:
         """Tags to stamp on resources this deployment provisions at runtime."""
         return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))

@@ -35,8 +35,10 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
         boto_session: Any = None,
         max_results: int | None = None,
         resource_tags: dict[str, str] | None = None,
+        build_logs_s3_bucket_name: str | None = None,
     ):
         self._resource_tags = resource_tags or {}
+        self._build_logs_s3_bucket_name = build_logs_s3_bucket_name
         self._admin_role = admin_role
         self._ami_factory_aws_account_id = ami_factory_aws_account_id
         self._ami_factory_subnet_names = ami_factory_subnet_names
@@ -165,6 +167,7 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 # An organisation that requires tags on create denies the build
                 # without them.
                 **self.__resource_tags_kwargs(),
+                **self.__logging_kwargs(),
                 securityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                 snsTopicArn=self._topic_arn,
                 subnetId=subnet_id,
@@ -177,6 +180,12 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
         empty RESOURCE_TAGS, the documented "apply none" default, must leave
         the field out instead of sending {}."""
         return {"resourceTags": self._resource_tags} if self._resource_tags else {}
+
+    def __logging_kwargs(self) -> dict:
+        """Without logging, Image Builder keeps a build's logs only in its default CloudWatch log group."""
+        if not self._build_logs_s3_bucket_name:
+            return {}
+        return {"logging": {"s3Logs": {"s3BucketName": self._build_logs_s3_bucket_name, "s3KeyPrefix": "image-builds"}}}
 
     def create_pipeline(
         self,
@@ -335,6 +344,7 @@ class Ec2ImageBuilderPipelineService(pipeline_service.PipelineService):
                 # so omitting this here would strip the tags on the first
                 # redeploy of an existing pipeline.
                 **self.__resource_tags_kwargs(),
+                **self.__logging_kwargs(),
                 securityGroupIds=[security_groups.get("SecurityGroups")[0].get("GroupId")],
                 snsTopicArn=self._topic_arn,
                 subnetId=subnet_id,
