@@ -1200,3 +1200,35 @@ def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_p
     assertpy.assert_that(region_map).is_length(2)
     assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
     assertpy.assert_that(region_map["us-east-1"]["AMIId"]).is_equal_to("ami-useast1")
+
+
+def test_workbench_template_emits_an_ssh_key_the_login_dialog_can_offer(get_version, get_product):
+    """With RDP and DCV off by default, the SSHKeyPair output is the template's only login path:
+    provisioning reads it into sshKeyPath, which is what enables the SSH option."""
+    # ARRANGE
+    version_entity = get_version()
+    shared_amis_qry_srv_mock = mock.create_autospec(spec=shared_amis_query_service.SharedAMIsQueryService)
+    shared_amis_qry_srv_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-eunorth1",
+            awsAccountId=version_entity.awsAccountId,
+            region="eu-north-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+
+    # ACT
+    rendered = publish_version_command_handler._handle_ami_product(
+        template=(TEMPLATES_DIR / "workbench-template.yml").read_bytes(),
+        shared_amis_qry_srv=shared_amis_qry_srv_mock,
+        vers=version_entity,
+        prod=get_product(),
+    )
+
+    # ASSERT
+    template = yaml.load(rendered, Loader=_CfnLoader)
+    assertpy.assert_that(template["Outputs"]).contains_key("SSHKeyPair", "KeyPairId")
+    assertpy.assert_that(template["Resources"]["KeyPair"]["Type"]).is_equal_to("AWS::EC2::KeyPair")
+    assertpy.assert_that(template["Resources"]["Workbench"]["Properties"]).contains_key("KeyName")
