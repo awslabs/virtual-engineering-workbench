@@ -6,6 +6,7 @@ from app.shared.adapters.unit_of_work_v2 import unit_of_work
 class SharedAmiPrimaryKey(unit_of_work.PrimaryKey):
     originalAmiId: str = Field(..., title="OriginalAmiId")
     awsAccountId: str = Field(..., title="AwsAccountId")
+    region: str = Field(..., title="Region")
 
 
 class SharedAmi(unit_of_work.Entity):

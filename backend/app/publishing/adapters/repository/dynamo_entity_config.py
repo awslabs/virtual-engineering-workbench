@@ -17,6 +17,7 @@ class DBPrefix(enum.StrEnum):
     Project = "PROJECT"
     Version = "VERSION"
     Technology = "TECHNOLOGY"
+    Region = "REGION"
 
     def __str__(self):
         return str(self.value)
@@ -60,12 +61,12 @@ class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):
             values_from_primary_key=lambda pk: pk.originalAmiId,
         )
 
-        # ex. AWS_ACCOUNT#12345678912
+        # ex. AWS_ACCOUNT#12345678912#REGION#eu-west-1
         cfg.sort_key(
             name="SK",
-            value_template=lambda account_id: f"{DBPrefix.AwsAccount}#{account_id}",
-            values_from_entity=lambda ent: ent.awsAccountId,
-            values_from_primary_key=lambda pk: pk.awsAccountId,
+            value_template=lambda account_id, region: f"{DBPrefix.AwsAccount}#{account_id}#{DBPrefix.Region}#{region}",
+            values_from_entity=lambda ent: [ent.awsAccountId, ent.region],
+            values_from_primary_key=lambda pk: [pk.awsAccountId, pk.region],
         )
 
         cfg.enable_query_all(gsi_partition_key_attribute_name=legacy_ddb_uow.DBPrefix.SHARED_AMI)

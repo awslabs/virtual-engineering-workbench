@@ -119,3 +119,81 @@ def test_get_shared_amis_returns_existing_shared_amis(mock_dynamodb, sample_shar
     assertpy.assert_that(shared_amis).is_not_none()
     assertpy.assert_that(shared_amis).is_length(5)
     assertpy.assert_that(shared_amis[0].originalAmiId).is_equal_to("ami-12345")
+
+
+def test_get_shared_amis_keeps_one_record_per_region(mock_dynamodb, mock_ddb_repo):
+    # ARRANGE
+    query_service = dynamodb_shared_amis_query_service.DynamoDBSharedAMIsQueryService(
+        table_name=TEST_TABLE_NAME,
+        dynamodb_client=mock_dynamodb.meta.client,
+        gsi_name_entities=GSI_NAME_ENTITIES,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    fill_db_with_shared_amis(
+        mock_ddb_repo,
+        [
+            shared_ami.SharedAmi(
+                originalAmiId="ami-12345",
+                copiedAmiId=copied_ami_id,
+                awsAccountId="123456789012",
+                region=region,
+                createDate=now,
+                lastUpdateDate=now,
+            )
+            for region, copied_ami_id in (("us-east-1", "ami-useast1"), ("eu-west-1", "ami-euwest1"))
+        ],
+    )
+
+    # ACT
+    shared_amis = query_service.get_shared_amis(original_ami_id="ami-12345")
+
+    # ASSERT
+    assertpy.assert_that({ami.region: ami.copiedAmiId for ami in shared_amis}).is_equal_to(
+        {"us-east-1": "ami-useast1", "eu-west-1": "ami-euwest1"}
+    )
+
+
+def test_get_shared_amis_returns_records_written_without_region_in_the_key(
+    mock_dynamodb, backend_app_dynamodb_table, mock_ddb_repo
+):
+    # ARRANGE
+    query_service = dynamodb_shared_amis_query_service.DynamoDBSharedAMIsQueryService(
+        table_name=TEST_TABLE_NAME,
+        dynamodb_client=mock_dynamodb.meta.client,
+        gsi_name_entities=GSI_NAME_ENTITIES,
+    )
+    now = datetime.now(timezone.utc).isoformat()
+    backend_app_dynamodb_table.put_item(
+        Item={
+            "PK": "AMI#ami-12345",
+            "SK": "AWS_ACCOUNT#123456789012",
+            "entity": "SHARED_AMI",
+            "originalAmiId": "ami-12345",
+            "copiedAmiId": "ami-useast1",
+            "awsAccountId": "123456789012",
+            "region": "us-east-1",
+            "createDate": now,
+            "lastUpdateDate": now,
+        }
+    )
+    fill_db_with_shared_amis(
+        mock_ddb_repo,
+        [
+            shared_ami.SharedAmi(
+                originalAmiId="ami-12345",
+                copiedAmiId="ami-euwest1",
+                awsAccountId="123456789012",
+                region="eu-west-1",
+                createDate=now,
+                lastUpdateDate=now,
+            )
+        ],
+    )
+
+    # ACT
+    shared_amis = query_service.get_shared_amis(original_ami_id="ami-12345")
+
+    # ASSERT
+    assertpy.assert_that({ami.region: ami.copiedAmiId for ami in shared_amis}).is_equal_to(
+        {"us-east-1": "ami-useast1", "eu-west-1": "ami-euwest1"}
+    )
