@@ -134,6 +134,11 @@ Resources:
       VpcId: !Ref VpcIdSSM
   # kics-scan ignore-block - Detailed monitoring is a per-customer cost decision; instances monitored via CloudWatch agent and SSM
   Workbench:
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_46
+            comment: "UserData is an empty placeholder script with no credentials."
     Properties:
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
