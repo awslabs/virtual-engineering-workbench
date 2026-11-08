@@ -1,0 +1,49 @@
+name: CLI (fmt, clippy, test, audit)
+# Rust CLI validation. Runs on pushes/PRs that touch cli/** (or this workflow file).
+# Standalone workflow file to keep CLI failures decoupled from backend/frontend jobs,
+# and to skip work on PRs that don't touch cli/**.
+# Supply-chain hardening: minimal token permissions; actions pinned by commit SHA.
+on:
+  push:
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli.yml"
+  pull_request:
+    paths:
+      - "cli/**"
+      - ".github/workflows/cli.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cli:
+    name: CLI (fmt, clippy, test, audit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: cli
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Set up Rust 1.95.0
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master, 2026-07-16
+        with:
+          toolchain: 1.95.0
+          components: rustfmt, clippy
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2.9.1
+        with:
+          workspaces: cli
+      - name: Format check
+        run: cargo fmt --check
+      - name: Clippy (warnings as errors)
+        run: cargo clippy --all-targets --release --locked -- -D warnings
+      - name: Unit + integration tests
+        run: cargo test --release --locked
+      - name: Dependency vulnerability audit
+        # Reads .cargo/audit.toml for the RUSTSEC-2023-0071 exemption
+        # (Marvin Attack — public-key verify only; see file for rationale).
+        run: |
+          cargo install --locked cargo-audit
+          cargo audit

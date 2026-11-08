@@ -1,0 +1,36 @@
+# cargo-audit configuration for the vew CLI.
+#
+# See: https://docs.rs/cargo-audit/latest/cargo_audit/config/index.html
+
+[advisories]
+# List of advisory IDs to explicitly ignore. Each entry SHOULD carry a
+# code comment above it explaining WHY the advisory does not apply to
+# this project — reviewers refer to these justifications when auditing.
+ignore = [
+    # RUSTSEC-2023-0071 — Marvin Attack in `rsa` crate.
+    # https://rustsec.org/advisories/RUSTSEC-2023-0071
+    #
+    # The Marvin Attack is a timing side-channel against RSA *decryption*
+    # (recovering plaintext or the private key when the attacker can
+    # observe decryption timing for a large number of ciphertexts).
+    #
+    # This CLI only uses `rsa` to *verify JWT signatures* against the
+    # OIDC provider's *public* JWKS keys (see cli/src/identity/adapters/
+    # jwt_token_validator.rs). Public-key verification is not exposed to
+    # this side channel.
+    #
+    # Since the jsonwebtoken 10.x upgrade, `rsa` is a *runtime* dependency
+    # rather than dev-only: 10.x requires an explicit crypto backend and we
+    # selected `rust_crypto`, which implements RS256 via `rsa`. The
+    # verification-only reasoning above still holds — RS256 validation uses
+    # the public key and performs no RSA decryption. The alternative backend
+    # (`aws_lc_rs`) avoids this crate but requires cmake and a C toolchain in
+    # every build environment, which the CI image does not provide.
+    #
+    # Upstream has no fix and no ETA (the vulnerability is inherent to
+    # the crate's constant-time arithmetic strategy). Standard practice
+    # across the Rust auth ecosystem is to ignore this advisory when
+    # the crate is used for verification only. Revisit if `rsa`
+    # publishes a fix or if this CLI ever performs RSA decryption.
+    "RUSTSEC-2023-0071",
+]

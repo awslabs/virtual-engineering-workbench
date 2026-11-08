@@ -1,0 +1,3 @@
+/target
+# CI-local CARGO_HOME (see cli/.gitlab-ci.yml) — cached by the runner, never committed.
+/.cargo-home
