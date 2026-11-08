@@ -104,13 +104,34 @@ class ProvisioningEnablementStack(Stack):
 
         # Provisioned product instance profile managed policy
         instance_profile_statements = [
+            # ec2:DescribeInstances is unscopeable (list-style action). Keep on "*".
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
-                actions=[
-                    "ec2:ModifyInstanceMetadataOptions",
-                    "ec2:DescribeInstances",
-                ],
+                actions=["ec2:DescribeInstances"],
                 resources=["*"],
+            ),
+            # ec2:ModifyInstanceMetadataOptions is scoped to VEW-provisioned instances
+            # via the vew:provisionedProduct:ownerId tag (matches the tagging
+            # convention already used elsewhere in this stack — see the
+            # workbench-template.yml). Instances are expected to modify their own
+            # metadata options; the tag boundary prevents modification of unrelated
+            # instances if the credentials leaked.
+            aws_iam.PolicyStatement(
+                effect=aws_iam.Effect.ALLOW,
+                actions=["ec2:ModifyInstanceMetadataOptions"],
+                resources=[
+                    self.format_arn(
+                        account=self.account,
+                        partition=self.partition,
+                        region=self.region,
+                        resource="instance",
+                        resource_name="*",
+                        service="ec2",
+                    ),
+                ],
+                conditions={
+                    "Null": {"aws:ResourceTag/vew:provisionedProduct:ownerId": "false"},
+                },
             ),
         ]
 

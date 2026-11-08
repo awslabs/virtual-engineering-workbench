@@ -291,17 +291,45 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                 lambda lambda_f: lambda_f.add_to_policy(
                     statement=aws_iam.PolicyStatement(
                         actions=[
-                            "ec2:CreateTags",
                             "ec2:DescribeImages",
                             "ec2:DescribeInstanceStatus",
                             "ec2:DescribeInstances",
                             "kms:ListAliases",
-                            "ssm:ListCommandInvocations",
-                            "ssm:SendCommand",
                         ],
                         effect=aws_iam.Effect.ALLOW,
                         resources=[
                             "*",
+                        ],
+                    ),
+                ),
+                # ec2:CreateTags is scoped to the EC2 resource types the build
+                # instance tags, rather than Resource="*". ssm:SendCommand and
+                # ssm:ListCommandInvocations were removed from this instance
+                # profile because the instance itself never
+                # calls those APIs — SendCommand is issued by the packaging Lambda through
+                # ProductPackagingAdminRole, which is already scoped to instance
+                # and document ARNs.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=["ec2:CreateTags"],
+                        effect=aws_iam.Effect.ALLOW,
+                        resources=[
+                            self.format_arn(
+                                account=self.account,
+                                partition=self.partition,
+                                region=self.region,
+                                resource=resource,
+                                resource_name="*",
+                                service="ec2",
+                            )
+                            for resource in [
+                                "instance",
+                                "volume",
+                                "network-interface",
+                                "security-group",
+                                "snapshot",
+                                "image",
+                            ]
                         ],
                     ),
                 ),

@@ -7,6 +7,16 @@ from constructs import Construct
 from infra import config, constants
 
 
+def _top_level_parameter_namespace(parameter_name: str) -> str:
+    # Top-level namespace of an SSM parameter ("/workbench" for "/workbench/vpc/vpc-id"). Taken from the
+    # config value the provisioning Lambdas read, so the IAM scope follows it. A name needs a namespace and
+    # a leaf, otherwise "<namespace>/*" would not cover it; fail at synth instead of shipping a broken scope.
+    parts = parameter_name.strip("/").split("/")
+    if len(parts) < 2 or not all(parts):
+        raise ValueError(f"Expected an SSM parameter name like /namespace/name, got {parameter_name!r}")
+    return f"/{parts[0]}"
+
+
 class ProductPublishingEnablementAppStack(Stack):
     def __init__(
         self,
@@ -40,39 +50,67 @@ class ProductPublishingEnablementAppStack(Stack):
         Tags.of(role_v1).add("roletype", "launchconstraintrole")
 
         policy_statements = [
+            # Read-only / list actions — many EC2/IAM/Lambda/CFN describe operations
+            # do not support resource-level authorization. Grant on Resource="*".
             iam.PolicyStatement(
                 actions=[
                     "cloudformation:DescribeStacks",
                     "cloudformation:GetTemplateSummary",
                     "cloudformation:ListStacks",
-                    "ec2:AllocateAddress",
-                    "ec2:AssociateAddress",
-                    "ec2:CreateTags",
                     "ec2:DescribeAddresses",
                     "ec2:DescribeAvailabilityZones",
-                    "ec2:DescribeKeyPairs",
                     "ec2:DescribeInstances",
+                    "ec2:DescribeKeyPairs",
                     "ec2:DescribeNetworkInterfaces",
                     "ec2:DescribeSecurityGroups",
                     "ec2:DescribeSubnets",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeVolumesModifications",
+                    "ec2:DescribeVolumeStatus",
                     "iam:GetPolicy",
                     "iam:ListPolicyVersions",
                     "lambda:GetFunction",
-                    "ec2:DescribeKeyPairs",
-                    "ec2:DescribeVolumes",
-                    "ec2:DescribeVolumeStatus",
-                    "ec2:DescribeVolumesModifications",
-                    "ec2:DisassociateAddress",
-                    "ec2:ReleaseAddress",
-                    "secretsmanager:CreateSecret",
-                    "secretsmanager:DeleteSecret",
                     "secretsmanager:ListSecrets",
-                    "secretsmanager:TagResource",
-                    "secretsmanager:UntagResource",
                     "secretsmanager:GetRandomPassword",
                 ],
                 resources=["*"],
                 effect=iam.Effect.ALLOW,
+            ),
+            # Create-style actions inside Service Catalog stacks. Service Catalog
+            # tags every resource it creates with aws:cloudformation:stack-name
+            # starting with "SC-". Requiring that tag at request time constrains
+            # this role to only affect resources that end up inside SC stacks.
+            iam.PolicyStatement(
+                actions=[
+                    "ec2:AllocateAddress",
+                    "ec2:AssociateAddress",
+                    "ec2:CreateTags",
+                    "ec2:DisassociateAddress",
+                    "ec2:ReleaseAddress",
+                    "secretsmanager:CreateSecret",
+                ],
+                resources=["*"],
+                effect=iam.Effect.ALLOW,
+                conditions={
+                    "StringLike": {
+                        "aws:RequestTag/aws:cloudformation:stack-name": "SC-*",
+                    },
+                },
+            ),
+            # Destructive / tag-update actions on existing SC-managed resources.
+            iam.PolicyStatement(
+                actions=[
+                    "secretsmanager:DeleteSecret",
+                    "secretsmanager:TagResource",
+                    "secretsmanager:UntagResource",
+                ],
+                resources=["*"],
+                effect=iam.Effect.ALLOW,
+                conditions={
+                    "StringLike": {
+                        "aws:ResourceTag/aws:cloudformation:stack-name": "SC-*",
+                    },
+                },
             ),
             iam.PolicyStatement(
                 actions=[
@@ -309,6 +347,9 @@ class ProductPublishingEnablementAppStack(Stack):
         directory_services_role_principal_regex = app_config.format_resource_name_with_component(
             "directory-services", "*"
         )
+        spoke_vpc_parameter_namespace = _top_level_parameter_namespace(
+            app_config.environment_config["spoke-account-vpc-id-param-name"]
+        )
         workbench_web_app_provisioning_role = iam.Role(
             self,
             "WorkbenchWebAppProvisioningRole",
@@ -374,36 +415,142 @@ class ProductPublishingEnablementAppStack(Stack):
                     resources=["*"],
                     conditions={"StringEquals": {"s3:ExistingObjectTag/servicecatalog:provisioning": "true"}},
                 ),
+                # Read-only EC2/ECS/SSM actions on runtime-discovered resources —
+                # many of these list-style actions do not support resource-level
+                # scoping. Keep on Resource="*".
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=[
                         "ec2:DescribeInstanceStatus",
                         "ec2:DescribeInstances",
-                        "ec2:StartInstances",
-                        "ec2:StopInstances",
                         "ec2:DescribeRouteTables",
                         "ec2:DescribeSubnets",
                         "ec2:DescribeTags",
-                        "ec2:CreateSecurityGroup",
-                        "ec2:CreateTags",
                         "ec2:DescribeSecurityGroups",
-                        "ec2:AuthorizeSecurityGroupIngress",
                         "ec2:DescribeSecurityGroupRules",
-                        "ec2:RevokeSecurityGroupIngress",
-                        "ssm:GetParameter",
+                        "ec2:DescribeVolumesModifications",
                         "compute-optimizer:GetEC2InstanceRecommendations",
-                        "ssm:SendCommand",
                         "ssm:GetCommandInvocation",
                         "ssm:GetConnectionStatus",
                         "ssm:DescribeInstanceInformation",
                         "ecs:DescribeTasks",
                         "ecs:DescribeServices",
                         "ecs:ListTasks",
-                        "ecs:UpdateService",
-                        "ecs:StopTask",
-                        "ec2:DescribeVolumesModifications",
                     ],
                     resources=["*"],
+                ),
+                # Instance state changes are scoped to the caller's own
+                # workbenches. The vew:provisionedProduct:ownerId tag stamped
+                # on each provisioned workbench must equal the caller's UserId
+                # principal tag (set on every backend-assumed STS session), so
+                # user A cannot start or stop user B's workbench. Matches the
+                # same pattern already used at the neighbouring secretsmanager
+                # and volume-attach statements.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "ec2:StartInstances",
+                        "ec2:StopInstances",
+                    ],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:instance/*",
+                    ],
+                    conditions={
+                        "StringEquals": {
+                            "aws:ResourceTag/vew:provisionedProduct:ownerId": "${aws:PrincipalTag/UserId}"
+                        },
+                    },
+                ),
+                # Security-group management for workbench SSH/RDP ingress rules.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "ec2:AuthorizeSecurityGroupIngress",
+                        "ec2:RevokeSecurityGroupIngress",
+                        "ec2:CreateSecurityGroup",
+                    ],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group/*",
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:vpc/*",
+                    ],
+                ),
+                # Tagging is used both on create (RequestTag) and on subsequent
+                # updates (ResourceTag). Scope to any EC2 taggable resource that
+                # carries or receives the VEW ownership tag.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ec2:CreateTags"],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:instance/*",
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group/*",
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:volume/*",
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:network-interface/*",
+                    ],
+                ),
+                # ssm:GetParameter for the parameter store lookups the workbench
+                # provisioning code performs in the spoke account: the VPC id
+                # (spoke-account-vpc-id-param-name, read before every launch) and
+                # the SSH private key of a provisioned workbench (/ec2/keypair/*).
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ssm:GetParameter"],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ssm:*:{Aws.ACCOUNT_ID}:parameter/vew/*",
+                        f"arn:{Aws.PARTITION}:ssm:*:{Aws.ACCOUNT_ID}:parameter{spoke_vpc_parameter_namespace}/*",
+                        f"arn:{Aws.PARTITION}:ssm:*:{Aws.ACCOUNT_ID}:parameter{constants.EC2_KEY_PAIR_SSM_PARAMETER_PREFIX}/*",
+                    ],
+                ),
+                # ssm:SendCommand is scoped in two dimensions per the AWS Service
+                # Authorization Reference: (1) the target instance ARN — restricted
+                # to the caller's own workbenches via
+                # aws:ResourceTag/vew:provisionedProduct:ownerId equal to the
+                # caller's UserId principal tag; (2) the document ARN — restricted
+                # to AWS-managed shell/PowerShell documents, which are the only
+                # ones provisioning/adapters/services/ssm_command_service.py
+                # invokes.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ssm:SendCommand"],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:instance/*",
+                    ],
+                    conditions={
+                        "StringEquals": {
+                            "aws:ResourceTag/vew:provisionedProduct:ownerId": "${aws:PrincipalTag/UserId}"
+                        },
+                    },
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ssm:SendCommand"],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ssm:*::document/AWS-RunShellScript",
+                        f"arn:{Aws.PARTITION}:ssm:*::document/AWS-RunPowerShellScript",
+                    ],
+                ),
+                # ECS write actions are scoped to services and tasks owned by
+                # the caller (aws:ResourceTag/vew:provisionedProduct:ownerId
+                # equal to the caller's UserId principal tag).
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ecs:UpdateService"],
+                    resources=["*"],
+                    conditions={
+                        "StringEquals": {
+                            "aws:ResourceTag/vew:provisionedProduct:ownerId": "${aws:PrincipalTag/UserId}"
+                        },
+                    },
+                ),
+                # ecs:StopTask is scoped by ARN rather than by the ownership
+                # tag. ECS does not carry tags onto tasks unless the service
+                # sets PropagateTags, which nothing here does, so a tag
+                # condition on a task cannot be satisfied. Tasks created by
+                # Service Catalog carry the SC- physical-id prefix on their
+                # cluster, which is scopable.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ecs:StopTask"],
+                    resources=[f"arn:{Aws.PARTITION}:ecs:{Aws.REGION}:{Aws.ACCOUNT_ID}:task/SC-*/*"],
                 ),
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,

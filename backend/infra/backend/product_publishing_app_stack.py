@@ -151,38 +151,67 @@ class ProductPublishingAppStack(Stack):
                             "cloudformation:DescribeStacks",
                             "cloudformation:GetTemplateSummary",
                             "cloudformation:ListStacks",
-                            "ec2:AllocateAddress",
-                            "ec2:AssociateAddress",
-                            "ec2:CreateTags",
                             "ec2:DescribeAddresses",
                             "ec2:DescribeAvailabilityZones",
-                            "ec2:DescribeKeyPairs",
                             "ec2:DescribeInstances",
+                            "ec2:DescribeKeyPairs",
                             "ec2:DescribeNetworkInterfaces",
                             "ec2:DescribeSecurityGroups",
                             "ec2:DescribeSubnets",
-                            "lambda:GetFunction",
+                            "ec2:DescribeVolumes",
+                            "ec2:DescribeVolumesModifications",
+                            "ec2:DescribeVolumeStatus",
                             "iam:GetPolicy",
                             "iam:ListPolicyVersions",
-                            "ec2:DescribeVolumes",
-                            "ec2:DescribeVolumeStatus",
-                            "ec2:DescribeVolumesModifications",
+                            "lambda:GetFunction",
+                            "secretsmanager:ListSecrets",
+                            "secretsmanager:GetRandomPassword",
+                            "ecs:DescribeServices",
+                        ],
+                        resources=["*"],
+                    )
+                ),
+                # Create-style actions inside Service Catalog stacks. Service
+                # Catalog auto-tags every stack resource with
+                # aws:cloudformation:stack-name starting with "SC-".
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=[
+                            "ec2:AllocateAddress",
+                            "ec2:AssociateAddress",
+                            "ec2:CreateTags",
                             "ec2:DisassociateAddress",
                             "ec2:ReleaseAddress",
                             "secretsmanager:CreateSecret",
-                            "secretsmanager:DeleteSecret",
-                            "secretsmanager:ListSecrets",
-                            "secretsmanager:TagResource",
-                            "secretsmanager:UntagResource",
-                            "secretsmanager:GetRandomPassword",
                             "ecs:RegisterTaskDefinition",
                             "ecs:DeregisterTaskDefinition",
                             "ecs:TagResource",
                             "ecs:CreateService",
-                            "ecs:DescribeServices",
+                        ],
+                        resources=["*"],
+                        conditions={
+                            "StringLike": {
+                                "aws:RequestTag/aws:cloudformation:stack-name": "SC-*",
+                            },
+                        },
+                    )
+                ),
+                # Destructive / tag-update actions on existing SC-managed
+                # resources.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=[
+                            "secretsmanager:DeleteSecret",
+                            "secretsmanager:TagResource",
+                            "secretsmanager:UntagResource",
                             "ecs:DeleteService",
                         ],
                         resources=["*"],
+                        conditions={
+                            "StringLike": {
+                                "aws:ResourceTag/aws:cloudformation:stack-name": "SC-*",
+                            },
+                        },
                     )
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(

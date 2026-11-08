@@ -68,6 +68,9 @@ LAMBDA_ALIAS_NAME = "live_v2"
 RESOURCE_ACCESS_MANAGEMENT_TAG_NAME = "vew:shared-with-spoke"
 
 PRODUCT_PROVISIONING_ROLE = "WorkbenchWebAppProvisioningRoleV2"
+# AWS::EC2::KeyPair stores the private key at /ec2/keypair/<key-pair-id>. Workbench templates
+# output that path as the SSH key path, and the provisioning role reads it for the key download.
+EC2_KEY_PAIR_SSM_PARAMETER_PREFIX = "/ec2/keypair"
 
 
 AUTH_BC_NAME = "authorization"

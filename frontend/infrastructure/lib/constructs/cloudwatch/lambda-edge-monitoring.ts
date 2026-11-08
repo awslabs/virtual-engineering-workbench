@@ -3,6 +3,7 @@ import {
   aws_lambda_nodejs as lambda_node,
   aws_iam as iam,
   aws_lambda as lambda,
+  Aws,
   Duration,
   custom_resources
 } from 'aws-cdk-lib';
@@ -21,20 +22,47 @@ export class LambdaEdgeMonitoring extends Construct {
       managedPolicyName: 'LambdaEdgeMonitoringPolicy',
       description: 'Grants permissions to configure cross regional monitoring for Lambda@Edge',
       path: '/VirtualWorkbench/',
-      statements: [new iam.PolicyStatement({
-        actions: [
-          'ec2:DescribeRegions',
-          'lambda:AddPermission',
-          'lambda:GetPolicy',
-          'logs:CreateLogGroup',
-          'logs:DeleteSubscriptionFilter',
-          'logs:DescribeLogGroups',
-          'logs:DescribeSubscriptionFilters',
-          'logs:PutSubscriptionFilter',
-          'iam:PassRole',
-        ],
-        resources: ['*']
-      })]
+      statements: [
+        // ec2:DescribeRegions is a list-style action with no resource-level support.
+        new iam.PolicyStatement({
+          actions: ['ec2:DescribeRegions'],
+          resources: ['*'],
+        }),
+        // Lambda actions target the destination Lambda passed as a custom-resource
+        // property. That Lambda is deployed by this stack and always carries the
+        // VEW resource-name prefix. Scope to any Lambda function with the VEW prefix
+        // in this account, across all regions (Lambda@Edge log processing is
+        // multi-region).
+        new iam.PolicyStatement({
+          actions: [
+            'lambda:AddPermission',
+            'lambda:GetPolicy',
+          ],
+          resources: [
+            `arn:${Aws.PARTITION}:lambda:*:${Aws.ACCOUNT_ID}:function:${props.formatResourceName('*')}`,
+          ],
+        }),
+        // CloudWatch Logs actions target the log group carried in the custom
+        // resource properties. Log group names follow the /aws/lambda/{region}.{fn}
+        // pattern; scope to any VEW-prefixed CW log group in this account.
+        new iam.PolicyStatement({
+          actions: [
+            'logs:CreateLogGroup',
+            'logs:DeleteSubscriptionFilter',
+            'logs:DescribeLogGroups',
+            'logs:DescribeSubscriptionFilters',
+            'logs:PutSubscriptionFilter',
+          ],
+          resources: [
+            `arn:${Aws.PARTITION}:logs:*:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*.${props.formatResourceName('*')}:*`,
+            `arn:${Aws.PARTITION}:logs:*:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*.${props.formatResourceName('*')}`,
+          ],
+        }),
+        // iam:PassRole is deliberately absent: the handler in
+        // lambda-edge-monitoring.handler.ts invokes no AWS API that requires it.
+        // CloudWatch Logs invokes the destination Lambda under its own principal,
+        // through the resource policy set with lambda:AddPermission.
+      ]
     });
 
     const role = new iam.Role(this, 'cw-group-role', {
