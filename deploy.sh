@@ -1223,6 +1223,58 @@ log "Deploying backend CDK stacks"
 deactivate
 
 # ---------------------------------------------------------------------------
+# Phase 7b: Publish the vew CLI endpoint
+# ---------------------------------------------------------------------------
+# The vew CLI reads one SSM parameter for its `api_endpoint`:
+#   /${APP_NAME}-${ENVIRONMENT}/vew-api-endpoint
+# Exactly one thing writes it, depending on deploy mode, and the CLI never has
+# to know which:
+#
+#   no custom API domain -> VewApiRouterStack, part of the backend CDK app
+#     (backend/infra/backend/vew_api_router_stack.py), deployed in Phase 7. It
+#     path-routes /{bc}/* to each bounded-context API Gateway and exposes its URL
+#     as the VewApiEndpoint output, which this phase copies into the parameter.
+#
+#   custom API domain    -> the backend's ApiIntegrationStack already fronts the
+#     per-BC gateways under one host via API Gateway base path mappings, so the
+#     router is not registered at all and this phase writes the custom-domain URL.
+#
+# The two are mutually exclusive by construction: backend_app.py registers
+# VewApiRouterStack as the `else` of the ApiIntegrationStack condition.
+#
+# This phase is the only writer of the parameter in both modes, deliberately. If
+# the router stack owned it, an environment that started with a custom API domain
+# and later dropped it would fail at deploy time, because CloudFormation cannot
+# create a parameter whose name already exists.
+VEW_API_ENDPOINT_PARAM="/${APP_NAME}-${ENVIRONMENT}/vew-api-endpoint"
+
+if [ -n "${API_CUSTOM_DOMAIN:-}" ] && [ -n "${CERT_ARN:-}" ]; then
+  step "7b" "Publishing vew CLI endpoint (custom API domain configured)"
+
+  log "Backend ApiIntegrationStack already fronts per-BC gateways at $API_CUSTOM_DOMAIN"
+  VEW_API_ENDPOINT="https://${API_CUSTOM_DOMAIN}"
+else
+  step "7b" "Publishing vew CLI endpoint (router deployed with the backend stacks)"
+
+  ROUTER_STACK_NAME="${BACKEND_APP_NAME}-vew-api-router-${ENVIRONMENT}"
+  ROUTER_OUTPUTS=$(aws cloudformation describe-stacks \
+    --stack-name "$ROUTER_STACK_NAME" \
+    --query 'Stacks[0].Outputs' \
+    --output json --region "$AWS_REGION" 2>/dev/null || echo "[]")
+  VEW_API_ENDPOINT=$(echo "$ROUTER_OUTPUTS" | jq -r '.[] | select(.OutputKey=="VewApiEndpoint") | .OutputValue // empty')
+  [ -n "$VEW_API_ENDPOINT" ] ||
+    err "Could not read the VewApiEndpoint output from $ROUTER_STACK_NAME. Phase 7 should have deployed it; check that stack in the CloudFormation console."
+fi
+
+log "Writing $VEW_API_ENDPOINT_PARAM = $VEW_API_ENDPOINT"
+run_cmd aws ssm put-parameter \
+  --name "$VEW_API_ENDPOINT_PARAM" \
+  --value "$VEW_API_ENDPOINT" \
+  --type String \
+  --overwrite \
+  --region "$AWS_REGION"
+
+# ---------------------------------------------------------------------------
 # Phase 8: Build and deploy frontend web application
 # ---------------------------------------------------------------------------
 if [ "$DIFF_MODE" = "true" ]; then
