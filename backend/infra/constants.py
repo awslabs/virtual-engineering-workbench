@@ -77,3 +77,22 @@ AUTH_BC_HANDLER_ROLE_PARAM_NAME = "authorizer-role-arn"
 AUTH_BC_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-authorizer-request-events-handler-role-arn"
 AUTH_BC_SCHEDULED_JOB_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-scheduled-jobs-handler-role-arn"
 CEDAR_POLICY_NAMESPACE = "VEW"
+
+# --- MCP Gateway (AgentCore-based) ---
+# One Amazon Bedrock AgentCore Gateway aggregates the opted-in bounded-context
+# REST APIs behind a single MCP endpoint. Callers obtain a Cognito access token
+# from the gateway's app client (auth-code + PKCE, no secret) and drive the
+# gateway from any MCP client. The client itself is created by the frontend
+# stack from its AdditionalAppClients config; register these URIs there.
+MCP_GATEWAY_OAUTH_CALLBACK_PORT = 19876
+# Cognito requires exact callback matches, so register a small port range on both
+# loopback names, with and without a /callback path.
+MCP_GATEWAY_OAUTH_REDIRECT_URIS = [
+    f"http://{host}:{port}{path}"
+    for port in range(MCP_GATEWAY_OAUTH_CALLBACK_PORT, MCP_GATEWAY_OAUTH_CALLBACK_PORT + 5)
+    for host in ("127.0.0.1", "localhost")
+    for path in ("", "/callback")
+]
+
+MCP_AGENTCORE_COMPONENT_NAME = "mcp-gateway-agentcore"
+MCP_AGENTCORE_SPEC_BUCKET_NAME = "mcp-specs"
