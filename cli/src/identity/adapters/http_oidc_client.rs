@@ -68,7 +68,10 @@ impl OidcClient for HttpOidcClient {
             debug_log!("exchange_code: failed to read response body: {e}");
             IdentityError::TokenExchange(e.to_string())
         })?;
-        debug_log!("exchange_code: response body received, {} bytes", body.len());
+        debug_log!(
+            "exchange_code: response body received, {} bytes",
+            body.len()
+        );
 
         serde_json::from_str::<TokenResponse>(&body).map_err(|e| {
             debug_log!("exchange_code: failed to parse response: {e}");

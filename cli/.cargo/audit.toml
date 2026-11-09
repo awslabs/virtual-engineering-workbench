@@ -33,4 +33,26 @@ ignore = [
     # the crate is used for verification only. Revisit if `rsa`
     # publishes a fix or if this CLI ever performs RSA decryption.
     "RUSTSEC-2023-0071",
+
+    # RUSTSEC-2026-0387 — timing variability in `crypto-bigint` operations
+    # intended to be constant-time.
+    # https://rustsec.org/advisories/RUSTSEC-2026-0387
+    #
+    # Reached only through jsonwebtoken -> p256/p384 -> ecdsa ->
+    # elliptic-curve -> crypto-bigint, i.e. the ECDSA signature algorithms.
+    #
+    # Two reasons it does not apply here. First, this CLI only *verifies*
+    # JWTs, against the OIDC provider's public JWKS keys: the validator
+    # (cli/src/identity/adapters/jwt_token_validator.rs) uses DecodingKey and
+    # decode, and holds no signing key, so there is no secret scalar for a
+    # timing side channel to recover. Second, that validator configures
+    # Algorithm::RS256 only, so the ECDSA path is linked into the binary but
+    # never executed.
+    #
+    # The fix is crypto-bigint >= 0.7.6, which needs elliptic-curve 0.14 and
+    # therefore p256/p384 0.14 and a jsonwebtoken release that depends on
+    # them. Nothing in this repo can pull that forward. Revisit when
+    # jsonwebtoken ships against elliptic-curve 0.14, or sooner if this CLI
+    # ever signs a token or enables an ES* algorithm.
+    "RUSTSEC-2026-0387",
 ]

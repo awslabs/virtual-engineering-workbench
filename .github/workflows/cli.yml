@@ -42,8 +42,10 @@ jobs:
       - name: Unit + integration tests
         run: cargo test --release --locked
       - name: Dependency vulnerability audit
-        # Reads .cargo/audit.toml for the RUSTSEC-2023-0071 exemption
-        # (Marvin Attack — public-key verify only; see file for rationale).
+        # Reads .cargo/audit.toml for two exemptions, each justified in that
+        # file: RUSTSEC-2023-0071 (Marvin Attack) and RUSTSEC-2026-0387
+        # (crypto-bigint timing) — both public-key verify only, and the second
+        # on a code path this CLI never executes.
         run: |
           cargo install --locked cargo-audit
           cargo audit
