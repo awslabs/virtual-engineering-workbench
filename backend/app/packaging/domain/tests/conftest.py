@@ -64,6 +64,7 @@ from app.packaging.domain.model.shared.component_version_entry import (
     ComponentVersionEntry,
 )
 from app.packaging.domain.ports import (
+    ami_validation_service,
     component_query_service,
     component_version_definition_service,
     component_version_query_service,
@@ -943,6 +944,11 @@ def parameter_service_mock(get_test_ami_id):
 @pytest.fixture()
 def image_query_service_mock():
     return mock.create_autospec(spec=image_query_service.ImageQueryService)
+
+
+@pytest.fixture()
+def ami_validation_service_mock():
+    return mock.create_autospec(spec=ami_validation_service.AmiValidationService)
 
 
 @pytest.fixture()
@@ -2178,3 +2184,187 @@ def update_recipe_version_command_with_duplicate_mandatory_component(
         recipeVersionVolumeSize=recipe_version_volume_size_value_object.from_str("8"),
         lastUpdatedBy=user_id_value_object.from_str("T000001"),
     )
+
+
+# --- Image Import Fixtures ---
+
+
+@pytest.fixture()
+def get_test_ami_description():
+    from app.packaging.domain.read_models.ami_description import AmiDescription
+
+    def _get_test_ami_description(
+        state="available", owner_id="123456789012", product_codes=None, architecture="x86_64"
+    ):
+        return AmiDescription(
+            amiId="ami-12345678",
+            state=state,
+            platform="Linux",
+            architecture=architecture,
+            name="test-ami",
+            description="Test AMI",
+            ownerId=owner_id,
+            region="eu-west-1",
+            blockDeviceMappings=[],
+            productCodes=product_codes or [],
+        )
+
+    return _get_test_ami_description
+
+
+@pytest.fixture()
+def get_test_import_image_command():
+    from app.packaging.domain.commands.image.import_image_command import ImportImageCommand
+    from app.packaging.domain.value_objects.image import (
+        ami_id_value_object,
+        image_name_value_object,
+        image_source_value_object,
+        os_version_value_object,
+        platform_value_object,
+    )
+
+    def _get_test_import_image_command(image_source="EXISTING_AMI", **kwargs):
+        defaults = dict(
+            projectId=project_id_value_object.from_str("proj-123"),
+            imageSource=image_source_value_object.from_str(image_source),
+            amiId=ami_id_value_object.from_str("ami-12345678"),
+            imageName=image_name_value_object.from_str("My AMI"),
+            platform=platform_value_object.from_str("Linux"),
+            osVersion=os_version_value_object.from_str("Ubuntu 22.04"),
+            componentVersionDetails=[{"softwareName": "test", "softwareVersion": "1.0"}],
+            imageServiceAccountId="123456789012",
+        )
+        defaults.update(kwargs)
+        return ImportImageCommand(**defaults)
+
+    return _get_test_import_image_command
+
+
+# --- Marketplace Subscription Fixtures ---
+
+
+@pytest.fixture()
+def get_test_marketplace_ami():
+    from app.packaging.domain.read_models.marketplace_ami import MarketplaceAmi
+
+    def _get_test_marketplace_ami(ami_id="ami-111", product_code="pc-1", region="us-east-1", name="Test AMI"):
+        return MarketplaceAmi(
+            amiId=ami_id,
+            productCode=product_code,
+            platform="Linux",
+            architecture="x86_64",
+            state="available",
+            name=name,
+            description=None,
+            region=region,
+        )
+
+    return _get_test_marketplace_ami
+
+
+@pytest.fixture()
+def get_test_marketplace_agreement():
+    from app.packaging.domain.read_models.marketplace_agreement import MarketplaceAgreement
+
+    def _get_test_marketplace_agreement(agreement_id="agr-1", product_id="prod-1"):
+        return MarketplaceAgreement(
+            agreementId=agreement_id,
+            productId=product_id,
+            offerId="offer-1",
+            status="ACTIVE",
+            acceptanceDate="2024-01-01",
+        )
+
+    return _get_test_marketplace_agreement
+
+
+@pytest.fixture()
+def get_test_received_license():
+    from app.packaging.domain.read_models.received_license import ReceivedLicense
+
+    def _get_test_received_license(
+        license_arn="arn:aws:license-manager::123:license/lic-1",
+        status="AVAILABLE",
+        product_sku="sku-1",
+        allowed_operations=None,
+    ):
+        return ReceivedLicense(
+            licenseArn=license_arn,
+            licenseName="Test License",
+            productName="Test",
+            productSku=product_sku,
+            issuer="AWS Marketplace",
+            status=status,
+            allowedOperations=allowed_operations if allowed_operations is not None else ["CreateGrant"],
+        )
+
+    return _get_test_received_license
+
+
+@pytest.fixture()
+def get_test_marketplace_product_details():
+    from app.packaging.domain.read_models.marketplace_product_details import MarketplaceProductDetails
+
+    def _get_test_marketplace_product_details(product_id="prod-1"):
+        return MarketplaceProductDetails(
+            productId=product_id,
+            productName="Marketplace Product",
+            shortDescription="desc",
+            publisher="Vendor Inc",
+        )
+
+    return _get_test_marketplace_product_details
+
+
+@pytest.fixture()
+def get_test_existing_marketplace_image():
+    def _get_test_existing_marketplace_image(project_id="proj-1", ami_id="ami-111", product_code="pc-1"):
+        from app.packaging.domain.model.image.image_constants import ImageSource
+
+        return image.Image(
+            projectId=project_id,
+            imageId="image-existing",
+            status=image.ImageStatus.Created,
+            imageSource=ImageSource.MARKETPLACE_PRODUCT,
+            imageUpstreamId=ami_id,
+            marketplaceMetadata={
+                "productCode": product_code,
+                "subscriptionOwnership": "VEW_MANAGED",
+                "regionalAmiIds": {"us-east-1": ami_id},
+            },
+            createDate="2024-01-01",
+            lastUpdateDate="2024-01-01",
+        )
+
+    return _get_test_existing_marketplace_image
+
+
+@pytest.fixture()
+def get_test_marketplace_subscription_service():
+    from app.packaging.domain.query_services.marketplace_subscription_domain_query_service import (
+        MarketplaceSubscriptionDomainQueryService,
+    )
+
+    def _get_test_marketplace_subscription_service(marketplace_svc, image_qry_svc, available_regions=None):
+        return MarketplaceSubscriptionDomainQueryService(
+            agreement_service=marketplace_svc,
+            ami_service=marketplace_svc,
+            license_service=marketplace_svc,
+            image_qry_svc=image_qry_svc,
+            available_regions=available_regions or ["us-east-1"],
+            logger=logging.getLogger(__name__),
+        )
+
+    return _get_test_marketplace_subscription_service
+
+
+@pytest.fixture()
+def get_valid_marketplace_dict():
+    def _get_valid_marketplace_dict():
+        return {
+            "productCode": "abc123def456ghi",
+            "subscriptionOwnership": "VEW_MANAGED",
+            "regionalAmiIds": {"us-east-1": "ami-12345678"},
+        }
+
+    return _get_valid_marketplace_dict

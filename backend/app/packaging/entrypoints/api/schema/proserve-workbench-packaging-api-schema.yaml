@@ -2799,6 +2799,234 @@ paths:
         requestTemplates:
           application/json: '{"statusCode": 200}'
         passthroughBehavior: when_no_match
+  /projects/{projectId}/importable-amis:
+    get:
+      description: Lists AMIs from the Image Service account that can be imported
+      operationId: ListImportableAmis
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of importable AMIs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListImportableAmisResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ImportableAmisCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/images/import:
+    post:
+      description: Imports an existing or marketplace AMI into VEW
+      operationId: ImportImage
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportImageRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportImageResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ImportImageCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace/subscriptions:
+    get:
+      description: Discovers active Marketplace subscriptions in the hub account
+      operationId: DiscoverMarketplaceSubscriptions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverMarketplaceSubscriptionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        cacheKeyParameters:
+          - method.request.header.Authorization
+          - method.request.path.projectId
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceSubscriptionsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
   /projects/{projectId}/images/{imageId}:
     get:
       description: Get a specific Image
@@ -2933,6 +3161,16 @@ paths:
         - name: projectId
           in: path
           required: true
+          schema:
+            type: string
+        - name: imageSource
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
           schema:
             type: string
       responses:
@@ -4318,13 +4556,6 @@ components:
       required:
         - imageId
         - imageBuildVersion
-        - imageBuildVersionArn
-        - pipelineId
-        - pipelineName
-        - recipeId
-        - recipeName
-        - recipeVersionId
-        - recipeVersionName
         - status
         - createDate
         - lastUpdateDate
@@ -4375,6 +4606,10 @@ components:
           title: ImageUpstreamId
           type: string
           description: Amazon Machine Image (AMI) ID of the created image
+        imageSource:
+          title: ImageSource
+          type: string
+          description: Source of the image (PIPELINE, EXISTING_AMI, MARKETPLACE_PRODUCT)
         createDate:
           title: CreateDate
           type: string
@@ -4383,6 +4618,179 @@ components:
           title: LastUpdateDate
           type: string
           description: Last update date of the image
+    ImportImageRequest:
+      title: ImportImageRequest
+      type: object
+      required:
+        - imageSource
+        - amiId
+        - imageName
+        - platform
+        - osVersion
+        - componentVersionDetails
+      properties:
+        imageSource:
+          title: ImageSource
+          type: string
+        amiId:
+          title: AmiId
+          type: string
+        imageName:
+          title: ImageName
+          type: string
+        imageDescription:
+          title: ImageDescription
+          type: string
+        platform:
+          title: Platform
+          type: string
+        osVersion:
+          title: OsVersion
+          type: string
+        componentVersionDetails:
+          title: ComponentVersionDetails
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentVersionDetailInput"
+        marketplaceMetadata:
+          title: MarketplaceMetadata
+          $ref: "#/components/schemas/MarketplaceMetadataInput"
+    ImportImageResponse:
+      title: ImportImageResponse
+      type: object
+      properties:
+        imageId:
+          title: ImageId
+          type: string
+        imageSource:
+          title: ImageSource
+          type: string
+        amiId:
+          title: AmiId
+          type: string
+        status:
+          title: Status
+          type: string
+        createDate:
+          title: CreateDate
+          type: string
+    DiscoverMarketplaceSubscriptionsResponse:
+      title: DiscoverMarketplaceSubscriptionsResponse
+      type: object
+      properties:
+        subscriptions:
+          title: Subscriptions
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscoveredMarketplaceSubscription"
+        discoveredAt:
+          title: DiscoveredAt
+          type: string
+    ComponentVersionDetailInput:
+      title: ComponentVersionDetailInput
+      type: object
+      required:
+        - softwareName
+        - softwareVersion
+      properties:
+        softwareVendor:
+          title: SoftwareVendor
+          type: string
+        softwareName:
+          title: SoftwareName
+          type: string
+        softwareVersion:
+          title: SoftwareVersion
+          type: string
+        licenseDashboardUrl:
+          title: LicenseDashboardUrl
+          type: string
+        notes:
+          title: Notes
+          type: string
+    MarketplaceMetadataInput:
+      title: MarketplaceMetadataInput
+      type: object
+      required:
+        - productCode
+        - subscriptionOwnership
+        - regionalAmiIds
+      properties:
+        productCode:
+          title: ProductCode
+          type: string
+        subscriptionOwnership:
+          title: SubscriptionOwnership
+          type: string
+        regionalAmiIds:
+          title: RegionalAmiIds
+          type: object
+          additionalProperties:
+            type: string
+        licenseConfigurationArn:
+          title: LicenseConfigurationArn
+          type: string
+        homeRegion:
+          title: HomeRegion
+          type: string
+    DiscoveredMarketplaceSubscription:
+      title: DiscoveredMarketplaceSubscription
+      type: object
+      properties:
+        productName:
+          title: ProductName
+          type: string
+        productCode:
+          title: ProductCode
+          type: string
+        hubRegionAmiId:
+          title: HubRegionAmiId
+          type: string
+        regionalAmiIds:
+          title: RegionalAmiIds
+          type: object
+          additionalProperties:
+            type: string
+        licenseConfigurationArn:
+          title: LicenseConfigurationArn
+          type: string
+        homeRegion:
+          title: HomeRegion
+          type: string
+        subscriptionOwnership:
+          title: SubscriptionOwnership
+          type: string
+        alreadyImported:
+          title: AlreadyImported
+          type: boolean
+    ListImportableAmisResponse:
+      title: ListImportableAmisResponse
+      type: object
+      properties:
+        amis:
+          title: Amis
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportableAmi"
+    ImportableAmi:
+      title: ImportableAmi
+      type: object
+      properties:
+        amiId:
+          title: AmiId
+          type: string
+        name:
+          title: Name
+          type: string
+        platform:
+          title: Platform
+          type: string
+        architecture:
+          title: Architecture
+          type: string
+        state:
+          title: State
+          type: string
     CreateImageRequest:
       title: CreateImageRequest
       type: object

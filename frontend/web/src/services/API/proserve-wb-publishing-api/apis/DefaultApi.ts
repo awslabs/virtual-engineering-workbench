@@ -15,6 +15,8 @@
 
 import * as runtime from '../runtime';
 import type {
+  CreateLicenseGrantRequest,
+  CreateLicenseGrantResponse,
   CreateProductRequest,
   CreateProductResponse,
   CreateProductVersionRequest,
@@ -37,6 +39,10 @@ import type {
   ValidateProductVersionRequest,
 } from '../models';
 import {
+    CreateLicenseGrantRequestFromJSON,
+    CreateLicenseGrantRequestToJSON,
+    CreateLicenseGrantResponseFromJSON,
+    CreateLicenseGrantResponseToJSON,
     CreateProductRequestFromJSON,
     CreateProductRequestToJSON,
     CreateProductResponseFromJSON,
@@ -83,6 +89,13 @@ export interface ArchiveProductRequest {
     authorization: string;
     projectId: string;
     productId: string;
+}
+
+export interface CreateLicenseGrantOperationRequest {
+    authorization: string;
+    projectId: string;
+    imageId: string;
+    createLicenseGrantRequest: CreateLicenseGrantRequest;
 }
 
 export interface CreateProductOperationRequest {
@@ -203,6 +216,11 @@ export interface GetProductsRequest {
 export interface GetSwaggerSpecRequest {
     authorization: string;
     format?: GetSwaggerSpecFormatEnum;
+}
+
+export interface LicenseGrantsCorsRequest {
+    projectId: string;
+    imageId: string;
 }
 
 export interface ProductVersionCorsRequest {
@@ -332,6 +350,59 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async archiveProduct(requestParameters: ArchiveProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.archiveProductRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Creates a License Manager grant for a spoke account to access a marketplace AMI
+     */
+    async createLicenseGrantRaw(requestParameters: CreateLicenseGrantOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CreateLicenseGrantResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling createLicenseGrant.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling createLicenseGrant.');
+        }
+
+        if (requestParameters.imageId === null || requestParameters.imageId === undefined) {
+            throw new runtime.RequiredError('imageId','Required parameter requestParameters.imageId was null or undefined when calling createLicenseGrant.');
+        }
+
+        if (requestParameters.createLicenseGrantRequest === null || requestParameters.createLicenseGrantRequest === undefined) {
+            throw new runtime.RequiredError('createLicenseGrantRequest','Required parameter requestParameters.createLicenseGrantRequest was null or undefined when calling createLicenseGrant.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/{imageId}/license-grants`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"imageId"}}`, encodeURIComponent(String(requestParameters.imageId))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateLicenseGrantRequestToJSON(requestParameters.createLicenseGrantRequest),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CreateLicenseGrantResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Creates a License Manager grant for a spoke account to access a marketplace AMI
+     */
+    async createLicenseGrant(requestParameters: CreateLicenseGrantOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CreateLicenseGrantResponse> {
+        const response = await this.createLicenseGrantRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -1288,6 +1359,40 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async getSwaggerSpecCORS(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.getSwaggerSpecCORSRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async licenseGrantsCorsRaw(requestParameters: LicenseGrantsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling licenseGrantsCors.');
+        }
+
+        if (requestParameters.imageId === null || requestParameters.imageId === undefined) {
+            throw new runtime.RequiredError('imageId','Required parameter requestParameters.imageId was null or undefined when calling licenseGrantsCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/{imageId}/license-grants`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"imageId"}}`, encodeURIComponent(String(requestParameters.imageId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async licenseGrantsCors(requestParameters: LicenseGrantsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.licenseGrantsCorsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

@@ -65,3 +65,46 @@ def test_container_path(start_execution, wait_for_execution, mocked_test_event):
     assertpy.assert_that(output_parsed["succeedAmiSharingResponse"]["eventType"]).is_equal_to(
         "SucceedAmiSharingResponse"
     )
+
+
+def test_ami_sharing_license_grant_path(start_execution, wait_for_execution, mocked_test_event):
+    # ARRANGE
+
+    # ACT
+    execution_arn = start_execution(test_name="LicenseGrantPath", test_event=mocked_test_event)
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("SUCCEEDED")
+    assertpy.assert_that(output).is_not_none()
+    output_parsed = json.loads(output)
+    assertpy.assert_that(output_parsed["succeedAmiSharingResponse"]["eventType"]).is_equal_to(
+        "SucceedAmiSharingResponse"
+    )
+
+
+def test_ami_sharing_verify_external_grant_path(start_execution, wait_for_execution, mocked_test_event):
+    # ARRANGE
+
+    # ACT
+    execution_arn = start_execution(test_name="VerifyExternalGrantPath", test_event=mocked_test_event)
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("SUCCEEDED")
+    assertpy.assert_that(output).is_not_none()
+    output_parsed = json.loads(output)
+    assertpy.assert_that(output_parsed["succeedAmiSharingResponse"]["eventType"]).is_equal_to(
+        "SucceedAmiSharingResponse"
+    )
+
+
+def test_ami_sharing_verify_external_grant_not_found_path(start_execution, wait_for_execution, mocked_test_event):
+    # ARRANGE
+
+    # ACT
+    execution_arn = start_execution(test_name="VerifyExternalGrantNotFoundPath", test_event=mocked_test_event)
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("FAILED")

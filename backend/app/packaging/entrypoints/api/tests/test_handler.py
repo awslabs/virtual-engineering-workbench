@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 import assertpy
@@ -1616,6 +1617,7 @@ def test_get_all_images_for_project(lambda_context, authenticated_event, mocked_
             recipeVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
             status=image.ImageStatus.Created,
             imageUpstreamId=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value,
+            imageSource="PIPELINE",
             createDate=GlobalVariables.TEST_CREATE_DATE.value,
             lastUpdateDate=GlobalVariables.TEST_LAST_UPDATE_DATE.value,
         )
@@ -1653,6 +1655,7 @@ def test_get_image_for_project(lambda_context, authenticated_event, mocked_depen
             recipeVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
             status=image.ImageStatus.Created,
             imageUpstreamId=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value,
+            imageSource="PIPELINE",
             createDate=GlobalVariables.TEST_CREATE_DATE.value,
             lastUpdateDate=GlobalVariables.TEST_LAST_UPDATE_DATE.value,
         )
@@ -1799,3 +1802,55 @@ def test_create_component_version_should_succeed_if_license_or_notes_is_empty_an
             createdBy=user_id_value_object.from_str(GlobalVariables.TEST_CREATED_BY.value),
         )
     )
+
+
+def test_import_image_should_return_201(
+    lambda_context, authenticated_event, mocked_dependencies, mocked_import_image_cmd_handler
+):
+    # ARRANGE
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_import_image_cmd_handler.return_value = "image-abc123"
+
+    body = {
+        "imageSource": "EXISTING_AMI",
+        "amiId": "ami-01234567890abcdef",
+        "imageName": "Test Image",
+        "platform": "Linux",
+        "architecture": "x86_64",
+        "osVersion": "Ubuntu 20",
+        "componentVersionDetails": [{"softwareName": "test", "softwareVersion": "1.0"}],
+    }
+
+    event = authenticated_event(
+        json.dumps(body),
+        "/projects/proj-123/images/import",
+        "POST",
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+
+
+def test_discover_marketplace_subscriptions_should_return_200(lambda_context, authenticated_event, mocked_dependencies):
+    # ARRANGE
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_dependencies.marketplace_subscription_qry_svc.discover.return_value = []
+
+    event = authenticated_event(
+        None,
+        "/projects/proj-123/marketplace/subscriptions",
+        "GET",
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)

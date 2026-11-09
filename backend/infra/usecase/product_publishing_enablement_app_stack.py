@@ -299,7 +299,22 @@ class ProductPublishingEnablementAppStack(Stack):
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW, actions=["iam:GetRole", "servicecatalog:*"], resources=["*"]
-                )
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        "license-manager:AcceptGrant",
+                        "license-manager:CreateGrantVersion",
+                        "license-manager:ListReceivedGrants",
+                        "license-manager:GetGrant",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ec2:DescribeImages"],
+                    resources=["*"],
+                ),
             ],
         )
 

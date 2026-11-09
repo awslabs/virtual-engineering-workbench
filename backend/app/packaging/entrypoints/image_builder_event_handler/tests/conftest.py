@@ -31,6 +31,34 @@ def mock_sts():
         yield boto3.client("sts", region_name=GlobalVariables.TEST_REGION.value)
 
 
+@pytest.fixture(autouse=True)
+def backend_app_dynamodb_table(mock_sts):
+    dynamodb = boto3.resource("dynamodb", region_name=GlobalVariables.TEST_REGION.value)
+    table = dynamodb.create_table(
+        TableName=GlobalVariables.TEST_TABLE_NAME.value,
+        KeySchema=[{"AttributeName": "PK", "KeyType": "HASH"}, {"AttributeName": "SK", "KeyType": "RANGE"}],
+        AttributeDefinitions=[
+            {"AttributeName": "PK", "AttributeType": "S"},
+            {"AttributeName": "SK", "AttributeType": "S"},
+            {"AttributeName": "entity", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+        # The bootstrapper runs the packaging DynamoDB migrations, which query this index (as deployed).
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "gsi_entities",
+                "KeySchema": [
+                    {"AttributeName": "entity", "KeyType": "HASH"},
+                    {"AttributeName": "SK", "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            }
+        ],
+    )
+    table.meta.client.get_waiter("table_exists").wait(TableName=GlobalVariables.TEST_TABLE_NAME.value)
+    return table
+
+
 @pytest.fixture
 def lambda_context():
     @dataclass
@@ -60,6 +88,9 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
     monkeypatch.setenv("AWS_REGION", "us-east-1")
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    # The bootstrapper now runs the Image.imageSource migration, which queries the
+    # entities GSI by name; the stack supplies this to every packaging Lambda.
+    monkeypatch.setenv("GSI_NAME_ENTITIES", "gsi_entities")
     monkeypatch.setenv("USER_POOL_URL", "https://fake.com")
     monkeypatch.setenv("AWS_ACCOUNT", "123456789012")
     monkeypatch.setenv("POWERTOOLS_METRICS_NAMESPACE", "Test")

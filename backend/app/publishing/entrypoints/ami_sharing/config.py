@@ -25,5 +25,8 @@ class AppConfig(BaseModel):
     def get_image_service_key_name(self) -> str:
         return os.environ.get("IMAGE_SERVICE_KEY_NAME", "")
 
+    def get_spoke_account_role(self) -> str:
+        return os.environ.get("SPOKE_ACCOUNT_ROLE", "")
+
     def get_gsi_name_entities(self) -> str:
         return os.environ.get("GSI_NAME_ENTITIES", "")

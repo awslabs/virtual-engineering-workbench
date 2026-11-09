@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 
@@ -21,7 +22,7 @@ from app.packaging.domain.commands.component import (
     update_mandatory_components_list_command,
     validate_component_version_command,
 )
-from app.packaging.domain.commands.image import create_image_command
+from app.packaging.domain.commands.image import create_image_command, import_image_command
 from app.packaging.domain.commands.pipeline import (
     create_pipeline_command,
     retire_pipeline_command,
@@ -36,6 +37,7 @@ from app.packaging.domain.commands.recipe import (
     update_recipe_version_command,
 )
 from app.packaging.domain.exceptions import domain_exception
+from app.packaging.domain.model.image.image_constants import SubscriptionOwnership
 from app.packaging.domain.value_objects.component import (
     component_description_value_object,
     component_id_value_object,
@@ -63,7 +65,13 @@ from app.packaging.domain.value_objects.component_version_test_execution import 
     component_version_test_execution_instance_id_value_object,
 )
 from app.packaging.domain.value_objects.image import (
+    ami_id_value_object,
     image_id_value_object,
+    image_name_value_object,
+    image_source_value_object,
+    os_version_value_object,
+    platform_value_object,
+    product_code_value_object,
     product_id_value_object,
 )
 from app.packaging.domain.value_objects.pipeline import (
@@ -1433,8 +1441,13 @@ def get_images(
 ) -> api_gateway.Response[GetImagesResponse]:
     """Lists images associated to a specific project."""
 
+    image_source_filter = app.current_event.get_query_string_value(name="imageSource")
+    status_filter = app.current_event.get_query_string_value(name="status")
+
     images = dependencies.image_domain_qry_srv.get_images(
         project_id=project_id_value_object.from_str(project_id),
+        image_source=image_source_filter,
+        status=status_filter,
     )
 
     images_parsed = [
@@ -1469,6 +1482,106 @@ def get_image(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetImageResponse(image=image_parsed),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.get("/projects/<project_id>/importable-amis", tags=[TAG_IMAGES])
+def list_importable_amis(
+    project_id: str,
+) -> api_gateway.Response[api_model.ListImportableAmisResponse]:
+    """Lists AMIs from the Image Service account that can be imported."""
+    all_amis = dependencies.ami_validation_svc.list_available_amis()
+    existing_upstream_ids = {
+        img.imageUpstreamId
+        for img in dependencies.image_domain_qry_srv.get_images(project_id_value_object.from_str(project_id))
+        if img.imageUpstreamId
+    }
+    importable = [
+        api_model.ImportableAmi(
+            amiId=ami.amiId,
+            name=ami.name,
+            platform=ami.platform,
+            architecture=ami.architecture,
+            state=ami.state,
+        )
+        for ami in all_amis
+        if ami.amiId not in existing_upstream_ids
+    ]
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.ListImportableAmisResponse(amis=importable),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.post("/projects/<project_id>/images/import", tags=[TAG_IMAGES])
+def import_image(
+    request: api_model.ImportImageRequest,
+    project_id: str,
+) -> api_gateway.Response[api_model.ImportImageResponse]:
+    """Imports an existing or marketplace AMI into VEW."""
+    marketplace_metadata = request.marketplaceMetadata
+    product_code_raw = marketplace_metadata.productCode if marketplace_metadata else None
+
+    command = import_image_command.ImportImageCommand(
+        projectId=project_id_value_object.from_str(project_id),
+        imageSource=image_source_value_object.from_str(request.imageSource),
+        amiId=ami_id_value_object.from_str(request.amiId),
+        imageName=image_name_value_object.from_str(request.imageName),
+        imageDescription=request.imageDescription,
+        platform=platform_value_object.from_str(request.platform),
+        osVersion=os_version_value_object.from_str(request.osVersion),
+        componentVersionDetails=[
+            c.model_dump() if hasattr(c, "model_dump") else c for c in (request.componentVersionDetails or [])
+        ],
+        marketplaceProductCode=product_code_value_object.from_str(product_code_raw) if product_code_raw else None,
+        licenseConfigurationArn=marketplace_metadata.licenseConfigurationArn if marketplace_metadata else None,
+        subscriptionOwnership=(
+            SubscriptionOwnership(marketplace_metadata.subscriptionOwnership)
+            if marketplace_metadata and marketplace_metadata.subscriptionOwnership
+            else None
+        ),
+        regionalAmiIds=marketplace_metadata.regionalAmiIds if marketplace_metadata else None,
+        homeRegion=marketplace_metadata.homeRegion if marketplace_metadata else None,
+        imageServiceAccountId=dependencies.image_service_account_id,
+    )
+
+    image_id = dependencies.command_bus.handle(command)
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.ImportImageResponse(
+            imageId=image_id,
+            imageSource=request.imageSource,
+            amiId=request.amiId,
+            status="CREATED",
+            createDate=datetime.now(timezone.utc).isoformat(),
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.get("/projects/<project_id>/marketplace/subscriptions", tags=[TAG_IMAGES])
+def discover_marketplace_subscriptions(
+    project_id: str,
+) -> api_gateway.Response[api_model.DiscoverMarketplaceSubscriptionsResponse]:
+    """Discovers active Marketplace subscriptions in the hub account."""
+    subscriptions = dependencies.marketplace_subscription_qry_svc.discover(
+        project_id=project_id_value_object.from_str(project_id),
+    )
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.DiscoverMarketplaceSubscriptionsResponse(
+            subscriptions=[
+                api_model.DiscoveredMarketplaceSubscription.model_validate(s.model_dump()) for s in subscriptions
+            ],
+            discoveredAt=datetime.now(timezone.utc).isoformat(),
+        ),
         content_type=content_types.APPLICATION_JSON,
     )
 

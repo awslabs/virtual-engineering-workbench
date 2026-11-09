@@ -276,6 +276,9 @@ def test_handle_should_update_version_if_version_in_repository(
             [cvd.model_dump() for cvd in test_ami.componentVersionDetails] if test_ami.componentVersionDetails else None
         ),
         osVersion=test_ami.osVersion,
+        platform=test_ami.platform,
+        architecture=test_ami.architecture,
+        integrations=test_ami.integrations or [],
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )
     mock_unit_of_work.commit.assert_called()
@@ -496,6 +499,9 @@ def test_handle_should_update_version_if_ami_has_no_components_details(
             [cvd.model_dump() for cvd in test_ami.componentVersionDetails] if test_ami.componentVersionDetails else None
         ),
         osVersion=test_ami.osVersion,
+        platform=test_ami.platform,
+        architecture=test_ami.architecture,
+        integrations=test_ami.integrations or [],
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )
     mock_unit_of_work.commit.assert_called()

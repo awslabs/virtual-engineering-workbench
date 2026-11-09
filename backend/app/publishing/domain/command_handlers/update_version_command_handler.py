@@ -122,6 +122,13 @@ def __prepare_additional_attributes(command, product_entity, amis_qry_srv):
             else None
         )
         additional_attributes["osVersion"] = ami.osVersion
+        additional_attributes["platform"] = ami.platform
+        additional_attributes["architecture"] = ami.architecture
+        additional_attributes["integrations"] = ami.integrations or []
+        if ami.imageSource:
+            additional_attributes["imageSource"] = ami.imageSource
+            if ami.marketplaceMetadata:
+                additional_attributes["marketplaceMetadata"] = ami.marketplaceMetadata.model_dump()
     return additional_attributes
 
 

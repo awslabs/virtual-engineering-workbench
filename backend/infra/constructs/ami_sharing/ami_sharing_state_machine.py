@@ -131,6 +131,11 @@ class AmiSharingStateMachine(constructs.Construct):
                 "originalAmiId.$": "$.Payload.originalAmiId",
                 "copiedAmiId.$": "$.Payload.copiedAmiId",
                 "region.$": "$.Payload.region",
+                "imageId.$": "$.Payload.imageId",
+                "projectId.$": "$.Payload.projectId",
+                "licenseArn.$": "$.Payload.licenseArn",
+                "homeRegion.$": "$.Payload.homeRegion",
+                "grantName.$": "$.Payload.grantName",
             },
             result_path="$.decideActionResponse",
         )
@@ -175,6 +180,127 @@ class AmiSharingStateMachine(constructs.Construct):
             result_path="$.verifyCopyResponse",
         )
         verify_copy_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Create license grant lambda
+        create_license_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "CreateLicenseGrantLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "CreateLicenseGrantRequest",
+                    "productId.$": "$.productId",
+                    "versionId.$": "$.versionId",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "imageId.$": "$.decideActionResponse.imageId",
+                    "grantName.$": "$.decideActionResponse.grantName",
+                    "projectId.$": "$.decideActionResponse.projectId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "grantId.$": "$.Payload.grantId",
+                "grantArn.$": "$.Payload.grantArn",
+                "homeRegion.$": "$.Payload.homeRegion",
+            },
+            result_path="$.createLicenseGrantResponse",
+        )
+        create_license_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Accept license grant lambda
+        accept_license_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "AcceptLicenseGrantLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "AcceptLicenseGrantRequest",
+                    "grantId.$": "$.createLicenseGrantResponse.grantId",
+                    "grantArn.$": "$.createLicenseGrantResponse.grantArn",
+                    "homeRegion.$": "$.createLicenseGrantResponse.homeRegion",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "projectId.$": "$.decideActionResponse.projectId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+            },
+            result_path="$.acceptLicenseGrantResponse",
+        )
+        # Retry accept: grant distribution from hub to spoke is async — the grant may not
+        # be visible in the spoke's ListReceivedGrants immediately after CreateGrant returns.
+        accept_license_grant_lambda.add_retry(
+            max_attempts=3,
+            interval=aws_cdk.Duration.seconds(10),
+        )
+        accept_license_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Verify launch permission lambda (shared by LICENSE_GRANT and VERIFY_EXTERNAL_GRANT paths)
+        verify_launch_permission_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "VerifyLaunchPermissionLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "VerifyLicenseGrantRequest",
+                    "amiId.$": "$.decideActionResponse.imageId",
+                    "region.$": "$.decideActionResponse.region",
+                    "awsAccountId.$": "$.awsAccountId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "launchPermissionVerified.$": "$.Payload.isAccessible",
+            },
+            result_path="$.verifyLaunchPermissionResponse",
+            retry_on_service_exceptions=False,
+        )
+        verify_launch_permission_lambda.add_retry(
+            max_attempts=3,
+            interval=aws_cdk.Duration.seconds(30),
+        )
+        verify_launch_permission_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Verify external grant lambda
+        verify_external_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "VerifyExternalGrantLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "VerifyExternalGrantRequest",
+                    "productId.$": "$.productId",
+                    "versionId.$": "$.versionId",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "amiId.$": "$.decideActionResponse.imageId",
+                    "region.$": "$.decideActionResponse.region",
+                    "licenseArn.$": "$.decideActionResponse.licenseArn",
+                    "homeRegion.$": "$.decideActionResponse.homeRegion",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "grantVerified.$": "$.Payload.grantVerified",
+            },
+            result_path="$.verifyExternalGrantResponse",
+        )
+        verify_external_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Verify external grant choice
+        verify_external_grant_choice: sfn.Choice = sfn.Choice(self, "VerifyExternalGrantChoice")
+        verify_external_grant_choice.when(
+            sfn.Condition.boolean_equals("$.verifyExternalGrantResponse.grantVerified", True),
+            verify_launch_permission_lambda,
+        )
+        verify_external_grant_choice.otherwise(fail_ami_sharing_lambda)
+
+        # Pass state for license grant path to set copiedAmi placeholder
+        pass_license_grant: sfn.Pass = sfn.Pass(
+            self,
+            "PassLicenseGrant",
+            parameters={"copiedAmiId.$": "$.decideActionResponse.originalAmiId"},
+            result_path="$.copiedAmi",
+        )
 
         # Share ami lambda
         share_ami_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
@@ -244,6 +370,20 @@ class AmiSharingStateMachine(constructs.Construct):
         )
         chain_share = sfn.Chain.start(pass_share).next(share_ami_lambda)
         chain_done = sfn.Chain.start(pass_done)
+
+        # LICENSE_GRANT chain: CreateLicenseGrant → AcceptLicenseGrant → VerifyLaunchPermission
+        chain_license_grant = (
+            sfn.Chain.start(pass_license_grant)
+            .next(create_license_grant_lambda)
+            .next(accept_license_grant_lambda)
+            .next(verify_launch_permission_lambda)
+        )
+
+        # VERIFY_EXTERNAL_GRANT chain: VerifyExternalGrant → Choice(grantVerified?) → VerifyLaunchPermission
+        chain_verify_external_grant = sfn.Chain.start(verify_external_grant_lambda).next(
+            verify_external_grant_choice.afterwards(include_otherwise=False)
+        )
+
         fail_ami_sharing_lambda.next(fail_state)
 
         # Decide action choice
@@ -253,6 +393,13 @@ class AmiSharingStateMachine(constructs.Construct):
         decide_action_choice.when(sfn.Condition.string_equals("$.decideActionResponse.decision", "DONE"), chain_done)
         decide_action_choice.when(
             sfn.Condition.string_equals("$.decideActionResponse.decision", "NOT_REQUIRED"), chain_done
+        )
+        decide_action_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.decision", "LICENSE_GRANT"), chain_license_grant
+        )
+        decide_action_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.decision", "VERIFY_EXTERNAL_GRANT"),
+            chain_verify_external_grant,
         )
         decide_action_choice.otherwise(fail_ami_sharing_lambda)
 

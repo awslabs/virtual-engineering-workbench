@@ -1232,3 +1232,59 @@ def test_workbench_template_emits_an_ssh_key_the_login_dialog_can_offer(get_vers
     assertpy.assert_that(template["Outputs"]).contains_key("SSHKeyPair", "KeyPairId")
     assertpy.assert_that(template["Resources"]["KeyPair"]["Type"]).is_equal_to("AWS::EC2::KeyPair")
     assertpy.assert_that(template["Resources"]["Workbench"]["Properties"]).contains_key("KeyName")
+
+
+@freeze_time("2023-07-13T00:00:00+00:00")
+def test_publish_version_should_use_regional_ami_ids_from_marketplace_metadata(
+    command_mock,
+    mock_unit_of_work,
+    catalog_service_mock,
+    catalog_query_service_mock,
+    logger_mock,
+    mock_version_repo,
+    message_bus_mock,
+    projects_query_service_mock,
+    file_service_mock,
+    shared_amis_query_service_mock,
+    template_service_mock,
+    mock_products_repo,
+    get_product,
+    get_version,
+    get_template_path,
+):
+    # ARRANGE — version with marketplaceMetadata.regionalAmiIds
+    from app.publishing.domain.model.marketplace_metadata import MarketplaceMetadata
+
+    catalog_query_service_mock.get_sc_product_id.return_value = "sc-prod-123"
+    catalog_query_service_mock.get_sc_provisioning_artifact_id.side_effect = [None, None]
+    catalog_query_service_mock.get_launch_constraint_id.return_value = "lc-123"
+    catalog_query_service_mock.get_resource_update_constraint_id.return_value = "ruc-123"
+    catalog_query_service_mock.get_notification_constraint_id.return_value = "nc-123"
+    product_entity = get_product()
+    version_entity = get_version()
+    version_entity.marketplaceMetadata = MarketplaceMetadata(
+        productCode="pc-123",
+        subscriptionOwnership="VEW_MANAGED",
+        regionalAmiIds={"us-east-1": "ami-marketplace-us", "eu-west-1": "ami-marketplace-eu"},
+        homeRegion="us-east-1",
+    )
+    mock_products_repo.get.return_value = product_entity
+    mock_version_repo.get.return_value = version_entity
+    template_service_mock.get_default_template_file_name.return_value = get_template_path()
+
+    # ACT
+    publish_version_command_handler.handle(
+        cmd=command_mock,
+        uow=mock_unit_of_work,
+        catalog_qry_srv=catalog_query_service_mock,
+        projects_qry_srv=projects_query_service_mock,
+        catalog_srv=catalog_service_mock,
+        logger=logger_mock,
+        msg_bus=message_bus_mock,
+        file_srv=file_service_mock,
+        shared_amis_qry_srv=shared_amis_query_service_mock,
+        template_qry_srv=template_service_mock,
+    )
+
+    # ASSERT — SharedAmi query should NOT be called when marketplaceMetadata has regionalAmiIds
+    shared_amis_query_service_mock.get_shared_amis.assert_not_called()

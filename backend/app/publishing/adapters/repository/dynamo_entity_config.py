@@ -1,7 +1,7 @@
 import enum
 
 from app.publishing.adapters.services import dynamo_db_repositories as legacy_ddb_uow
-from app.publishing.domain.model import portfolio, product, shared_ami, version
+from app.publishing.domain.model import license_grant, portfolio, product, shared_ami, version
 from app.publishing.domain.read_models import ami
 from app.shared.adapters.unit_of_work_v2 import (
     dynamodb_repo_config,
@@ -18,6 +18,7 @@ class DBPrefix(enum.StrEnum):
     Version = "VERSION"
     Technology = "TECHNOLOGY"
     Region = "REGION"
+    LicenseGrant = "LICENSE_GRANT"
 
     def __str__(self):
         return str(self.value)
@@ -48,6 +49,9 @@ class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):
             self.portfolio_entity_config,
         )
         self.register_cfg(ami.AmiPrimaryKey, ami.Ami, self.ami_entity_config)
+        self.register_cfg(
+            license_grant.LicenseGrantPrimaryKey, license_grant.LicenseGrant, self.license_grant_entity_config
+        )
 
     def shared_ami_entity_config(
         self,
@@ -158,3 +162,26 @@ class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):
         )
 
         cfg.enable_query_all(gsi_partition_key_attribute_name=legacy_ddb_uow.DBPrefix.AMI)
+
+    def license_grant_entity_config(
+        self,
+        cfg: dynamodb_repo_config.GenericDynamoDBRepositoryConfig[
+            license_grant.LicenseGrantPrimaryKey, license_grant.LicenseGrant
+        ],
+    ):
+        # ex. PROJECT#proj-123
+        cfg.partition_key(
+            name="PK",
+            value_template=lambda project_id: f"{DBPrefix.Project}#{project_id}",
+            values_from_entity=lambda ent: ent.projectId,
+            values_from_primary_key=lambda pk: pk.projectId,
+        )
+        # ex. LICENSE_GRANT#lg-abc123
+        cfg.sort_key(
+            name="SK",
+            value_template=lambda grant_id: f"{DBPrefix.LicenseGrant}#{grant_id}",
+            values_from_entity=lambda ent: ent.grantId,
+            values_from_primary_key=lambda pk: pk.grantId,
+        )
+
+        cfg.enable_query_all(gsi_partition_key_attribute_name=DBPrefix.LicenseGrant)

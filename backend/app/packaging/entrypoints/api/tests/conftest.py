@@ -2194,6 +2194,11 @@ def mocked_create_image_cmd_handler():
 
 
 @pytest.fixture
+def mocked_import_image_cmd_handler():
+    return mock.MagicMock()
+
+
+@pytest.fixture
 def mocked_generate_component_definition_cmd_handler():
     return mock.MagicMock()
 
@@ -2250,7 +2255,14 @@ def mocked_dependencies(
     mocked_pipeline_domain_query_service,
     mocked_create_image_cmd_handler,
     mocked_image_query_service,
+    mocked_import_image_cmd_handler,
 ) -> bootstrapper.Dependencies:
+    from app.packaging.domain.commands.image import import_image_command
+    from app.packaging.domain.ports.marketplace_agreement_service import MarketplaceAgreementService
+    from app.packaging.domain.query_services.marketplace_subscription_domain_query_service import (
+        MarketplaceSubscriptionDomainQueryService,
+    )
+
     return bootstrapper.Dependencies(
         command_bus=in_memory_command_bus.InMemoryCommandBus(
             logger=mock.MagicMock(),
@@ -2334,6 +2346,10 @@ def mocked_dependencies(
         .register_handler(
             create_image_command.CreateImageCommand,
             mocked_create_image_cmd_handler,
+        )
+        .register_handler(
+            import_image_command.ImportImageCommand,
+            mocked_import_image_cmd_handler,
         ),
         component_domain_qry_srv=mocked_component_domain_query_service,
         component_version_domain_qry_srv=mocked_component_versions_domain_query_service,
@@ -2349,4 +2365,10 @@ def mocked_dependencies(
             spec=aws_component_definition_service.AWSComponentDefinitionService,
             instance=True,
         ),
+        marketplace_discovery_svc=mock.create_autospec(spec=MarketplaceAgreementService, instance=True),
+        marketplace_subscription_qry_svc=mock.create_autospec(
+            spec=MarketplaceSubscriptionDomainQueryService, instance=True
+        ),
+        image_service_account_id="123456789012",
+        available_regions=["us-east-1"],
     )

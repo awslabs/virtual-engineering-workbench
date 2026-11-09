@@ -29,6 +29,27 @@
                 "NotRequiredPath": {
                     "DecideActionLambda": "MockedDecideActionLambdaDone",
                     "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "LicenseGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaLicenseGrant",
+                    "CreateLicenseGrantLambda": "MockedCreateLicenseGrantLambda",
+                    "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "VerifyExternalGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaVerifyExternalGrant",
+                    "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaSuccess",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "VerifyExternalGrantNotFoundPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaVerifyExternalGrant",
+                    "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaNotFound",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
                 }
             }
         }
@@ -82,6 +103,32 @@
                 }
             }
         },
+        "MockedDecideActionLambdaLicenseGrant": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "LICENSE_GRANT",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": null,
+                        "region": "eu-west-3"
+                    }
+                }
+            }
+        },
+        "MockedDecideActionLambdaVerifyExternalGrant": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "VERIFY_EXTERNAL_GRANT",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": null,
+                        "region": "eu-west-3"
+                    }
+                }
+            }
+        },
         "MockedCopyAmiLambda": {
             "0": {
                 "Return": {
@@ -116,6 +163,56 @@
                 "Return": {
                     "Payload": {
                         "eventType": "SucceedAmiSharingResponse"
+                    }
+                }
+            }
+        },
+        "MockedCreateLicenseGrantLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "CreateLicenseGrantResponse",
+                        "grantArn": "arn:aws:license-manager::123456789012:grant/g-12345"
+                    }
+                }
+            }
+        },
+        "MockedAcceptLicenseGrantLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "AcceptLicenseGrantResponse"
+                    }
+                }
+            }
+        },
+        "MockedVerifyLaunchPermissionLambda": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "VerifyLicenseGrantResponse",
+                        "launchPermissionVerified": true
+                    }
+                }
+            }
+        },
+        "MockedVerifyExternalGrantLambdaSuccess": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "VerifyExternalGrantResponse",
+                        "grantVerified": true,
+                        "homeRegion": "us-east-1"
+                    }
+                }
+            }
+        },
+        "MockedVerifyExternalGrantLambdaNotFound": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "VerifyExternalGrantResponse",
+                        "grantVerified": false
                     }
                 }
             }

@@ -10,8 +10,10 @@ from app.publishing.adapters.query_services import (
 )
 from app.publishing.adapters.repository import dynamo_entity_config
 from app.publishing.adapters.services import cloud_formation_service, s3_file_service
+from app.publishing.adapters.services.aws_license_manager_service import AwsLicenseManagerService
 from app.publishing.domain.command_handlers import (
     archive_product_command_handler,
+    create_license_grant_command_handler,
     create_product_command_handler,
     create_version_command_handler,
     promote_version_command_handler,
@@ -24,6 +26,7 @@ from app.publishing.domain.command_handlers import (
 )
 from app.publishing.domain.commands import (
     archive_product_command,
+    create_license_grant_command,
     create_product_command,
     create_version_command,
     promote_version_command,
@@ -298,6 +301,25 @@ def bootstrap(  # noqa: C901
 
         return _handle_command
 
+    license_manager_svc = AwsLicenseManagerService(
+        spoke_account_role=app_config.get_spoke_account_role(),
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+
+    def _create_license_grant_cmd_handler_factory():
+        def _handle_command(command: create_license_grant_command.CreateLicenseGrantCommand):
+            return create_license_grant_command_handler.handle(
+                command=command,
+                uow=shared_uow,
+                license_manager_service=license_manager_svc,
+                msg_bus=message_bus,
+                amis_query_service=amis_qry_srv,
+                logger=logger,
+            )
+
+        return _handle_command
+
     command_bus = (
         command_bus_metrics.CommandBusMetrics(
             inner=in_memory_command_bus.InMemoryCommandBus(logger=logger),
@@ -342,6 +364,10 @@ def bootstrap(  # noqa: C901
         .register_handler(
             set_recommended_version_command.SetRecommendedVersionCommand,
             _set_recommended_version_command_handler_factory(),
+        )
+        .register_handler(
+            create_license_grant_command.CreateLicenseGrantCommand,
+            _create_license_grant_cmd_handler_factory(),
         )
     )
 

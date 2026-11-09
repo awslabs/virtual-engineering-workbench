@@ -13,6 +13,13 @@
  */
 
 import { exists, mapValues } from '../runtime';
+import type { MarketplaceMetadata } from './MarketplaceMetadata';
+import {
+    MarketplaceMetadataFromJSON,
+    MarketplaceMetadataFromJSONTyped,
+    MarketplaceMetadataToJSON,
+} from './MarketplaceMetadata';
+
 /**
  *
  * @export
@@ -49,6 +56,18 @@ export interface Ami {
      * @memberof Ami
      */
     lastUpdateDate: string;
+    /**
+     * Source of the image (PIPELINE, EXISTING_AMI, MARKETPLACE_PRODUCT)
+     * @type {string}
+     * @memberof Ami
+     */
+    imageSource?: string;
+    /**
+     *
+     * @type {MarketplaceMetadata}
+     * @memberof Ami
+     */
+    marketplaceMetadata?: MarketplaceMetadata;
 }
 
 /**
@@ -79,6 +98,8 @@ export function AmiFromJSONTyped(json: any, ignoreDiscriminator: boolean): Ami {
         'amiDescription': !exists(json, 'amiDescription') ? undefined : json['amiDescription'],
         'createDate': json['createDate'],
         'lastUpdateDate': json['lastUpdateDate'],
+        'imageSource': !exists(json, 'imageSource') ? undefined : json['imageSource'],
+        'marketplaceMetadata': !exists(json, 'marketplaceMetadata') ? undefined : MarketplaceMetadataFromJSON(json['marketplaceMetadata']),
     };
 }
 
@@ -96,5 +117,7 @@ export function AmiToJSON(value?: Ami | null): any {
         'amiDescription': value.amiDescription,
         'createDate': value.createDate,
         'lastUpdateDate': value.lastUpdateDate,
+        'imageSource': value.imageSource,
+        'marketplaceMetadata': MarketplaceMetadataToJSON(value.marketplaceMetadata),
     };
 }

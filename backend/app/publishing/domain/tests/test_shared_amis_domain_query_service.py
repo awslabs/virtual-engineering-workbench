@@ -97,17 +97,17 @@ def test_make_share_ami_decision_makes_correct_decision(
     )
 
     # ACT
-    mock_decision, fetched_region, original_ami_id, copied_ami_id = domain_service.make_share_ami_decision(
+    result = domain_service.make_share_ami_decision(
         product_id=product_id_value_object.from_str("prod-11111111"),
         version_id=version_id_value_object.from_str("vers-11111111"),
         aws_account_id=aws_account_id_value_object.from_str("123456789012"),
         product_type=product_type_value_object.from_str("WORKBENCH"),
     )
     # ASSERT
-    assertpy.assert_that(mock_decision).is_equal_to(decision)
-    assertpy.assert_that(fetched_region).is_equal_to(region)
-    assertpy.assert_that(original_ami_id).is_equal_to("ami-023c04780e65e723c")
-    assertpy.assert_that(copied_ami_id).is_equal_to("ami-copy" if is_ami_shared else None)
+    assertpy.assert_that(result.decision).is_equal_to(decision)
+    assertpy.assert_that(result.region).is_equal_to(region)
+    assertpy.assert_that(result.original_ami_id).is_equal_to("ami-023c04780e65e723c")
+    assertpy.assert_that(result.copied_ami_id).is_equal_to("ami-copy" if is_ami_shared else None)
 
 
 @pytest.mark.parametrize(
@@ -144,7 +144,7 @@ def test_make_share_ami_decision_matches_the_version_region(
     )
 
     # ACT
-    made_decision, _, _, copied_ami_id = domain_service.make_share_ami_decision(
+    result = domain_service.make_share_ami_decision(
         product_id=product_id_value_object.from_str("prod-11111111"),
         version_id=version_id_value_object.from_str("vers-11111111"),
         aws_account_id=aws_account_id_value_object.from_str("123456789012"),
@@ -152,8 +152,8 @@ def test_make_share_ami_decision_matches_the_version_region(
     )
 
     # ASSERT
-    assertpy.assert_that(made_decision).is_equal_to(decision)
-    assertpy.assert_that(copied_ami_id).is_equal_to(
+    assertpy.assert_that(result.decision).is_equal_to(decision)
+    assertpy.assert_that(result.copied_ami_id).is_equal_to(
         "ami-euwest1" if decision == shared_amis_domain_query_service.ShareAmiDecision.Done else None
     )
 

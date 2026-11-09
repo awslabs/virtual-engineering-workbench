@@ -67,6 +67,9 @@ class AppConfig(BaseModel):
     def get_used_ami_list_file_path() -> str:
         return os.environ.get("USED_AMI_LIST_FILE_PATH", "amis/used-ami-list.json")
 
+    def get_spoke_account_role(self) -> str:
+        return os.environ.get("SPOKE_ACCOUNT_ROLE", "")
+
 
 config = {
     "cors_config": {

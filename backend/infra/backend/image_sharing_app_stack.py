@@ -134,6 +134,7 @@ class ImageSharingAppStack(aws_cdk.Stack):
                     statement=aws_iam.PolicyStatement(
                         actions=[
                             "ec2:DescribeImages",
+                            "ec2:DescribeImageAttribute",
                         ],
                         effect=aws_iam.Effect.ALLOW,
                         resources=["*"],
