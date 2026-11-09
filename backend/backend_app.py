@@ -13,6 +13,7 @@ from infra.backend import (
     image_sharing_app_stack,
     integration_oauth_stack,
     integration_stack,
+    mcp_gateway_agentcore_app_stack,
     packaging_app_stack,
     prerequisites_app_stack,
     product_packaging_app_stack,
@@ -23,7 +24,6 @@ from infra.backend import (
     security_stack,
     service_discovery_stack,
     shared_deployment_infrastructure,
-    mcp_gateway_agentcore_app_stack,
 )
 
 app = aws_cdk.App()
