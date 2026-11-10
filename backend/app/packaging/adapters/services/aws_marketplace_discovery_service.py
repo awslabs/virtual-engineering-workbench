@@ -134,10 +134,17 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
         result: dict[str, str] = {}
         for region in available_regions:
             try:
-                for ami in self.list_marketplace_amis_by_product_code(product_code, region):
-                    result[region] = ami.amiId
+                amis = self.list_marketplace_amis_by_product_code(product_code, region)
             except adapter_exception.AdapterException:
-                pass
+                continue
+            # A product can publish several AMIs in one region, and describe_images
+            # returns them in no defined order, so take the newest rather than
+            # whichever arrived last. CreationDate is ISO 8601 and sorts
+            # lexicographically; an AMI without one loses to any AMI that has one,
+            # and amiId breaks a tie so the result is stable across runs.
+            newest = max(amis, key=lambda ami: (ami.creationDate or "", ami.amiId), default=None)
+            if newest:
+                result[region] = newest.amiId
         return result
 
     def list_received_licenses(self) -> list[ReceivedLicense]:

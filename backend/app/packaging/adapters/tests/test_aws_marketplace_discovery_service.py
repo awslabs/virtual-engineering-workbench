@@ -137,3 +137,56 @@ def test_should_raise_on_unexpected_licenses_error(mock_moto_calls, get_marketpl
     # ACT / ASSERT
     with pytest.raises(adapter_exception.AdapterException):
         get_marketplace_discovery_srv.list_received_licenses()
+
+
+def test_should_pick_the_newest_ami_when_a_region_publishes_several(mock_moto_calls, get_marketplace_discovery_srv):
+    """describe_images has no defined order, so the regional map must not depend on it.
+
+    Returning the AMIs newest-last and then newest-first has to give the same answer;
+    taking whichever arrived last would give a different one each way.
+    """
+    # ARRANGE
+    product_code = GlobalVariables.TEST_MARKETPLACE_PRODUCT_CODE.value
+
+    def _ami(ami_id: str, creation_date: str) -> dict:
+        return {
+            "ImageId": ami_id,
+            "State": "available",
+            "OwnerId": GlobalVariables.TEST_IMAGE_OWNER_ID.value,
+            "Architecture": "x86_64",
+            "PlatformDetails": "Linux/UNIX",
+            "Name": ami_id,
+            "Description": "Test AMI",
+            "BlockDeviceMappings": [],
+            "CreationDate": creation_date,
+            "ProductCodes": [
+                {"ProductCodeId": product_code, "ProductCodeType": "marketplace"},
+            ],
+        }
+
+    older = _ami("ami-older", "2026-01-01T00:00:00.000Z")
+    newer = _ami("ami-newer", "2026-06-01T00:00:00.000Z")
+
+    # ACT
+    mock_moto_calls["DescribeImages"].return_value = {"Images": [older, newer]}
+    newest_last = get_marketplace_discovery_srv.get_regional_ami_ids(product_code, ["us-east-1"])
+
+    mock_moto_calls["DescribeImages"].return_value = {"Images": [newer, older]}
+    newest_first = get_marketplace_discovery_srv.get_regional_ami_ids(product_code, ["us-east-1"])
+
+    # ASSERT
+    assertpy.assert_that(newest_last).is_equal_to({"us-east-1": "ami-newer"})
+    assertpy.assert_that(newest_first).is_equal_to(newest_last)
+
+
+def test_should_skip_a_region_that_publishes_no_ami(mock_moto_calls, get_marketplace_discovery_srv):
+    # ARRANGE
+    mock_moto_calls["DescribeImages"].return_value = {"Images": []}
+
+    # ACT
+    result = get_marketplace_discovery_srv.get_regional_ami_ids(
+        GlobalVariables.TEST_MARKETPLACE_PRODUCT_CODE.value, ["us-east-1"]
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_empty()
