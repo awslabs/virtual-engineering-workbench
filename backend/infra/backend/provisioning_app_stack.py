@@ -316,6 +316,8 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     lambda_root="app/provisioning",
                     entry="app/provisioning/entrypoints/api",
                     environment={
+                        # Responses carry SSH keys, passwords and session credentials, which X-Ray would keep.
+                        "POWERTOOLS_TRACER_CAPTURE_RESPONSE": "false",
                         "RESOURCE_TAGS": self._resource_tags,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PROVISIONING,

@@ -13,6 +13,7 @@ export enum Feature {
   // Permanent workbench features
   DCVConnectionOptions = 'DCVConnectionOptions',
   RDPConnectionOption = 'RDPConnectionOption',
+  SessionManagerConnectionOption = 'SessionManagerConnectionOption',
   WorkbenchWorkingDirectoryEnabled = 'WorkbenchWorkingDirectoryEnabled',
 
   // Feature Toggles

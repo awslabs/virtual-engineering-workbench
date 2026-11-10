@@ -1,7 +1,7 @@
 import { UserType } from '../../../../session-management/logged-user';
 import { ProvisionedProduct } from '../../../../../services/API/proserve-wb-provisioning-api';
 
-export type LoginResponseType = 'browser' | 'file';
+export type LoginResponseType = 'browser' | 'file' | 'command';
 
 export interface LoginRequest {
   user: UserType,
@@ -22,6 +22,7 @@ export interface LoginContext {
 export interface LoginResponse {
   type: LoginResponseType,
   loginUrl?: string,
+  command?: string,
   loginFile?: {
     loginFileContent: string,
     loginFileName: string,

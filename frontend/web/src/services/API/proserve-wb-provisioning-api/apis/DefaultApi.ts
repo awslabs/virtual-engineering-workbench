@@ -21,6 +21,7 @@ import type {
   GetPaginatedProvisionedProductsResponse,
   GetProvisionedProductResponse,
   GetProvisionedProductSSHKeyResponse,
+  GetProvisionedProductSessionCredentialsResponse,
   GetProvisionedProductUserSecretResponse,
   GetProvisionedProductsResponse,
   GetProvisioningLimitResponse,
@@ -49,6 +50,8 @@ import {
     GetProvisionedProductResponseToJSON,
     GetProvisionedProductSSHKeyResponseFromJSON,
     GetProvisionedProductSSHKeyResponseToJSON,
+    GetProvisionedProductSessionCredentialsResponseFromJSON,
+    GetProvisionedProductSessionCredentialsResponseToJSON,
     GetProvisionedProductUserSecretResponseFromJSON,
     GetProvisionedProductUserSecretResponseToJSON,
     GetProvisionedProductsResponseFromJSON,
@@ -164,6 +167,17 @@ export interface GetProvisionedProductSSHKeyRequest {
 }
 
 export interface GetProvisionedProductSSHKeyCORSRequest {
+    projectId: string;
+    provisionedProductId: string;
+}
+
+export interface GetProvisionedProductSessionCredentialsRequest {
+    authorization: string;
+    projectId: string;
+    provisionedProductId: string;
+}
+
+export interface GetProvisionedProductSessionCredentialsCORSRequest {
     projectId: string;
     provisionedProductId: string;
 }
@@ -955,6 +969,86 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async getProvisionedProductSSHKeyCORS(requestParameters: GetProvisionedProductSSHKeyCORSRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.getProvisionedProductSSHKeyCORSRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Get credentials for a Session Manager session on a provisioned product
+     */
+    async getProvisionedProductSessionCredentialsRaw(requestParameters: GetProvisionedProductSessionCredentialsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisionedProductSessionCredentialsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling getProvisionedProductSessionCredentials.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getProvisionedProductSessionCredentials.');
+        }
+
+        if (requestParameters.provisionedProductId === null || requestParameters.provisionedProductId === undefined) {
+            throw new runtime.RequiredError('provisionedProductId','Required parameter requestParameters.provisionedProductId was null or undefined when calling getProvisionedProductSessionCredentials.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/products/provisioned/{provisionedProductId}/session-credentials`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"provisionedProductId"}}`, encodeURIComponent(String(requestParameters.provisionedProductId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetProvisionedProductSessionCredentialsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get credentials for a Session Manager session on a provisioned product
+     */
+    async getProvisionedProductSessionCredentials(requestParameters: GetProvisionedProductSessionCredentialsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductSessionCredentialsResponse> {
+        const response = await this.getProvisionedProductSessionCredentialsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async getProvisionedProductSessionCredentialsCORSRaw(requestParameters: GetProvisionedProductSessionCredentialsCORSRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getProvisionedProductSessionCredentialsCORS.');
+        }
+
+        if (requestParameters.provisionedProductId === null || requestParameters.provisionedProductId === undefined) {
+            throw new runtime.RequiredError('provisionedProductId','Required parameter requestParameters.provisionedProductId was null or undefined when calling getProvisionedProductSessionCredentialsCORS.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/products/provisioned/{provisionedProductId}/session-credentials`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"provisionedProductId"}}`, encodeURIComponent(String(requestParameters.provisionedProductId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async getProvisionedProductSessionCredentialsCORS(requestParameters: GetProvisionedProductSessionCredentialsCORSRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.getProvisionedProductSessionCredentialsCORSRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

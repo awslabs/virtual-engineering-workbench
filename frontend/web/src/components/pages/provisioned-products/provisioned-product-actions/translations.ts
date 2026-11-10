@@ -14,6 +14,11 @@ export const i18n = {
     'RDP nor DCV and emits no SSH key. Ask the product owner to update the template.',
   loginConnectionChoiceSSHLabel: 'SSH',
   loginConnectionChoiceSSHDescription: 'You will be presented with an SSH key to log in.',
+  loginConnectionChoiceSessionManagerLabel: 'Session Manager',
+  loginConnectionChoiceSessionManagerDescription: 'Copy a command that opens a shell, without an SSH key.',
+  loginSessionManagerCommandDescription: 'Run it in a terminal with the AWS CLI and its Session Manager ' +
+    'plugin installed. The credentials in it expire after an hour.',
+  loginSessionManagerCopyCommand: 'Copy command',
   loginConnectionChoiceRDPLabel: 'RDP',
   loginConnectionChoiceDCVFileLabel: 'NICE DCV File',
   loginConnectionChoiceDCVBrowserLabel: 'NICE DCV Browser',

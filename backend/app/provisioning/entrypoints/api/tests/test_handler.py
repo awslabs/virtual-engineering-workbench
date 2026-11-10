@@ -31,6 +31,7 @@ from app.provisioning.domain.model import (
     provisioned_product_output,
     provisioning_limit,
     provisioning_parameter,
+    session_credentials,
     user_credential,
     user_profile,
 )
@@ -38,6 +39,7 @@ from app.provisioning.domain.query_services import (
     products_domain_query_service,
     provisioned_products_domain_query_service,
     provisioning_infrastructure_domain_query_service,
+    session_credentials_domain_query_service,
     user_profile_domain_query_service,
     versions_domain_query_service,
 )
@@ -191,6 +193,17 @@ def mocked_virtual_targets_domain_query_service(
     return virtual_targets_domain_query_service_mock
 
 
+@pytest.fixture
+def mocked_session_credentials_domain_query_service():
+    query_service_mock = unittest.mock.create_autospec(
+        spec=session_credentials_domain_query_service.SessionCredentialsDomainQueryService
+    )
+    query_service_mock.get_session_credentials.return_value = session_credentials.SessionCredentials(
+        accessKeyId="AKIA", secretAccessKey="secret", sessionToken="token", instanceId="i-0123", region="us-east-1"
+    )
+    return query_service_mock
+
+
 @pytest.fixture()
 def get_test_user_profile():
     def _inner(
@@ -335,6 +348,7 @@ def mocked_dependencies(
     mocked_update_provisioned_product_handler,
     mocked_feature_service,
     mocked_provisioning_infra_qs,
+    mocked_session_credentials_domain_query_service,
 ) -> bootstrapper.Dependencies:
     return bootstrapper.Dependencies(
         command_bus=in_memory_command_bus.InMemoryCommandBus(
@@ -384,6 +398,7 @@ def mocked_dependencies(
         application_version_frontend="3.12",
         application_version_backend="3.12",
         prov_infra_qry_srv=mocked_provisioning_infra_qs,
+        session_credentials_domain_qry_srv=mocked_session_credentials_domain_query_service,
     )
 
 
@@ -1454,6 +1469,43 @@ def test_get_provisioned_product_user_credentials(
     assertpy.assert_that(response.username).is_equal_to("user")
     assertpy.assert_that(response.password).is_equal_to("pwd")
     mocked_virtual_targets_domain_query_service.get_provisioned_product_user_credentials.assert_called_with(
+        project_id=project_id_value_object.from_str("proj-12345"),
+        provisioned_product_id=provisioned_product_id_value_object.from_str("vt-1234"),
+        user_id=user_id_value_object.from_str("T00123122"),
+    )
+
+
+def test_get_provisioned_product_session_credentials(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_session_credentials_domain_query_service,
+):
+    # ARRANGE
+    from app.provisioning.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    minimal_event = authenticated_event(
+        None,
+        "/projects/proj-12345/products/provisioned/vt-1234/session-credentials",
+        "GET",
+    )
+
+    # ACT
+    result = handler.handler(minimal_event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    assertpy.assert_that(json.loads(result["body"])).is_equal_to(
+        {
+            "accessKeyId": "AKIA",
+            "secretAccessKey": "secret",
+            "sessionToken": "token",
+            "instanceId": "i-0123",
+            "region": "us-east-1",
+        }
+    )
+    mocked_session_credentials_domain_query_service.get_session_credentials.assert_called_with(
         project_id=project_id_value_object.from_str("proj-12345"),
         provisioned_product_id=provisioned_product_id_value_object.from_str("vt-1234"),
         user_id=user_id_value_object.from_str("T00123122"),
