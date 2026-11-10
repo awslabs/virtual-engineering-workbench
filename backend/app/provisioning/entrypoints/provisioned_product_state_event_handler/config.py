@@ -47,6 +47,9 @@ class AppConfig(config.VEWBaseConfig):
     def get_authorize_user_ip_address_param_value(self) -> bool:
         return os.environ.get("AUTHORIZE_USER_IP_ADDRESS_PARAM_VALUE", "").lower() == "true"
 
+    def get_ssh_connection_option(self) -> bool:
+        return os.environ.get("SSH_CONNECTION_OPTION", "true").lower() == "true"
+
     def get_resource_tags(self) -> dict[str, str]:
         """Tags to stamp on resources this deployment provisions at runtime."""
         return json.loads(os.environ.get("RESOURCE_TAGS", "{}"))

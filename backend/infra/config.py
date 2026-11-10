@@ -17,6 +17,11 @@ HUB_VPC_NAME = ""
 # may build in. Empty derives them from the prefixes, matching the subnets VEW
 # names when it creates the VPC itself.
 HUB_SUBNET_NAMES = ""
+
+# Whether users may connect to provisioned products over SSH. When False, VEW
+# never opens port 22 to a user's IP and hands out no SSH keys, whatever the
+# product templates provide.
+SSH_CONNECTION_OPTION = True
 SSM_PARAM_UI_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_COGNITO_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_BE_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-backend-{{environment}}"
@@ -311,6 +316,7 @@ _dev_provisioning_config = {
     "provisioning-subnet-selector": "TaggedSubnet",
     "provisioning-subnet-selector-tag": "ProvisioningEnabled:True",
     "authorize-user-ip-address-param-value": True,
+    "ssh-connection-option": SSH_CONNECTION_OPTION,
     "pp-cleanup-config": {
         "pp-cleanup-alert": 7,
         "pp-cleanup": 14,
