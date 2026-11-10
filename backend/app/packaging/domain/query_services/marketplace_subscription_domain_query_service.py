@@ -61,6 +61,7 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             return []
 
         imported_product_codes = self._get_imported_product_codes(project_id)
+        imported_ami_ids = self._get_imported_ami_ids(project_id)
         org_integration_active = self._org_integration_service.is_license_manager_org_integration_active()
 
         result: list[DiscoveredMarketplaceSubscription] = []
@@ -71,6 +72,11 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             missing_regions = [r for r in self._available_regions if r not in regional_ami_ids]
             if missing_regions:
                 regional_ami_ids.update(self._ami_service.get_regional_ami_ids(product_code, missing_regions))
+
+            newer_version_available, latest_ami_id, latest_ami_creation_date = self._check_for_newer_version(
+                product_code, hub_region, imported_product_codes, imported_ami_ids
+            )
+
             result.append(
                 self._build_subscription(
                     hub_ami=hub_ami,
@@ -79,9 +85,30 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
                     org_integration_active=org_integration_active,
                     regional_ami_ids=regional_ami_ids,
                     imported_product_codes=imported_product_codes,
+                    newer_version_available=newer_version_available,
+                    latest_ami_id=latest_ami_id,
+                    latest_ami_creation_date=latest_ami_creation_date,
                 )
             )
         return result
+
+    def _check_for_newer_version(
+        self,
+        product_code: str,
+        hub_region: str,
+        imported_product_codes: set[str],
+        imported_ami_ids: set[str],
+    ) -> tuple[bool, str | None, str | None]:
+        if product_code not in imported_product_codes:
+            return False, None, None
+        all_amis = self._ami_service.list_marketplace_amis_by_product_code(product_code, hub_region)
+        dated_amis = [a for a in all_amis if a.creationDate]
+        if not dated_amis:
+            return False, None, None
+        latest = max(dated_amis, key=lambda a: a.creationDate)
+        if latest.amiId not in imported_ami_ids:
+            return True, latest.amiId, latest.creationDate
+        return False, None, None
 
     def _index_by_ec2_product_code(
         self, items: list[tuple[str, object]], hub_region: str
@@ -108,6 +135,13 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             and img.marketplaceMetadata.get("productCode")
         }
 
+    def _get_imported_ami_ids(self, project_id: project_id_value_object.ProjectIdValueObject) -> set[str]:
+        return {
+            img.imageUpstreamId
+            for img in self._image_qry_svc.get_images(project_id.value)
+            if img.imageSource == ImageSource.MARKETPLACE_PRODUCT and img.imageUpstreamId
+        }
+
     @staticmethod
     def _classify(
         license: ReceivedLicense, agreement: MarketplaceAgreement | None, org_integration_active: bool
@@ -124,6 +158,9 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         org_integration_active: bool,
         regional_ami_ids: dict[str, str],
         imported_product_codes: set,
+        newer_version_available: bool = False,
+        latest_ami_id: str | None = None,
+        latest_ami_creation_date: str | None = None,
     ) -> DiscoveredMarketplaceSubscription:
         ownership = MarketplaceSubscriptionDomainQueryService._classify(license, agreement, org_integration_active)
         return DiscoveredMarketplaceSubscription(
@@ -135,4 +172,7 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             homeRegion=license.homeRegion,
             subscriptionOwnership=ownership.value,
             alreadyImported=hub_ami.productCode in imported_product_codes,
+            newerVersionAvailable=newer_version_available,
+            latestAmiId=latest_ami_id,
+            latestAmiCreationDate=latest_ami_creation_date,
         )

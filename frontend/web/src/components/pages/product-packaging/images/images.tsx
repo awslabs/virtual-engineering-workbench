@@ -71,7 +71,12 @@ const Images: FC<ImagesProps> = ({ serviceApi }) => {
           EXISTING_AMI: i18n.imageSourceImported,
           MARKETPLACE_PRODUCT: i18n.imageSourceMarketplace,
         };
-        return <Badge color={colorMap[source] || 'blue'}>{labelMap[source] || source}</Badge>;
+        return (
+          <SpaceBetween direction="horizontal" size="xs">
+            <Badge color={colorMap[source] || 'blue'}>{labelMap[source] || source}</Badge>
+            {e.updateAvailable && <Badge color="red">{i18n.updateAvailable}</Badge>}
+          </SpaceBetween>
+        );
       },
       width: '140px',
       sortingField: 'imageSource',

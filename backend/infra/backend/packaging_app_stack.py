@@ -34,7 +34,6 @@ GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY = "gsi_custom_query_by_status_key"
 GSI_NAME_ENTITIES = "gsi_entities"
 GSI_NAME_INVERTED_PK = "gsi_inverted_primary_key"
 GSI_NAME_IMAGE_UPSTREAM_ID = "gsi_image_upstream_id"
-GSI_NAME_IMAGE_SOURCE = "gsi_image_source"
 IMAGE_KEY_NAME = constants.IMAGE_SHARING_KEY_NAME
 PRODUCT_PACKAGING_ADMIN_ROLE = constants.PRODUCT_PACKAGING_ADMIN_ROLE
 PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME = constants.PRODUCT_PACKAGING_INSTANCE_PROFILE
@@ -96,7 +95,6 @@ class Entrypoint(enum.StrEnum):
     DOMAIN_EVENTS = "domain-events"
     IMAGE_BUILDER_EVENTS = "image-builder-events"
     S2S_API = "s2s-api"
-    SCHEDULED = "scheduled"
 
 
 class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
@@ -190,14 +188,6 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             index_name=GSI_NAME_IMAGE_UPSTREAM_ID,
             partition_key=aws_dynamodb.Attribute(name="imageUpstreamId", type=aws_dynamodb.AttributeType.STRING),
         )
-        self._storage.table.add_global_secondary_index(
-            index_name=GSI_NAME_IMAGE_SOURCE,
-            partition_key=aws_dynamodb.Attribute(
-                name="imageSource",
-                type=aws_dynamodb.AttributeType.STRING,
-            ),
-            projection_type=aws_dynamodb.ProjectionType.ALL,
-        )
 
         # Lambda functions
         self._packaging_app_layer = shared_layer.SharedLayer(
@@ -219,7 +209,6 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
         component_version_testing_handler_name = app_config.format_resource_name(Entrypoint.COMPONENT_VERSION_TESTING)
         recipe_version_testing_handler_name = app_config.format_resource_name(Entrypoint.RECIPE_VERSION_TESTING)
         s2s_api_handler_name = app_config.format_resource_name(Entrypoint.S2S_API)
-        scheduled_jobs_handler_name = app_config.format_resource_name(Entrypoint.SCHEDULED)
 
         self._backend_app = backend_app_entrypoints.BackendAppEntrypoints(
             self,
@@ -637,50 +626,6 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     memory_size=256,
                     asynchronous=True,
                 ),
-                backend_app_entrypoints.AppEntryPoint(
-                    name=scheduled_jobs_handler_name,
-                    app_root="app",
-                    lambda_root="app/packaging",
-                    entry="app/packaging/entrypoints/scheduled_jobs_handler",
-                    environment={
-                        "ADMIN_ROLE": PRODUCT_PACKAGING_ADMIN_ROLE,
-                        "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
-                        "TABLE_NAME": self._storage.table.table_name,
-                        "GSI_NAME_CUSTOM_QUERY_BY_BUILD_VERSION_ARN": GSI_NAME_CUSTOM_QUERY_BY_BUILD_VERSION_ARN,
-                        "GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION": GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION,
-                        "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
-                        "GSI_NAME_IMAGE_UPSTREAM_ID": GSI_NAME_IMAGE_UPSTREAM_ID,
-                        "IMAGE_SERVICE_ROLE": constants.PACKAGING_IMAGE_SERVICE_ROLE,
-                        "IMAGE_SERVICE_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
-                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
-                    },
-                    permissions=[
-                        lambda lambda_f: self._storage.table.grant_read_write_data(lambda_f),
-                        lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                actions=[
-                                    "sts:AssumeRole",
-                                    "sts:TagSession",
-                                ],
-                                effect=aws_iam.Effect.ALLOW,
-                                resources=[
-                                    f"arn:aws:iam::{self.get_image_service_account_id(app_config)}:role/{PRODUCT_PACKAGING_ADMIN_ROLE}",
-                                ],
-                            )
-                        ),
-                    ],
-                    reserved_concurrency=None,
-                    provisioned_concurrency=None,
-                    timeout=aws_cdk.Duration.minutes(15),
-                    memory_size=1792,
-                    asynchronous=True,
-                    cross_bc_api_access={
-                        bounded_contexts.BoundedContext.PUBLISHING: [
-                            ("GET", "/internal/published-amis"),
-                        ],
-                    },
-                ),
             ],
             app_layers=[
                 self._packaging_app_layer.layer,
@@ -858,17 +803,6 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 ),
             ],
         )
-
-        # --- Legacy export: kept for backward compatibility during migration. ---
-        # --- Was consumed by integration_permissions_stack.py (now replaced by ServiceDiscoveryStack). ---
-        # --- Safe to remove once the old CloudFormation stack is deleted. ---
-        aws_cdk.CfnOutput(
-            self,
-            "PackagingScheduledJobEventHandlerRoleArn",
-            value=self._backend_app.app_entries_functions[scheduled_jobs_handler_name].role.role_arn,
-            export_name="packaging-scheduled-job-event-handler-role-arn",
-        )
-        # --- End legacy exports ---
 
         # Configure monitoring
         self.__configure_ops(app_config)

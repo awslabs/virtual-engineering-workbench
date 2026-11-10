@@ -182,6 +182,7 @@ def test_discover_should_mark_already_imported_when_ami_exists_in_project(
     mock_marketplace_license_service.list_received_licenses.return_value = [get_test_received_license()]
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
     mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [get_test_marketplace_ami()]
     mock_image_query_service.get_images.return_value = [get_test_existing_marketplace_image(ami_id="ami-111")]
 
     svc = _build_service(
@@ -254,3 +255,113 @@ def test_discover_should_skip_product_when_no_hub_ami_found(
 
     # ASSERT
     assertpy.assert_that(result).is_empty()
+
+
+def test_discover_should_detect_newer_version_available_when_latest_ami_differs_from_imported(
+    get_test_marketplace_ami,
+    get_test_received_license,
+    get_test_existing_marketplace_image,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE — imported AMI is ami-111, but EC2 now has a newer ami-222
+    mock_marketplace_agreement_service.list_active_agreements.return_value = []
+    mock_marketplace_license_service.list_received_licenses.return_value = [get_test_received_license()]
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
+    mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [
+        get_test_marketplace_ami(ami_id="ami-111", creation_date="2026-01-01T00:00:00.000Z"),
+        get_test_marketplace_ami(ami_id="ami-222", creation_date="2026-05-01T00:00:00.000Z"),
+    ]
+    mock_image_query_service.get_images.return_value = [get_test_existing_marketplace_image(ami_id="ami-111")]
+
+    svc = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+
+    # ACT
+    result = svc.discover(project_id=project_id_value_object.from_str("proj-1"))
+
+    # ASSERT
+    assertpy.assert_that(result).is_length(1)
+    assertpy.assert_that(result[0].newerVersionAvailable).is_true()
+    assertpy.assert_that(result[0].latestAmiId).is_equal_to("ami-222")
+    assertpy.assert_that(result[0].latestAmiCreationDate).is_equal_to("2026-05-01T00:00:00.000Z")
+
+
+def test_discover_should_not_flag_newer_version_when_latest_ami_is_already_imported(
+    get_test_marketplace_ami,
+    get_test_received_license,
+    get_test_existing_marketplace_image,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE — imported AMI is ami-111, EC2 latest is also ami-111
+    mock_marketplace_agreement_service.list_active_agreements.return_value = []
+    mock_marketplace_license_service.list_received_licenses.return_value = [get_test_received_license()]
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
+    mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [
+        get_test_marketplace_ami(ami_id="ami-111", creation_date="2026-01-01T00:00:00.000Z"),
+    ]
+    mock_image_query_service.get_images.return_value = [get_test_existing_marketplace_image(ami_id="ami-111")]
+
+    svc = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+
+    # ACT
+    result = svc.discover(project_id=project_id_value_object.from_str("proj-1"))
+
+    # ASSERT
+    assertpy.assert_that(result).is_length(1)
+    assertpy.assert_that(result[0].newerVersionAvailable).is_false()
+    assertpy.assert_that(result[0].latestAmiId).is_none()
+
+
+def test_discover_should_not_check_updates_for_non_imported_subscriptions(
+    get_test_marketplace_ami,
+    get_test_received_license,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE — no images imported, so no update check needed
+    mock_marketplace_agreement_service.list_active_agreements.return_value = []
+    mock_marketplace_license_service.list_received_licenses.return_value = [get_test_received_license()]
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
+    mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
+    mock_image_query_service.get_images.return_value = []
+
+    svc = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+
+    # ACT
+    result = svc.discover(project_id=project_id_value_object.from_str("proj-1"))
+
+    # ASSERT
+    assertpy.assert_that(result).is_length(1)
+    assertpy.assert_that(result[0].newerVersionAvailable).is_false()
+    # list_marketplace_amis_by_product_code should NOT be called when product is not imported
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_code.assert_not_called()

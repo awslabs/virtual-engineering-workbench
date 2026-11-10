@@ -67,6 +67,24 @@ export interface DiscoveredMarketplaceSubscription {
      * @memberof DiscoveredMarketplaceSubscription
      */
     alreadyImported?: boolean;
+    /**
+     *
+     * @type {boolean}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    newerVersionAvailable?: boolean;
+    /**
+     *
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    latestAmiId?: string;
+    /**
+     *
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    latestAmiCreationDate?: string;
 }
 
 /**
@@ -96,6 +114,9 @@ export function DiscoveredMarketplaceSubscriptionFromJSONTyped(json: any, ignore
         'homeRegion': !exists(json, 'homeRegion') ? undefined : json['homeRegion'],
         'subscriptionOwnership': !exists(json, 'subscriptionOwnership') ? undefined : json['subscriptionOwnership'],
         'alreadyImported': !exists(json, 'alreadyImported') ? undefined : json['alreadyImported'],
+        'newerVersionAvailable': !exists(json, 'newerVersionAvailable') ? undefined : json['newerVersionAvailable'],
+        'latestAmiId': !exists(json, 'latestAmiId') ? undefined : json['latestAmiId'],
+        'latestAmiCreationDate': !exists(json, 'latestAmiCreationDate') ? undefined : json['latestAmiCreationDate'],
     };
 }
 
@@ -116,5 +137,8 @@ export function DiscoveredMarketplaceSubscriptionToJSON(value?: DiscoveredMarket
         'homeRegion': value.homeRegion,
         'subscriptionOwnership': value.subscriptionOwnership,
         'alreadyImported': value.alreadyImported,
+        'newerVersionAvailable': value.newerVersionAvailable,
+        'latestAmiId': value.latestAmiId,
+        'latestAmiCreationDate': value.latestAmiCreationDate,
     };
 }

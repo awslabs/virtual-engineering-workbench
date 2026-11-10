@@ -2247,7 +2247,13 @@ def get_test_import_image_command():
 def get_test_marketplace_ami():
     from app.packaging.domain.read_models.marketplace_ami import MarketplaceAmi
 
-    def _get_test_marketplace_ami(ami_id="ami-111", product_code="pc-1", region="us-east-1", name="Test AMI"):
+    def _get_test_marketplace_ami(
+        ami_id="ami-111",
+        product_code="pc-1",
+        region="us-east-1",
+        name="Test AMI",
+        creation_date="2026-01-01T00:00:00.000Z",
+    ):
         return MarketplaceAmi(
             amiId=ami_id,
             productCode=product_code,
@@ -2257,6 +2263,7 @@ def get_test_marketplace_ami():
             name=name,
             description=None,
             region=region,
+            creationDate=creation_date,
         )
 
     return _get_test_marketplace_ami

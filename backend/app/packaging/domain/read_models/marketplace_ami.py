@@ -12,3 +12,4 @@ class MarketplaceAmi(BaseModel):
     name: Optional[str] = Field(None, title="Name")
     description: Optional[str] = Field(None, title="Description")
     region: str = Field(..., title="Region")
+    creationDate: Optional[str] = Field(None, title="CreationDate")

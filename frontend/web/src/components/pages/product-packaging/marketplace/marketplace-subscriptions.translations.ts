@@ -16,6 +16,7 @@ export const i18n = {
   columnActions: 'Actions',
   statusImported: 'Imported',
   statusAvailable: 'Available',
+  statusUpdateAvailable: 'Update available',
   importButton: 'Import',
   viewInConsole: 'View in AWS Console',
   header: 'Marketplace Subscriptions',

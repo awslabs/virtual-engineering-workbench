@@ -85,6 +85,31 @@ def _detect_encryption(ami_description: AmiDescription) -> tuple[Optional[str], 
     return None, None
 
 
+def _retire_previous_marketplace_images(
+    project_id: str,
+    product_code: str,
+    new_image_id: str,
+    image_qry_srv: image_query_service.ImageQueryService,
+    uow: unit_of_work.UnitOfWork,
+) -> None:
+    current_time = datetime.now(timezone.utc).isoformat()
+    for img in image_qry_srv.get_images(project_id):
+        if (
+            img.imageId != new_image_id
+            and img.imageSource == ImageSource.MARKETPLACE_PRODUCT
+            and img.status == image.ImageStatus.Created
+            and img.marketplaceMetadata
+            and img.marketplaceMetadata.get("productCode") == product_code
+        ):
+            with uow:
+                uow.get_repository(image.ImagePrimaryKey, image.Image).update_attributes(
+                    image.ImagePrimaryKey(projectId=img.projectId, imageId=img.imageId),
+                    status=image.ImageStatus.Retired,
+                    lastUpdateDate=current_time,
+                )
+                uow.commit()
+
+
 def handle(
     command: import_image_command.ImportImageCommand,
     uow: unit_of_work.UnitOfWork,
@@ -143,6 +168,16 @@ def handle(
     with uow:
         uow.get_repository(image.ImagePrimaryKey, image.Image).add(image_entity)
         uow.commit()
+
+    # Retire older marketplace images with the same product code (same pattern as register_image_command_handler)
+    if image_source == ImageSource.MARKETPLACE_PRODUCT and marketplace_metadata:
+        _retire_previous_marketplace_images(
+            project_id=command.projectId.value,
+            product_code=marketplace_metadata["productCode"],
+            new_image_id=image_entity.imageId,
+            image_qry_srv=image_qry_srv,
+            uow=uow,
+        )
 
     msg_bus.publish(
         image_imported.ImageImported(

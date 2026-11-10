@@ -36,19 +36,19 @@ export interface CreateRecipeRequest {
      * @type {string}
      * @memberof CreateRecipeRequest
      */
-    recipePlatform: string;
+    recipePlatform: CreateRecipeRequestRecipePlatformEnum;
     /**
      * Operating system architecture
      * @type {string}
      * @memberof CreateRecipeRequest
      */
-    recipeArchitecture: string;
+    recipeArchitecture: CreateRecipeRequestRecipeArchitectureEnum;
     /**
      * Recipe OS Version
      * @type {string}
      * @memberof CreateRecipeRequest
      */
-    recipeOsVersion: string;
+    recipeOsVersion: CreateRecipeRequestRecipeOsVersionEnum;
     /**
      * Create Date
      * @type {string}
@@ -74,6 +74,39 @@ export interface CreateRecipeRequest {
      */
     lastUpdatedBy?: string;
 }
+
+
+/**
+ * @export
+ */
+export const CreateRecipeRequestRecipePlatformEnum = {
+    Linux: 'Linux',
+    Windows: 'Windows'
+} as const;
+export type CreateRecipeRequestRecipePlatformEnum = typeof CreateRecipeRequestRecipePlatformEnum[keyof typeof CreateRecipeRequestRecipePlatformEnum];
+
+/**
+ * @export
+ */
+export const CreateRecipeRequestRecipeArchitectureEnum = {
+    Amd64: 'amd64',
+    Arm64: 'arm64'
+} as const;
+export type CreateRecipeRequestRecipeArchitectureEnum = typeof CreateRecipeRequestRecipeArchitectureEnum[keyof typeof CreateRecipeRequestRecipeArchitectureEnum];
+
+/**
+ * @export
+ */
+export const CreateRecipeRequestRecipeOsVersionEnum = {
+    Ubuntu20: 'Ubuntu 20',
+    Ubuntu22: 'Ubuntu 22',
+    Ubuntu24: 'Ubuntu 24',
+    MicrosoftWindowsServer2019: 'Microsoft Windows Server 2019',
+    MicrosoftWindowsServer2022: 'Microsoft Windows Server 2022',
+    MicrosoftWindowsServer2025: 'Microsoft Windows Server 2025'
+} as const;
+export type CreateRecipeRequestRecipeOsVersionEnum = typeof CreateRecipeRequestRecipeOsVersionEnum[keyof typeof CreateRecipeRequestRecipeOsVersionEnum];
+
 
 /**
  * Check if a given object implements the CreateRecipeRequest interface.

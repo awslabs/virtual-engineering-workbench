@@ -63,6 +63,7 @@ export const i18n = {
   imageSourcePipeline: 'Pipeline',
   imageSourceImported: 'Imported',
   imageSourceMarketplace: 'Marketplace',
+  updateAvailable: 'Update available',
 };
 
 export const IMAGE_STATUS_COLOR_MAP: { [key: string]: StatusIndicatorProps.Type } = {

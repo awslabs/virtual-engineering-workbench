@@ -191,4 +191,5 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
             name=img.get("Name"),
             description=img.get("Description"),
             region=region,
+            creationDate=img.get("CreationDate"),
         )

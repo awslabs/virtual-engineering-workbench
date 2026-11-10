@@ -82,9 +82,14 @@ const MarketplaceSubscriptions: FC<MarketplaceSubscriptionsProps> = ({ serviceAp
     {
       id: 'status',
       header: i18n.columnStatus,
-      cell: (item) => item.alreadyImported
-        ? <StatusIndicator type="success">{i18n.statusImported}</StatusIndicator>
-        : <StatusIndicator type="pending">{i18n.statusAvailable}</StatusIndicator>,
+      cell: (item) => {
+        if (item.newerVersionAvailable) {
+          return <StatusIndicator type="warning">{i18n.statusUpdateAvailable}</StatusIndicator>;
+        }
+        return item.alreadyImported
+          ? <StatusIndicator type="success">{i18n.statusImported}</StatusIndicator>
+          : <StatusIndicator type="pending">{i18n.statusAvailable}</StatusIndicator>;
+      },
     },
     {
       id: 'actions',

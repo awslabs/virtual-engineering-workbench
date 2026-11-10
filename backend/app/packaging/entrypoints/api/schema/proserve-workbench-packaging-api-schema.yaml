@@ -4610,6 +4610,10 @@ components:
           title: ImageSource
           type: string
           description: Source of the image (PIPELINE, EXISTING_AMI, MARKETPLACE_PRODUCT)
+        updateAvailable:
+          title: UpdateAvailable
+          type: boolean
+          description: Whether a newer marketplace AMI version is available for this image
         createDate:
           title: CreateDate
           type: string
@@ -4763,6 +4767,15 @@ components:
         alreadyImported:
           title: AlreadyImported
           type: boolean
+        newerVersionAvailable:
+          title: NewerVersionAvailable
+          type: boolean
+        latestAmiId:
+          title: LatestAmiId
+          type: string
+        latestAmiCreationDate:
+          title: LatestAmiCreationDate
+          type: string
     ListImportableAmisResponse:
       title: ListImportableAmisResponse
       type: object

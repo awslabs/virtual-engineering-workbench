@@ -12,3 +12,6 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     homeRegion: Optional[str] = Field(None, title="HomeRegion")
     subscriptionOwnership: str = Field(..., title="SubscriptionOwnership")
     alreadyImported: bool = Field(..., title="AlreadyImported")
+    newerVersionAvailable: bool = Field(False, title="NewerVersionAvailable")
+    latestAmiId: Optional[str] = Field(None, title="LatestAmiId")
+    latestAmiCreationDate: Optional[str] = Field(None, title="LatestAmiCreationDate")

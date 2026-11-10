@@ -92,6 +92,12 @@ export interface Image {
      */
     imageSource?: string;
     /**
+     * Whether a newer marketplace AMI version is available for this image
+     * @type {boolean}
+     * @memberof Image
+     */
+    updateAvailable?: boolean;
+    /**
      * Creation date of the image
      * @type {string}
      * @memberof Image
@@ -141,6 +147,7 @@ export function ImageFromJSONTyped(json: any, ignoreDiscriminator: boolean): Ima
         'status': json['status'],
         'imageUpstreamId': !exists(json, 'imageUpstreamId') ? undefined : json['imageUpstreamId'],
         'imageSource': !exists(json, 'imageSource') ? undefined : json['imageSource'],
+        'updateAvailable': !exists(json, 'updateAvailable') ? undefined : json['updateAvailable'],
         'createDate': json['createDate'],
         'lastUpdateDate': json['lastUpdateDate'],
     };
@@ -167,6 +174,7 @@ export function ImageToJSON(value?: Image | null): any {
         'status': value.status,
         'imageUpstreamId': value.imageUpstreamId,
         'imageSource': value.imageSource,
+        'updateAvailable': value.updateAvailable,
         'createDate': value.createDate,
         'lastUpdateDate': value.lastUpdateDate,
     };
