@@ -280,6 +280,7 @@ _dev_packaging_config = {
     "image-builder-events-reserved-concurrency": 10,
     "recipe-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-defs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-test-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-tests-{{environment}}-{{image_service_account_id}}-{{region}}",
+    "build-logs-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-build-logs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-version-testing-reserved-concurrency": 10,
     "scheduled-jobs-lambda-reserved-concurrency": 10,
     "ssm-run-command-timeout": 43200,
@@ -330,6 +331,7 @@ image_sharing_app_config = {"dev": {}, "qa": {}, "prod": {}}
 
 _dev_product_packaging_config = {
     "ami-factory-vpc-name": HUB_VPC_NAME or f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    "build-logs-retention-days": 365,
 }
 
 product_packaging_app_config = {
