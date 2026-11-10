@@ -1041,6 +1041,88 @@ paths:
         requestTemplates:
           application/json: '{"statusCode": 200}'
         passthroughBehavior: "when_no_match"
+  /projects/{projectId}/products/provisioned/{provisionedProductId}/session-credentials:
+    get:
+      description: "Get credentials for a Session Manager session on a provisioned product"
+      operationId: "GetProvisionedProductSessionCredentials"
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetProvisionedProductSessionCredentialsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        contentHandling: "CONVERT_TO_TEXT"
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: "CORS"
+      operationId: "GetProvisionedProductSessionCredentialsCORS"
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: provisionedProductId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: "mock"
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
   /projects/{projectId}/products/provisioned/{provisionedProductId}/update:
     put:
       description: "Update provisioned product"
@@ -2794,6 +2876,36 @@ components:
           title: Password
           type: string
           description: User password
+    GetProvisionedProductSessionCredentialsResponse:
+      title: GetProvisionedProductSessionCredentialsResponse
+      type: object
+      required:
+        - accessKeyId
+        - secretAccessKey
+        - sessionToken
+        - instanceId
+        - region
+      properties:
+        accessKeyId:
+          title: AccessKeyId
+          type: string
+          description: AWS access key id
+        secretAccessKey:
+          title: SecretAccessKey
+          type: string
+          description: AWS secret access key
+        sessionToken:
+          title: SessionToken
+          type: string
+          description: AWS session token
+        instanceId:
+          title: InstanceId
+          type: string
+          description: Instance the credentials can start a session on
+        region:
+          title: Region
+          type: string
+          description: Region of the instance
     ProvisioningSubnet:
       title: ProvisioningSubnet
       type: object

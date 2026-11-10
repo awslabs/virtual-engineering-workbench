@@ -18,6 +18,7 @@ import {
   GetProvisionedProductUserSecretResponse,
   GetAllProvisionedProductsResponse,
   GetProvisioningLimitResponse,
+  GetProvisionedProductSessionCredentialsResponse,
 } from './proserve-wb-provisioning-api';
 import { getAccessToken } from '..';
 
@@ -282,6 +283,17 @@ export const provisioningAPI = {
     const access = await getAccessToken();
     const api = prepareClient();
     return api.getProvisionedProductUserCredentials({
+      authorization: `Bearer ${access}`,
+      projectId: projectId,
+      provisionedProductId: provisionedProductId,
+    });
+  },
+
+  getSessionCredentials: async(projectId: string, provisionedProductId: string):
+  Promise<GetProvisionedProductSessionCredentialsResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.getProvisionedProductSessionCredentials({
       authorization: `Bearer ${access}`,
       projectId: projectId,
       provisionedProductId: provisionedProductId,

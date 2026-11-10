@@ -5,6 +5,7 @@ import {
   DCVFileLoginType,
   RDPLoginType,
   SSHLoginType,
+  SessionManagerLoginType,
   ProvisionedProductLoginType
 } from '.';
 import { i18n } from './translations';
@@ -35,6 +36,9 @@ export class LoginConfig {
       registerLoginOption(
         WORKBENCH_CONNECTION_TYPE.SSH,
         new SSHLoginType(provisioningAPI)).
+      registerLoginOption(
+        WORKBENCH_CONNECTION_TYPE.SessionManager,
+        new SessionManagerLoginType(provisioningAPI)).
       registerLoginOption(
         WORKBENCH_CONNECTION_TYPE.DcvBrowser,
         new DCVBrowserLoginType()).

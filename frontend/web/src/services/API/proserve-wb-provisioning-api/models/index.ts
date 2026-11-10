@@ -15,6 +15,7 @@ export * from './GetProductVersionResponse';
 export * from './GetProductVersionResponseMetadataItem';
 export * from './GetProvisionedProductResponse';
 export * from './GetProvisionedProductSSHKeyResponse';
+export * from './GetProvisionedProductSessionCredentialsResponse';
 export * from './GetProvisionedProductUserSecretResponse';
 export * from './GetProvisionedProductsResponse';
 export * from './GetProvisioningLimitResponse';

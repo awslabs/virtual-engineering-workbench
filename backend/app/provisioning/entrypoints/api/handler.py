@@ -535,6 +535,28 @@ def get_provisioned_product_user_credentials(
 
 
 @tracer.capture_method
+@app.get(
+    "/projects/<project_id>/products/provisioned/<provisioned_product_id>/session-credentials",
+    tags=[TAG_PROVISIONED_PRODUCTS],
+)
+def get_provisioned_product_session_credentials(
+    project_id: str,
+    provisioned_product_id: str,
+) -> api_gateway.Response[api_model.GetProvisionedProductSessionCredentialsResponse]:
+    credentials = dependencies.session_credentials_domain_qry_srv.get_session_credentials(
+        project_id=project_id_value_object.from_str(project_id),
+        provisioned_product_id=provisioned_product_id_value_object.from_str(provisioned_product_id),
+        user_id=user_id_value_object.from_str(app.context.get("user_principal").user_name),
+    )
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetProvisionedProductSessionCredentialsResponse.model_validate(credentials.model_dump()),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
 @app.put(
     "/projects/<project_id>/products/provisioned/<provisioned_product_id>/remove",
     tags=[TAG_PROVISIONED_PRODUCTS],

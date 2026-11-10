@@ -15,6 +15,7 @@ class ProvisioningBCActions(enum.StrEnum):
     GetProvisionedProduct = "GetProvisionedProduct"
     GetProvisionedProductActivities = "GetProvisionedProductActivities"
     GetProvisionedProducts = "GetProvisionedProducts"
+    GetProvisionedProductSessionCredentials = "GetProvisionedProductSessionCredentials"
     GetProvisionedProductSSHKey = "GetProvisionedProductSSHKey"
     GetProvisionedProductUserCredentials = "GetProvisionedProductUserCredentials"
     GetProvisioningLimit = "GetProvisioningLimit"

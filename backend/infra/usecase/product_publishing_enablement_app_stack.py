@@ -421,6 +421,26 @@ class ProductPublishingEnablementAppStack(Stack):
                         "StringEquals": {"aws:ResourceTag/vew:provisionedProduct:ownerId": "${aws:PrincipalTag/UserId}"}
                     },
                 ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ssm:StartSession"],
+                    resources=["*"],
+                    conditions={
+                        "StringEquals": {"ssm:resourceTag/vew:provisionedProduct:ownerId": "${aws:PrincipalTag/UserId}"}
+                    },
+                ),
+                # A session also needs the document it runs, which carries no owner tag.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ssm:StartSession"],
+                    resources=[f"arn:{Aws.PARTITION}:ssm:*:{Aws.ACCOUNT_ID}:document/SSM-SessionManagerRunShell"],
+                ),
+                # Session Manager names a session after the role session name, which is the user ID.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ssm:TerminateSession", "ssm:ResumeSession", "ssmmessages:OpenDataChannel"],
+                    resources=[f"arn:{Aws.PARTITION}:ssm:*:*:session/${{aws:PrincipalTag/UserId}}-*"],
+                ),
             ],
         )
 

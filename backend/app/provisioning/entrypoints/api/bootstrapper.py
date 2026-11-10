@@ -21,6 +21,7 @@ from app.provisioning.adapters.repository.dynamo_entity_migrations import (
 from app.provisioning.adapters.services import aws_parameter_service as ssm_parameter_service_v2
 from app.provisioning.adapters.services import (
     ec2_instance_management_service,
+    ssm_session_credentials_service,
 )
 from app.provisioning.domain.aggregates.internal import networking_helpers
 from app.provisioning.domain.command_handlers.product_provisioning import (
@@ -53,6 +54,7 @@ from app.provisioning.domain.query_services import (
     products_domain_query_service,
     provisioned_products_domain_query_service,
     provisioning_infrastructure_domain_query_service,
+    session_credentials_domain_query_service,
     user_profile_domain_query_service,
     versions_domain_query_service,
 )
@@ -94,6 +96,7 @@ class Dependencies(BaseModel):
     virtual_targets_domain_qry_srv: provisioned_products_domain_query_service.ProvisionedProductsDomainQueryService
     user_profile_domain_qry_srv: user_profile_domain_query_service.UserProfileDomainQueryService
     prov_infra_qry_srv: provisioning_infrastructure_domain_query_service.ProvisioningInfrastructureDomainQueryService
+    session_credentials_domain_qry_srv: session_credentials_domain_query_service.SessionCredentialsDomainQueryService
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -191,8 +194,9 @@ def bootstrap(  # noqa: C901
         logger=logger,
     ).register_migrations(migrations_config(provisioned_products_qs=provisioned_products_qry_srv)).migrate()
 
+    sts_client = session.client("sts", region_name=app_config.get_default_region())
     temp_cred_provider = temporary_credential_provider.TemporaryCredentialProvider(
-        sts_client=session.client("sts", region_name=app_config.get_default_region()),
+        sts_client=sts_client,
         ctx=app,
     )
 
@@ -270,6 +274,16 @@ def bootstrap(  # noqa: C901
         logger=logger,
         parameter_service=ssm_api_instance,
         parameter_name=app_config.get_feature_toggles_param_name(),
+    )
+
+    session_credentials_domain_qry_srv = session_credentials_domain_query_service.SessionCredentialsDomainQueryService(
+        provisioned_products_qry_srv=provisioned_products_qry_srv,
+        session_credentials_srv=ssm_session_credentials_service.SSMSessionCredentialsService(
+            sts_client=sts_client,
+            ssm_boto_client_provider=_get_ssm_boto_client,
+            role_name=app_config.get_product_provisioning_role(),
+        ),
+        feature_toggles=fe_feature_toggles_srv,
     )
 
     be_feature_toggles_srv = backend_feature_toggles.from_environment_variables()
@@ -470,4 +484,5 @@ def bootstrap(  # noqa: C901
         virtual_targets_domain_qry_srv=provisioned_products_domain_qry_srv,
         user_profile_domain_qry_srv=user_profile_domain_qry_srv,
         prov_infra_qry_srv=prov_infra_qry_srv,
+        session_credentials_domain_qry_srv=session_credentials_domain_qry_srv,
     )
