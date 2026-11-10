@@ -1,6 +1,7 @@
 from typing import Any
 
 import boto3
+from aws_lambda_powertools import logging
 from botocore.exceptions import ClientError
 from mypy_boto3_ec2.client import EC2Client
 from mypy_boto3_license_manager.client import LicenseManagerClient
@@ -14,13 +15,16 @@ from app.packaging.domain.read_models.marketplace_agreement import MarketplaceAg
 from app.packaging.domain.read_models.marketplace_ami import MarketplaceAmi
 from app.packaging.domain.read_models.received_license import ReceivedLicense
 
+logger = logging.Logger()
+
+AMI_STATE_AVAILABLE = "available"
 EC2 = "ec2"
+GRACEFUL_DEGRADATION_ERROR_CODES = ("AccessDeniedException", "AuthorizationException")
 LICENSE_MANAGER = "license-manager"
 MARKETPLACE_AGREEMENT = "marketplace-agreement"
 MARKETPLACE_REGION = "us-east-1"
 MARKETPLACE_CATALOG_NAME = "AWSMarketplace"
 MARKETPLACE_OWNER = "aws-marketplace"
-AMI_STATE_AVAILABLE = "available"
 
 
 class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmiService, MarketplaceLicenseService):
@@ -84,6 +88,13 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
                 if not next_token:
                     break
         except ClientError as e:
+            if e.response.get("Error", {}).get("Code") in GRACEFUL_DEGRADATION_ERROR_CODES:
+                logger.warning(
+                    "SearchAgreements denied — Marketplace agreement access may not be configured. "
+                    "Returning empty agreement list. Error: %s",
+                    e,
+                )
+                return []
             raise adapter_exception.AdapterException(f"Failed to list marketplace agreements: {e}")
         return agreements
 
@@ -157,6 +168,14 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
                 if not next_token:
                     break
         except ClientError as e:
+            if e.response.get("Error", {}).get("Code") in GRACEFUL_DEGRADATION_ERROR_CODES:
+                logger.warning(
+                    "ListReceivedLicenses denied — the AWSServiceRoleForMarketplaceLicenseManagement "
+                    "service-linked role is likely missing. Returning empty license list. "
+                    "To fix: enable License Manager integration in AWS Marketplace settings. Error: %s",
+                    e,
+                )
+                return []
             raise adapter_exception.AdapterException(f"Failed to list received licenses: {e}")
         return licenses_out
 
