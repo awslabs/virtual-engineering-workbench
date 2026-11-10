@@ -342,10 +342,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         if self._provisioned_product.region != command.region.value:
             return
 
-        current_version = semver.Version.parse(self._provisioned_product.versionName)
-        target_version = semver.Version.parse(command.product_version_name.value)
-
-        if current_version > target_version:
+        if self.__is_older_than_current(command.product_version_name.value):
             return
 
         self._provisioned_product.newVersionId = command.product_version_id.value
@@ -873,8 +870,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 instance_mgmt_srv=instance_mgmt_srv,
                 container_mgmt_srv=container_mgmt_srv,
             )
-            # The card says why: without failedOperation the reason was never shown, and a later start
-            # cleared it.
+            # Without failedOperation the UI never shows the reason, and the next start clears it.
             self._provisioned_product.statusReason = f"Update failed: {e}"
             self._provisioned_product.failedOperation = workbench_failure.FailedOperation.Update.value
             self._publish(
@@ -1571,14 +1567,12 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 f"Trying to change entity with ID {provisioned_product_id.value} but aggregate is loaded for {self._provisioned_product.provisionedProductId}"
             )
 
+    def __is_older_than_current(self, version_name: str) -> bool:
+        return semver.Version.parse(version_name) < semver.Version.parse(self._provisioned_product.versionName)
+
     def __raise_if_downgrade(self, target_version_name: str) -> None:
         """An update goes to a newer version, or the same one for an instance type change."""
-        try:
-            current = semver.Version.parse(self._provisioned_product.versionName)
-            target = semver.Version.parse(target_version_name)
-        except (TypeError, ValueError):
-            return
-        if target < current:
+        if self.__is_older_than_current(target_version_name):
             raise domain_exception.DomainException(
                 f"Version {target_version_name} is older than the provisioned product's version "
                 f"{self._provisioned_product.versionName}: an update goes to a newer version."

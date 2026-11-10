@@ -762,7 +762,7 @@ def test_handle_when_update_fails_should_publish_failure_event(
         ssh_key_path="/ec2/keypair/i-123",
         block_device_mappings=get_test_block_device_mappings(),
     )
-    # the card says why the update failed.
+    # failedOperation lets the UI show why the update failed.
     expected.failedOperation = "UPDATE"
     mock_provisioned_product_repo.update_entity.assert_called_once_with(
         provisioned_product.ProvisionedProductPrimaryKey(

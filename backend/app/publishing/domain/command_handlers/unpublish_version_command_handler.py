@@ -13,19 +13,18 @@ from app.shared.adapters.unit_of_work_v2 import unit_of_work
 def _no_live_sibling(versions_qry_srv, catalog_qry_srv, version_entity) -> bool:
     """True when nothing else lives in the version's SC product: no other non-retired distribution of the
     hub records it, and Service Catalog still counts one artifact right now."""
-    if versions_qry_srv is not None:
-        siblings = versions_qry_srv.get_product_version_distributions(
-            product_id=version_entity.productId,
-            aws_account_ids=[version_entity.awsAccountId],
-            stage=version_entity.stage,
-        )
-        if any(
-            dist.scProductId == version_entity.scProductId
-            and dist.versionId != version_entity.versionId
-            and dist.status != version.VersionStatus.Retired
-            for dist in siblings
-        ):
-            return False
+    siblings = versions_qry_srv.get_product_version_distributions(
+        product_id=version_entity.productId,
+        aws_account_ids=[version_entity.awsAccountId],
+        stage=version_entity.stage,
+    )
+    if any(
+        dist.scProductId == version_entity.scProductId
+        and dist.versionId != version_entity.versionId
+        and dist.status != version.VersionStatus.Retired
+        for dist in siblings
+    ):
+        return False
     return (
         catalog_qry_srv.get_provisioning_artifact_count_in_sc(
             region=version_entity.region, sc_product_id=version_entity.scProductId
@@ -39,9 +38,9 @@ def handle(
     uow: unit_of_work.UnitOfWork,
     catalog_srv: catalog_service.CatalogService,
     catalog_qry_srv: catalog_query_service.CatalogQueryService,
+    versions_qry_srv: versions_query_service.VersionsQueryService,
     logger: logging.Logger,
     msg_bus: message_bus.MessageBus,
-    versions_qry_srv: versions_query_service.VersionsQueryService | None = None,
 ):
     try:
         with uow:
