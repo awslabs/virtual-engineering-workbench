@@ -14,8 +14,10 @@ from app.packaging.domain.exceptions.domain_exception import DomainException
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe_version
 from app.packaging.domain.model.shared import component_version_entry
+from app.packaging.domain.read_models import marketplace_image
 from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_components_versions_value_object,
+    recipe_version_parent_image_product_id_value_object,
 )
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
@@ -46,6 +48,7 @@ def test_handle_should_update_recipe_version(
     get_test_recipe_version_with_specific_version_name,
     fetched_release_name,
     expected_version_name,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -86,6 +89,7 @@ def test_handle_should_update_recipe_version(
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        marketplace_image_srv=marketplace_image_service_mock,
     )
 
     # ASSERT
@@ -535,6 +539,7 @@ def test_handle_should_update_recipe_version_with_correct_component_versions(
     mandatory_components_versions,
     recipe_component_versions,
     expected_recipe_component_versions,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -580,6 +585,7 @@ def test_handle_should_update_recipe_version_with_correct_component_versions(
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        marketplace_image_srv=marketplace_image_service_mock,
     )
 
     # ASSERT
@@ -640,6 +646,7 @@ def test_handle_should_raise_an_exception_when_recipe_version_not_found(
     mandatory_components_list_query_service_mock,
     mock_system_configuration_mapping,
     get_test_ami_id,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -665,6 +672,7 @@ def test_handle_should_raise_an_exception_when_recipe_version_not_found(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
@@ -687,6 +695,7 @@ def test_handle_should_raise_an_exception_when_recipe_version_is_not_valid(
     get_test_ami_id,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     get_test_recipe_version_with_specific_version_name,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -717,6 +726,7 @@ def test_handle_should_raise_an_exception_when_recipe_version_is_not_valid(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
@@ -738,6 +748,7 @@ def test_handle_should_raise_an_exception_when_recipe_version_is_not_rc(
     get_test_ami_id,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
     get_test_recipe_version_with_specific_version_name,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -767,6 +778,7 @@ def test_handle_should_raise_an_exception_when_recipe_version_is_not_rc(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
@@ -785,6 +797,7 @@ def test_handle_should_raise_an_exception_when_recipe_not_found(
     mock_system_configuration_mapping,
     get_test_ami_id,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -814,6 +827,7 @@ def test_handle_should_raise_an_exception_when_recipe_not_found(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
@@ -833,6 +847,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_don_t_exi
     parameter_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -869,6 +884,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_don_t_exi
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
@@ -904,6 +920,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_are_not_v
     recipe_version_query_service_mock,
     recipe_query_service_mock,
     status,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -950,6 +967,7 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_are_not_v
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
@@ -973,6 +991,7 @@ def test_handle_should_raise_exception_if_parameter_doesnt_exist_when_updating_v
     parameter_service_mock,
     mandatory_components_list_query_service_mock,
     get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     os.environ["AWS_REGION"] = "us-east-1"
@@ -1009,6 +1028,7 @@ def test_handle_should_raise_exception_if_parameter_doesnt_exist_when_updating_v
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
     assertpy.assert_that(str(exec_info.value)).is_equal_to("Parameter ami_ssm_param_name not found.")
 
@@ -1111,6 +1131,7 @@ def test_handle_should_raise_exception_with_duplicate_components(
     parameter_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
+    marketplace_image_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -1157,9 +1178,173 @@ def test_handle_should_raise_exception_with_duplicate_components(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            marketplace_image_srv=marketplace_image_service_mock,
         )
 
     # ASSERT
     assertpy.assert_that(str(e.value)).is_equal_to(
         f"Recipe version contains duplicate components: {sorted(duplicate_component_ids)}."
+    )
+
+
+TEST_MARKETPLACE_PRODUCT_ID = "prod-testmarketplace1"
+TEST_MARKETPLACE_AMI_ID = "ami-0123456789abcdef0"
+TEST_MARKETPLACE_IMAGE = marketplace_image.MarketplaceImage(
+    productId=TEST_MARKETPLACE_PRODUCT_ID,
+    name="Test Marketplace Image",
+    amiId=TEST_MARKETPLACE_AMI_ID,
+    platform="Linux",
+    architecture="amd64",
+    rootVolumeSize=8,
+)
+TEST_PREVIOUS_AMI_ID = "ami-0fedcba9876543210"
+
+
+def _arrange_update(
+    recipe_version_query_service_mock,
+    update_recipe_version_command_mock,
+    component_version_query_service_mock,
+    recipe_query_service_mock,
+    mandatory_components_list_query_service_mock,
+    mock_recipe_object,
+    get_test_component_version_with_specific_status,
+    get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+    get_test_recipe_version_with_specific_version_name,
+):
+    recipe_version_repo_mock = mock.create_autospec(spec=unit_of_work.GenericRepository)
+    repos_dict = {recipe_version.RecipeVersion: recipe_version_repo_mock}
+    uow_mock = mock.create_autospec(spec=unit_of_work.UnitOfWork)
+    uow_mock.get_repository.side_effect = lambda pk, x: repos_dict.get(x)
+    mandatory_components_list_query_service_mock.get_mandatory_components_list.return_value = (
+        get_test_mandatory_components_list_with_specific_mandatory_components_versions()
+    )
+    recipe_version_entity = get_test_recipe_version_with_specific_version_name("1.0.0-rc.1")
+    recipe_version_entity.parentImageUpstreamId = TEST_PREVIOUS_AMI_ID
+    recipe_version_entity.recipeVersionVolumeSize = "100"
+    recipe_version_query_service_mock.get_recipe_version.return_value = recipe_version_entity
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    component_version_entities = []
+    for recipe_component_version in update_recipe_version_command_mock.recipeComponentsVersions.value:
+        component_version_entity = get_test_component_version_with_specific_status(
+            status=component_version.ComponentVersionStatus.Released
+        )
+        component_version_entity.componentId = recipe_component_version.componentId
+        component_version_entity.componentVersionId = recipe_component_version.componentVersionId
+        component_version_entities.append(component_version_entity)
+    component_version_query_service_mock.get_component_version.side_effect = component_version_entities
+    return uow_mock, recipe_version_repo_mock
+
+
+def test_handle_should_update_recipe_version_to_marketplace_image_when_parent_image_product_id_is_given(
+    recipe_version_query_service_mock,
+    update_recipe_version_command_mock,
+    component_version_query_service_mock,
+    component_query_service_mock,
+    recipe_query_service_mock,
+    parameter_service_mock,
+    mandatory_components_list_query_service_mock,
+    mock_system_configuration_mapping,
+    mock_recipe_object,
+    get_test_component_version_with_specific_status,
+    get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+    get_test_recipe_version_with_specific_version_name,
+    marketplace_image_service_mock,
+):
+    # ARRANGE
+    message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
+    uow_mock, recipe_version_repo_mock = _arrange_update(
+        recipe_version_query_service_mock,
+        update_recipe_version_command_mock,
+        component_version_query_service_mock,
+        recipe_query_service_mock,
+        mandatory_components_list_query_service_mock,
+        mock_recipe_object,
+        get_test_component_version_with_specific_status,
+        get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+        get_test_recipe_version_with_specific_version_name,
+    )
+    update_recipe_version_command_mock.parentImageProductId = (
+        recipe_version_parent_image_product_id_value_object.from_str(TEST_MARKETPLACE_PRODUCT_ID)
+    )
+    marketplace_image_service_mock.get_image.return_value = TEST_MARKETPLACE_IMAGE
+
+    # ACT
+    update_recipe_version_command_handler.handle(
+        command=update_recipe_version_command_mock,
+        uow=uow_mock,
+        message_bus=message_bus_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        recipe_version_query_service=recipe_version_query_service_mock,
+        recipe_qry_service=recipe_query_service_mock,
+        parameter_qry_srv=parameter_service_mock,
+        mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
+        system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
+        marketplace_image_srv=marketplace_image_service_mock,
+    )
+
+    # ASSERT
+    parameter_service_mock.get_parameter_value.assert_not_called()
+    call_args = recipe_version_repo_mock.update_attributes.call_args
+    assertpy.assert_that(call_args[1]["parentImageUpstreamId"]).is_equal_to(TEST_MARKETPLACE_AMI_ID)
+    assertpy.assert_that(call_args[1]["parentImageProductId"]).is_equal_to(TEST_MARKETPLACE_PRODUCT_ID)
+    published_event = message_bus_mock.publish.call_args[0][0]
+    assertpy.assert_that(published_event.parent_image_upstream_id).is_equal_to(TEST_MARKETPLACE_AMI_ID)
+
+
+def test_handle_should_update_recipe_version_to_default_image_when_parent_image_product_id_is_not_given(
+    recipe_version_query_service_mock,
+    update_recipe_version_command_mock,
+    component_version_query_service_mock,
+    component_query_service_mock,
+    recipe_query_service_mock,
+    parameter_service_mock,
+    mandatory_components_list_query_service_mock,
+    mock_system_configuration_mapping,
+    mock_recipe_object,
+    get_test_ami_id,
+    get_test_component_version_with_specific_status,
+    get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+    get_test_recipe_version_with_specific_version_name,
+    marketplace_image_service_mock,
+):
+    # ARRANGE
+    message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
+    uow_mock, recipe_version_repo_mock = _arrange_update(
+        recipe_version_query_service_mock,
+        update_recipe_version_command_mock,
+        component_version_query_service_mock,
+        recipe_query_service_mock,
+        mandatory_components_list_query_service_mock,
+        mock_recipe_object,
+        get_test_component_version_with_specific_status,
+        get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+        get_test_recipe_version_with_specific_version_name,
+    )
+    parameter_service_mock.get_parameter_value.return_value = get_test_ami_id
+
+    # ACT
+    update_recipe_version_command_handler.handle(
+        command=update_recipe_version_command_mock,
+        uow=uow_mock,
+        message_bus=message_bus_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        recipe_version_query_service=recipe_version_query_service_mock,
+        recipe_qry_service=recipe_query_service_mock,
+        parameter_qry_srv=parameter_service_mock,
+        mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
+        system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
+        marketplace_image_srv=marketplace_image_service_mock,
+    )
+
+    # ASSERT
+    marketplace_image_service_mock.get_image.assert_not_called()
+    call_args = recipe_version_repo_mock.update_attributes.call_args
+    assertpy.assert_that(call_args[1]["parentImageUpstreamId"]).is_equal_to(get_test_ami_id)
+    assertpy.assert_that(call_args[1]["parentImageProductId"]).is_none()
+    published_event = message_bus_mock.publish.call_args[0][0]
+    assertpy.assert_that(published_event.parent_image_upstream_id).is_equal_to(get_test_ami_id)
+    assertpy.assert_that(published_event.recipe_version_volume_size).is_equal_to(
+        update_recipe_version_command_mock.recipeVersionVolumeSize.value
     )

@@ -194,7 +194,7 @@ def test_the_handler_declares_the_route_totals_the_coverage_walks_account_for():
     routes = _routes()
 
     # ASSERT
-    assertpy.assert_that(routes).is_length(42)
+    assertpy.assert_that(routes).is_length(43)
     assertpy.assert_that([route for route in routes if "<component_id>" in route.path]).is_length(13)
     assertpy.assert_that([route for route in routes if "<recipe_id>" in route.path]).is_length(10)
 

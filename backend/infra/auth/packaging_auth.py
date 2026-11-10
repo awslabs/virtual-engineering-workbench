@@ -42,6 +42,7 @@ packaging_bc_auth_policies: list[backend_app_api_auth.CedarPolicy] = [
                     packaging_auth_schema.PackagingBCActions.GetImages,
                     packaging_auth_schema.PackagingBCActions.GetMandatoryComponentsList,
                     packaging_auth_schema.PackagingBCActions.GetMandatoryComponentsLists,
+                    packaging_auth_schema.PackagingBCActions.GetMarketplaceImages,
                     packaging_auth_schema.PackagingBCActions.GetPipeline,
                     packaging_auth_schema.PackagingBCActions.GetPipelines,
                     packaging_auth_schema.PackagingBCActions.GetPipelinesAllowedBuildTypes,

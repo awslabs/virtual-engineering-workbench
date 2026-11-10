@@ -26,6 +26,7 @@ interface RecipeVersionWizardProps {
     volumeSize: string,
     versionReleaseType?: string,
     integrations?: string[],
+    parentImageProductId?: string,
   ) => void,
   wizardSubmitInProgress: boolean,
   activeStepIndex: number,
@@ -73,6 +74,10 @@ export const RecipeVersionWizard: FC<RecipeVersionWizardProps> = ({
     setSelectedIntegrations,
     integrationComponents,
     isLoadingIntegrationComponents,
+    marketplaceImages,
+    isMarketplaceImagesLoading,
+    parentImageProductId,
+    setParentImageProductId,
   } = useRecipeVersionWizard({
     projectId,
     recipeId,
@@ -106,6 +111,10 @@ export const RecipeVersionWizard: FC<RecipeVersionWizardProps> = ({
         isIntegrationsLoading={isIntegrationsLoading}
         selectedIntegrations={selectedIntegrations}
         setSelectedIntegrations={setSelectedIntegrations}
+        marketplaceImages={marketplaceImages}
+        isMarketplaceImagesLoading={isMarketplaceImagesLoading}
+        parentImageProductId={parentImageProductId}
+        setParentImageProductId={setParentImageProductId}
       />
     },
     {
@@ -133,6 +142,8 @@ export const RecipeVersionWizard: FC<RecipeVersionWizardProps> = ({
         integrationComponentsVersions={integrationComponents}
         selectedIntegrations={selectedIntegrations}
         availableIntegrations={integrations}
+        parentImageProductId={parentImageProductId}
+        marketplaceImages={marketplaceImages}
       />
     },
   ];
@@ -157,6 +168,7 @@ export const RecipeVersionWizard: FC<RecipeVersionWizardProps> = ({
           volumeSize.toString(),
           versionReleaseType,
           selectedIntegrations,
+          parentImageProductId || undefined,
         )
       }
       onCancel={() => setCancelConfirmVisible(true)}

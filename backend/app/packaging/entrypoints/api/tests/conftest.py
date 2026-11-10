@@ -13,6 +13,7 @@ from openapi_spec_validator.readers import read_from_filename
 
 from app.packaging.adapters.services import (
     aws_component_definition_service,
+    aws_marketplace_image_service,
     ec2_image_builder_pipeline_service,
 )
 from app.packaging.domain.commands.component import (
@@ -75,6 +76,7 @@ from app.packaging.domain.query_services import (
     recipe_version_domain_query_service,
     recipe_version_test_execution_domain_query_service,
 )
+from app.packaging.domain.read_models import marketplace_image
 from app.packaging.entrypoints.api import bootstrapper
 from app.packaging.entrypoints.api.model import api_model
 from app.shared.adapters.message_bus import in_memory_command_bus
@@ -148,6 +150,7 @@ class GlobalVariables(Enum):
     TEST_IMAGE_KEY_NAME = "test-key"
     TEST_IMAGE_PARENT_UPSTREAM_ID = "ami-12345"
     TEST_IMAGE_UPSTREAM_ID = "ami-01234567890abcdef"
+    TEST_MARKETPLACE_PRODUCT_ID = "prod-testmarketplace1"
     TEST_PIPELINE_ALLOWED_BUILD_INSTANCE_TYPES = [
         "m8a.2xlarge",
         "m8i.2xlarge",
@@ -1024,6 +1027,7 @@ def create_recipe_version(authenticated_event, lambda_context):
         recipe_version_description: str = GlobalVariables.TEST_RECIPE_VERSION_DESCRIPTION.value,
         recipe_version_release_type: str = GlobalVariables.TEST_RECIPE_VERSION_RELEASE_TYPE.value,
         recipe_version_volume_size: str = GlobalVariables.TEST_RECIPE_VERSION_VOLUME_SIZE.value,
+        parent_image_product_id: str | None = None,
     ):
         from app.packaging.entrypoints.api import handler
 
@@ -1032,6 +1036,7 @@ def create_recipe_version(authenticated_event, lambda_context):
             recipeVersionDescription=recipe_version_description,
             recipeVersionReleaseType=recipe_version_release_type,
             recipeVersionVolumeSize=recipe_version_volume_size,
+            parentImageProductId=parent_image_product_id,
         )
         evt = authenticated_event(
             json.dumps(request.model_dump()),
@@ -1146,6 +1151,7 @@ def update_recipe_version(authenticated_event, lambda_context):
         project_id: str = GlobalVariables.TEST_PROJECT_ID.value,
         recipe_version_description: str = GlobalVariables.TEST_RECIPE_VERSION_DESCRIPTION.value,
         recipe_version_volume_size: str = GlobalVariables.TEST_RECIPE_VERSION_VOLUME_SIZE.value,
+        parent_image_product_id: str | None = None,
     ):
         from app.packaging.entrypoints.api import handler
 
@@ -1153,6 +1159,7 @@ def update_recipe_version(authenticated_event, lambda_context):
             recipeComponentsVersions=recipe_version_components_versions,
             recipeVersionDescription=recipe_version_description,
             recipeVersionVolumeSize=recipe_version_volume_size,
+            parentImageProductId=parent_image_product_id,
         )
         evt = authenticated_event(
             json.dumps(request.model_dump()),
@@ -1460,6 +1467,20 @@ def get_pipelines_allowed_build_types(authenticated_event, lambda_context):
         return result["statusCode"], json.loads(result["body"])
 
     return _get_pipelines_allowed_build_types
+
+
+@pytest.fixture()
+def get_marketplace_images(authenticated_event, lambda_context):
+    def _get_marketplace_images(
+        project_id: str = GlobalVariables.TEST_PROJECT_ID.value,
+    ):
+        from app.packaging.entrypoints.api import handler
+
+        evt = authenticated_event(None, f"/projects/{project_id}/marketplace-images", "GET")
+        result = handler.handler(evt, lambda_context)
+        return result["statusCode"], json.loads(result["body"])
+
+    return _get_marketplace_images
 
 
 @pytest.fixture()
@@ -2218,6 +2239,23 @@ def mocked_image_query_service() -> ec2_image_builder_pipeline_service.Ec2ImageB
     return image_query_service_mock
 
 
+@pytest.fixture()
+def mocked_marketplace_image_service() -> aws_marketplace_image_service.AWSMarketplaceImageService:
+    marketplace_image_service_mock = mock.create_autospec(spec=aws_marketplace_image_service.AWSMarketplaceImageService)
+    marketplace_image_service_mock.list_images.return_value = [
+        marketplace_image.MarketplaceImage(
+            productId=GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value,
+            name="Test Marketplace Image",
+            amiId="ami-0123456789abcdef0",
+            platform="Linux",
+            architecture="amd64",
+            rootVolumeSize=8,
+        )
+    ]
+
+    return marketplace_image_service_mock
+
+
 @pytest.fixture
 def mocked_dependencies(
     mocked_create_component_cmd_handler,
@@ -2250,6 +2288,7 @@ def mocked_dependencies(
     mocked_pipeline_domain_query_service,
     mocked_create_image_cmd_handler,
     mocked_image_query_service,
+    mocked_marketplace_image_service,
 ) -> bootstrapper.Dependencies:
     return bootstrapper.Dependencies(
         command_bus=in_memory_command_bus.InMemoryCommandBus(
@@ -2345,6 +2384,7 @@ def mocked_dependencies(
         mandatory_components_list_domain_qry_srv=mocked_mandatory_components_list_domain_query_service,
         pipeline_domain_qry_srv=mocked_pipeline_domain_query_service,
         pipeline_srv=mocked_image_query_service,
+        marketplace_image_srv=mocked_marketplace_image_service,
         component_definition_service=mock.create_autospec(
             spec=aws_component_definition_service.AWSComponentDefinitionService,
             instance=True,

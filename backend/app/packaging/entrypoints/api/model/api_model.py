@@ -462,6 +462,11 @@ class UpdateRecipeVersionRequest(BaseModel):
         description="A list of enabled integrations",
         title="RecipeVersionIntegrations",
     )
+    parentImageProductId: Optional[str] = Field(
+        None,
+        description="AWS Marketplace product to build on instead of the default base image",
+        title="ParentImageProductId",
+    )
 
 
 class UpdateRecipeVersionResponse(BaseModel):
@@ -715,6 +720,17 @@ class GetPipelinesAllowedBuildTypesResponse(BaseModel):
     pipelines_allowed_build_types: List[str] = Field(..., title="PipelineAllowedBuildTypes")
 
 
+class MarketplaceImage(BaseModel):
+    productId: str = Field(..., description="AWS Marketplace product ID", title="ProductId")
+    name: str = Field(..., description="Product name", title="Name")
+    platform: str = Field(..., description="Platform (Linux|Windows)", title="Platform")
+    architecture: str = Field(..., description="Architecture (amd64|arm64)", title="Architecture")
+
+
+class GetMarketplaceImagesResponse(BaseModel):
+    images: List[MarketplaceImage] = Field(..., title="Images")
+
+
 class ReleaseComponentVersionRequest(BaseModel):
     pass
 
@@ -740,6 +756,11 @@ class RecipeVersion(BaseModel):
         None,
         description="List of the selected integrations for the recipe version",
         title="RecipeVersionIntegrations",
+    )
+    parentImageProductId: Optional[str] = Field(
+        None,
+        description="AWS Marketplace product the recipe version builds on, if any",
+        title="ParentImageProductId",
     )
     status: str = Field(
         ...,
@@ -775,6 +796,11 @@ class CreateRecipeVersionRequest(BaseModel):
         None,
         description="A list of enabled integrations",
         title="RecipeVersionIntegrations",
+    )
+    parentImageProductId: Optional[str] = Field(
+        None,
+        description="AWS Marketplace product to build on instead of the default base image",
+        title="ParentImageProductId",
     )
 
 
