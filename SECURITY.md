@@ -1,5 +1,7 @@
 # Security
 
+> **⚠ This project is provided as sample/reference code for educational purposes. It is not intended for production use without additional security hardening. The [Known Security Considerations](#known-security-considerations) section below documents accepted design decisions and production hardening recommendations that adopters must address before deploying VEW in a production environment.**
+
 ## Reporting Vulnerabilities
 
 If you discover a security vulnerability, please report it by emailing <aws-security@amazon.com>. Please do not report security vulnerabilities through public GitHub issues.

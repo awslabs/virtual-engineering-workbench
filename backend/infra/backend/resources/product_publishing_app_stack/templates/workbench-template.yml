@@ -184,6 +184,11 @@ Resources:
     Type: AWS::EC2::SecurityGroup
   # kics-scan ignore-block - Detailed monitoring is a per-customer cost decision; instances monitored via CloudWatch agent and SSM
   Workbench:
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_46
+            comment: "UserData only fetches a short-lived IMDSv2 session token and instance tags at boot; it contains no stored credentials."
     Properties:
       BlockDeviceMappings:
         - DeviceName: /dev/sda1

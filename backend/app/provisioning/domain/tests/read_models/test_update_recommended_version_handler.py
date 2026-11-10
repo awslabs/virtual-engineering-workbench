@@ -38,7 +38,7 @@ def test_update_recommended_version_updates_recommended_version(
     # ASSERT
     calls = [
         mock.call(
-            pk=version.VersionPrimaryKey(productId="prod-123", versionId="vers-1", awsAccountId="105249321508"),
+            pk=version.VersionPrimaryKey(productId="prod-123", versionId="vers-1", awsAccountId="123456789012"),
             entity=version.Version.model_validate(
                 {
                     "projectId": "proj-123",
@@ -47,7 +47,7 @@ def test_update_recommended_version_updates_recommended_version(
                     "versionId": "vers-1",
                     "versionName": "1.0.0",
                     "versionDescription": "version description",
-                    "awsAccountId": "105249321508",
+                    "awsAccountId": "123456789012",
                     "accountId": "acct-12345",
                     "stage": version.VersionStage.DEV,
                     "region": "us-east-1",
@@ -86,7 +86,7 @@ def test_update_recommended_version_updates_recommended_version(
             ),
         ),
         mock.call(
-            pk=version.VersionPrimaryKey(productId="prod-123", versionId="vers-2", awsAccountId="105249321508"),
+            pk=version.VersionPrimaryKey(productId="prod-123", versionId="vers-2", awsAccountId="123456789012"),
             entity=version.Version.model_validate(
                 {
                     "projectId": "proj-123",
@@ -95,7 +95,7 @@ def test_update_recommended_version_updates_recommended_version(
                     "versionId": "vers-2",
                     "versionName": "1.0.0",
                     "versionDescription": "version description",
-                    "awsAccountId": "105249321508",
+                    "awsAccountId": "123456789012",
                     "accountId": "acct-12345",
                     "stage": version.VersionStage.DEV,
                     "region": "us-east-1",
