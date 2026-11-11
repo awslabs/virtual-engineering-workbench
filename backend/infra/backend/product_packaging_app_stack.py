@@ -315,7 +315,11 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                         effect=aws_iam.Effect.ALLOW,
                         resources=[
                             self.format_arn(
-                                account=self.account,
+                                # EC2 image and snapshot ARNs have an EMPTY account
+                                # field (arn:aws:ec2:<region>::image/ami-...), so an
+                                # account-bearing ARN never matches them. Same shape as
+                                # the RunInstances statement below.
+                                account=(self.account if resource not in ["image", "snapshot"] else ""),
                                 partition=self.partition,
                                 region=self.region,
                                 resource=resource,
@@ -331,6 +335,31 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                                 "image",
                             ]
                         ],
+                    ),
+                ),
+                # The build instance may tag its own build resources, but must never
+                # set an ownership tag: those keys are what the provisioning role's
+                # conditions authorize against, so being able to write them here would
+                # let this instance attribute a resource to any user. Tag keys are
+                # case-sensitive in EC2, so the Deny uses StringEqualsIgnoreCase to
+                # catch differently-cased spellings of the same key as well.
+                #
+                # Packaging has no legitimate reason to set provisioning ownership
+                # tags; the keys denied here are deliberately only those two, so the
+                # build's own vew:* build tags are unaffected.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=["ec2:CreateTags", "ec2:DeleteTags"],
+                        effect=aws_iam.Effect.DENY,
+                        resources=["*"],
+                        conditions={
+                            "ForAnyValue:StringEqualsIgnoreCase": {
+                                "aws:TagKeys": [
+                                    "vew:provisionedProduct:ownerId",
+                                    "vew:securityGroup:ownerId",
+                                ]
+                            },
+                        },
                     ),
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(

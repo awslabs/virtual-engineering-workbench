@@ -110,12 +110,22 @@ class ProvisioningEnablementStack(Stack):
                 actions=["ec2:DescribeInstances"],
                 resources=["*"],
             ),
-            # ec2:ModifyInstanceMetadataOptions is scoped to VEW-provisioned instances
-            # via the vew:provisionedProduct:ownerId tag (matches the tagging
-            # convention already used elsewhere in this stack — see the
-            # workbench-template.yml). Instances are expected to modify their own
-            # metadata options; the tag boundary prevents modification of unrelated
-            # instances if the credentials leaked.
+            # ec2:ModifyInstanceMetadataOptions. ec2:SourceInstanceARN is a
+            # request-context key AWS populates only when the caller is an EC2 instance
+            # using its instance role, which is what this managed policy is attached to.
+            # (It appears among EC2's condition keys but against no individual action,
+            # because it describes the caller rather than the target.) Requiring it
+            # blocks these credentials being used from anywhere other than an EC2
+            # instance in this account.
+            #
+            # This does NOT narrow the grant to the calling instance's own id. IAM has no
+            # policy variable for the target resource's ARN, so ec2:SourceInstanceARN
+            # cannot be compared against the instance being modified, and an instance
+            # role carries no principal-side user identity to compare the owner tag
+            # against either. One VEW instance can therefore still modify another's
+            # metadata options; closing that needs the call moved to the backend, which
+            # already has a per-user condition. Narrowing the caller is what is
+            # achievable here.
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
                 actions=["ec2:ModifyInstanceMetadataOptions"],
@@ -131,6 +141,16 @@ class ProvisioningEnablementStack(Stack):
                 ],
                 conditions={
                     "Null": {"aws:ResourceTag/vew:provisionedProduct:ownerId": "false"},
+                    "ArnLike": {
+                        "ec2:SourceInstanceARN": self.format_arn(
+                            account=self.account,
+                            partition=self.partition,
+                            region=self.region,
+                            resource="instance",
+                            resource_name="*",
+                            service="ec2",
+                        )
+                    },
                 },
             ),
         ]

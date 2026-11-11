@@ -103,15 +103,25 @@ class ProductPublishingEnablementAppStack(Stack):
                 resources=["*"],
                 effect=iam.Effect.ALLOW,
             ),
-            # Create-style actions inside Service Catalog stacks. Service Catalog
-            # tags every resource it creates with aws:cloudformation:stack-name
-            # starting with "SC-". Requiring that tag at request time constrains
-            # this role to only affect resources that end up inside SC stacks.
+            # Create-style actions inside Service Catalog stacks.
+            #
+            # The condition below can never be satisfied: the "aws:" tag prefix is
+            # reserved, and AWS supplies no aws:RequestTag/* key for a reserved tag
+            # at authorization time. ec2:CreateTags has been removed from this
+            # statement because the vew:provisionedProduct:id statement below is
+            # the grant that actually works for it.
+            #
+            # The four actions left here are NOT covered by that statement, so they
+            # remain effectively denied. Dropping the condition would make them
+            # allowed on Resource="*", which is a widening rather than a cleanup,
+            # so the status quo is preserved deliberately. Whether this path needs
+            # elastic-IP and CreateSecret grants at all is a behaviour question for
+            # the stack owner; if it does, they need a condition keyed on a
+            # non-reserved tag, like the statement below.
             iam.PolicyStatement(
                 actions=[
                     "ec2:AllocateAddress",
                     "ec2:AssociateAddress",
-                    "ec2:CreateTags",
                     "ec2:DisassociateAddress",
                     "ec2:ReleaseAddress",
                     "secretsmanager:CreateSecret",
@@ -126,29 +136,13 @@ class ProductPublishingEnablementAppStack(Stack):
             ),
             # ec2:CreateTags for the resources Service Catalog templates create.
             #
-            # This statement exists because the preceding statement's condition
-            # key, aws:RequestTag/aws:cloudformation:stack-name, can never be
-            # satisfied for ec2:CreateTags. The "aws:" tag prefix is reserved by
-            # AWS (see the CloudFormation resource-tagging reference), and EC2
-            # does not surface reserved tag keys as aws:RequestTag/* condition
-            # keys at authorization time. CloudFormation does send
-            # aws:cloudformation:stack-name among the tags on the call, but AWS
-            # supplies no aws:RequestTag/* keys in the authorization context, so
-            # the StringLike condition cannot match and the call fails with
-            # "no identity-based policy allows the ec2:CreateTags action".
-            #
-            # The fix keeps a tag condition rather than dropping it, but keys it
-            # on a NON-reserved tag that VEW itself stamps on every provisioned
-            # product and that Service Catalog propagates to every resource in
-            # the stack: vew:provisionedProduct:id (see
+            # Keyed on a NON-reserved tag that VEW itself stamps on every
+            # provisioned product and that Service Catalog propagates to every
+            # resource in the stack: vew:provisionedProduct:id (see
             # product_provisioning_aggregate). Verified with the IAM policy
-            # simulator against a full 20-tag request: allowed, while
-            # a request without the tag, and a request whose value does not
-            # match vew-pp-*, are both still denied.
-            #
-            # ec2:CreateTags is deliberately left in the statement above too:
-            # removing it there would be an unrelated change, and it is inert
-            # rather than harmful (its condition simply never matches).
+            # simulator against a full 20-tag request: allowed, while a request
+            # without the tag, and a request whose value does not match
+            # vew-pp-*, are both still denied.
             iam.PolicyStatement(
                 actions=["ec2:CreateTags"],
                 resources=[
@@ -669,54 +663,89 @@ class ProductPublishingEnablementAppStack(Stack):
                     },
                 ),
                 # Security-group management for workbench SSH/RDP ingress rules.
-                # NOTE: AuthorizeSecurityGroupIngress / RevokeSecurityGroupIngress
-                # authorize against TWO distinct resource types, because the call
-                # creates (or deletes) security-group-RULE objects which AWS models
-                # as their own resource type, separate from their parent group:
-                #   security-group/*      - the group the rule is attached to
-                #   security-group-rule/* - the rule object itself
-                # Omitting security-group-rule/* makes every call fail with
-                # UnauthorizedOperation naming
-                # arn:aws:ec2:<region>:<account>:security-group-rule/* as the
-                # denied resource, even though security-group/<id> is allowed.
-                # Reached from
-                # ec2_instance_management_service.authorize_user_ip_address.
-                # CreateSecurityGroup needs security-group/* + vpc/*.
+                # Reached from ec2_instance_management_service.authorize_user_ip_address.
+                #
+                # Split three ways, because the owner condition can only be applied
+                # where an owner tag actually exists:
+                #
+                #  * The group carries vew:securityGroup:ownerId, set at create time
+                #    (ec2_instance_management_service.create_user_security_group), so
+                #    ingress changes are restricted to the caller's own group. This
+                #    matches the StartInstances/StopInstances/SendCommand statements
+                #    above; without it this role could alter any user's group.
+                #  * A security-group-RULE object carries only GroupId and Name tags,
+                #    never an owner tag, so a ResourceTag condition on it can never
+                #    match. AuthorizeSecurityGroupIngress authorizes against the rule
+                #    resource as well as the group (omitting it fails with
+                #    UnauthorizedOperation naming security-group-rule/*), so the rule
+                #    leg is granted unconditioned and kept in its own statement
+                #    rather than silently defeating the condition above.
+                #  * RevokeSecurityGroupIngress has only a security-group resource
+                #    type, so security-group-rule/* and vpc/* never applied to it.
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=[
                         "ec2:AuthorizeSecurityGroupIngress",
                         "ec2:RevokeSecurityGroupIngress",
-                        "ec2:CreateSecurityGroup",
                     ],
                     resources=[
                         f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group/*",
+                    ],
+                    conditions={
+                        "StringEquals": {"aws:ResourceTag/vew:securityGroup:ownerId": "${aws:PrincipalTag/UserId}"},
+                    },
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ec2:AuthorizeSecurityGroupIngress"],
+                    resources=[
                         f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group-rule/*",
-                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:vpc/*",
                     ],
                 ),
-                # Tagging happens both on create and on subsequent updates.
-                # Scoped by ARN to the EC2 resource types a workbench launch
-                # tags; there is no tag condition here, because tag-on-create
-                # cannot require a tag that the call is itself setting.
-                # security-group-rule/* is required for tag-on-create: both
-                # create_security_group and authorize_security_group_ingress pass
-                # TagSpecifications (ResourceType "security-group" and
-                # "security-group-rule" respectively), and tag-on-create requires
-                # ec2:CreateTags on the resource type being tagged.
-                # See ec2_instance_management_service.py create_user_security_group
-                # (ResourceType "security-group") and authorize_user_ip_address
-                # (ResourceType "security-group-rule").
+                # CreateSecurityGroup needs security-group/* + vpc/*, and may only
+                # create a group that names the caller as its owner.
+                # create_user_security_group always passes that tag, so the condition
+                # does not change the supported path; it stops this role creating a
+                # group attributed to somebody else.
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ec2:CreateSecurityGroup"],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group/*",
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:vpc/*",
+                    ],
+                    conditions={
+                        "StringEquals": {"aws:RequestTag/vew:securityGroup:ownerId": "${aws:PrincipalTag/UserId}"},
+                    },
+                ),
+                # Tag-on-create only. Both create_security_group and
+                # authorize_security_group_ingress pass TagSpecifications
+                # (ResourceType "security-group" and "security-group-rule"), and
+                # tag-on-create requires ec2:CreateTags on the resource type being
+                # tagged. ec2:CreateAction holds the grant to exactly those two
+                # calls, so this role cannot retag an existing resource - including
+                # overwriting the ownership tags the conditions above rely on.
+                #
+                # instance/*, volume/* and network-interface/* are NOT granted: no
+                # call on this role's path passes TagSpecifications for them (the
+                # only RunInstances in the repo belongs to the launch-constraint
+                # role), and there is no standalone CreateTags call in backend/app
+                # at all.
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=["ec2:CreateTags"],
                     resources=[
-                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:instance/*",
                         f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group/*",
                         f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group-rule/*",
-                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:volume/*",
-                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:network-interface/*",
                     ],
+                    conditions={
+                        "StringEquals": {
+                            "ec2:CreateAction": [
+                                "CreateSecurityGroup",
+                                "AuthorizeSecurityGroupIngress",
+                            ]
+                        },
+                    },
                 ),
                 # ssm:GetParameter for the parameter store lookups the workbench
                 # provisioning code performs in the spoke account: the VPC id
@@ -735,10 +764,10 @@ class ProductPublishingEnablementAppStack(Stack):
                 # Authorization Reference: (1) the target instance ARN — restricted
                 # to the caller's own workbenches via
                 # aws:ResourceTag/vew:provisionedProduct:ownerId equal to the
-                # caller's UserId principal tag; (2) the document ARN — restricted
-                # to AWS-managed shell/PowerShell documents, which are the only
-                # ones provisioning/adapters/services/ssm_command_service.py
-                # invokes.
+                # caller's UserId principal tag; (2) the document ARN. Both the
+                # AWS-managed shell/PowerShell documents and documents this account
+                # owns are needed: ssm_command_service.run_document sends
+                # account-owned documents, which the AWS-only list denied.
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=["ssm:SendCommand"],
@@ -757,6 +786,7 @@ class ProductPublishingEnablementAppStack(Stack):
                     resources=[
                         f"arn:{Aws.PARTITION}:ssm:*::document/AWS-RunShellScript",
                         f"arn:{Aws.PARTITION}:ssm:*::document/AWS-RunPowerShellScript",
+                        f"arn:{Aws.PARTITION}:ssm:*:{Aws.ACCOUNT_ID}:document/*",
                     ],
                 ),
                 # ECS write actions are scoped to services and tasks owned by
