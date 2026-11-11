@@ -112,11 +112,36 @@ class AwsLicenseManagerService(LicenseManagerService):
 
         return LicenseGrantResult(grantArn=response.get("GrantArn"), status=response.get("Status"))
 
+    @staticmethod
+    def _paged_grants(operation: Any, **kwargs: Any) -> list[dict]:
+        """Every page of a License Manager grants call, following NextToken by hand.
+
+        License Manager publishes no boto3 paginator for either
+        ``list_distributed_grants`` or ``list_received_grants``
+        (``can_paginate`` is False for both), so ``get_paginator`` raises
+        ``OperationNotPageableError`` — and that is not a ``ClientError``, so it
+        escapes the handlers around these calls rather than being reported.
+        Reading a single page is just as wrong: a grant on a later page is
+        invisible, which makes an existing grant look absent and the subsequent
+        create fail with "already has a grant".
+        """
+        grants: list[dict] = []
+        next_token: str | None = None
+        while True:
+            page = operation(**kwargs, **({"NextToken": next_token} if next_token else {}))
+            grants.extend(page.get("Grants", []))
+            next_token = page.get("NextToken")
+            if not next_token:
+                return grants
+
     def _find_existing_grant(
         self, client: LicenseManagerClient, license_arn: str, principal_arn: str
     ) -> Optional[LicenseGrantResult]:
-        response = client.list_distributed_grants(Filters=[{"Name": "LicenseArn", "Values": [license_arn]}])
-        for grant in response.get("Grants", []):
+        grants = self._paged_grants(
+            client.list_distributed_grants,
+            Filters=[{"Name": "LicenseArn", "Values": [license_arn]}],
+        )
+        for grant in grants:
             if grant.get("GranteePrincipalArn") == principal_arn and grant.get("GrantStatus") != "DELETED":
                 return LicenseGrantResult(grantArn=grant["GrantArn"], status=grant["GrantStatus"])
         return None
@@ -125,7 +150,16 @@ class AwsLicenseManagerService(LicenseManagerService):
         try:
             spoke_client = self.__get_spoke_lm_client(spoke_account_id, home_region)
             grants = spoke_client.list_received_grants(GrantArns=[grant_arn]).get("Grants", [])
-            current_status = grants[0].get("GrantStatus") if grants else None
+            # No received grant means there is nothing to accept. Calling
+            # accept_grant anyway fails against the API, and previously happened
+            # on exactly this path, because a missing grant left current_status
+            # as None, which is neither ACTIVE nor DISABLED.
+            if not grants:
+                raise adapter_exception.AdapterException(
+                    f"Cannot accept license grant {grant_arn}: the spoke account has not received it"
+                )
+
+            current_status = grants[0].get("GrantStatus")
 
             if current_status == GRANT_ACTIVE_STATUS:
                 return
@@ -172,16 +206,14 @@ class AwsLicenseManagerService(LicenseManagerService):
     def has_active_received_grant(self, license_arn: str, spoke_account_id: str, home_region: str) -> bool:
         try:
             spoke_client = self.__get_spoke_lm_client(spoke_account_id, home_region)
-            paginator = spoke_client.get_paginator("list_received_grants")
-            for page in paginator.paginate(
+            grants = self._paged_grants(
+                spoke_client.list_received_grants,
                 Filters=[
                     {"Name": "LicenseArn", "Values": [license_arn]},
                     {"Name": "GrantStatus", "Values": [GRANT_ACTIVE_STATUS]},
-                ]
-            ):
-                if page.get("Grants"):
-                    return True
-            return False
+                ],
+            )
+            return bool(grants)
         except ClientError as e:
             raise adapter_exception.AdapterException(
                 f"Failed to list received grants for license {license_arn} in account {spoke_account_id}: {e}"

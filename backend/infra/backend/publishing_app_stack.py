@@ -226,13 +226,13 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
                                 actions=[
+                                    # The hub only creates a grant and looks for an
+                                    # existing one. It never reads a single grant,
+                                    # deletes one, or accepts one - those are the
+                                    # spoke's side of the handshake.
                                     "license-manager:CreateGrant",
-                                    "license-manager:CreateGrantVersion",
-                                    "license-manager:DeleteGrant",
-                                    "license-manager:GetGrant",
                                     "license-manager:ListDistributedGrants",
                                     "license-manager:ListReceivedLicenses",
-                                    "license-manager:ListReceivedGrants",
                                     "license-manager:GetLicense",
                                 ],
                                 resources=["*"],
@@ -397,13 +397,13 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
                                 actions=[
+                                    # The hub only creates a grant and looks for an
+                                    # existing one. It never reads a single grant,
+                                    # deletes one, or accepts one - those are the
+                                    # spoke's side of the handshake.
                                     "license-manager:CreateGrant",
-                                    "license-manager:CreateGrantVersion",
-                                    "license-manager:DeleteGrant",
-                                    "license-manager:GetGrant",
                                     "license-manager:ListDistributedGrants",
                                     "license-manager:ListReceivedLicenses",
-                                    "license-manager:ListReceivedGrants",
                                     "license-manager:GetLicense",
                                 ],
                                 resources=["*"],

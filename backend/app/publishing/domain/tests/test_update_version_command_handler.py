@@ -279,6 +279,10 @@ def test_handle_should_update_version_if_version_in_repository(
         platform=test_ami.platform,
         architecture=test_ami.architecture,
         integrations=test_ami.integrations or [],
+        # Both are written on every update, including as None, so a version
+        # updated away from a Marketplace AMI stops claiming that origin.
+        imageSource=test_ami.imageSource,
+        marketplaceMetadata=(test_ami.marketplaceMetadata.model_dump() if test_ami.marketplaceMetadata else None),
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )
     mock_unit_of_work.commit.assert_called()
@@ -502,6 +506,10 @@ def test_handle_should_update_version_if_ami_has_no_components_details(
         platform=test_ami.platform,
         architecture=test_ami.architecture,
         integrations=test_ami.integrations or [],
+        # Both are written on every update, including as None, so a version
+        # updated away from a Marketplace AMI stops claiming that origin.
+        imageSource=test_ami.imageSource,
+        marketplaceMetadata=(test_ami.marketplaceMetadata.model_dump() if test_ami.marketplaceMetadata else None),
         draftTemplateLocation="prod-11111111/version-123/draft_workbench.yml",
     )
     mock_unit_of_work.commit.assert_called()
