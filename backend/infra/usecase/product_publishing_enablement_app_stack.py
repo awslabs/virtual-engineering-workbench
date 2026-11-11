@@ -59,11 +59,9 @@ class ProductPublishingEnablementAppStack(Stack):
                     "cloudformation:ListStacks",
                     "ec2:DescribeAddresses",
                     "ec2:DescribeAvailabilityZones",
-                    # Service Catalog reads these two after RunInstances
-                    # succeeds, while reconciling the provisioned product's
-                    # resource view. Neither supports resource-level
-                    # authorization, so Resource="*".
-                    "ec2:DescribeInstanceAttribute",
+                    # Service Catalog reads this after RunInstances succeeds, while
+                    # reconciling the provisioned product's resource view. It has no
+                    # resource type, so Resource="*" is the only valid form.
                     "ec2:DescribeInstanceCreditSpecifications",
                     "ec2:DescribeInstances",
                     "ec2:DescribeKeyPairs",
@@ -244,13 +242,15 @@ class ProductPublishingEnablementAppStack(Stack):
             iam.PolicyStatement(
                 actions=[
                     "ec2:AttachNetworkInterface",
+                    # ec2:DescribeInstanceAttribute DOES have an "instance" resource type
+                    # (AWS service reference for ec2), unlike its Describe* neighbours, so
+                    # it is granted here rather than on Resource="*".
+                    "ec2:DescribeInstanceAttribute",
                     "ec2:DetachNetworkInterface",
                     "ec2:ModifyNetworkInterfaceAttribute",
                     "ec2:RunInstances",
                     "ec2:TerminateInstances",
                     "ec2:StopInstances",
-                    "ec2:CreateKeyPair",
-                    "ec2:DeleteKeyPair",
                     "ec2:AttachVolume",
                     "ec2:DetachVolume",
                     "ec2:ModifyInstanceAttribute",
@@ -260,15 +260,17 @@ class ProductPublishingEnablementAppStack(Stack):
                 effect=iam.Effect.ALLOW,
             ),
             iam.PolicyStatement(
+                # ec2:CreateKeyPair / ec2:DeleteKeyPair act on key-pair, not instance, so
+                # they belong here only. ec2:RunInstances and ec2:DeleteTags do have a
+                # key-pair resource type. The Get*/List*/Describe* wildcards that used to
+                # be in this statement were inert: no EC2 read action has a key-pair
+                # resource type (ec2:DescribeKeyPairs has none at all), so they granted
+                # nothing and are removed rather than moved.
                 actions=[
-                    "ec2:Get*",
-                    "ec2:List*",
-                    "ec2:Describe*",
-                    "ec2:DeleteTags",
-                    "ec2:RunInstances",
                     "ec2:CreateKeyPair",
                     "ec2:DeleteKeyPair",
-                    "ec2:DescribeKeyPairs",
+                    "ec2:DeleteTags",
+                    "ec2:RunInstances",
                 ],
                 resources=[f"arn:{Aws.PARTITION}:ec2:{Aws.REGION}:{Aws.ACCOUNT_ID}:key-pair/*"],
                 effect=iam.Effect.ALLOW,
@@ -424,10 +426,18 @@ class ProductPublishingEnablementAppStack(Stack):
                 resources=[f"arn:{Aws.PARTITION}:logs:{Aws.REGION}:{Aws.ACCOUNT_ID}:log-group:SC-*"],
                 effect=iam.Effect.ALLOW,
             ),
+            # ecs:RegisterTaskDefinition has a "task-definition" resource type
+            # (AWS service reference for ecs) and is scoped to it. The other
+            # five have no resource type, or none that this path can predict,
+            # so they stay on "*".
+            iam.PolicyStatement(
+                actions=["ecs:RegisterTaskDefinition"],
+                resources=[f"arn:{Aws.PARTITION}:ecs:{Aws.REGION}:{Aws.ACCOUNT_ID}:task-definition/*"],
+                effect=iam.Effect.ALLOW,
+            ),
             iam.PolicyStatement(
                 actions=[
                     "ecs:DeregisterTaskDefinition",
-                    "ecs:RegisterTaskDefinition",
                     "ecs:TagResource",
                     "ecs:CreateService",
                     "ecs:DescribeServices",

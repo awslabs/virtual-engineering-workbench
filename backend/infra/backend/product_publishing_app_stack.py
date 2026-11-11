@@ -153,11 +153,10 @@ class ProductPublishingAppStack(Stack):
                             "cloudformation:ListStacks",
                             "ec2:DescribeAddresses",
                             "ec2:DescribeAvailabilityZones",
-                            # Service Catalog reads these two after RunInstances
-                            # succeeds, while reconciling the provisioned
-                            # product's resource view. Neither supports
-                            # resource-level authorization, so Resource="*".
-                            "ec2:DescribeInstanceAttribute",
+                            # Service Catalog reads this after RunInstances succeeds,
+                            # while reconciling the provisioned product's resource
+                            # view. It has no resource type, so Resource="*" is the
+                            # only valid form.
                             "ec2:DescribeInstanceCreditSpecifications",
                             "ec2:DescribeInstances",
                             "ec2:DescribeKeyPairs",
@@ -319,12 +318,20 @@ class ProductPublishingAppStack(Stack):
                 # The fix does not restore Resource="*" wholesale. Scoping is
                 # per-action, as tight as each action supports:
                 #
-                #  * ecs:RegisterTaskDefinition and ecs:DeregisterTaskDefinition
-                #    do not support resource-level authorization, so "*" is the
-                #    only form that can work. These are account-level actions;
-                #    passing any task-definition ARN makes the simulator report
-                #    implicitDeny even under a blanket ecs:* on "*", which is a
-                #    simulator artefact rather than a policy defect.
+                #  * ecs:RegisterTaskDefinition DOES have a "task-definition"
+                #    resource type (AWS service reference for ecs), so it is
+                #    scoped to task-definition/*. An earlier comment here said
+                #    it had none; that was wrong. The family name is chosen by
+                #    the product template author and is not SC- prefixed, so
+                #    task-definition/* is as tight as this one gets.
+                #  * ecs:DeregisterTaskDefinition really has no resource type,
+                #    so "*" is the only form that can work for it. The two
+                #    actions are therefore split rather than granted together.
+                #    An earlier simulator run reported implicitDeny when a
+                #    task-definition ARN was passed even under a blanket ecs:*;
+                #    that is a known simulator artefact for ECS resource-level
+                #    checks and is contradicted by the service reference, but
+                #    the Register scope is not confirmed by a real deploy.
                 #  * ecs:CreateService, ecs:DeleteService and ecs:TagResource do
                 #    support resource ARNs, so they are scoped to service/*/SC-*
                 #    — Service Catalog names every stack resource with the SC-
@@ -358,10 +365,13 @@ class ProductPublishingAppStack(Stack):
                 # exercised until one exists.
                 lambda lambda_f: lambda_f.add_to_policy(
                     PolicyStatement(
-                        actions=[
-                            "ecs:RegisterTaskDefinition",
-                            "ecs:DeregisterTaskDefinition",
-                        ],
+                        actions=["ecs:RegisterTaskDefinition"],
+                        resources=[f"arn:{self.partition}:ecs:{self.region}:{self.account}:task-definition/*"],
+                    )
+                ),
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["ecs:DeregisterTaskDefinition"],
                         resources=["*"],
                     )
                 ),
@@ -423,23 +433,16 @@ class ProductPublishingAppStack(Stack):
                     PolicyStatement(
                         actions=[
                             "ec2:AttachNetworkInterface",
+                            # ec2:DescribeInstanceAttribute DOES have an "instance"
+                            # resource type (AWS service reference for ec2), unlike its
+                            # Describe* neighbours, so it is granted here rather than on
+                            # Resource="*".
+                            "ec2:DescribeInstanceAttribute",
                             "ec2:DetachNetworkInterface",
                             "ec2:ModifyNetworkInterfaceAttribute",
                             "ec2:RunInstances",
                             "ec2:TerminateInstances",
                             "ec2:StopInstances",
-                            # Both shipped example products
-                            # (examples/freertos/product.yaml and
-                            # examples/android-cuttlefish/product.yaml)
-                            # declare an AWS::EC2::KeyPair, so the launch
-                            # constraint role must be able to create and delete
-                            # key pairs. EC2 authorizes CreateKeyPair/
-                            # DeleteKeyPair against the instance resource as
-                            # well as the key-pair resource when the key pair is
-                            # created as part of a RunInstances-bearing stack.
-                            # Needed here as well as on the spoke side.
-                            "ec2:CreateKeyPair",
-                            "ec2:DeleteKeyPair",
                             "ec2:AttachVolume",
                             "ec2:DetachVolume",
                             "ec2:ModifyInstanceAttribute",
@@ -451,24 +454,24 @@ class ProductPublishingAppStack(Stack):
                 # Key-pair actions. Required by both shipped example products,
                 # which each declare an AWS::EC2::KeyPair.
                 #
-                # Note for future maintainers: most EC2 Describe*/Get*/List*
-                # actions do not support resource-level permissions, so scoping
-                # them to key-pair/* makes them effectively inert rather than
-                # restrictive — the operative grant for describes is the
-                # unconditioned Resource="*" statement at the top of this role.
-                # The statement is kept in the same shape as the spoke-side copy
-                # rather than tightened, so the two remain easy to diff.
+                # ec2:CreateKeyPair and ec2:DeleteKeyPair act on the key-pair
+                # resource only, so this is their sole grant — granting them on
+                # instance/* never applied. ec2:RunInstances and ec2:DeleteTags
+                # do have a key-pair resource type.
+                #
+                # The Get*/List*/Describe* wildcards previously in this statement
+                # were inert: no EC2 read action has a key-pair resource type
+                # (ec2:DescribeKeyPairs has none at all), so they granted
+                # nothing. They are removed rather than moved; the operative
+                # grant for describes is the Resource="*" statement at the top
+                # of this role.
                 lambda lambda_f: lambda_f.add_to_policy(
                     PolicyStatement(
                         actions=[
-                            "ec2:Get*",
-                            "ec2:List*",
-                            "ec2:Describe*",
-                            "ec2:DeleteTags",
-                            "ec2:RunInstances",
                             "ec2:CreateKeyPair",
                             "ec2:DeleteKeyPair",
-                            "ec2:DescribeKeyPairs",
+                            "ec2:DeleteTags",
+                            "ec2:RunInstances",
                         ],
                         resources=[f"arn:{self.partition}:ec2:{self.region}:{self.account}:key-pair/*"],
                     )

@@ -49,7 +49,6 @@ export class LambdaEdgeMonitoring extends Construct {
           actions: [
             'logs:CreateLogGroup',
             'logs:DeleteSubscriptionFilter',
-            'logs:DescribeLogGroups',
             'logs:DescribeSubscriptionFilters',
             'logs:PutSubscriptionFilter',
           ],
@@ -57,6 +56,14 @@ export class LambdaEdgeMonitoring extends Construct {
             `arn:${Aws.PARTITION}:logs:*:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*.${props.formatResourceName('*')}:*`,
             `arn:${Aws.PARTITION}:logs:*:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*.${props.formatResourceName('*')}`,
           ],
+        }),
+        // logs:DescribeLogGroups has no resource type at all, so it can only be
+        // granted on "*". Scoped to log-group ARNs the call is denied outright,
+        // which is why it is split out of the statement above rather than
+        // sharing its resource list.
+        new iam.PolicyStatement({
+          actions: ['logs:DescribeLogGroups'],
+          resources: ['*'],
         }),
         // iam:PassRole is deliberately absent: the handler in
         // lambda-edge-monitoring.handler.ts invokes no AWS API that requires it.
