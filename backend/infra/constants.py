@@ -78,7 +78,7 @@ AUTH_BC_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-authorizer-request-event
 AUTH_BC_SCHEDULED_JOB_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-scheduled-jobs-handler-role-arn"
 CEDAR_POLICY_NAMESPACE = "VEW"
 
-# --- MCP Gateway (AgentCore-based) ---
+# MCP Gateway (AgentCore-based)
 # One Amazon Bedrock AgentCore Gateway aggregates the opted-in bounded-context
 # REST APIs behind a single MCP endpoint. Callers obtain a Cognito access token
 # from the gateway's app client (auth-code + PKCE, no secret) and drive the

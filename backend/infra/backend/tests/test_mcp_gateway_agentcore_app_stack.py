@@ -56,6 +56,9 @@ def test_gateway_log_group_is_encrypted_with_a_rotating_customer_managed_key(tem
 
 
 def test_logs_service_can_use_the_gateway_log_key(template):
+    # The CloudWatch Logs principal in a key policy is REGIONAL. Asserting the exact
+    # principal, not Match.any_value(), is the point: a global "logs.<url suffix>"
+    # principal never matches, so the log group silently fails to ingest.
     template.has_resource_properties(
         "AWS::KMS::Key",
         {
@@ -64,8 +67,14 @@ def test_logs_service_can_use_the_gateway_log_key(template):
                     [
                         assertions.Match.object_like(
                             {
-                                # logs.<url suffix>, rendered as an Fn::Join token.
-                                "Principal": {"Service": assertions.Match.any_value()},
+                                "Principal": {
+                                    "Service": {
+                                        "Fn::Join": [
+                                            "",
+                                            ["logs.us-east-1.", {"Ref": "AWS::URLSuffix"}],
+                                        ]
+                                    }
+                                },
                                 "Condition": {
                                     "ArnEquals": assertions.Match.object_like(
                                         {"kms:EncryptionContext:aws:logs:arn": assertions.Match.any_value()}
@@ -78,6 +87,44 @@ def test_logs_service_can_use_the_gateway_log_key(template):
             }
         },
     )
+
+
+def test_gateway_role_is_assumable_only_by_this_accounts_own_gateways(template):
+    """Without source conditions the bedrock-agentcore service principal is a confused
+    deputy: any AgentCore gateway in any account could have the service assume this role."""
+    roles = template.find_resources("AWS::IAM::Role")
+    agentcore_roles = [
+        r
+        for r in roles.values()
+        if any(
+            s.get("Principal", {}).get("Service") == "bedrock-agentcore.amazonaws.com"
+            for s in r["Properties"]["AssumeRolePolicyDocument"]["Statement"]
+        )
+    ]
+    assert len(agentcore_roles) == 1
+    statement = next(
+        s
+        for s in agentcore_roles[0]["Properties"]["AssumeRolePolicyDocument"]["Statement"]
+        if s.get("Principal", {}).get("Service") == "bedrock-agentcore.amazonaws.com"
+    )
+    condition = statement["Condition"]
+    assert condition["StringEquals"]["aws:SourceAccount"] == "111111111111"
+    source_arn = condition["ArnLike"]["aws:SourceArn"]
+    assert "bedrock-agentcore" in str(source_arn)
+    assert str(source_arn).rstrip("'\"]} ").endswith("-*") or "-*" in str(source_arn)
+
+
+def test_interceptor_can_be_invoked_only_by_this_accounts_own_gateways(template):
+    """Same confused-deputy gap on the Lambda resource policy."""
+    permissions = template.find_resources("AWS::Lambda::Permission")
+    service_grants = [
+        p for p in permissions.values() if p["Properties"].get("Principal") == "bedrock-agentcore.amazonaws.com"
+    ]
+    assert len(service_grants) == 1
+    props = service_grants[0]["Properties"]
+    assert props["SourceAccount"] == "111111111111"
+    assert "bedrock-agentcore" in str(props["SourceArn"])
+    assert "-*" in str(props["SourceArn"])
 
 
 def test_gateway_accepts_only_its_own_oidc_client(template):

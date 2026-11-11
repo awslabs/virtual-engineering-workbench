@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Product Provisioning API
- * API in charge of provisioning VEW products
+ * Full lifecycle of provisioned products (workbenches, virtual targets, containers): launch, start, stop, update, remove. Depends on Projects and Publishing BCs.
  *
  * The version of the OpenAPI document: 2024-08-12T12:00:00Z
  *
@@ -13,11 +13,6 @@
  */
 
 import { exists, mapValues } from '../runtime';
-import type { WorkbenchFailure } from './WorkbenchFailure';
-import {
-    WorkbenchFailureFromJSON,
-    WorkbenchFailureToJSON,
-} from './WorkbenchFailure';
 import type { AdditionalConfiguration } from './AdditionalConfiguration';
 import {
     AdditionalConfigurationFromJSON,
@@ -42,6 +37,12 @@ import {
     ProvisioningParameterFromJSONTyped,
     ProvisioningParameterToJSON,
 } from './ProvisioningParameter';
+import type { WorkbenchFailure } from './WorkbenchFailure';
+import {
+    WorkbenchFailureFromJSON,
+    WorkbenchFailureFromJSONTyped,
+    WorkbenchFailureToJSON,
+} from './WorkbenchFailure';
 
 /**
  *
@@ -92,7 +93,7 @@ export interface ProvisionedProductInternal {
      */
     statusReason?: string;
     /**
-     * Why the workbench failed, when it has.
+     *
      * @type {WorkbenchFailure}
      * @memberof ProvisionedProductInternal
      */

@@ -222,22 +222,6 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                 ],
                             )
                         ),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                effect=aws_iam.Effect.ALLOW,
-                                actions=[
-                                    "license-manager:CreateGrant",
-                                    "license-manager:CreateGrantVersion",
-                                    "license-manager:DeleteGrant",
-                                    "license-manager:GetGrant",
-                                    "license-manager:ListDistributedGrants",
-                                    "license-manager:ListReceivedLicenses",
-                                    "license-manager:ListReceivedGrants",
-                                    "license-manager:GetLicense",
-                                ],
-                                resources=["*"],
-                            )
-                        ),
                     ],
                     reserved_concurrency=app_config.component_specific["api-lambda-reserved-concurrency"],
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
@@ -369,7 +353,6 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "IMAGE_SERVICE_ROLE": PRODUCT_PUBLISHING_IMAGE_SERVICE_ROLE,
                         "IMAGE_SERVICE_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
-                        "SPOKE_ACCOUNT_ROLE": constants.PRODUCT_PUBLISHING_USE_CASE_ROLE,
                         "IMAGE_SERVICE_KEY_NAME": "-".join(
                             [
                                 app_config.get_organization_prefix(),
@@ -389,24 +372,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                 effect=aws_iam.Effect.ALLOW,
                                 resources=[
                                     f"arn:aws:iam::*:role/{PRODUCT_PUBLISHING_IMAGE_SERVICE_ROLE}",
-                                    f"arn:aws:iam::*:role/{PRODUCT_PUBLISHING_USE_CASE_ROLE}",
                                 ],
-                            )
-                        ),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                effect=aws_iam.Effect.ALLOW,
-                                actions=[
-                                    "license-manager:CreateGrant",
-                                    "license-manager:CreateGrantVersion",
-                                    "license-manager:DeleteGrant",
-                                    "license-manager:GetGrant",
-                                    "license-manager:ListDistributedGrants",
-                                    "license-manager:ListReceivedLicenses",
-                                    "license-manager:ListReceivedGrants",
-                                    "license-manager:GetLicense",
-                                ],
-                                resources=["*"],
                             )
                         ),
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
@@ -610,13 +576,6 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             lambda_function=self._backend_app.app_entries_functions[packaging_event_handler_name],
             events=["AutomatedImageRegistrationCompleted"],
             event_detail_match={"productId": aws_events.Match.exists()},
-        )
-
-        # Subscribe to ImageImported events from Packaging BC
-        packaging_event_bus.subscribe_to_events(
-            name="packaging-image-imported-rule",
-            lambda_function=self._backend_app.app_entries_functions[packaging_event_handler_name],
-            events=["ImageImported"],
         )
 
         # Stack based suppressions

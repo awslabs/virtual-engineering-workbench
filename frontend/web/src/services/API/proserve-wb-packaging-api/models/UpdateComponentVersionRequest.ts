@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Packaging API
- * API in charge of packaging workbench products
+ * AMI Factory pipeline: software components (building blocks), recipes (component build configurations), and images (built AMIs) via EC2 Image Builder. Depends on Projects BC for project scope; upstream to Publishing BC (built images become publishable products); pipelines run scheduled image builds.
  *
  * The version of the OpenAPI document: 2023-10-31T12:00:00Z
  *
@@ -19,6 +19,12 @@ import {
     ComponentVersionEntryFromJSONTyped,
     ComponentVersionEntryToJSON,
 } from './ComponentVersionEntry';
+import type { RecipeVersionEntry } from './RecipeVersionEntry';
+import {
+    RecipeVersionEntryFromJSON,
+    RecipeVersionEntryFromJSONTyped,
+    RecipeVersionEntryToJSON,
+} from './RecipeVersionEntry';
 
 /**
  *
@@ -44,6 +50,18 @@ export interface UpdateComponentVersionRequest {
      * @memberof UpdateComponentVersionRequest
      */
     componentVersionDependencies?: Array<ComponentVersionEntry>;
+    /**
+     * List of component versions that reference this component version as a dependency
+     * @type {Array<ComponentVersionEntry>}
+     * @memberof UpdateComponentVersionRequest
+     */
+    associatedComponentsVersions?: Array<ComponentVersionEntry>;
+    /**
+     * List of recipe versions that include this component version
+     * @type {Array<RecipeVersionEntry>}
+     * @memberof UpdateComponentVersionRequest
+     */
+    associatedRecipesVersions?: Array<RecipeVersionEntry>;
     /**
      * The software vendor name e.g. Vector
      * @type {string}
@@ -96,6 +114,8 @@ export function UpdateComponentVersionRequestFromJSONTyped(json: any, ignoreDisc
         'componentVersionDescription': json['componentVersionDescription'],
         'componentVersionYamlDefinition': json['componentVersionYamlDefinition'],
         'componentVersionDependencies': !exists(json, 'componentVersionDependencies') ? undefined : ((json['componentVersionDependencies'] as Array<any>).map(ComponentVersionEntryFromJSON)),
+        'associatedComponentsVersions': !exists(json, 'associatedComponentsVersions') ? undefined : ((json['associatedComponentsVersions'] as Array<any>).map(ComponentVersionEntryFromJSON)),
+        'associatedRecipesVersions': !exists(json, 'associatedRecipesVersions') ? undefined : ((json['associatedRecipesVersions'] as Array<any>).map(RecipeVersionEntryFromJSON)),
         'softwareVendor': json['softwareVendor'],
         'softwareVersion': json['softwareVersion'],
         'licenseDashboard': !exists(json, 'licenseDashboard') ? undefined : json['licenseDashboard'],
@@ -115,6 +135,8 @@ export function UpdateComponentVersionRequestToJSON(value?: UpdateComponentVersi
         'componentVersionDescription': value.componentVersionDescription,
         'componentVersionYamlDefinition': value.componentVersionYamlDefinition,
         'componentVersionDependencies': value.componentVersionDependencies === undefined ? undefined : ((value.componentVersionDependencies as Array<any>).map(ComponentVersionEntryToJSON)),
+        'associatedComponentsVersions': value.associatedComponentsVersions === undefined ? undefined : ((value.associatedComponentsVersions as Array<any>).map(ComponentVersionEntryToJSON)),
+        'associatedRecipesVersions': value.associatedRecipesVersions === undefined ? undefined : ((value.associatedRecipesVersions as Array<any>).map(RecipeVersionEntryToJSON)),
         'softwareVendor': value.softwareVendor,
         'softwareVersion': value.softwareVersion,
         'licenseDashboard': value.licenseDashboard,

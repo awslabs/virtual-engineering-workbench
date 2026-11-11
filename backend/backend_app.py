@@ -437,7 +437,7 @@ discovery.register(
     authorization_stack,
 ).apply_permissions()
 
-# --- MCP Gateway on AgentCore ---
+# MCP Gateway on AgentCore
 # One Amazon Bedrock AgentCore Gateway aggregates the bounded contexts that pass
 # enable_mcp=True to their BackendAppOpenApi as MCP tool targets.
 mcp_agentcore_app_config = config.AppConfig(

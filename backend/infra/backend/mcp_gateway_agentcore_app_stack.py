@@ -64,7 +64,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
         for stack in enabled_stacks:
             self.add_dependency(stack)
 
-        # --- OIDC client on the existing user pool ---
+        # OIDC client on the existing user pool
         # The client is created by the frontend stack from its AdditionalAppClients
         # config, which publishes one SSM parameter per client. This stack reads
         # that parameter rather than creating a client of its own, so the
@@ -88,25 +88,49 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
             f"https://cognito-idp.{cognito_region}.amazonaws.com/{user_pool_id}/.well-known/openid-configuration"
         )
 
-        # --- Gateway service role: invoke the interceptors + read the spec bucket. No execute-api:Invoke. ---
+        # Gateway identity, fixed up front
+        # The gateway's own ARN is only known after CfnGateway is created, but the role it
+        # assumes has to exist first. Both the role trust policy and the interceptor's
+        # resource policy therefore condition on an ARN *pattern* built from the gateway's
+        # name, which is deterministic. AgentCore documents the gateway ARN as
+        # ...:gateway/([0-9a-z][-]?){1,48}-[a-z0-9]{10} (GetGateway API reference), i.e. the
+        # name followed by a generated 10-character suffix - hence the trailing wildcard.
+        gateway_name = app_config.format_resource_name("gw", max_length=48)
+        gateway_arn_pattern = self.format_arn(
+            service="bedrock-agentcore",
+            resource="gateway",
+            resource_name=f"{gateway_name}-*",
+            arn_format=aws_cdk.ArnFormat.SLASH_RESOURCE_NAME,
+        )
+
+        # Gateway service role: invoke the interceptors + read the spec bucket. No execute-api:Invoke.
+        # The service principal is confused-deputy bait without source conditions: without
+        # them any AgentCore gateway in any account could have the service assume this role.
         gateway_role = aws_iam.Role(
             self,
             "GatewayRole",
             role_name=app_config.format_resource_name("gw-role"),
-            assumed_by=aws_iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
+            assumed_by=aws_iam.ServicePrincipal(
+                "bedrock-agentcore.amazonaws.com",
+                conditions={
+                    "StringEquals": {"aws:SourceAccount": self.account},
+                    "ArnLike": {"aws:SourceArn": gateway_arn_pattern},
+                },
+            ),
         )
 
-        # --- REQUEST interceptor Lambda: forwards the caller's Authorization header
-        #     (stdlib only, no layer) ---
+        # REQUEST interceptor Lambda: forwards the caller's Authorization header
+        #     (stdlib only, no layer)
         interceptor = self._build_interceptor(
             construct_id="Interceptor",
             entry_name="interceptor",
             function_name="interceptor",
             app_config=app_config,
             gateway_role=gateway_role,
+            gateway_arn_pattern=gateway_arn_pattern,
         )
 
-        # --- Spec bucket + synth-time transform → BucketDeployment ---
+        # Spec bucket + synth-time transform → BucketDeployment
         # Bucket names are GLOBAL. Rely on the shared construct's default
         # account+region suffixing (the VEW house standard — 5 of 7 call sites) so this
         # stack can be deployed in more than one account. Previously this set
@@ -167,11 +191,11 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
                 f"{_MAX_INSTRUCTIONS_LEN}-char limit; shorten the bounded contexts' x-summary."
             )
 
-        # --- Gateway (CUSTOM_JWT inbound + REQUEST interceptor) ---
+        # Gateway (CUSTOM_JWT inbound + REQUEST interceptor)
         gateway = aws_bedrockagentcore.CfnGateway(
             self,
             "Gateway",
-            name=app_config.format_resource_name("gw", max_length=48),
+            name=gateway_name,
             role_arn=gateway_role.role_arn,
             protocol_type="MCP",
             protocol_configuration=(
@@ -210,7 +234,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
             ],
         )
 
-        # --- One OpenAPI target per enabled context (no-auth outbound; JWT forwarded by interceptor) ---
+        # One OpenAPI target per enabled context (no-auth outbound; JWT forwarded by interceptor)
         for stack in enabled_stacks:
             ctx = stack.bounded_context
             target = aws_bedrockagentcore.CfnGatewayTarget(
@@ -237,7 +261,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
 
         self._gateway = gateway
 
-        # --- WAF: reuse the same regional Web ACL the bounded-context APIs use ---
+        # WAF: reuse the same regional Web ACL the bounded-context APIs use
         # AgentCore Gateway is a WAF-associable resource type; associate the shared regional
         # API Web ACL (the one every BC API stack reads from the same SSM param) so the MCP
         # endpoint gets identical edge protection. The ACL and gateway are both regional.
@@ -254,7 +278,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
         )
         waf_association.add_dependency(gateway)
 
-        # --- Observability: deliver gateway APPLICATION_LOGS to CloudWatch ---
+        # Observability: deliver gateway APPLICATION_LOGS to CloudWatch
         # AgentCore has no logging property on the gateway; logs are wired via the standard
         # CloudWatch log-delivery mechanism. APPLICATION_LOGS carry request/response bodies and
         # target (backend) error messages — the surface that explains a tools/call failure.
@@ -280,11 +304,13 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
             retention=aws_logs.RetentionDays.ONE_MONTH,
             removal_policy=aws_cdk.RemovalPolicy.DESTROY,
         )
-        # Let CloudWatch Logs use the key for this log group only (same grant as the shared
-        # infra.constructs.logs.log_group.LogGroup construct).
+        # Let CloudWatch Logs use the key for this log group only. The Logs principal in a key
+        # policy is REGIONAL (logs.<region>.<url suffix>): the service principal has to be in the
+        # same Region as the key, so the global form never matches and ingestion into the
+        # encrypted group fails. See "Encrypt log data in CloudWatch Logs using AWS KMS".
         gateway_logs_key.key.grant_encrypt_decrypt(
             aws_iam.ServicePrincipal(
-                f"logs.{self.url_suffix}",
+                f"logs.{self.region}.{self.url_suffix}",
                 conditions={
                     "ArnEquals": {
                         "kms:EncryptionContext:aws:logs:arn": self.format_arn(
@@ -319,7 +345,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
         log_delivery.add_dependency(log_source)
         log_delivery.add_dependency(log_destination)
 
-        # --- Output the MCP endpoint for the client config / docs ---
+        # Output the MCP endpoint for the client config / docs
         aws_cdk.CfnOutput(self, "GatewayUrl", value=gateway.attr_gateway_url)
         aws_cdk.CfnOutput(self, "GatewayLogGroup", value=gateway_log_group.log_group_name)
         aws_ssm.StringParameter(
@@ -329,7 +355,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
             string_value=gateway.attr_gateway_url,
         )
 
-        # --- Ready-to-paste client configs (server name = org-app-env, e.g. proserve-wb-dev) ---
+        # Ready-to-paste client configs (server name = org-app-env, e.g. proserve-wb-dev)
         server_name = (
             f"{app_config.get_organization_prefix()}-{app_config.get_application_prefix()}-{app_config.environment}"
         )
@@ -374,6 +400,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
         function_name: str,
         app_config: config.AppConfig,
         gateway_role: aws_iam.Role,
+        gateway_arn_pattern: str,
     ) -> backend_app_function.BackendAppFunction:
         """Create one interceptor Lambda and let the gateway invoke it.
 
@@ -398,7 +425,16 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
             ],
         )
         interceptor.function_alias.grant_invoke(gateway_role)
-        interceptor.function_alias.grant_invoke(aws_iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"))
+        # Same confused-deputy gap as the role trust policy: a bare service-principal
+        # invoke permission lets any AgentCore gateway in any account invoke this Lambda.
+        # add_permission (not grant_invoke) so SourceAccount/SourceArn are set.
+        interceptor.function_alias.add_permission(
+            "GatewayInvoke",
+            principal=aws_iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
+            action="lambda:InvokeFunction",
+            source_account=self.account,
+            source_arn=gateway_arn_pattern,
+        )
         return interceptor
 
     def _resolve_base_url(self, stack: vew_bounded_context_stack.VEWBoundedContextStack) -> str:

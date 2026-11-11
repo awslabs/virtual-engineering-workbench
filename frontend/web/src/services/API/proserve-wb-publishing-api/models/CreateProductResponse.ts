@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Publishing API
- * API in charge of publishing workbench products
+ * VEW product catalog: create products, manage versions through DEV/QA/PROD stages, distribute to project accounts via AWS Service Catalog. Depends on Projects and Packaging BCs (built AMIs/images); upstream to Provisioning BC.
  *
  * The version of the OpenAPI document: 2023-01-26T12:00:00Z
  *

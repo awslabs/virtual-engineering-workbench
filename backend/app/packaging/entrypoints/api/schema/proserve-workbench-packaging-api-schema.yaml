@@ -2879,8 +2879,9 @@ paths:
     get:
       summary: "List all images in a project"
       description: >-
-        Retrieves all built AMIs within a project, optionally filtered by image source
-        (pipeline-built, imported, or marketplace) and build status.
+        Retrieves every AMI built from the project's pipelines, each with its build status,
+        the pipeline and recipe version it came from, and its EC2 Image Builder build version.
+        This endpoint takes no filter parameters; filter the returned list client-side.
       operationId: GetImages
       parameters:
         - name: Authorization

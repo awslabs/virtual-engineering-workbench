@@ -379,7 +379,7 @@ product_publishing_enablement_app_config = {"dev": {}, "qa": {}, "prod": {}}
 provisioning_enablement_app_config = {"dev": {}, "qa": {}, "prod": {}}
 
 
-# --- MCP Gateway (AgentCore-based) ---
+# MCP Gateway (AgentCore-based)
 # "gateway-exception-level": DEBUG makes the AgentCore gateway return granular
 # exception messages instead of the generic "An internal error occurred. Please
 # retry later." — deliberately absent in prod to avoid leaking internals to any

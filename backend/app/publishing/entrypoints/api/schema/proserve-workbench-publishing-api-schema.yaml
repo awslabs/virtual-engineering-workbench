@@ -162,7 +162,8 @@ paths:
       summary: "List AMIs available for product version creation"
       description: >-
         Returns all AMIs registered by the Packaging BC that are available for use when creating
-        product versions in this project. Each AMI includes marketplace metadata when applicable.
+        product versions in this project. Each AMI carries its id, name, description and
+        creation date.
       operationId: "GetAmis"
       parameters:
         - name: Authorization
