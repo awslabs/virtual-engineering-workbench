@@ -3,8 +3,11 @@ pub enum IdentityError {
     #[error("not authenticated for profile '{0}'. Run `vew auth login`")]
     NotAuthenticated(String),
 
-    #[error("callback state mismatch: expected '{expected}', got '{actual}'")]
-    StateMismatch { expected: String, actual: String },
+    // The state values are secrets for the duration of the flow: printing them
+    // puts the expected value where an attacker who can read the output can
+    // replay it. The mismatch itself is all the user needs.
+    #[error("callback state mismatch")]
+    StateMismatch,
 
     #[error("ID token nonce mismatch")]
     NonceMismatch,

@@ -1,4 +1,5 @@
 use crate::debug_log;
+use crate::identity::adapters::oauth_error::describe_http_failure;
 use crate::identity::domain::error::IdentityError;
 use crate::identity::domain::model::{AuthorizationCode, OidcProvider, TokenResponse};
 use crate::identity::ports::outbound::OidcClient;
@@ -55,11 +56,13 @@ impl OidcClient for HttpOidcClient {
         debug_log!("exchange_code: response status={status}");
 
         if !status.is_success() {
+            // The token endpoint's error body can contain a refresh token, and
+            // error_description is provider-controlled free text, so only the
+            // status and an RFC-defined error code are reported or logged.
             let body = resp.text().unwrap_or_default();
-            debug_log!("exchange_code: error body={body}");
-            return Err(IdentityError::TokenExchange(format!(
-                "HTTP {status}: {body}"
-            )));
+            let safe = describe_http_failure(status, &body);
+            debug_log!("exchange_code: failed, {safe}");
+            return Err(IdentityError::TokenExchange(safe));
         }
 
         // The response body carries access, ID and refresh tokens, so it is
@@ -74,8 +77,15 @@ impl OidcClient for HttpOidcClient {
         );
 
         serde_json::from_str::<TokenResponse>(&body).map_err(|e| {
-            debug_log!("exchange_code: failed to parse response: {e}");
-            IdentityError::TokenExchange(e.to_string())
+            // A serde error quotes the value it rejected, e.g.
+            // `invalid type: string "<access token>"`, so only its position is
+            // reported — never the message.
+            debug_log!(
+                "exchange_code: malformed token response at line {} column {}",
+                e.line(),
+                e.column()
+            );
+            IdentityError::TokenExchange("malformed token response".into())
         })
     }
 
@@ -106,15 +116,14 @@ impl OidcClient for HttpOidcClient {
 
         if !status.is_success() {
             let body = resp.text().unwrap_or_default();
-            debug_log!("refresh_tokens: error body={body}");
-            return Err(IdentityError::RefreshFailed(format!(
-                "HTTP {status}: {body}"
-            )));
+            let safe = describe_http_failure(status, &body);
+            debug_log!("refresh_tokens: failed, {safe}");
+            return Err(IdentityError::RefreshFailed(safe));
         }
 
-        resp.json::<TokenResponse>().map_err(|e| {
-            debug_log!("refresh_tokens: failed to parse response: {e}");
-            IdentityError::RefreshFailed(e.to_string())
+        resp.json::<TokenResponse>().map_err(|_| {
+            debug_log!("refresh_tokens: malformed token response");
+            IdentityError::RefreshFailed("malformed token response".into())
         })
     }
 
@@ -140,11 +149,12 @@ impl OidcClient for HttpOidcClient {
 
         let status = resp.status();
         if !status.is_success() {
+            // A revocation error body echoes the submitted token
+            // (`token=<value>`), so it is never logged or surfaced.
             let body = resp.text().unwrap_or_default();
-            debug_log!("revoke_token: error status={status} body={body}");
-            return Err(IdentityError::TokenExchange(format!(
-                "HTTP {status}: {body}"
-            )));
+            let safe = describe_http_failure(status, &body);
+            debug_log!("revoke_token: failed, {safe}");
+            return Err(IdentityError::TokenExchange(safe));
         }
 
         Ok(())

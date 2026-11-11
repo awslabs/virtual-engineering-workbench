@@ -57,16 +57,19 @@ impl OidcDiscovery for HttpOidcDiscovery {
         debug_log!("discovery: response status={status}");
 
         if !status.is_success() {
-            let body = resp.text().unwrap_or_default();
-            debug_log!("discovery: error body={body}");
+            // The discovery error body is provider-controlled; report status only.
+            debug_log!("discovery: failed with status={status}");
             return Err(IdentityError::DiscoveryError(format!(
-                "HTTP {status}: {body}"
+                "HTTP {}",
+                status.as_u16()
             )));
         }
 
-        let doc: DiscoveryDocument = resp.json().map_err(|e| {
-            debug_log!("discovery: invalid JSON: {e}");
-            IdentityError::DiscoveryError(format!("invalid JSON: {e}"))
+        let doc: DiscoveryDocument = resp.json().map_err(|_| {
+            // A deserialisation error quotes the value it rejected, so the
+            // message is dropped rather than reported.
+            debug_log!("discovery: malformed discovery document");
+            IdentityError::DiscoveryError("malformed discovery document".into())
         })?;
 
         let expected = issuer.as_str().trim_end_matches('/');

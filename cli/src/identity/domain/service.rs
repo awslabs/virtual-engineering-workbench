@@ -101,15 +101,8 @@ impl<
         );
 
         if result.state != state {
-            debug_log!(
-                "login: state mismatch expected='{}' got='{}'",
-                state.0,
-                result.state.0
-            );
-            return Err(IdentityError::StateMismatch {
-                expected: state.0,
-                actual: result.state.0,
-            });
+            debug_log!("login: state mismatch");
+            return Err(IdentityError::StateMismatch);
         }
 
         debug_log!("login: exchanging code for tokens...");
@@ -485,7 +478,7 @@ mod tests {
         });
 
         // Assert
-        assert!(matches!(result, Err(IdentityError::StateMismatch { .. })));
+        assert!(matches!(result, Err(IdentityError::StateMismatch)));
     }
 
     #[test]

@@ -60,9 +60,11 @@ impl TokenValidator for JwtTokenValidator {
         validation.set_audience(&[&params.audience]);
         validation.set_required_spec_claims(&["exp", "iss", "aud"]);
 
+        // jsonwebtoken error messages can quote token content, and the kid
+        // identifies the signing key, so neither is logged or surfaced.
         let header = jsonwebtoken::decode_header(id_token)
-            .map_err(|e| IdentityError::TokenValidation(e.to_string()))?;
-        debug_log!("validate_id_token: kid={:?}", header.kid);
+            .map_err(|_| IdentityError::TokenValidation("malformed token header".into()))?;
+        debug_log!("validate_id_token: token header parsed");
 
         let jwks_url = &params.jwks_uri;
         debug_log!("validate_id_token: fetching JWKS from {jwks_url}");
@@ -85,22 +87,30 @@ impl TokenValidator for JwtTokenValidator {
         let body = jwks_resp
             .text()
             .map_err(|e| IdentityError::TokenValidation(format!("JWKS read failed: {e}")))?;
-        debug_log!("validate_id_token: JWKS body={body}");
+        // The JWKS is public key material, but logging it wholesale is noise
+        // and it is attacker-controlled when the endpoint is; log its size only.
+        debug_log!(
+            "validate_id_token: JWKS body received, {} bytes",
+            body.len()
+        );
 
         let jwks: jsonwebtoken::jwk::JwkSet = serde_json::from_str(&body)
-            .map_err(|e| IdentityError::TokenValidation(format!("JWKS parse failed: {e}")))?;
+            .map_err(|_| IdentityError::TokenValidation("malformed JWKS".into()))?;
 
         let kid = header.kid.as_deref().unwrap_or("");
-        let jwk = jwks.find(kid).ok_or_else(|| {
-            IdentityError::TokenValidation(format!("no JWK found for kid '{kid}'"))
-        })?;
+        let jwk = jwks
+            .find(kid)
+            .ok_or_else(|| IdentityError::TokenValidation("no matching JWK for token".into()))?;
 
         let key = DecodingKey::from_jwk(jwk)
-            .map_err(|e| IdentityError::TokenValidation(e.to_string()))?;
+            .map_err(|_| IdentityError::TokenValidation("unusable signing key".into()))?;
 
         let token_data = decode::<Claims>(id_token, &key, &validation).map_err(|e| {
-            debug_log!("validate_id_token: decode failed: {e}");
-            IdentityError::TokenValidation(e.to_string())
+            // Report only the library's error kind, which is a fixed enum, not
+            // its Display text, which can quote the token.
+            let kind = format!("{:?}", e.kind());
+            debug_log!("validate_id_token: decode failed, kind={kind}");
+            IdentityError::TokenValidation(format!("token rejected: {kind}"))
         })?;
 
         let claims = token_data.claims;
@@ -112,7 +122,8 @@ impl TokenValidator for JwtTokenValidator {
             }
         }
 
-        debug_log!("validate_id_token: success, sub={}", claims.sub);
+        // sub identifies the user; the success line carries no claim values.
+        debug_log!("validate_id_token: success");
         Ok(IdTokenClaims {
             sub: claims.sub,
             iss: claims.iss,

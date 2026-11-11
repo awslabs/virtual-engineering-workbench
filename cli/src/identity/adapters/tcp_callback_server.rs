@@ -1,10 +1,11 @@
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::time::Duration;
 
 use socket2::{Domain, Protocol, Socket, Type};
 
 use crate::debug_log;
+use crate::identity::adapters::oauth_error::safe_error_code;
 use crate::identity::domain::error::IdentityError;
 use crate::identity::domain::model::{AuthorizationCode, CallbackResult, StateParam};
 use crate::identity::ports::outbound::{CallbackReceiver, CallbackServer};
@@ -88,7 +89,11 @@ impl CallbackReceiver for TcpCallbackReceiverImpl {
             .set_read_timeout(Some(Duration::from_secs(5)))
             .map_err(|e| IdentityError::CallbackError(e.to_string()))?;
 
-        let mut reader = BufReader::with_capacity(8192, &stream);
+        // Anything on this port is unauthenticated input, so the whole request
+        // is read under a fixed cap. Without one, a client that never sends a
+        // newline makes read_line grow until the process is out of memory.
+        const MAX_REQUEST_BYTES: u64 = 64 * 1024;
+        let mut reader = BufReader::with_capacity(8192, (&stream).take(MAX_REQUEST_BYTES));
         let mut request_line = String::new();
         reader
             .read_line(&mut request_line)
@@ -128,17 +133,24 @@ impl CallbackReceiver for TcpCallbackReceiverImpl {
         let path_and_query = parts[1];
         if !path_and_query.starts_with("/callback") {
             send_response(&stream, "404 Not Found", "Not Found");
+            // The request target carries code and state in its query string, so
+            // the error names the path only.
+            let path_only = path_and_query.split('?').next().unwrap_or("?");
             return Err(IdentityError::CallbackError(format!(
-                "unexpected path: {path_and_query}"
+                "unexpected path: {path_only}"
             )));
         }
 
         let params = parse_query(path_and_query);
 
         if let Some(error) = params.get("error") {
-            let desc = params.get("error_description").cloned().unwrap_or_default();
             send_response(&stream, "200 OK", RESPONSE_BODY);
-            return Err(IdentityError::ProviderError(format!("{error}: {desc}")));
+            // error_description is free text chosen by whoever drove the
+            // redirect, and a non-standard error code is equally unconstrained,
+            // so only an RFC-defined code is shown and the description dropped.
+            return Err(IdentityError::ProviderError(
+                safe_error_code(error).to_string(),
+            ));
         }
 
         let code = params

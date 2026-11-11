@@ -27,11 +27,14 @@ ignore = [
     # (`aws_lc_rs`) avoids this crate but requires cmake and a C toolchain in
     # every build environment, which the CI image does not provide.
     #
-    # Upstream has no fix and no ETA (the vulnerability is inherent to
-    # the crate's constant-time arithmetic strategy). Standard practice
-    # across the Rust auth ecosystem is to ignore this advisory when
-    # the crate is used for verification only. Revisit if `rsa`
-    # publishes a fix or if this CLI ever performs RSA decryption.
+    # A fix exists: the rsa 0.10 series migrated to crypto-bigint and the
+    # constant-time mitigations from draft-irtf-cfrg-rsa-guidance, and the
+    # advisory records "Patched >= 0.10.0". This CLI cannot reach it yet.
+    # `cargo tree -i rsa` resolves rsa 0.9.10 <- jsonwebtoken 10.4.0, so the
+    # version is pinned by jsonwebtoken's rust_crypto backend; nothing in this
+    # repo can pull rsa 0.10 forward on its own. Revisit when jsonwebtoken
+    # ships against rsa 0.10, or sooner if this CLI ever performs RSA
+    # decryption.
     "RUSTSEC-2023-0071",
 
     # RUSTSEC-2026-0387 — timing variability in `crypto-bigint` operations

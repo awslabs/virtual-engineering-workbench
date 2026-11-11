@@ -40,12 +40,15 @@ jobs:
       - name: Clippy (warnings as errors)
         run: cargo clippy --all-targets --release --locked -- -D warnings
       - name: Unit + integration tests
-        run: cargo test --release --locked
+        # log-capture compiles the debug_log! in-memory buffer so the redaction
+        # tests in cli/tests/ can assert that no secret is logged. Without the
+        # feature those tests compile to nothing and silently pass.
+        run: cargo test --release --locked --features log-capture
       - name: Dependency vulnerability audit
         # Reads .cargo/audit.toml for two exemptions, each justified in that
         # file: RUSTSEC-2023-0071 (Marvin Attack) and RUSTSEC-2026-0387
         # (crypto-bigint timing) — both public-key verify only, and the second
         # on a code path this CLI never executes.
         run: |
-          cargo install --locked cargo-audit
+          cargo install --locked --version 0.22.2 cargo-audit
           cargo audit

@@ -26,6 +26,11 @@ dirs = "5"
 rayon = "1.10"
 socket2 = "0.5"
 
+[features]
+# Compiles the debug_log! in-memory capture so the tests in cli/tests/ can assert
+# that no secret is logged. Off in a release build.
+log-capture = []
+
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1"

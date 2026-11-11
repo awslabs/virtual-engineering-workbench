@@ -63,13 +63,23 @@ The `issuer_url` is the OIDC issuer, matching the `iss` claim in ID tokens. For 
 
 ### Finding these values in a VEW deployment
 
-The platform's `deploy.sh` provisions everything the CLI needs — a dedicated Cognito app client (public client, PKCE, `http://localhost:17823/callback`) and a unified API endpoint that path-routes `/<bc>/*` to each backend bounded-context API Gateway. All three config values are exposed as SSM parameters:
+The platform's `deploy.sh` provisions the unified API endpoint that path-routes `/<bc>/*` to each backend bounded-context API Gateway, and publishes the values the CLI needs as SSM parameters.
 
-| Config field | SSM parameter | CloudFormation output |
-|---|---|---|
-| `api_endpoint` | `/<app-name>-<env>/vew-api-endpoint` | see note below |
-| `oidc_client_id` | `/<app-name>-<env>/vew-cli-client-id` | `VewCliClientId` (on the frontend deployment stack) |
-| `issuer_url` | `/<app-name>-<env>/user-pool-id` — read the pool ID, then construct `https://cognito-idp.<region>.amazonaws.com/<pool-id>` | `UserPoolId` (on the frontend deployment stack) |
+It does **not** create a Cognito app client for the CLI. That client comes from the
+frontend deployment's `ADDITIONAL_APP_CLIENTS` list: add an entry named `vew-cli`
+(public client, PKCE, callback `http://localhost:17823/callback`) and the frontend
+stack creates it and publishes its id. Without that entry there is no CLI client
+and the router's authorizer has nothing to read.
+
+Note the two different parameter prefixes: the endpoint is owned by `deploy.sh`
+under `<app-name>-<env>`, while the Cognito values are published by the frontend
+stack under `<app-name>-ui-<env>`.
+
+| Config field | SSM parameter |
+|---|---|
+| `api_endpoint` | `/<app-name>-<env>/vew-api-endpoint` |
+| `oidc_client_id` | `/<app-name>-ui-<env>/app-client-id/vew-cli` |
+| `issuer_url` | `/<app-name>-ui-<env>/user-pool-id` — read the pool ID, then construct `https://cognito-idp.<region>.amazonaws.com/<pool-id>` |
 
 Read `api_endpoint` from the SSM parameter rather than from a stack output. Which
 stack provides it depends on how the platform was deployed: without a custom API
@@ -82,8 +92,8 @@ The parameter is the same in both cases, which is why it is the value to use.
 # Example: fetch all three values after deploy (adjust <app-name>-<env> to match your deployment)
 AWS_PROFILE=<profile> aws ssm get-parameters \
   --names "/<app-name>-<env>/vew-api-endpoint" \
-          "/<app-name>-<env>/vew-cli-client-id" \
-          "/<app-name>-<env>/user-pool-id" \
+          "/<app-name>-ui-<env>/app-client-id/vew-cli" \
+          "/<app-name>-ui-<env>/user-pool-id" \
   --query 'Parameters[].[Name,Value]' --output table
 ```
 
