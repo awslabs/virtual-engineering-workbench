@@ -22,7 +22,6 @@ from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_components_versions_value_object,
     recipe_version_name_value_object,
     recipe_version_parent_image_upstream_id_value_object,
-    recipe_version_volume_size_value_object,
 )
 from app.shared.adapters.message_bus.message_bus import MessageBus
 from app.shared.adapters.unit_of_work_v2.unit_of_work import UnitOfWork
@@ -298,14 +297,12 @@ def handle(
             project_id=command.projectId.value,
             recipe_id=command.recipeId.value,
             recipe_version_id=command.recipeVersionId.value,
-            parent_image_upstream_id=recipe_version_entity.parentImageUpstreamId,
+            parent_image_upstream_id=parent_image_upstream_id,
             previous_recipe_components_versions=recipe_version_entity.recipeComponentsVersions,
             recipe_components_versions=recipe_version_components_versions_value_object.from_list(
                 recipe_component_versions
             ).value,
             recipe_version_name=recipe_version_name_value_object.from_str(update_current_recipe_version).value,
-            recipe_version_volume_size=recipe_version_volume_size_value_object.from_str(
-                recipe_version_entity.recipeVersionVolumeSize
-            ).value,
+            recipe_version_volume_size=command.recipeVersionVolumeSize.value,
         )
     )
