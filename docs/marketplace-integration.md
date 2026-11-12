@@ -96,6 +96,8 @@ The image appears in the catalog with a purple **Marketplace** badge. The detail
 
 If you've already imported a particular product, it shows as **Already Imported** in the subscription list (dimmed and non-selectable).
 
+An AMI can be imported into one project only. Once a project has imported an AMI, importing the same AMI into another project fails with "already imported in another project", and that stays true after the first project retires its image. This applies to Marketplace AMIs and existing AMIs alike, because VEW records an imported AMI, and authorizes its licence grants, against a single project.
+
 ## Publish a product version
 
 Create a product, then create a version selecting the marketplace-imported image. From here, the process is the same as any other product version — but what happens behind the scenes depends on the ownership model.

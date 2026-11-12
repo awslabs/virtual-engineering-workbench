@@ -117,3 +117,19 @@ class DynamoDBImageQueryService(image_query_service.ImageQueryService):
             return image.Image.model_validate(result["Items"][0])
         else:
             return None
+
+    def get_images_by_image_upstream_id(self, image_upstream_id: str) -> list[image.Image]:
+        """Return every image, in any project and status, for the given image upstream id."""
+
+        query_kwargs = {
+            "TableName": self._table_name,
+            "KeyConditionExpression": Key("imageUpstreamId").eq(image_upstream_id),
+            "IndexName": self._gsi_name_image_upstream_id,
+        }
+        images = []
+        while True:
+            result = self._dynamodb_client.query(**query_kwargs)
+            images.extend(image.Image.model_validate(item) for item in result.get("Items", []))
+            if "LastEvaluatedKey" not in result:
+                return images
+            query_kwargs["ExclusiveStartKey"] = result["LastEvaluatedKey"]

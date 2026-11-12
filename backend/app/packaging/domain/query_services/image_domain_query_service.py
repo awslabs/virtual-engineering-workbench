@@ -48,3 +48,6 @@ class ImageDomainQueryService(image_query_service.ImageQueryService):
 
     def get_image_by_image_upstream_id(self, image_upstream_id: str):
         return self._image_qry_srv.get_image_by_image_upstream_id(image_upstream_id=image_upstream_id)
+
+    def get_images_by_image_upstream_id(self, image_upstream_id: str):
+        return self._image_qry_srv.get_images_by_image_upstream_id(image_upstream_id=image_upstream_id)

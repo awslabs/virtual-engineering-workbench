@@ -111,6 +111,33 @@ def _retire_previous_marketplace_images(
                 uow.commit()
 
 
+# An imported AMI is one image per AMI id across ALL projects: packaging's upstream-id
+# lookup and publishing's AMI read model (keyed by AMI id alone, its projectId used to
+# authorize licence grants) both assume it. A second project importing the same AMI
+# would take that read-model row over, so the first project's grants would fail and
+# the AMI would drop out of its list. Only an image that never finished (Failed), or
+# one marked Deleted, releases the AMI. Retired still holds it: published versions
+# may still use the AMI, and the read-model row stays.
+_STATUSES_RELEASING_AMI = {image.ImageStatus.Deleted, image.ImageStatus.Failed}
+
+
+def _reject_already_imported_ami(
+    command: import_image_command.ImportImageCommand,
+    image_qry_srv: image_query_service.ImageQueryService,
+) -> None:
+    for existing in image_qry_srv.get_images_by_image_upstream_id(command.amiId.value):
+        if existing.projectId == command.projectId.value:
+            raise domain_exception.DomainException(
+                f"AMI {command.amiId.value} is already imported in this project (imageId={existing.imageId})."
+            )
+        if existing.status not in _STATUSES_RELEASING_AMI:
+            # Do not name the other project: the caller may not be a member of it.
+            raise domain_exception.DomainException(
+                f"AMI {command.amiId.value} is already imported in another project. "
+                "An AMI can be imported into one project only."
+            )
+
+
 def handle(
     command: import_image_command.ImportImageCommand,
     uow: unit_of_work.UnitOfWork,
@@ -126,11 +153,7 @@ def handle(
     if command.imageDescription and len(command.imageDescription) > 500:
         raise domain_exception.DomainException("Image description must be 500 characters or fewer.")
 
-    existing = image_qry_srv.get_image_by_image_upstream_id(command.amiId.value)
-    if existing and existing.projectId == command.projectId.value:
-        raise domain_exception.DomainException(
-            f"AMI {command.amiId.value} is already imported in this project (imageId={existing.imageId})."
-        )
+    _reject_already_imported_ami(command, image_qry_srv)
 
     ami_desc = _describe_and_validate_ami(command, ami_validation_svc, image_source)
 
