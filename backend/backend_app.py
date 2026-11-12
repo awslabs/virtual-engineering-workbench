@@ -24,6 +24,7 @@ from infra.backend import (
     security_stack,
     service_discovery_stack,
     shared_deployment_infrastructure,
+    vew_api_router_stack,
 )
 
 app = aws_cdk.App()
@@ -389,6 +390,49 @@ if custom_domain and cert_arn:
     api_integration_stack.add_dependency(projects_stack)
     api_integration_stack.add_dependency(publishing_stack)
     api_integration_stack.add_dependency(provisioning_stack)
+
+else:
+    # --- vew CLI API router ---
+    # Without a custom API domain there is no single host in front of the per
+    # bounded-context gateways, and the CLI's config has one `api_endpoint`. This
+    # stack supplies that host by path-routing /{bc}/* to each gateway.
+    #
+    # Deliberately the `else` of the ApiIntegrationStack branch above: exactly one
+    # of the two provides the unified endpoint the CLI points at, so deploying
+    # both would be a redundant hop.
+    #
+    # Registered only when the CLI's Cognito client exists. The router's
+    # authorizer resolves /<app>-ui-<env>/app-client-id/vew-cli at synth, which is
+    # published only when the frontend deployment's AdditionalAppClients contains
+    # a "vew-cli" entry; without it the lookup has nothing to read and the deploy
+    # fails for a stack nothing is using. deploy.sh sets this context value by
+    # inspecting ADDITIONAL_APP_CLIENTS, and also clears it when the frontend and
+    # backend are in different regions, because the parameter is written in the
+    # frontend region and read in this one.
+    vew_cli_enabled = str(app.node.try_get_context("vew-cli-enabled") or "").lower() == "true"
+
+    if vew_cli_enabled:
+        vew_api_router_config = config.AppConfig(
+            **base_config.model_dump(),
+            component_name=constants.VEW_API_ROUTER_COMPONENT_NAME,
+            environment_config=config.env_config[environment],
+            component_specific=dict(),
+        )
+
+        vew_router_stack = vew_api_router_stack.VewApiRouterStack(
+            scope=app,
+            id="VewApiRouterStack",
+            app_config=vew_api_router_config,
+            bounded_contexts=constants.VEW_API_ROUTER_BOUNDED_CONTEXTS,
+            stack_name=base_config.format_base_resource_name(constants.VEW_API_ROUTER_COMPONENT_NAME),
+            env=aws_cdk.Environment(account=base_config.account, region=base_config.region),
+        )
+        # The router resolves each bounded context's API URL from the SSM parameter
+        # that context's own stack publishes, so those stacks must deploy first.
+        vew_router_stack.add_dependency(packaging_stack)
+        vew_router_stack.add_dependency(projects_stack)
+        vew_router_stack.add_dependency(publishing_stack)
+        vew_router_stack.add_dependency(provisioning_stack)
 
 
 discovery = service_discovery_stack.ServiceDiscoveryStack(

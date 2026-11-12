@@ -175,6 +175,12 @@ _dev_env_config = {
     "cognito-userpool-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-id",
     "cognito-userpool-client-ids-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-client-ids",
     "cognito-url-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-domain",
+    # The vew CLI's own Cognito app client, used as the JWT audience by
+    # VewApiRouterStack because Cognito access tokens carry client_id and no aud.
+    # Register the client by adding a "vew-cli" entry to the frontend
+    # deployment's AdditionalAppClients; the frontend stack then publishes its id
+    # at this path, one parameter per client.
+    "cognito-vew-cli-client-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/app-client-id/vew-cli",
     # The MCP gateway's Cognito app client, used as the gateway's allowed JWT
     # client and printed in the ready-to-paste client configs. The frontend
     # stack creates it and publishes one SSM parameter per client, so register
