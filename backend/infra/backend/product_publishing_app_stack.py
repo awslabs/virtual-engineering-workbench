@@ -200,37 +200,15 @@ class ProductPublishingAppStack(Stack):
                         resources=["*"],
                     )
                 ),
-                # Create-style actions inside Service Catalog stacks.
-                #
-                # The condition below can never be satisfied: the "aws:" tag
-                # prefix is reserved, and AWS supplies no aws:RequestTag/* key
-                # for a reserved tag at authorization time. ec2:CreateTags and
-                # the four ECS actions have been removed from this statement:
-                # CreateTags is granted by the vew:provisionedProduct:id
-                # statement below, and the ECS actions by the per-action
-                # statements further down, both of which actually work.
-                #
-                # The four actions left here are NOT covered elsewhere, so they
-                # remain effectively denied. Dropping the condition would make
-                # them allowed on Resource="*", which is a widening rather than
-                # a cleanup, so the status quo is preserved deliberately.
-                lambda lambda_f: lambda_f.add_to_policy(
-                    PolicyStatement(
-                        actions=[
-                            "ec2:AllocateAddress",
-                            "ec2:AssociateAddress",
-                            "ec2:DisassociateAddress",
-                            "ec2:ReleaseAddress",
-                            "secretsmanager:CreateSecret",
-                        ],
-                        resources=["*"],
-                        conditions={
-                            "StringLike": {
-                                "aws:RequestTag/aws:cloudformation:stack-name": "SC-*",
-                            },
-                        },
-                    )
-                ),
+                # NOTE: a statement here granted the elastic-IP actions and
+                # secretsmanager:CreateSecret conditioned on
+                # aws:RequestTag/aws:cloudformation:stack-name matching "SC-*". That
+                # condition can never be satisfied: the "aws:" tag prefix is reserved
+                # and AWS supplies no aws:RequestTag/* key for a reserved tag at
+                # authorization time. It is removed rather than repaired, because the
+                # vew:provisionedProduct:id statement below already grants exactly
+                # those actions through a condition that does match - so the deleted
+                # statement was both inert and redundant, and nothing loses a grant.
                 # ec2:CreateTags for the resources Service Catalog templates
                 # create.
                 #

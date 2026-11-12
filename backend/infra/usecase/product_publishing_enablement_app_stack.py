@@ -105,35 +105,15 @@ class ProductPublishingEnablementAppStack(Stack):
             ),
             # Create-style actions inside Service Catalog stacks.
             #
-            # The condition below can never be satisfied: the "aws:" tag prefix is
-            # reserved, and AWS supplies no aws:RequestTag/* key for a reserved tag
-            # at authorization time. ec2:CreateTags has been removed from this
-            # statement because the vew:provisionedProduct:id statement below is
-            # the grant that actually works for it.
-            #
-            # The four actions left here are NOT covered by that statement, so they
-            # remain effectively denied. Dropping the condition would make them
-            # allowed on Resource="*", which is a widening rather than a cleanup,
-            # so the status quo is preserved deliberately. Whether this path needs
-            # elastic-IP and CreateSecret grants at all is a behaviour question for
-            # the stack owner; if it does, they need a condition keyed on a
-            # non-reserved tag, like the statement below.
-            iam.PolicyStatement(
-                actions=[
-                    "ec2:AllocateAddress",
-                    "ec2:AssociateAddress",
-                    "ec2:DisassociateAddress",
-                    "ec2:ReleaseAddress",
-                    "secretsmanager:CreateSecret",
-                ],
-                resources=["*"],
-                effect=iam.Effect.ALLOW,
-                conditions={
-                    "StringLike": {
-                        "aws:RequestTag/aws:cloudformation:stack-name": "SC-*",
-                    },
-                },
-            ),
+            # NOTE: a statement here granted the elastic-IP actions and
+            # secretsmanager:CreateSecret conditioned on
+            # aws:RequestTag/aws:cloudformation:stack-name matching "SC-*". That
+            # condition can never be satisfied: the "aws:" tag prefix is reserved and
+            # AWS supplies no aws:RequestTag/* key for a reserved tag at authorization
+            # time. It is removed rather than repaired, because the
+            # vew:provisionedProduct:id statement below already grants exactly those
+            # actions through a condition that does match - so the deleted statement
+            # was both inert and redundant, and nothing loses a grant.
             # ec2:CreateTags for the resources Service Catalog templates create.
             #
             # Keyed on a NON-reserved tag that VEW itself stamps on every
