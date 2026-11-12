@@ -577,6 +577,7 @@ class ProjectsAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             ),
             provision_iam_api=True,
             iam_role_access=config.VEWRole.PLATFORM_USER,
+            enable_mcp=True,
         )
 
         # API Gateway for service to service access

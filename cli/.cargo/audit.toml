@@ -1,0 +1,61 @@
+# cargo-audit configuration for the vew CLI.
+#
+# See: https://docs.rs/cargo-audit/latest/cargo_audit/config/index.html
+
+[advisories]
+# List of advisory IDs to explicitly ignore. Each entry SHOULD carry a
+# code comment above it explaining WHY the advisory does not apply to
+# this project — reviewers refer to these justifications when auditing.
+ignore = [
+    # RUSTSEC-2023-0071 — Marvin Attack in `rsa` crate.
+    # https://rustsec.org/advisories/RUSTSEC-2023-0071
+    #
+    # The Marvin Attack is a timing side-channel against RSA *decryption*
+    # (recovering plaintext or the private key when the attacker can
+    # observe decryption timing for a large number of ciphertexts).
+    #
+    # This CLI only uses `rsa` to *verify JWT signatures* against the
+    # OIDC provider's *public* JWKS keys (see cli/src/identity/adapters/
+    # jwt_token_validator.rs). Public-key verification is not exposed to
+    # this side channel.
+    #
+    # Since the jsonwebtoken 10.x upgrade, `rsa` is a *runtime* dependency
+    # rather than dev-only: 10.x requires an explicit crypto backend and we
+    # selected `rust_crypto`, which implements RS256 via `rsa`. The
+    # verification-only reasoning above still holds — RS256 validation uses
+    # the public key and performs no RSA decryption. The alternative backend
+    # (`aws_lc_rs`) avoids this crate but requires cmake and a C toolchain in
+    # every build environment, which the CI image does not provide.
+    #
+    # A fix exists: the rsa 0.10 series migrated to crypto-bigint and the
+    # constant-time mitigations from draft-irtf-cfrg-rsa-guidance, and the
+    # advisory records "Patched >= 0.10.0". This CLI cannot reach it yet.
+    # `cargo tree -i rsa` resolves rsa 0.9.10 <- jsonwebtoken 10.4.0, so the
+    # version is pinned by jsonwebtoken's rust_crypto backend; nothing in this
+    # repo can pull rsa 0.10 forward on its own. Revisit when jsonwebtoken
+    # ships against rsa 0.10, or sooner if this CLI ever performs RSA
+    # decryption.
+    "RUSTSEC-2023-0071",
+
+    # RUSTSEC-2026-0387 — timing variability in `crypto-bigint` operations
+    # intended to be constant-time.
+    # https://rustsec.org/advisories/RUSTSEC-2026-0387
+    #
+    # Reached only through jsonwebtoken -> p256/p384 -> ecdsa ->
+    # elliptic-curve -> crypto-bigint, i.e. the ECDSA signature algorithms.
+    #
+    # Two reasons it does not apply here. First, this CLI only *verifies*
+    # JWTs, against the OIDC provider's public JWKS keys: the validator
+    # (cli/src/identity/adapters/jwt_token_validator.rs) uses DecodingKey and
+    # decode, and holds no signing key, so there is no secret scalar for a
+    # timing side channel to recover. Second, that validator configures
+    # Algorithm::RS256 only, so the ECDSA path is linked into the binary but
+    # never executed.
+    #
+    # The fix is crypto-bigint >= 0.7.6, which needs elliptic-curve 0.14 and
+    # therefore p256/p384 0.14 and a jsonwebtoken release that depends on
+    # them. Nothing in this repo can pull that forward. Revisit when
+    # jsonwebtoken ships against elliptic-curve 0.14, or sooner if this CLI
+    # ever signs a token or enables an ES* algorithm.
+    "RUSTSEC-2026-0387",
+]

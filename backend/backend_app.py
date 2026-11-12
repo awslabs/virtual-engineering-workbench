@@ -13,6 +13,7 @@ from infra.backend import (
     image_sharing_app_stack,
     integration_oauth_stack,
     integration_stack,
+    mcp_gateway_agentcore_app_stack,
     packaging_app_stack,
     prerequisites_app_stack,
     product_packaging_app_stack,
@@ -23,6 +24,7 @@ from infra.backend import (
     security_stack,
     service_discovery_stack,
     shared_deployment_infrastructure,
+    vew_api_router_stack,
 )
 
 app = aws_cdk.App()
@@ -389,6 +391,49 @@ if custom_domain and cert_arn:
     api_integration_stack.add_dependency(publishing_stack)
     api_integration_stack.add_dependency(provisioning_stack)
 
+else:
+    # --- vew CLI API router ---
+    # Without a custom API domain there is no single host in front of the per
+    # bounded-context gateways, and the CLI's config has one `api_endpoint`. This
+    # stack supplies that host by path-routing /{bc}/* to each gateway.
+    #
+    # Deliberately the `else` of the ApiIntegrationStack branch above: exactly one
+    # of the two provides the unified endpoint the CLI points at, so deploying
+    # both would be a redundant hop.
+    #
+    # Registered only when the CLI's Cognito client exists. The router's
+    # authorizer resolves /<app>-ui-<env>/app-client-id/vew-cli at synth, which is
+    # published only when the frontend deployment's AdditionalAppClients contains
+    # a "vew-cli" entry; without it the lookup has nothing to read and the deploy
+    # fails for a stack nothing is using. deploy.sh sets this context value by
+    # inspecting ADDITIONAL_APP_CLIENTS, and also clears it when the frontend and
+    # backend are in different regions, because the parameter is written in the
+    # frontend region and read in this one.
+    vew_cli_enabled = str(app.node.try_get_context("vew-cli-enabled") or "").lower() == "true"
+
+    if vew_cli_enabled:
+        vew_api_router_config = config.AppConfig(
+            **base_config.model_dump(),
+            component_name=constants.VEW_API_ROUTER_COMPONENT_NAME,
+            environment_config=config.env_config[environment],
+            component_specific=dict(),
+        )
+
+        vew_router_stack = vew_api_router_stack.VewApiRouterStack(
+            scope=app,
+            id="VewApiRouterStack",
+            app_config=vew_api_router_config,
+            bounded_contexts=constants.VEW_API_ROUTER_BOUNDED_CONTEXTS,
+            stack_name=base_config.format_base_resource_name(constants.VEW_API_ROUTER_COMPONENT_NAME),
+            env=aws_cdk.Environment(account=base_config.account, region=base_config.region),
+        )
+        # The router resolves each bounded context's API URL from the SSM parameter
+        # that context's own stack publishes, so those stacks must deploy first.
+        vew_router_stack.add_dependency(packaging_stack)
+        vew_router_stack.add_dependency(projects_stack)
+        vew_router_stack.add_dependency(publishing_stack)
+        vew_router_stack.add_dependency(provisioning_stack)
+
 
 discovery = service_discovery_stack.ServiceDiscoveryStack(
     scope=app,
@@ -435,6 +480,52 @@ discovery.register(
     provisioning_stack,
     authorization_stack,
 ).apply_permissions()
+
+# MCP Gateway on AgentCore
+# One Amazon Bedrock AgentCore Gateway aggregates the bounded contexts that pass
+# enable_mcp=True to their BackendAppOpenApi as MCP tool targets.
+#
+# Registered only when the gateway's Cognito client exists. The stack resolves
+# /<app>-ui-<env>/app-client-id/mcp-gateway-agentcore at deploy time, and the
+# frontend publishes that parameter only when its AdditionalAppClients contains an
+# "mcp-gateway-agentcore" entry; without it the deploy fails for a stack nothing
+# uses. deploy.sh sets this context value from ADDITIONAL_APP_CLIENTS and clears it
+# when the frontend and backend are in different regions, because the parameter is
+# written in the frontend region and read in this one.
+mcp_gateway_enabled = str(app.node.try_get_context("mcp-gateway-enabled") or "").lower() == "true"
+
+if mcp_gateway_enabled:
+    mcp_agentcore_app_config = config.AppConfig(
+        **base_config.model_dump(),
+        component_name=constants.MCP_AGENTCORE_COMPONENT_NAME,
+        environment_config=config.env_config[environment],
+        component_specific=config.mcp_gateway_agentcore_app_config[environment],
+    )
+
+    mcp_agentcore_stacks = [
+        s
+        for s in [
+            projects_stack,
+            packaging_stack,
+            publishing_stack,
+            provisioning_stack,
+        ]
+        if s.api and s.api.mcp_enabled
+    ]
+
+    mcp_agentcore_stack = mcp_gateway_agentcore_app_stack.McpGatewayAgentcoreStack(
+        app,
+        "McpGatewayAgentcoreStack",
+        app_config=mcp_agentcore_app_config,
+        enabled_stacks=mcp_agentcore_stacks,
+        custom_domain=custom_domain if (custom_domain and cert_arn) else None,
+        stack_name=base_config.format_base_resource_name(constants.MCP_AGENTCORE_COMPONENT_NAME),
+        env=aws_cdk.Environment(account=base_config.account, region=base_config.region),
+    )
+    # With a custom API domain the gateway targets https://<custom domain>/<bc>, which only
+    # resolves once the api-integration stack has mapped the base paths. Deploy after it.
+    if api_integration_stack is not None:
+        mcp_agentcore_stack.add_dependency(api_integration_stack)
 
 aws_cdk.Aspects.of(app).add(cdk_nag.AwsSolutionsChecks(reports=True, verbose=True))
 aws_cdk.Aspects.of(app).add(cdk_nag.NIST80053R4Checks(reports=True, verbose=True))

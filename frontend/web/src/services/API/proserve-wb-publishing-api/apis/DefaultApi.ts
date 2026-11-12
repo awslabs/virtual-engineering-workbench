@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Publishing API
- * API in charge of publishing workbench products
+ * VEW product catalog: create products, manage versions through DEV/QA/PROD stages, distribute to project accounts via AWS Service Catalog. Depends on Projects and Packaging BCs (built AMIs/images); upstream to Provisioning BC.
  *
  * The version of the OpenAPI document: 2023-01-26T12:00:00Z
  *
@@ -308,7 +308,8 @@ export interface ValidateProductVersionCorsRequest {
 export class DefaultApi extends runtime.BaseAPI {
 
     /**
-     * Start the product archiving process
+     * Initiates asynchronous archiving of the product, which retires all active versions and removes Service Catalog artifacts from spoke accounts. Emits a ProductArchivingStarted domain event. This operation cannot be undone.
+     * Archive a product and retire all its versions
      */
     async archiveProductRaw(requestParameters: ArchiveProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -346,7 +347,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Start the product archiving process
+     * Initiates asynchronous archiving of the product, which retires all active versions and removes Service Catalog artifacts from spoke accounts. Emits a ProductArchivingStarted domain event. This operation cannot be undone.
+     * Archive a product and retire all its versions
      */
     async archiveProduct(requestParameters: ArchiveProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.archiveProductRaw(requestParameters, initOverrides);
@@ -407,7 +409,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a new product
+     * Registers a new product (Workbench, Virtual Target, or Container) in the catalog for the given project. Requires a valid project from the Projects BC and a technology reference from the Packaging BC. Emits a ProductCreated domain event consumed by downstream bounded contexts.
+     * Create a new catalog product in a project
      */
     async createProductRaw(requestParameters: CreateProductOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CreateProductResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -448,7 +451,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a new product
+     * Registers a new product (Workbench, Virtual Target, or Container) in the catalog for the given project. Requires a valid project from the Projects BC and a technology reference from the Packaging BC. Emits a ProductCreated domain event consumed by downstream bounded contexts.
+     * Create a new catalog product in a project
      */
     async createProduct(requestParameters: CreateProductOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CreateProductResponse> {
         const response = await this.createProductRaw(requestParameters, initOverrides);
@@ -456,7 +460,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a new product version
+     * Creates a new product version (Major, Minor, or Patch) with a CloudFormation template and an AMI or container image reference. The product must already exist via POST /products. Triggers asynchronous AMI sharing to spoke accounts and emits a ProductVersionCreationStarted domain event. **Getting started:** Use the GET latest template endpoint to fetch the default CloudFormation template for the product, then customise it before submitting. **User data script review:** Before creating a version, review the CloudFormation template user data script: 1. Keep only the user data section matching the target OS (Linux or Windows) and remove the other. 2. Review the DCV configuration section — keep it only if the recipe includes the Amazon DCV component and the `DCVConnectionOptions` or `DCVPublicEndpoint` feature toggles are enabled. 3. Review the working directory configuration section — keep it only if the recipe includes the Working Directory component and the `WorkbenchWorkingDirectoryEnabled` feature toggle is enabled. **If validation fails:** Use PUT /projects/{projectId}/products/{productId}/versions/{versionId} to update the existing version instead of creating a new one.
+     * Create a new version for a catalog product
      */
     async createProductVersionRaw(requestParameters: CreateProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -501,7 +506,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a new product version
+     * Creates a new product version (Major, Minor, or Patch) with a CloudFormation template and an AMI or container image reference. The product must already exist via POST /products. Triggers asynchronous AMI sharing to spoke accounts and emits a ProductVersionCreationStarted domain event. **Getting started:** Use the GET latest template endpoint to fetch the default CloudFormation template for the product, then customise it before submitting. **User data script review:** Before creating a version, review the CloudFormation template user data script: 1. Keep only the user data section matching the target OS (Linux or Windows) and remove the other. 2. Review the DCV configuration section — keep it only if the recipe includes the Amazon DCV component and the `DCVConnectionOptions` or `DCVPublicEndpoint` feature toggles are enabled. 3. Review the working directory configuration section — keep it only if the recipe includes the Working Directory component and the `WorkbenchWorkingDirectoryEnabled` feature toggle is enabled. **If validation fails:** Use PUT /projects/{projectId}/products/{productId}/versions/{versionId} to update the existing version instead of creating a new one.
+     * Create a new version for a catalog product
      */
     async createProductVersion(requestParameters: CreateProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createProductVersionRaw(requestParameters, initOverrides);
@@ -509,7 +515,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available AMIs
+     * Returns all AMIs registered by the Packaging BC that are available for use when creating product versions in this project. Each AMI carries its id, name, description and creation date.
+     * List AMIs available for product version creation
      */
     async getAmisRaw(requestParameters: GetAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAmisResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -543,7 +550,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available AMIs
+     * Returns all AMIs registered by the Packaging BC that are available for use when creating product versions in this project. Each AMI carries its id, name, description and creation date.
+     * List AMIs available for product version creation
      */
     async getAmis(requestParameters: GetAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAmisResponse> {
         const response = await this.getAmisRaw(requestParameters, initOverrides);
@@ -581,7 +589,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product version distributions internal
+     * Returns enriched product version distributions for a specific version.
+     * Get available version (internal)
      */
     async getAvailableProductVersionInternalRaw(requestParameters: GetAvailableProductVersionInternalRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAvailableProductVersionsInternalResponse>> {
         if (requestParameters.productId === null || requestParameters.productId === undefined) {
@@ -611,7 +620,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product version distributions internal
+     * Returns enriched product version distributions for a specific version.
+     * Get available version (internal)
      */
     async getAvailableProductVersionInternal(requestParameters: GetAvailableProductVersionInternalRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAvailableProductVersionsInternalResponse> {
         const response = await this.getAvailableProductVersionInternalRaw(requestParameters, initOverrides);
@@ -619,7 +629,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product versions by stage and region
+     * Returns product versions that are ready for provisioning, optionally filtered by stage (DEV, QA, PROD) and region. Consumed by the Provisioning BC to populate the version selector when a user launches a product.
+     * List provisionable versions for a published product
      */
     async getAvailableProductVersionsRaw(requestParameters: GetAvailableProductVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAvailableProductVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -673,7 +684,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product versions by stage and region
+     * Returns product versions that are ready for provisioning, optionally filtered by stage (DEV, QA, PROD) and region. Consumed by the Provisioning BC to populate the version selector when a user launches a product.
+     * List provisionable versions for a published product
      */
     async getAvailableProductVersions(requestParameters: GetAvailableProductVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAvailableProductVersionsResponse> {
         const response = await this.getAvailableProductVersionsRaw(requestParameters, initOverrides);
@@ -715,7 +727,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product versions internal
+     * Returns enriched product versions ready for provisioning.
+     * List available versions (internal)
      */
     async getAvailableProductVersionsInternalRaw(requestParameters: GetAvailableProductVersionsInternalRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAvailableProductVersionsInternalResponse>> {
         if (requestParameters.productId === null || requestParameters.productId === undefined) {
@@ -741,7 +754,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product versions internal
+     * Returns enriched product versions ready for provisioning.
+     * List available versions (internal)
      */
     async getAvailableProductVersionsInternal(requestParameters: GetAvailableProductVersionsInternalRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAvailableProductVersionsInternalResponse> {
         const response = await this.getAvailableProductVersionsInternalRaw(requestParameters, initOverrides);
@@ -749,7 +763,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all available products from a particular project
+     * Returns products that have at least one published version and are available for provisioning, optionally filtered by product type. This is the primary catalog endpoint consumed by the Provisioning BC when users browse products to launch.
+     * List published products available for provisioning
      */
     async getAvailableProductsRaw(requestParameters: GetAvailableProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAvailableProductsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -791,7 +806,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all available products from a particular project
+     * Returns products that have at least one published version and are available for provisioning, optionally filtered by product type. This is the primary catalog endpoint consumed by the Provisioning BC when users browse products to launch.
+     * List published products available for provisioning
      */
     async getAvailableProducts(requestParameters: GetAvailableProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAvailableProductsResponse> {
         const response = await this.getAvailableProductsRaw(requestParameters, initOverrides);
@@ -837,7 +853,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Gets the latest major versions of the product
+     * Returns the most recent version summary for each major version line of the product. Useful for displaying upgrade paths and comparing major version availability across stages.
+     * Get the latest version per major version line
      */
     async getLatestMajorVersionsRaw(requestParameters: GetLatestMajorVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetLatestMajorVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -875,7 +892,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Gets the latest major versions of the product
+     * Returns the most recent version summary for each major version line of the product. Useful for displaying upgrade paths and comparing major version availability across stages.
+     * Get the latest version per major version line
      */
     async getLatestMajorVersions(requestParameters: GetLatestMajorVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetLatestMajorVersionsResponse> {
         const response = await this.getLatestMajorVersionsRaw(requestParameters, initOverrides);
@@ -921,7 +939,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Gets the latest template of the product
+     * Retrieves the most recent draft CloudFormation template associated with the product, optionally scoped to a specific version. Used to pre-populate the template editor when creating or updating a product version. Templates declare capabilities via a `FeatureToggles` output — a JSON array of `{ \"feature\": \"<name>\", \"enabled\": true|false }`. Available toggles: `DCVConnectionOptions` (connect via Amazon DCV; needs the DCV component in the recipe + DCV user-data config); `DCVPublicEndpoint` (connect via Amazon DCV Gateway public endpoint; same requirements); `VisualStudioCodeConnectionOption` (connect to the Web IDE; Code-OSS products); `WorkbenchWorkingDirectoryEnabled` (user data preserved across upgrades; needs the Working Directory component + config). Default templates include examples.
+     * Get the latest draft CloudFormation template for a product
      */
     async getLatestTemplateRaw(requestParameters: GetLatestTemplateRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetLatestTemplateResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -963,7 +982,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Gets the latest template of the product
+     * Retrieves the most recent draft CloudFormation template associated with the product, optionally scoped to a specific version. Used to pre-populate the template editor when creating or updating a product version. Templates declare capabilities via a `FeatureToggles` output — a JSON array of `{ \"feature\": \"<name>\", \"enabled\": true|false }`. Available toggles: `DCVConnectionOptions` (connect via Amazon DCV; needs the DCV component in the recipe + DCV user-data config); `DCVPublicEndpoint` (connect via Amazon DCV Gateway public endpoint; same requirements); `VisualStudioCodeConnectionOption` (connect to the Web IDE; Code-OSS products); `WorkbenchWorkingDirectoryEnabled` (user data preserved across upgrades; needs the Working Directory component + config). Default templates include examples.
+     * Get the latest draft CloudFormation template for a product
      */
     async getLatestTemplate(requestParameters: GetLatestTemplateRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetLatestTemplateResponse> {
         const response = await this.getLatestTemplateRaw(requestParameters, initOverrides);
@@ -1009,7 +1029,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a product from a particular program
+     * Returns the product details and a summary of all its versions including lifecycle status, stages, and recommended flag. Use GET /products/{productId}/versions/{versionId} for full version distribution details.
+     * Get a product with its version summaries
      */
     async getProductRaw(requestParameters: GetProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProductResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1047,7 +1068,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a product from a particular program
+     * Returns the product details and a summary of all its versions including lifecycle status, stages, and recommended flag. Use GET /products/{productId}/versions/{versionId} for full version distribution details.
+     * Get a product with its version summaries
      */
     async getProduct(requestParameters: GetProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProductResponse> {
         const response = await this.getProductRaw(requestParameters, initOverrides);
@@ -1089,7 +1111,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get product version summary and distributions
+     * Returns the version summary, per-account distribution statuses, and the draft CloudFormation template for a specific product version. Use this to inspect distribution progress after creating, updating, or promoting a version.
+     * Get product version details with distributions
      */
     async getProductVersionRaw(requestParameters: GetProductVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProductVersionResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1131,7 +1154,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get product version summary and distributions
+     * Returns the version summary, per-account distribution statuses, and the draft CloudFormation template for a specific product version. Use this to inspect distribution progress after creating, updating, or promoting a version.
+     * Get product version details with distributions
      */
     async getProductVersion(requestParameters: GetProductVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProductVersionResponse> {
         const response = await this.getProductVersionRaw(requestParameters, initOverrides);
@@ -1177,7 +1201,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get product version distributions
+     * Returns a single product version distribution for the specified AWS account.
+     * Get version distribution (internal)
      */
     async getProductVersionDistributionRaw(requestParameters: GetProductVersionDistributionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProductVersionInternalResponse>> {
         if (requestParameters.productId === null || requestParameters.productId === undefined) {
@@ -1215,7 +1240,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get product version distributions
+     * Returns a single product version distribution for the specified AWS account.
+     * Get version distribution (internal)
      */
     async getProductVersionDistribution(requestParameters: GetProductVersionDistributionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProductVersionInternalResponse> {
         const response = await this.getProductVersionDistributionRaw(requestParameters, initOverrides);
@@ -1223,7 +1249,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all products from a particular project
+     * Returns every product registered in the catalog for the given project, regardless of lifecycle status. Use GET /available-products for provisioning-ready products only.
+     * List all catalog products for a project
      */
     async getProductsRaw(requestParameters: GetProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProductsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1257,7 +1284,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all products from a particular project
+     * Returns every product registered in the catalog for the given project, regardless of lifecycle status. Use GET /available-products for provisioning-ready products only.
+     * List all catalog products for a project
      */
     async getProducts(requestParameters: GetProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProductsResponse> {
         const response = await this.getProductsRaw(requestParameters, initOverrides);
@@ -1265,7 +1293,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Gets all published AMIs in original region
+     * Returns all AMI IDs currently in use across published versions.
+     * List published AMIs (internal)
      */
     async getPublishedAmisRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetPublishedAmisResponse>> {
         const queryParameters: any = {};
@@ -1287,7 +1316,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Gets all published AMIs in original region
+     * Returns all AMI IDs currently in use across published versions.
+     * List published AMIs (internal)
      */
     async getPublishedAmis(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetPublishedAmisResponse> {
         const response = await this.getPublishedAmisRaw(initOverrides);
@@ -1431,7 +1461,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Promote product version to QA/PROD
+     * Promotes a product version from its current stage to the next (DEV->QA or QA->PROD). Triggers AMI sharing and Service Catalog artifact creation in the target stage accounts. Emits a ProductVersionPromotionStarted domain event that the Provisioning BC consumes.
+     * Promote a product version to QA or PROD stage
      */
     async promoteProductVersionRaw(requestParameters: PromoteProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1480,7 +1511,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Promote product version to QA/PROD
+     * Promotes a product version from its current stage to the next (DEV->QA or QA->PROD). Triggers AMI sharing and Service Catalog artifact creation in the target stage accounts. Emits a ProductVersionPromotionStarted domain event that the Provisioning BC consumes.
+     * Promote a product version to QA or PROD stage
      */
     async promoteProductVersion(requestParameters: PromoteProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.promoteProductVersionRaw(requestParameters, initOverrides);
@@ -1518,7 +1550,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Restores a product version
+     * Creates a new version by restoring a previously retired version back to DEV stage. The version must be in RETIRED status. Triggers AMI re-sharing and emits a ProductVersionRestorationStarted domain event.
+     * Restore a retired product version back to DEV
      */
     async restoreProductVersionRaw(requestParameters: RestoreProductVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<RestoreProductVersionResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1560,7 +1593,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Restores a product version
+     * Creates a new version by restoring a previously retired version back to DEV stage. The version must be in RETIRED status. Triggers AMI re-sharing and emits a ProductVersionRestorationStarted domain event.
+     * Restore a retired product version back to DEV
      */
     async restoreProductVersion(requestParameters: RestoreProductVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<RestoreProductVersionResponse> {
         const response = await this.restoreProductVersionRaw(requestParameters, initOverrides);
@@ -1606,7 +1640,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire product version
+     * Initiates asynchronous retirement of the product version, removing its Service Catalog provisioning artifacts from all spoke accounts. An optional reason can be provided. Emits a ProductVersionRetirementStarted domain event. A retired version can be restored via POST /restore.
+     * Retire a product version from all stages
      */
     async retireProductVersionRaw(requestParameters: RetireProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1655,7 +1690,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire product version
+     * Initiates asynchronous retirement of the product version, removing its Service Catalog provisioning artifacts from all spoke accounts. An optional reason can be provided. Emits a ProductVersionRetirementStarted domain event. A retired version can be restored via POST /restore.
+     * Retire a product version from all stages
      */
     async retireProductVersion(requestParameters: RetireProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.retireProductVersionRaw(requestParameters, initOverrides);
@@ -1663,7 +1699,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retry an existing product version
+     * Re-triggers AMI sharing and Service Catalog provisioning artifact creation for the specified AWS accounts where a previous distribution attempt failed. Emits a ProductVersionRetryStarted domain event.
+     * Retry failed version distribution to spoke accounts
      */
     async retryProductVersionRaw(requestParameters: RetryProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1712,7 +1749,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retry an existing product version
+     * Re-triggers AMI sharing and Service Catalog provisioning artifact creation for the specified AWS accounts where a previous distribution attempt failed. Emits a ProductVersionRetryStarted domain event.
+     * Retry failed version distribution to spoke accounts
      */
     async retryProductVersion(requestParameters: RetryProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.retryProductVersionRaw(requestParameters, initOverrides);
@@ -1720,7 +1758,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Sets version as recommended
+     * Designates the specified version as the recommended version users should provision. Only one version per product can be recommended at a time. The Provisioning BC highlights this version when users browse available products.
+     * Mark a version as the recommended version for a product
      */
     async setRecommendedVersionRaw(requestParameters: SetRecommendedVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1762,7 +1801,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Sets version as recommended
+     * Designates the specified version as the recommended version users should provision. Only one version per product can be recommended at a time. The Provisioning BC highlights this version when users browse available products.
+     * Mark a version as the recommended version for a product
      */
     async setRecommendedVersion(requestParameters: SetRecommendedVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.setRecommendedVersionRaw(requestParameters, initOverrides);
@@ -1808,7 +1848,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Updating an existing product version
+     * Updates the CloudFormation template, description, and image references of an existing product version in DEV stage. Triggers asynchronous re-distribution of the updated version to spoke accounts and emits a ProductVersionUpdateStarted domain event.
+     * Update a draft product version
      */
     async updateProductVersionRaw(requestParameters: UpdateProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1857,7 +1898,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Updating an existing product version
+     * Updates the CloudFormation template, description, and image references of an existing product version in DEV stage. Triggers asynchronous re-distribution of the updated version to spoke accounts and emits a ProductVersionUpdateStarted domain event.
+     * Update a draft product version
      */
     async updateProductVersion(requestParameters: UpdateProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateProductVersionRaw(requestParameters, initOverrides);
@@ -1865,7 +1907,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Validates the template for a product version
+     * Runs a security scan and structural validation against the provided CloudFormation template definition. Returns validation findings so issues can be resolved before calling POST /versions. Does not persist any data.
+     * Validate a CloudFormation template before version creation
      */
     async validateProductVersionRaw(requestParameters: ValidateProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1910,7 +1953,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Validates the template for a product version
+     * Runs a security scan and structural validation against the provided CloudFormation template definition. Returns validation findings so issues can be resolved before calling POST /versions. Does not persist any data.
+     * Validate a CloudFormation template before version creation
      */
     async validateProductVersion(requestParameters: ValidateProductVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.validateProductVersionRaw(requestParameters, initOverrides);

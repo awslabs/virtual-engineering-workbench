@@ -1,5 +1,7 @@
 from aws_cdk import aws_lambda
 
+from app.shared.api.bounded_contexts import BoundedContext
+
 PRIVATE_API_ENDPOINT = False
 LOCAL_BUNDLING = True
 
@@ -77,3 +79,45 @@ AUTH_BC_HANDLER_ROLE_PARAM_NAME = "authorizer-role-arn"
 AUTH_BC_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-authorizer-request-events-handler-role-arn"
 AUTH_BC_SCHEDULED_JOB_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-scheduled-jobs-handler-role-arn"
 CEDAR_POLICY_NAMESPACE = "VEW"
+
+# --- vew CLI API router ---
+# Path-routing layer giving the vew CLI a single endpoint in front of the per
+# bounded-context API Gateways. Only deployed when there is no custom API domain;
+# with one configured, ApiIntegrationStack already provides the unified host.
+VEW_API_ROUTER_COMPONENT_NAME = "vew-api-router"
+
+# Taken from BoundedContext rather than spelled out, so a rename cannot silently
+# stop routing a context. Deliberately a subset: AUTHORIZATION has no user-facing
+# API the CLI calls — it backs the Cedar authorizer the other contexts invoke — so
+# routing it would expose an endpoint with no caller.
+#
+# Each entry needs an SSM parameter at /<prefix>-<bc>-api-<env>/api/url, which the
+# context's own stack publishes. Adding a context here without that parameter
+# fails the router's deploy.
+VEW_API_ROUTER_BOUNDED_CONTEXTS: list[str] = [
+    BoundedContext.PROJECTS.value,
+    BoundedContext.PACKAGING.value,
+    BoundedContext.PUBLISHING.value,
+    BoundedContext.PROVISIONING.value,
+]
+
+# MCP Gateway (AgentCore-based)
+# One Amazon Bedrock AgentCore Gateway aggregates the opted-in bounded-context
+# REST APIs behind a single MCP endpoint. Callers obtain a Cognito access token
+# from the gateway's app client (auth-code + PKCE, no secret) and drive the
+# gateway from any MCP client. The client itself is created by the frontend
+# stack from its AdditionalAppClients config; register these URIs there.
+MCP_GATEWAY_OAUTH_CALLBACK_PORT = 19876
+# Cognito requires exact callback matches, so register a small port range, with
+# and without a /callback path. localhost only: Cognito, and the frontend's
+# AdditionalAppClients validation, accept plain http for localhost and no other
+# host, so a 127.0.0.1 entry fails the frontend deploy. The Claude and Kiro
+# configs this stack prints both use localhost.
+MCP_GATEWAY_OAUTH_REDIRECT_URIS = [
+    f"http://localhost:{port}{path}"
+    for port in range(MCP_GATEWAY_OAUTH_CALLBACK_PORT, MCP_GATEWAY_OAUTH_CALLBACK_PORT + 5)
+    for path in ("", "/callback")
+]
+
+MCP_AGENTCORE_COMPONENT_NAME = "mcp-gateway-agentcore"
+MCP_AGENTCORE_SPEC_BUCKET_NAME = "mcp-specs"

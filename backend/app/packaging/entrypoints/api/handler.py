@@ -534,7 +534,6 @@ def get_components_versions(
     tags=[TAG_COMPONENT_VERSIONS],
 )
 def release_component_version(
-    request: api_model.ReleaseComponentVersionRequest,
     project_id: str,
     component_id: str,
     version_id: str,

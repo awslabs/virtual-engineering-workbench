@@ -666,6 +666,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 cedar_schema=packaging_auth_schema.packaging_schema,
                 cedar_policies=packaging_auth.packaging_bc_auth_policies,
             ),
+            enable_mcp=True,
         )
 
         cognito_user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(

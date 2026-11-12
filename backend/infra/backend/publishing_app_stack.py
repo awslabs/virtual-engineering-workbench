@@ -546,6 +546,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 cedar_schema=publishing_auth_schema.publishing_schema,
                 cedar_policies=publishing_auth.publishing_bc_auth_policies,
             ),
+            enable_mcp=True,
         )
 
         # Ami sharing step function
