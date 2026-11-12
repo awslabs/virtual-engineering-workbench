@@ -52,7 +52,7 @@ def test_never_includes_the_stack_trace():
     )
     reason = step_error.summarize({"Error": "ValueError", "Cause": cause})
     assertpy.assert_that(reason).does_not_contain("/var/task")
-    assertpy.assert_that(reason).does_not_contain("File \"")
+    assertpy.assert_that(reason).does_not_contain('File "')
     assertpy.assert_that(reason).does_not_contain("trace")
 
 

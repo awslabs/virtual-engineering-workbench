@@ -102,6 +102,11 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
         try:
             response = self.__get_ec2_client(region).describe_images(
                 Owners=[MARKETPLACE_OWNER],
+                # describe_images hides deprecated images by default, so a
+                # subscription whose AMIs are all past their deprecation date
+                # looked like a subscription with no AMI at all. Include them and
+                # let the caller prefer a supported one.
+                IncludeDeprecated=True,
                 Filters=[
                     {"Name": "product-code", "Values": [product_code]},
                     {"Name": "state", "Values": [AMI_STATE_AVAILABLE]},
@@ -118,6 +123,8 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
         try:
             response = self.__get_ec2_client(region).describe_images(
                 Owners=[MARKETPLACE_OWNER],
+                # See the note in list_marketplace_amis_by_product_code.
+                IncludeDeprecated=True,
                 Filters=[
                     {"Name": "name", "Values": [f"*{product_id}*"]},
                     {"Name": "state", "Values": [AMI_STATE_AVAILABLE]},
@@ -142,7 +149,14 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
             # whichever arrived last. CreationDate is ISO 8601 and sorts
             # lexicographically; an AMI without one loses to any AMI that has one,
             # and amiId breaks a tie so the result is stable across runs.
-            newest = max(amis, key=lambda ami: (ami.creationDate or "", ami.amiId), default=None)
+            #
+            # Deprecated images are now included in the listing, so prefer a
+            # supported one and fall back to the newest deprecated image only when
+            # every image in the region is deprecated - otherwise adding
+            # IncludeDeprecated would have started handing out deprecated AMIs.
+            supported = [ami for ami in amis if not ami.deprecated]
+            candidates = supported or amis
+            newest = max(candidates, key=lambda ami: (ami.creationDate or "", ami.amiId), default=None)
             if newest:
                 result[region] = newest.amiId
         return result
@@ -199,4 +213,5 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
             description=img.get("Description"),
             region=region,
             creationDate=img.get("CreationDate"),
+            deprecationTime=img.get("DeprecationTime"),
         )

@@ -123,8 +123,26 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         return index
 
     def _lookup_hub_ami_by_product_id(self, product_id: str, hub_region: str) -> MarketplaceAmi | None:
+        """The AMI to import for a product, in the hub region.
+
+        describe_images returns images in no defined order, so amis[0] picked an
+        arbitrary one - and now that deprecated images are included, that could be a
+        deprecated AMI while a supported one existed. Prefer the newest supported
+        image, and only fall back to the newest deprecated one when every image is
+        deprecated, so an older subscription still resolves to something.
+        """
         amis = self._ami_service.list_marketplace_amis_by_product_id(product_id, hub_region)
-        return amis[0] if amis else None
+        if not amis:
+            return None
+
+        def newest(candidates: list[MarketplaceAmi]) -> MarketplaceAmi:
+            # CreationDate is ISO 8601 and sorts lexicographically; an image without
+            # one loses to any image that has one, and amiId breaks a tie so the
+            # result is stable across runs.
+            return max(candidates, key=lambda ami: (ami.creationDate or "", ami.amiId))
+
+        supported = [ami for ami in amis if not ami.deprecated]
+        return newest(supported) if supported else newest(amis)
 
     def _get_imported_product_codes(self, project_id: project_id_value_object.ProjectIdValueObject) -> set[str]:
         return {

@@ -2253,6 +2253,7 @@ def get_test_marketplace_ami():
         region="us-east-1",
         name="Test AMI",
         creation_date="2026-01-01T00:00:00.000Z",
+        deprecation_time=None,
     ):
         return MarketplaceAmi(
             amiId=ami_id,
@@ -2264,6 +2265,7 @@ def get_test_marketplace_ami():
             description=None,
             region=region,
             creationDate=creation_date,
+            deprecationTime=deprecation_time,
         )
 
     return _get_test_marketplace_ami

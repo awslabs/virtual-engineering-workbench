@@ -259,7 +259,7 @@ class GlobalVariables(Enum):
     TEST_LICENSE_ISSUER = "Acme Corp"
     TEST_IMAGE_SERVICE_ROLE = "arn:aws:iam::123456789012:role/PackagingImageServiceRole"
     TEST_IMAGE_OWNER_ID = "123456789012"
-    TEST_ORG_MASTER_ACCOUNT_ID = "555555555555"
+    TEST_ORG_MANAGEMENT_ACCOUNT_ID = "555555555555"
     TEST_ORG_ID = "o-testorgid01"
     TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:555555555555:resource-share/abcd-1234"
 
@@ -1710,13 +1710,13 @@ def mock_describe_organization_response():
     return {
         "Organization": {
             "Id": GlobalVariables.TEST_ORG_ID.value,
-            "MasterAccountId": GlobalVariables.TEST_ORG_MASTER_ACCOUNT_ID.value,
+            "MasterAccountId": GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value,
             "FeatureSet": "ALL",
             "MasterAccountEmail": "master@example.com",
-            "Arn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MASTER_ACCOUNT_ID.value}:"
+            "Arn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}:"
             f"organization/{GlobalVariables.TEST_ORG_ID.value}",
-            "MasterAccountArn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MASTER_ACCOUNT_ID.value}:"
-            f"account/{GlobalVariables.TEST_ORG_ID.value}/{GlobalVariables.TEST_ORG_MASTER_ACCOUNT_ID.value}",
+            "MasterAccountArn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}:"
+            f"account/{GlobalVariables.TEST_ORG_ID.value}/{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}",
         }
     }
 
@@ -1728,7 +1728,7 @@ def mock_get_resource_shares_response():
             {
                 "resourceShareArn": GlobalVariables.TEST_LM_RESOURCE_SHARE_ARN.value,
                 "name": "licenseManagerResourceShare-1776697720243",
-                "owningAccountId": GlobalVariables.TEST_ORG_MASTER_ACCOUNT_ID.value,
+                "owningAccountId": GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value,
                 "status": "ACTIVE",
             }
         ]

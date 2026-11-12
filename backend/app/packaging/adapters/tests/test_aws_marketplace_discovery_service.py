@@ -71,6 +71,9 @@ def test_should_list_marketplace_amis_by_product_code(mock_moto_calls, get_marke
     region = "us-east-1"
     expected_kwargs = {
         "Owners": ["aws-marketplace"],
+        # Deprecated images must be listed, or a subscription whose AMIs are all
+        # past their deprecation date looks like one with no AMI at all.
+        "IncludeDeprecated": True,
         "Filters": [
             {"Name": "product-code", "Values": [product_code]},
             {"Name": "state", "Values": ["available"]},

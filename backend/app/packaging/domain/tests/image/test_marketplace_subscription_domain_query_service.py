@@ -365,3 +365,125 @@ def test_discover_should_not_check_updates_for_non_imported_subscriptions(
     assertpy.assert_that(result[0].newerVersionAvailable).is_false()
     # list_marketplace_amis_by_product_code should NOT be called when product is not imported
     mock_marketplace_ami_service.list_marketplace_amis_by_product_code.assert_not_called()
+
+
+def test_hub_ami_lookup_prefers_a_supported_ami_over_a_newer_deprecated_one(
+    get_test_marketplace_ami,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    """describe_images now returns deprecated images too, so picking amis[0] - or even
+    the newest - could hand back a deprecated AMI while a supported one existed."""
+    # ARRANGE
+    service = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
+        get_test_marketplace_ami(
+            ami_id="ami-deprecated-newer",
+            creation_date="2026-06-01T00:00:00.000Z",
+            deprecation_time="2026-07-01T00:00:00.000Z",
+        ),
+        get_test_marketplace_ami(ami_id="ami-supported-older", creation_date="2026-01-01T00:00:00.000Z"),
+    ]
+
+    # ACT
+    result = service._lookup_hub_ami_by_product_id("prod-1", "us-east-1")
+
+    # ASSERT
+    assertpy.assert_that(result.amiId).is_equal_to("ami-supported-older")
+
+
+def test_hub_ami_lookup_takes_the_newest_supported_ami(
+    get_test_marketplace_ami,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE
+    service = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
+        get_test_marketplace_ami(ami_id="ami-old", creation_date="2026-01-01T00:00:00.000Z"),
+        get_test_marketplace_ami(ami_id="ami-new", creation_date="2026-05-01T00:00:00.000Z"),
+    ]
+
+    # ACT
+    result = service._lookup_hub_ami_by_product_id("prod-1", "us-east-1")
+
+    # ASSERT
+    assertpy.assert_that(result.amiId).is_equal_to("ami-new")
+
+
+def test_hub_ami_lookup_falls_back_to_the_newest_deprecated_ami(
+    get_test_marketplace_ami,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    """When every image is deprecated, an older subscription must still resolve to
+    something rather than reporting no AMI."""
+    # ARRANGE
+    service = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
+        get_test_marketplace_ami(
+            ami_id="ami-dep-old",
+            creation_date="2026-01-01T00:00:00.000Z",
+            deprecation_time="2026-02-01T00:00:00.000Z",
+        ),
+        get_test_marketplace_ami(
+            ami_id="ami-dep-new",
+            creation_date="2026-04-01T00:00:00.000Z",
+            deprecation_time="2026-05-01T00:00:00.000Z",
+        ),
+    ]
+
+    # ACT
+    result = service._lookup_hub_ami_by_product_id("prod-1", "us-east-1")
+
+    # ASSERT
+    assertpy.assert_that(result.amiId).is_equal_to("ami-dep-new")
+    assertpy.assert_that(result.deprecated).is_true()
+
+
+def test_hub_ami_lookup_returns_none_without_any_ami(
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE
+    service = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = []
+
+    # ACT / ASSERT
+    assertpy.assert_that(service._lookup_hub_ami_by_product_id("prod-1", "us-east-1")).is_none()

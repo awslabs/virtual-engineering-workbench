@@ -54,19 +54,31 @@ class AwsOrgIntegrationService(OrgIntegrationService):
         self_account_id = self.__resolve_account_id()
         try:
             org = self.__get_organizations_client().describe_organization()
-            master_id = org["Organization"]["MasterAccountId"]
+            management_account_id = org["Organization"]["MasterAccountId"]
         except ClientError as e:
             raise adapter_exception.AdapterException(f"Failed to describe organization: {e}")
 
-        scope = "SELF" if self_account_id == master_id else "OTHER-ACCOUNTS"
+        scope = "SELF" if self_account_id == management_account_id else "OTHER-ACCOUNTS"
+        # get_resource_shares is paginated. Reading one page meant the License
+        # Manager share could sit on a later page and the integration looked absent,
+        # which blocks an import that should have been allowed.
+        shares: list[dict] = []
+        next_token: str | None = None
         try:
-            response = self.__get_ram_client().get_resource_shares(resourceOwner=scope)
+            client = self.__get_ram_client()
+            while True:
+                kwargs = {"nextToken": next_token} if next_token else {}
+                response = client.get_resource_shares(resourceOwner=scope, **kwargs)
+                shares.extend(response.get("resourceShares", []))
+                next_token = response.get("nextToken")
+                if not next_token:
+                    break
         except ClientError as e:
             raise adapter_exception.AdapterException(f"Failed to list RAM resource shares: {e}")
 
         return any(
-            s.get("owningAccountId") == master_id
+            s.get("owningAccountId") == management_account_id
             and s.get("status") == "ACTIVE"
             and (s.get("name") or "").startswith(LM_RESOURCE_SHARE_NAME_PREFIX)
-            for s in response.get("resourceShares", [])
+            for s in shares
         )
