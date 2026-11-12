@@ -229,7 +229,10 @@ class AmiSharingStateMachine(constructs.Construct):
                     "productId.$": "$.productId",
                     "versionId.$": "$.versionId",
                     "awsAccountId.$": "$.awsAccountId",
-                    "imageId.$": "$.decideActionResponse.imageId",
+                    # The registered AMI, not the regional one: the grant is recorded
+                    # against the image the project imported, and that is what
+                    # create_license_grant looks up to authorize the request.
+                    "imageId.$": "$.decideActionResponse.originalAmiId",
                     "grantName.$": "$.decideActionResponse.grantName",
                     "projectId.$": "$.decideActionResponse.projectId",
                 }

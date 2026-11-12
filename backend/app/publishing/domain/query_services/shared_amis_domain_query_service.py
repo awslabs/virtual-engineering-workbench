@@ -103,8 +103,15 @@ class SharedAMIsDomainQueryService:
         return ShareAmiDecisionResult(
             decision=decision,
             region=spoke_region,
-            original_ami_id=regional_ami_id,
+            # The grant is recorded against the REGISTERED AMI - the image the
+            # project imported, which is what the publishing AMIs table is keyed by
+            # and what create_license_grant authorizes against. Passing the regional
+            # id here made that lookup miss, so every Marketplace grant would be
+            # rejected as "not part of project".
+            original_ami_id=version_entity.originalAmiId,
             copied_ami_id=None,
+            # The regional image is the one the spoke launches, so the launch
+            # permission check and the recorded copiedAmiId use it.
             image_id=regional_ami_id,
             project_id=getattr(version_entity, "projectId", None),
             license_arn=license_arn,

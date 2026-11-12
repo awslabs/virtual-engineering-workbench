@@ -198,3 +198,98 @@ def test_verify_copy_raises_exception_when_status_invalid(image_svc_mock, shared
             region_value_object.RegionValueObject("eu-west-3"),
             ami_id_value_object.AmiIdValueObject("copy-12345"),
         )
+
+
+def _marketplace_version(region: str, ownership: str, regional_ami_ids: dict | None = None):
+    """A version imported from a Marketplace subscription, whose product publishes a
+    different AMI id per region."""
+    from app.publishing.domain.model.marketplace_metadata import MarketplaceMetadata
+
+    entity = _version(region)
+    entity.imageSource = "MARKETPLACE_PRODUCT"
+    entity.marketplaceMetadata = MarketplaceMetadata(
+        productCode="pc-1",
+        subscriptionOwnership=ownership,
+        regionalAmiIds=regional_ami_ids if regional_ami_ids is not None else {region: "ami-regional-euwest1"},
+        licenseConfigurationArn="arn:aws:license-manager:us-east-1:111111111111:license:l-1",
+        homeRegion="us-east-1",
+    )
+    return entity
+
+
+@pytest.mark.parametrize(
+    "ownership,expected_decision",
+    [
+        ("VEW_MANAGED", shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant),
+        ("EXTERNALLY_MANAGED", shared_amis_domain_query_service.ShareAmiDecision.VerifyExternalGrant),
+    ],
+)
+def test_marketplace_decision_separates_the_registered_and_regional_ami(
+    ownership,
+    expected_decision,
+    image_svc_mock,
+    shared_amis_qry_svc_mock,
+    mock_unit_of_work,
+    mock_version_repo,
+):
+    """Two different AMI ids with two different jobs.
+
+    original_ami_id must be the REGISTERED image, because that is what the publishing
+    AMIs table is keyed by and what create_license_grant authorizes against - passing
+    the regional id made that lookup miss and rejected every Marketplace grant.
+    image_id must be the REGIONAL image, because that is the one the spoke launches
+    and the one the launch-permission check asks about.
+    """
+    # ARRANGE
+    mock_version_repo.get.return_value = _marketplace_version("eu-west-1", ownership)
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+    )
+
+    # ACT
+    result = domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(expected_decision)
+    assertpy.assert_that(result.original_ami_id).is_equal_to("ami-023c04780e65e723c")
+    assertpy.assert_that(result.image_id).is_equal_to("ami-regional-euwest1")
+
+
+def test_marketplace_decision_falls_back_to_the_registered_ami_for_an_unlisted_region(
+    image_svc_mock,
+    shared_amis_qry_svc_mock,
+    mock_unit_of_work,
+    mock_version_repo,
+):
+    """When the product lists no AMI for the spoke's region there is nothing regional to
+    launch, so both ids are the registered image."""
+    # ARRANGE
+    mock_version_repo.get.return_value = _marketplace_version(
+        "eu-west-1", "VEW_MANAGED", regional_ami_ids={"us-east-1": "ami-regional-useast1"}
+    )
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+    )
+
+    # ACT
+    result = domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+    # ASSERT
+    assertpy.assert_that(result.original_ami_id).is_equal_to("ami-023c04780e65e723c")
+    assertpy.assert_that(result.image_id).is_equal_to("ami-023c04780e65e723c")
