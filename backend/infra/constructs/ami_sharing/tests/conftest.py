@@ -48,7 +48,7 @@ def mocked_test_event():
             "id": "a0fd2d09-02c3-1696-1cee-406e4cc14c86",
             "detail-type": "ProductVersionCreationStarted",
             "source": "proserve.workbench.publishing.dev",
-            "account": "201223934255",
+            "account": "111111111111",
             "time": "2023-08-01T14:18:48Z",
             "region": "us-east-1",
             "resources": [],
@@ -56,7 +56,7 @@ def mocked_test_event():
                 "eventName": "ProductVersionCreationStarted",
                 "productId": "prod-dt3ycosm",
                 "versionId": "vers-1vbc9box",
-                "awsAccountId": "105249321508",
+                "awsAccountId": "222222222222",
                 "productType": product_type,
             },
         }
