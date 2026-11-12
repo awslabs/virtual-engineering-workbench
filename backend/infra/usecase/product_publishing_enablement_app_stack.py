@@ -668,21 +668,33 @@ class ProductPublishingEnablementAppStack(Stack):
                         f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group-rule/*",
                     ],
                 ),
-                # CreateSecurityGroup needs security-group/* + vpc/*, and may only
-                # create a group that names the caller as its owner.
+                # CreateSecurityGroup authorizes against security-group/* AND vpc/*,
+                # and may only create a group that names the caller as its owner.
                 # create_user_security_group always passes that tag, so the condition
                 # does not change the supported path; it stops this role creating a
                 # group attributed to somebody else.
+                #
+                # The two resources need separate statements: aws:RequestTag is a
+                # condition key of the security-group resource only. The vpc resource
+                # (an existing VPC, not one being created) has no request tags, so
+                # the same condition on vpc/* never matches and every create is
+                # denied. This is the split AWS's own VPC example policies use.
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW,
                     actions=["ec2:CreateSecurityGroup"],
                     resources=[
                         f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:security-group/*",
-                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:vpc/*",
                     ],
                     conditions={
                         "StringEquals": {"aws:RequestTag/vew:securityGroup:ownerId": "${aws:PrincipalTag/UserId}"},
                     },
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ec2:CreateSecurityGroup"],
+                    resources=[
+                        f"arn:{Aws.PARTITION}:ec2:*:{Aws.ACCOUNT_ID}:vpc/*",
+                    ],
                 ),
                 # Tag-on-create only. Both create_security_group and
                 # authorize_security_group_ingress pass TagSpecifications
