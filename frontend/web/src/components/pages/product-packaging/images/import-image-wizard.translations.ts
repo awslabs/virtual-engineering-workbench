@@ -83,6 +83,12 @@ export const i18n = {
   // Messages
   importSuccess: (imageId: string) => `Image imported successfully: ${imageId}`,
   importFailed: 'Import failed',
+  badgeDeprecated: 'Deprecated',
+  deprecatedAmiAlert:
+    'The newest AMI this subscription publishes is deprecated. '
+    + 'You can still import it, but the vendor no longer supports it '
+    + 'and new instances may stop being launchable. '
+    + 'Check whether the vendor has published a replacement product.',
   loadSubscriptionsFailed: 'Failed to load marketplace subscriptions.',
 
   // Cancel prompt

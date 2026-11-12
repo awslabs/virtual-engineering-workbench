@@ -87,7 +87,12 @@ export const ImportImageStepAmi: FC<Props> = ({
             {
               id: 'productName',
               header: i18n.columnProductName,
-              cell: (item) => item.productName,
+              cell: (item) => (
+                <SpaceBetween direction="horizontal" size="xs">
+                  <span>{item.productName}</span>
+                  {item.deprecated && <Badge color="red">{i18n.badgeDeprecated}</Badge>}
+                </SpaceBetween>
+              ),
             },
             {
               id: 'subscriptionOwnership',
@@ -116,6 +121,11 @@ export const ImportImageStepAmi: FC<Props> = ({
         {selectedSubscription?.subscriptionOwnership === 'EXTERNALLY_MANAGED' &&
           <Alert type="warning" data-test="externally-managed-alert">
             {i18n.externallyManagedAlert}
+          </Alert>
+        }
+        {selectedSubscription?.deprecated &&
+          <Alert type="warning" data-test="deprecated-ami-alert">
+            {i18n.deprecatedAmiAlert}
           </Alert>
         }
       </SpaceBetween>

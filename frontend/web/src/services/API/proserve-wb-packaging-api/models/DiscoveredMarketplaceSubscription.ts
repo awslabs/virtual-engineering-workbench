@@ -85,6 +85,18 @@ export interface DiscoveredMarketplaceSubscription {
      * @memberof DiscoveredMarketplaceSubscription
      */
     latestAmiCreationDate?: string;
+    /**
+     * True when the AMI this subscription would import is past its deprecation date
+     * @type {boolean}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    deprecated?: boolean;
+    /**
+     * When the AMI this subscription would import was deprecated, if it was
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    deprecationTime?: string;
 }
 
 /**
@@ -117,6 +129,8 @@ export function DiscoveredMarketplaceSubscriptionFromJSONTyped(json: any, ignore
         'newerVersionAvailable': !exists(json, 'newerVersionAvailable') ? undefined : json['newerVersionAvailable'],
         'latestAmiId': !exists(json, 'latestAmiId') ? undefined : json['latestAmiId'],
         'latestAmiCreationDate': !exists(json, 'latestAmiCreationDate') ? undefined : json['latestAmiCreationDate'],
+        'deprecated': !exists(json, 'deprecated') ? undefined : json['deprecated'],
+        'deprecationTime': !exists(json, 'deprecationTime') ? undefined : json['deprecationTime'],
     };
 }
 
@@ -140,5 +154,7 @@ export function DiscoveredMarketplaceSubscriptionToJSON(value?: DiscoveredMarket
         'newerVersionAvailable': value.newerVersionAvailable,
         'latestAmiId': value.latestAmiId,
         'latestAmiCreationDate': value.latestAmiCreationDate,
+        'deprecated': value.deprecated,
+        'deprecationTime': value.deprecationTime,
     };
 }

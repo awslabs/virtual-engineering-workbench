@@ -193,4 +193,8 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             newerVersionAvailable=newer_version_available,
             latestAmiId=latest_ami_id,
             latestAmiCreationDate=latest_ami_creation_date,
+            # Taken from the AMI the lookup settled on, which is only a deprecated
+            # image when the product publishes no supported one.
+            deprecated=hub_ami.deprecated,
+            deprecationTime=hub_ami.deprecationTime,
         )

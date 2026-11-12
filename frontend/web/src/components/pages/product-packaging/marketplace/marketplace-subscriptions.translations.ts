@@ -17,6 +17,7 @@ export const i18n = {
   statusImported: 'Imported',
   statusAvailable: 'Available',
   statusUpdateAvailable: 'Update available',
+  badgeDeprecated: 'Deprecated',
   importButton: 'Import',
   viewInConsole: 'View in AWS Console',
   header: 'Marketplace Subscriptions',

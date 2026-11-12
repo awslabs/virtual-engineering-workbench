@@ -741,6 +741,8 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     newerVersionAvailable: Optional[bool] = Field(None, title="NewerVersionAvailable")
     latestAmiId: Optional[str] = Field(None, title="LatestAmiId")
     latestAmiCreationDate: Optional[str] = Field(None, title="LatestAmiCreationDate")
+    deprecated: Optional[bool] = Field(None, title="Deprecated")
+    deprecationTime: Optional[str] = Field(None, title="DeprecationTime")
 
 
 class ImportableAmi(BaseModel):

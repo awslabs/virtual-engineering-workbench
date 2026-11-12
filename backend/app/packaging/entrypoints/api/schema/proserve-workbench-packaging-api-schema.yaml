@@ -4776,6 +4776,14 @@ components:
         latestAmiCreationDate:
           title: LatestAmiCreationDate
           type: string
+        deprecated:
+          title: Deprecated
+          type: boolean
+          description: True when the AMI this subscription would import is past its deprecation date
+        deprecationTime:
+          title: DeprecationTime
+          type: string
+          description: When the AMI this subscription would import was deprecated, if it was
     ListImportableAmisResponse:
       title: ListImportableAmisResponse
       type: object

@@ -13,5 +13,9 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     subscriptionOwnership: str = Field(..., title="SubscriptionOwnership")
     alreadyImported: bool = Field(..., title="AlreadyImported")
     newerVersionAvailable: bool = Field(False, title="NewerVersionAvailable")
+    # True when the AMI this subscription would import is past its deprecation
+    # date, which happens when the product publishes no supported image.
+    deprecated: bool = Field(False, title="Deprecated")
+    deprecationTime: Optional[str] = Field(None, title="DeprecationTime")
     latestAmiId: Optional[str] = Field(None, title="LatestAmiId")
     latestAmiCreationDate: Optional[str] = Field(None, title="LatestAmiCreationDate")
