@@ -50,6 +50,13 @@
                     "DecideActionLambda": "MockedDecideActionLambdaVerifyExternalGrant",
                     "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaNotFound",
                     "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "LaunchPermissionDeniedPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaLicenseGrant",
+                    "CreateLicenseGrantLambda": "MockedCreateLicenseGrantLambda",
+                    "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambdaNotAccessible"
                 }
             }
         }
@@ -111,7 +118,12 @@
                         "decision": "LICENSE_GRANT",
                         "originalAmiId": "ami-12345",
                         "copiedAmiId": null,
-                        "region": "eu-west-3"
+                        "region": "eu-west-3",
+                        "imageId": "ami-regional-67890",
+                        "projectId": "proj-12345",
+                        "licenseArn": "arn:aws:license-manager:eu-west-3:111111111111:license:l-12345",
+                        "homeRegion": "eu-west-3",
+                        "grantName": "VEW-prod-11111111-222222222222"
                     }
                 }
             }
@@ -124,7 +136,12 @@
                         "decision": "VERIFY_EXTERNAL_GRANT",
                         "originalAmiId": "ami-12345",
                         "copiedAmiId": null,
-                        "region": "eu-west-3"
+                        "region": "eu-west-3",
+                        "imageId": "ami-regional-67890",
+                        "projectId": "proj-12345",
+                        "licenseArn": "arn:aws:license-manager:eu-west-3:111111111111:license:l-12345",
+                        "homeRegion": "eu-west-3",
+                        "grantName": "VEW-prod-11111111-222222222222"
                     }
                 }
             }
@@ -172,7 +189,9 @@
                 "Return": {
                     "Payload": {
                         "eventType": "CreateLicenseGrantResponse",
-                        "grantArn": "arn:aws:license-manager::123456789012:grant/g-12345"
+                        "grantArn": "arn:aws:license-manager::123456789012:grant/g-12345",
+                        "grantId": "lg-12345",
+                        "homeRegion": "eu-west-3"
                     }
                 }
             }
@@ -191,7 +210,7 @@
                 "Return": {
                     "Payload": {
                         "eventType": "VerifyLicenseGrantResponse",
-                        "launchPermissionVerified": true
+                        "isAccessible": true
                     }
                 }
             }
@@ -213,6 +232,16 @@
                     "Payload": {
                         "eventType": "VerifyExternalGrantResponse",
                         "grantVerified": false
+                    }
+                }
+            }
+        },
+        "MockedVerifyLaunchPermissionLambdaNotAccessible": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "VerifyLicenseGrantResponse",
+                        "isAccessible": false
                     }
                 }
             }

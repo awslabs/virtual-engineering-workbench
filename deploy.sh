@@ -1223,6 +1223,48 @@ log "Deploying backend CDK stacks"
 deactivate
 
 # ---------------------------------------------------------------------------
+# Phase 7c: Report the License Manager Organizations integration
+# ---------------------------------------------------------------------------
+# Importing a Marketplace AMI needs License Manager's Organizations integration
+# enabled in the hub account, and enabling it is a console action an AWS admin
+# performs once (see docs/marketplace-integration.md). It cannot be done from
+# here, and it takes around 30 minutes to become effective, so this reports the
+# state rather than changing anything. Read-only and never fatal: a deploy that
+# does not use Marketplace images is unaffected.
+step "7c" "Checking the License Manager Organizations integration (read-only)"
+
+LM_ORG_INTEGRATION=$(aws license-manager get-service-settings \
+  --region "$AWS_REGION" \
+  --query 'OrganizationConfiguration.EnableIntegration' \
+  --output text 2>/dev/null || echo "unknown")
+
+ORG_MANAGEMENT_ACCOUNT=$(aws organizations describe-organization \
+  --query 'Organization.MasterAccountId' --output text 2>/dev/null || echo "unknown")
+
+case "$LM_ORG_INTEGRATION" in
+  True|true)
+    log "License Manager Organizations integration: enabled"
+    ;;
+  False|false)
+    warn "License Manager Organizations integration: DISABLED"
+    warn "Importing an AWS Marketplace AMI will not be able to distribute licence"
+    warn "grants to spoke accounts until an admin enables it in the hub account."
+    warn "See docs/marketplace-integration.md. Allow ~30 minutes to take effect."
+    ;;
+  *)
+    if [ "$ORG_MANAGEMENT_ACCOUNT" = "unknown" ]; then
+      log "License Manager Organizations integration: not determined (no Organizations access)"
+    elif [ "$ORG_MANAGEMENT_ACCOUNT" != "$AWS_ACCOUNT_ID" ]; then
+      log "License Manager Organizations integration: not determined - this is not the"
+      log "organization's management account ($ORG_MANAGEMENT_ACCOUNT), which is where"
+      log "the setting lives."
+    else
+      log "License Manager Organizations integration: not determined"
+    fi
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
 # Phase 8: Build and deploy frontend web application
 # ---------------------------------------------------------------------------
 if [ "$DIFF_MODE" = "true" ]; then

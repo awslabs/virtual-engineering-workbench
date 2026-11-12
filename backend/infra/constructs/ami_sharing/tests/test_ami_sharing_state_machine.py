@@ -108,3 +108,23 @@ def test_ami_sharing_verify_external_grant_not_found_path(start_execution, wait_
 
     # ASSERT
     assertpy.assert_that(status).is_equal_to("FAILED")
+
+
+def test_ami_sharing_launch_permission_denied_path(start_execution, wait_for_execution, mocked_test_event):
+    """A spoke that cannot launch the regional Marketplace AMI must fail, not succeed.
+
+    Before VerifyLaunchPermissionChoice existed, both Marketplace paths ran straight
+    from VerifyLaunchPermission to SucceedAmiSharing, so isAccessible=false was
+    recorded as a successful share.
+    """
+    # ARRANGE
+
+    # ACT
+    execution_arn = start_execution(test_name="LaunchPermissionDeniedPath", test_event=mocked_test_event())
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("FAILED")
+    entered = [event["stateEnteredEventDetails"]["name"] for event in history if event.get("stateEnteredEventDetails")]
+    assertpy.assert_that(entered).contains("FailAmiSharingLambda")
+    assertpy.assert_that(entered).does_not_contain("SucceedAmiSharingLambda")
