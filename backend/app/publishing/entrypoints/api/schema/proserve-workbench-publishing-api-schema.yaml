@@ -1790,7 +1790,8 @@ paths:
         credentials: "{{apigw_invocation_role_arn}}"
   /projects/{projectId}/images/{imageId}/license-grants:
     post:
-      description: Creates a License Manager grant for a spoke account to access a marketplace AMI
+      description: >-
+        Creates an AWS License Manager grant that lets one active account of this project launch a Marketplace AMI the project imported. The grant must then be accepted in that account.
       operationId: CreateLicenseGrant
       parameters:
         - name: Authorization
@@ -1800,11 +1801,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: imageId
           in: path
+          description: ID of the Marketplace AMI the grant is for, for example ami-0123456789abcdef0.
           required: true
           schema:
             type: string
@@ -1890,9 +1893,11 @@ components:
       properties:
         targetAccountId:
           title: TargetAccountId
+          description: 12-digit AWS account ID that receives the grant; must be active in the project.
           type: string
         grantName:
           title: GrantName
+          description: Name for the License Manager grant.
           type: string
     CreateLicenseGrantResponse:
       title: CreateLicenseGrantResponse

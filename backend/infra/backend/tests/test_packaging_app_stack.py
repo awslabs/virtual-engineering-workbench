@@ -74,9 +74,9 @@ def test_domain_event_handler_keeps_the_build_logs_bucket(template):
     assert variables["BUILD_LOGS_S3_BUCKET_NAME"]
 
 
-def test_stack_grants_no_marketplace_or_license_manager_permissions(template):
-    """Packaging has no marketplace or licence-manager client code. Granting those actions
-    here would be privilege the stack cannot use."""
+def test_stack_grants_only_the_marketplace_and_license_manager_actions_packaging_calls(template):
+    """Marketplace discovery calls SearchAgreements and ListReceivedLicenses, and the import
+    check reads GetServiceSettings. Anything more is privilege the stack cannot use."""
     policies = template.find_resources("AWS::IAM::Policy")
     actions = []
     for policy in policies.values():
@@ -84,8 +84,11 @@ def test_stack_grants_no_marketplace_or_license_manager_permissions(template):
             action = statement.get("Action")
             actions.extend(action if isinstance(action, list) else [action])
     granted = {a for a in actions if isinstance(a, str)}
-    assert not {a for a in granted if a.startswith("aws-marketplace:")}
-    assert not {a for a in granted if a.startswith("license-manager:")}
+    assert {a for a in granted if a.startswith("aws-marketplace:")} == {"aws-marketplace:SearchAgreements"}
+    assert {a for a in granted if a.startswith("license-manager:")} == {
+        "license-manager:ListReceivedLicenses",
+        "license-manager:GetServiceSettings",
+    }
 
 
 def test_stack_declares_no_scheduled_jobs_entrypoint(template):

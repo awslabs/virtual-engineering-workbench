@@ -3129,7 +3129,8 @@ paths:
         passthroughBehavior: when_no_match
   /projects/{projectId}/importable-amis:
     get:
-      description: Lists AMIs from the Image Service account that can be imported
+      description: >-
+        Lists the AMIs in the Image Service account that this project can import as images, with their platform, architecture and creation date. Use it to pick an amiId for ImportImage.
       operationId: ListImportableAmis
       parameters:
         - name: Authorization
@@ -3139,6 +3140,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -3204,7 +3206,8 @@ paths:
         passthroughBehavior: when_no_match
   /projects/{projectId}/images/import:
     post:
-      description: Imports an existing or marketplace AMI into VEW
+      description: >-
+        Imports an existing AMI, or an AMI from one of the hub's AWS Marketplace subscriptions, into this project as an image. The AMI is validated server-side; an AMI can be imported into one project only.
       operationId: ImportImage
       parameters:
         - name: Authorization
@@ -3214,6 +3217,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -3282,7 +3286,8 @@ paths:
         passthroughBehavior: when_no_match
   /projects/{projectId}/marketplace/subscriptions:
     get:
-      description: Discovers active Marketplace subscriptions in the hub account
+      description: >-
+        Lists the AWS Marketplace subscriptions active in the hub account that can be imported as images, with each product's AMI per region and whether it is deprecated.
       operationId: DiscoverMarketplaceSubscriptions
       parameters:
         - name: Authorization
@@ -3292,6 +3297,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -4977,29 +4983,37 @@ components:
       properties:
         imageSource:
           title: ImageSource
+          description: Where the AMI comes from - EXISTING_AMI or MARKETPLACE_PRODUCT.
           type: string
         amiId:
           title: AmiId
+          description: ID of the AMI to import, for example ami-0123456789abcdef0.
           type: string
         imageName:
           title: ImageName
+          description: Display name for the imported image.
           type: string
         imageDescription:
           title: ImageDescription
+          description: Optional description of the image, at most 500 characters.
           type: string
         platform:
           title: Platform
+          description: Operating system platform of the AMI - Linux or Windows.
           type: string
         osVersion:
           title: OsVersion
+          description: Operating system version of the AMI, for example Ubuntu 24.
           type: string
         componentVersionDetails:
           title: ComponentVersionDetails
+          description: Software installed on the AMI; at least one entry is required.
           type: array
           items:
             $ref: "#/components/schemas/ComponentVersionDetailInput"
         marketplaceMetadata:
           title: MarketplaceMetadata
+          description: Marketplace subscription to validate; required for MARKETPLACE_PRODUCT.
           $ref: "#/components/schemas/MarketplaceMetadataInput"
     ImportImageResponse:
       title: ImportImageResponse
@@ -5041,18 +5055,23 @@ components:
       properties:
         softwareVendor:
           title: SoftwareVendor
+          description: Vendor of the installed software.
           type: string
         softwareName:
           title: SoftwareName
+          description: Name of the installed software.
           type: string
         softwareVersion:
           title: SoftwareVersion
+          description: Version of the installed software.
           type: string
         licenseDashboardUrl:
           title: LicenseDashboardUrl
+          description: URL of the software's license dashboard, if any.
           type: string
         notes:
           title: Notes
+          description: Free-text notes about the installed software.
           type: string
     MarketplaceMetadataInput:
       title: MarketplaceMetadataInput
@@ -5063,6 +5082,7 @@ components:
       properties:
         productCode:
           title: ProductCode
+          description: Marketplace product code of the subscription the AMI belongs to.
           type: string
     DiscoveredMarketplaceSubscription:
       title: DiscoveredMarketplaceSubscription

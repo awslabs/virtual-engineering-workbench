@@ -307,13 +307,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
-                                actions=[
-                                    "aws-marketplace:SearchAgreements",
-                                    "aws-marketplace:DescribeAgreement",
-                                    "aws-marketplace:GetAgreementTerms",
-                                    "aws-marketplace:GetProduct",
-                                    "aws-marketplace:ListFulfillmentOptions",
-                                ],
+                                actions=["aws-marketplace:SearchAgreements"],
                                 resources=["*"],
                             )
                         ),
