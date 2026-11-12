@@ -174,6 +174,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -218,6 +219,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -251,6 +253,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -300,11 +303,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -346,11 +351,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -390,11 +397,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -436,11 +445,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -474,11 +485,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -527,11 +540,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -585,11 +600,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -623,11 +640,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -677,11 +696,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -715,11 +736,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
@@ -769,16 +792,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -820,16 +846,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -874,16 +903,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -927,16 +959,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -970,16 +1005,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -1029,16 +1067,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -1071,16 +1112,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -1129,26 +1173,31 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
         - name: testExecutionId
           in: path
+          description: Unique identifier of the component or recipe test execution.
           required: true
           schema:
             type: string
         - name: instanceId
           in: path
+          description: EC2 instance identifier associated with the test execution logs.
           required: true
           schema:
             type: string
@@ -1183,26 +1232,31 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: componentId
           in: path
+          description: Unique identifier of the software component within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
         - name: testExecutionId
           in: path
+          description: Unique identifier of the component or recipe test execution.
           required: true
           schema:
             type: string
         - name: instanceId
           in: path
+          description: EC2 instance identifier associated with the test execution logs.
           required: true
           schema:
             type: string
@@ -1255,11 +1309,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: status
           in: query
+          description: Lifecycle status used to filter the returned versions.
           required: true
           schema:
             type: array
@@ -1267,21 +1323,25 @@ paths:
               type: string
         - name: platform
           in: query
+          description: Operating-system platform used to filter component versions.
           required: true
           schema:
             type: string
         - name: os
           in: query
+          description: Operating-system version used to filter component versions.
           required: true
           schema:
             type: string
         - name: arch
           in: query
+          description: Processor architecture used to filter component versions.
           required: true
           schema:
             type: string
         - name: global
           in: query
+          description: Whether to return globally shared component versions.
           required: false
           schema:
             type: boolean
@@ -1317,6 +1377,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1369,21 +1430,25 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: mandatoryComponentsListPlatform
           in: query
+          description: Platform of the mandatory-components list to retrieve.
           required: true
           schema:
             type: string
         - name: mandatoryComponentsListOsVersion
           in: query
+          description: Operating-system version of the mandatory-components list.
           required: true
           schema:
             type: string
         - name: mandatoryComponentsListArchitecture
           in: query
+          description: Processor architecture of the mandatory-components list.
           required: true
           schema:
             type: string
@@ -1430,6 +1495,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1474,6 +1540,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1506,6 +1573,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1554,6 +1622,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1584,6 +1653,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1632,6 +1702,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1674,6 +1745,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1707,6 +1779,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1755,11 +1828,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pipelineId
           in: path
+          description: Unique identifier of the image build pipeline within the project.
           required: true
           schema:
             type: string
@@ -1801,11 +1876,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pipelineId
           in: path
+          description: Unique identifier of the image build pipeline within the project.
           required: true
           schema:
             type: string
@@ -1849,11 +1926,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pipelineId
           in: path
+          description: Unique identifier of the image build pipeline within the project.
           required: true
           schema:
             type: string
@@ -1887,11 +1966,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pipelineId
           in: path
+          description: Unique identifier of the image build pipeline within the project.
           required: true
           schema:
             type: string
@@ -1940,6 +2021,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1982,6 +2064,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -2015,6 +2098,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -2064,11 +2148,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
@@ -2110,11 +2196,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
@@ -2146,11 +2234,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
@@ -2199,11 +2289,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
@@ -2246,11 +2338,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
@@ -2284,11 +2378,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
@@ -2337,16 +2433,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2388,16 +2487,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2439,16 +2541,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2493,16 +2598,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2536,16 +2644,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2595,16 +2706,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2637,16 +2751,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
@@ -2695,21 +2812,25 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
         - name: testExecutionId
           in: path
+          description: Unique identifier of the component or recipe test execution.
           required: true
           schema:
             type: string
@@ -2743,21 +2864,25 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: path
+          description: Unique identifier of the image recipe within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the component or recipe version.
           required: true
           schema:
             type: string
         - name: testExecutionId
           in: path
+          description: Unique identifier of the component or recipe test execution.
           required: true
           schema:
             type: string
@@ -2806,11 +2931,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: status
           in: query
+          description: Lifecycle status used to filter the returned versions.
           required: true
           schema:
             type: string
@@ -2842,6 +2969,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -2891,6 +3019,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -2930,6 +3059,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -2963,6 +3093,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -3011,11 +3142,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: imageId
           in: path
+          description: Unique identifier of the image build within the project.
           required: true
           schema:
             type: string
@@ -3047,11 +3180,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: imageId
           in: path
+          description: Unique identifier of the image build within the project.
           required: true
           schema:
             type: string
@@ -3101,11 +3236,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: recipeId
           in: query
+          description: Image recipe identifier used to find compatible build types.
           required: true
           schema:
             type: string
@@ -3136,6 +3273,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -3744,7 +3882,7 @@ components:
         recipeId:
           title: RecipeId
           type: string
-          description: Recipe ID
+          description: Unique identifier of the associated recipe
         recipeName:
           title: RecipeName
           type: string

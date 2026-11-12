@@ -204,3 +204,306 @@ def test_transform_does_not_flag_excluded_operations_for_missing_id():
     spec = _spec_with({"/w": {"get": {"operationId": "g"}, "options": {}}})
     result = openapi_transform.transform(spec, "https://base")
     assert_that(result["paths"]["/w"]).does_not_contain_key("options")
+
+
+def _substantive_description(label: str) -> str:
+    return (
+        f"{label} performs a documented gateway action for a specific project and returns the "
+        "result needed by the next workflow step without requiring hidden caller context."
+    )
+
+
+def test_transform_strips_path_level_authorization_header_parameter():
+    spec = _spec_with(
+        {
+            "/w": {
+                "parameters": [
+                    {
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "get": {"operationId": "g"},
+            }
+        }
+    )
+
+    result = openapi_transform.transform(spec, "https://base")
+
+    assert result["paths"]["/w"]["parameters"] == []
+
+
+def test_transform_enriches_referenced_request_body_properties():
+    spec = _spec_with(
+        {
+            "/w": {
+                "post": {
+                    "operationId": "createWidget",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {"schema": {"$ref": "#/components/schemas/CreateWidgetRequest"}}
+                        }
+                    },
+                }
+            }
+        }
+    )
+    spec["components"] = {
+        "schemas": {
+            "CreateWidgetRequest": {
+                "type": "object",
+                "properties": {
+                    "priority": {
+                        "type": "integer",
+                        "description": "Priority from one through ten.",
+                        "minimum": 1,
+                        "maximum": 10,
+                    }
+                },
+            }
+        }
+    }
+
+    result = openapi_transform.transform(spec, "https://base")
+
+    description = result["components"]["schemas"]["CreateWidgetRequest"]["properties"]["priority"]["description"]
+    assert_that(description).contains("min: 1").contains("max: 10")
+
+
+def test_target_validation_rejects_duplicate_operation_ids_across_targets():
+    first = _spec_with(
+        {"/first": {"get": {"operationId": "GetWidget", "description": _substantive_description("First")}}}
+    )
+    second = _spec_with(
+        {"/second": {"get": {"operationId": "GetWidget", "description": _substantive_description("Second")}}}
+    )
+
+    with pytest.raises(openapi_transform.TargetMetadataError, match="duplicate operationId/tool name 'GetWidget'"):
+        openapi_transform.validate_target_specs({"first": first, "second": second})
+
+
+def test_target_validation_rejects_duplicate_tool_descriptions_across_targets():
+    description = _substantive_description("Shared")
+    first = _spec_with({"/first": {"get": {"operationId": "GetFirst", "description": description}}})
+    second = _spec_with({"/second": {"get": {"operationId": "GetSecond", "description": description}}})
+
+    with pytest.raises(openapi_transform.TargetMetadataError, match="duplicate tool description"):
+        openapi_transform.validate_target_specs({"first": first, "second": second})
+
+
+def test_target_validation_checks_all_surviving_parameters():
+    spec = _spec_with(
+        {
+            "/w": {
+                "get": {
+                    "operationId": "GetWidget",
+                    "description": _substantive_description("GetWidget"),
+                    "parameters": [
+                        {"name": "trace", "in": "header", "schema": {"type": "string"}},
+                        {"name": "projectId", "in": "path", "schema": {"type": "string"}},
+                    ],
+                }
+            }
+        }
+    )
+
+    with pytest.raises(openapi_transform.TargetMetadataError) as exc:
+        openapi_transform.validate_target_specs({"widgets": spec})
+
+    assert "parameter 'projectId'" in str(exc.value)
+    assert "parameter 'trace'" in str(exc.value)
+
+
+def test_target_validation_resolves_referenced_request_properties():
+    spec = _spec_with(
+        {
+            "/w": {
+                "post": {
+                    "operationId": "CreateWidget",
+                    "description": _substantive_description("CreateWidget"),
+                    "requestBody": {
+                        "content": {
+                            "application/json": {"schema": {"$ref": "#/components/schemas/CreateWidgetRequest"}}
+                        }
+                    },
+                }
+            }
+        }
+    )
+    spec["components"] = {
+        "schemas": {
+            "CreateWidgetRequest": {
+                "type": "object",
+                "properties": {"priority": {"type": "integer"}},
+            }
+        }
+    }
+
+    with pytest.raises(openapi_transform.TargetMetadataError, match="request property 'priority'"):
+        openapi_transform.validate_target_specs({"widgets": spec})
+
+
+def test_transform_applies_explicit_mcp_operation_id_without_mutating_source():
+    spec = _spec_with(
+        {
+            "/w": {
+                "get": {
+                    "operationId": "GetAvailableProducts",
+                    "x-mcp-operation-id": "ListProvisionableProducts",
+                }
+            }
+        }
+    )
+
+    result = openapi_transform.transform(spec, "https://base")
+
+    operation = result["paths"]["/w"]["get"]
+    assert operation["operationId"] == "ListProvisionableProducts"
+    assert "x-mcp-operation-id" not in operation
+    assert spec["paths"]["/w"]["get"]["operationId"] == "GetAvailableProducts"
+
+
+def test_transform_enriches_path_level_parameters():
+    spec = _spec_with(
+        {
+            "/w": {
+                "parameters": [
+                    {
+                        "name": "mode",
+                        "in": "query",
+                        "description": "Update strategy.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["merge", "replace"],
+                            "default": "merge",
+                        },
+                    }
+                ],
+                "get": {"operationId": "listWidgets"},
+            }
+        }
+    )
+
+    result = openapi_transform.transform(spec, "https://base")
+
+    description = result["paths"]["/w"]["parameters"][0]["description"]
+    assert_that(description).contains("allowed values: merge, replace").contains("default: merge")
+
+
+def test_transform_strips_referenced_authorization_parameter():
+    spec = _spec_with(
+        {
+            "/w": {
+                "parameters": [{"$ref": "#/components/parameters/Authorization"}],
+                "get": {"operationId": "getWidget"},
+            }
+        }
+    )
+    spec["components"] = {
+        "parameters": {
+            "Authorization": {
+                "name": "Authorization",
+                "in": "header",
+                "required": True,
+                "schema": {"type": "string"},
+            }
+        }
+    }
+
+    result = openapi_transform.transform(spec, "https://base")
+
+    assert result["paths"]["/w"]["parameters"] == []
+
+
+@pytest.mark.parametrize(
+    "exposed_value,missing_ref",
+    [
+        (
+            {"parameters": [{"$ref": "#/components/parameters/Missing"}]},
+            "#/components/parameters/Missing",
+        ),
+        (
+            {"requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Missing"}}}}},
+            "#/components/schemas/Missing",
+        ),
+    ],
+)
+def test_transform_rejects_unresolved_local_refs_in_exposed_inputs(exposed_value, missing_ref):
+    operation = {"operationId": "updateWidget", **exposed_value}
+    spec = _spec_with({"/w": {"post": operation}})
+
+    with pytest.raises(openapi_transform.UnresolvedLocalRefError, match=missing_ref):
+        openapi_transform.transform(spec, "https://base")
+
+
+def test_target_validation_rejects_unresolved_nested_request_property_ref():
+    spec = _spec_with(
+        {
+            "/w": {
+                "post": {
+                    "operationId": "CreateWidget",
+                    "description": _substantive_description("CreateWidget"),
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {"widget": {"$ref": "#/components/schemas/Missing"}},
+                                }
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    )
+
+    with pytest.raises(
+        openapi_transform.UnresolvedLocalRefError,
+        match="#/components/schemas/Missing",
+    ):
+        openapi_transform.validate_target_specs({"widgets": spec})
+
+
+def test_recursive_request_schema_terminates_and_validates():
+    spec = _spec_with(
+        {
+            "/nodes": {
+                "post": {
+                    "operationId": "CreateNode",
+                    "description": _substantive_description("CreateNode"),
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {"root": {"$ref": "#/components/schemas/Node"}},
+                                }
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    )
+    spec["components"] = {
+        "schemas": {
+            "Node": {
+                "type": "object",
+                "description": "A node in the recursive request tree.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "The display name for this node.",
+                    },
+                    "child": {"$ref": "#/components/schemas/Node"},
+                },
+            }
+        }
+    }
+
+    published = openapi_transform.transform(spec, "https://base")
+
+    openapi_transform.validate_target_specs({"nodes": published})

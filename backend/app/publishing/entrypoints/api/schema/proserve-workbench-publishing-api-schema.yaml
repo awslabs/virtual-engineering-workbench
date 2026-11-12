@@ -173,6 +173,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -203,6 +204,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -252,21 +254,25 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: region
           in: query
+          description: AWS Region in which the product version must be available.
           required: true
           schema:
             type: string
         - name: stage
           in: query
+          description: Publishing stage used to filter available product versions.
           required: true
           schema:
             type: string
@@ -300,11 +306,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -347,6 +355,7 @@ paths:
       parameters:
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -379,11 +388,13 @@ paths:
       parameters:
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -422,6 +433,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -462,6 +474,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -495,6 +508,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -544,11 +558,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -589,11 +605,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -621,11 +639,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -682,16 +702,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: query
+          description: Product version identifier used to select the latest template.
           schema:
             type: string
       responses:
@@ -723,16 +746,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: query
+          description: Product version identifier used to select the latest template.
           schema:
             type: string
       responses:
@@ -780,11 +806,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -816,16 +844,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: query
+          description: Product version identifier used to select the latest template.
           schema:
             type: string
       responses:
@@ -885,11 +916,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -923,11 +956,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -977,11 +1012,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -1015,11 +1052,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
@@ -1062,11 +1101,13 @@ paths:
       parameters:
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1112,16 +1153,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1164,16 +1208,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1215,16 +1262,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1267,16 +1317,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1319,16 +1372,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1362,16 +1418,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1421,16 +1480,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1458,16 +1520,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1517,16 +1582,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1554,16 +1622,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the published product within the project.
           required: true
           schema:
             type: string
         - name: versionId
           in: path
+          description: Unique identifier of the published product version.
           required: true
           schema:
             type: string
@@ -1613,11 +1684,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productType
           in: query
+          description: Product category used to filter the published catalog.
           required: true
           schema:
             type: string
@@ -1649,11 +1722,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productType
           in: query
+          description: Product category used to filter the published catalog.
           required: true
           schema:
             type: string

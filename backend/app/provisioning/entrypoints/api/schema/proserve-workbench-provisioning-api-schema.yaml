@@ -165,6 +165,7 @@ paths:
         the given project. Requires a valid project_id from the Projects BC. Supports filtering by
         product type (Workbench, VirtualTarget, Container) and product IDs.
       operationId: "GetAvailableProducts"
+      x-mcp-operation-id: "ListProvisionableProducts"
       parameters:
         - name: Authorization
           in: header
@@ -173,16 +174,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productType
           in: query
+          description: Product category used to filter the provisioning results.
           required: true
           schema:
             type: string
         - name: filter
           in: query
+          description: Product identifiers used to limit the available-product results.
           required: false
           schema:
             type: array
@@ -212,11 +216,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productType
           in: query
+          description: Product category used to filter the provisioning results.
           required: true
           schema:
             type: string
@@ -266,6 +272,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -308,11 +315,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productType
           in: query
+          description: Product category used to filter the provisioning results.
           required: true
           schema:
             type: string
@@ -340,6 +349,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -389,6 +399,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -416,6 +427,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -465,43 +477,53 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of provisioned products to return in this page.
           schema:
             type: number
         - name: pagingKey
           in: query
+          description: Opaque pagination key returned by the previous request.
           schema:
             type: string
         - name: productName
           in: query
+          description: Product name used to filter provisioned product instances.
           schema:
             type: string
         - name: versionName
           in: query
+          description: Product version name used to filter provisioned instances.
           schema:
             type: string
         - name: productType
           in: query
+          description: Product category used to filter the provisioning results.
           schema:
             type: string
         - name: owner
           in: query
+          description: Owner identifier used to filter provisioned product instances.
           schema:
             type: string
         - name: status
           in: query
+          description: Lifecycle status used to filter provisioned product instances.
           schema:
             type: string
         - name: stage
           in: query
+          description: Environment stage used to filter products or provisioning limits.
           schema:
             type: string
         - name: experimental
           in: query
+          description: Whether to include experimental provisioned product instances.
           schema:
             type: boolean
       responses:
@@ -530,6 +552,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -578,6 +601,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -611,6 +635,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -660,6 +685,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -693,6 +719,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -742,11 +769,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -774,11 +803,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -820,6 +851,7 @@ paths:
       parameters:
         - name: pagingKey
           in: query
+          description: Opaque pagination key returned by the previous request.
           schema:
             type: string
       responses:
@@ -850,6 +882,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -887,11 +920,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -930,11 +965,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -962,11 +999,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1015,11 +1054,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1047,11 +1088,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1101,11 +1144,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1139,11 +1184,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1192,11 +1239,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1224,11 +1273,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1270,11 +1321,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1313,11 +1366,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1349,11 +1404,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1402,11 +1459,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1438,11 +1497,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1484,6 +1545,7 @@ paths:
         BC catalog. Supports filtering by deployment stage and region. Use this before launching a
         product to select a version.
       operationId: "GetAvailableProductVersions"
+      x-mcp-operation-id: "ListProvisionableProductVersions"
       parameters:
         - name: Authorization
           in: header
@@ -1492,21 +1554,25 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the product selected for provisioning.
           required: true
           schema:
             type: string
         - name: region
           in: query
+          description: AWS Region in which the product version must be available.
           required: true
           schema:
             type: string
         - name: stage
           in: query
+          description: Environment stage used to filter products or provisioning limits.
           required: true
           schema:
             type: string
@@ -1534,11 +1600,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the product selected for provisioning.
           required: true
           schema:
             type: string
@@ -1592,16 +1660,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the product selected for provisioning.
           required: true
           schema:
             type: string
         - name: stage
           in: query
+          description: Environment stage used to filter products or provisioning limits.
           required: true
           schema:
             type: string
@@ -1629,11 +1700,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: productId
           in: path
+          description: Unique identifier of the product selected for provisioning.
           required: true
           schema:
             type: string
@@ -1683,11 +1756,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1719,11 +1794,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1916,6 +1993,7 @@ paths:
             type: string
         - name: region
           in: query
+          description: AWS Region in which the product version must be available.
           required: true
           schema:
             type: string

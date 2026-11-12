@@ -1,15 +1,21 @@
 """Unit tests for McpGatewayAgentcoreStack.
 
-Synthesised with no bounded-context targets, which keeps the test independent of
-the other stacks while still covering the gateway, its auth, and its logging.
+The shared fixture synthesises with no bounded-context targets, which keeps most
+checks independent of the other stacks. A focused test supplies one fake context
+to verify the exact schema passed into the bucket deployment source.
 """
+
+import hashlib
+import json
 
 import aws_cdk
 import pytest
 from aws_cdk import assertions
+from aws_cdk import aws_s3_deployment as s3deploy
 
 from infra import config, constants
 from infra.backend import mcp_gateway_agentcore_app_stack
+from infra.helpers import mcp_openapi_transform
 
 
 def _app_config() -> config.AppConfig:
@@ -161,3 +167,65 @@ def test_named_resources_keep_their_deployed_logical_ids(template, logical_id, r
     resources = template.to_json()["Resources"]
     assert logical_id in resources
     assert resources[logical_id]["Type"] == resource_type
+
+
+def test_stack_passes_exact_transformed_spec_to_json_data(mocker):
+    app = aws_cdk.App(context={"aws:cdk:bundling-stacks": []})
+    app_config = _app_config()
+    bounded_context_stack = aws_cdk.Stack(app, "WidgetsStack")
+    bounded_context_stack.bounded_context = "widgets"
+    source_spec = {
+        "openapi": "3.0.1",
+        "info": {"title": "Widgets", "version": "1.0"},
+        "paths": {
+            "/widgets": {
+                "parameters": [
+                    {
+                        "name": "mode",
+                        "in": "query",
+                        "description": "The update strategy for returned widgets.",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["merge", "replace"],
+                        },
+                    }
+                ],
+                "get": {
+                    "operationId": "ListWidgets",
+                    "description": (
+                        "Lists the widgets available to the current project and returns "
+                        "the documented fields needed to select the next workflow action."
+                    ),
+                },
+            }
+        },
+    }
+    base_url = "https://example.com/widgets"
+    expected = mcp_openapi_transform.transform(source_spec, base_url)
+    expected_key = (
+        "widgets-"
+        + hashlib.sha256(json.dumps(expected, sort_keys=True, default=str).encode()).hexdigest()[:12]
+        + ".json"
+    )
+    mocker.patch.object(
+        mcp_gateway_agentcore_app_stack.McpGatewayAgentcoreStack,
+        "_load_source_spec",
+        return_value=source_spec,
+    )
+    mocker.patch.object(
+        mcp_gateway_agentcore_app_stack.McpGatewayAgentcoreStack,
+        "_resolve_base_url",
+        return_value=base_url,
+    )
+    json_data = mocker.spy(s3deploy.Source, "json_data")
+
+    mcp_gateway_agentcore_app_stack.McpGatewayAgentcoreStack(
+        app,
+        "McpGatewayWithTargetStack",
+        app_config=app_config,
+        enabled_stacks=[bounded_context_stack],
+        stack_name="mcp-gateway-with-target-test",
+        env=aws_cdk.Environment(account=app_config.account, region=app_config.region),
+    )
+
+    json_data.assert_called_once_with(expected_key, expected)

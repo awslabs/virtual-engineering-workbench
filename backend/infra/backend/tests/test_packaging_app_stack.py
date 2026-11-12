@@ -93,7 +93,5 @@ def test_stack_declares_no_scheduled_jobs_entrypoint(template):
     Lambda nor an EventBridge rule targeting it may exist."""
     assert "SCHEDULED" not in packaging_app_stack.Entrypoint.__members__
     assert "scheduled" not in {entry.value for entry in packaging_app_stack.Entrypoint}
-    rule_names = [
-        rule["Properties"].get("Name", "") for rule in template.find_resources("AWS::Events::Rule").values()
-    ]
+    rule_names = [rule["Properties"].get("Name", "") for rule in template.find_resources("AWS::Events::Rule").values()]
     assert not [name for name in rule_names if "marketplace" in str(name).lower()]

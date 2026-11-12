@@ -174,11 +174,13 @@ paths:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
@@ -294,6 +296,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -337,6 +340,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -370,6 +374,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -420,6 +425,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -466,6 +472,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -509,16 +516,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: accountType
           in: query
+          description: Account category used to filter the project accounts.
           required: false
           schema:
             type: string
         - name: stage
           in: query
+          description: Environment stage used to filter the project accounts.
           required: false
           schema:
             type: string
@@ -554,6 +564,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -603,11 +614,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: accountId
           in: path
+          description: Twelve-digit AWS account identifier assigned to the project.
           required: true
           schema:
             type: string
@@ -641,11 +654,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: accountId
           in: path
+          description: Twelve-digit AWS account identifier assigned to the project.
           required: true
           schema:
             type: string
@@ -696,16 +711,19 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
@@ -750,6 +768,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -783,6 +802,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -832,11 +852,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: techId
           in: path
+          description: Unique identifier of the technology within the project.
           required: true
           schema:
             type: string
@@ -883,11 +905,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: techId
           in: path
+          description: Unique identifier of the technology within the project.
           required: true
           schema:
             type: string
@@ -919,11 +943,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: techId
           in: path
+          description: Unique identifier of the technology within the project.
           required: true
           schema:
             type: string
@@ -974,6 +1000,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1015,6 +1042,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1058,6 +1086,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1102,6 +1131,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1132,6 +1162,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1182,11 +1213,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: userId
           in: path
+          description: Unique identifier of the user assigned to the project.
           required: true
           schema:
             type: string
@@ -1223,11 +1256,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: userId
           in: path
+          description: Unique identifier of the user assigned to the project.
           required: true
           schema:
             type: string
@@ -1258,11 +1293,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: userId
           in: path
+          description: Unique identifier of the user assigned to the project.
           required: true
           schema:
             type: string
@@ -1313,21 +1350,25 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
         - name: status
           in: query
+          description: Enrolment status used to filter the returned requests.
           required: false
           schema:
             type: string
@@ -1367,6 +1408,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1410,6 +1452,7 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1443,6 +1486,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1485,6 +1529,7 @@ paths:
       parameters:
         - name: accountType
           in: query
+          description: Account category used to filter the project accounts.
           required: false
           schema:
             type: string
@@ -1495,16 +1540,19 @@ paths:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
         - name: stage
           in: query
+          description: Environment stage used to filter the project accounts.
           required: false
           schema:
             type: string
@@ -1588,11 +1636,13 @@ paths:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
@@ -1633,11 +1683,13 @@ paths:
       parameters:
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
@@ -1677,16 +1729,19 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: false
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
@@ -1727,11 +1782,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: userId
           in: path
+          description: Unique identifier of the user assigned to the project.
           required: true
           schema:
             type: string
@@ -1768,6 +1825,7 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -1807,11 +1865,13 @@ paths:
       parameters:
         - name: pageSize
           in: query
+          description: Maximum number of records to return in this page.
           required: true
           schema:
             type: integer
         - name: nextToken
           in: query
+          description: Opaque pagination token returned by the previous request.
           required: false
           schema:
             type: object
@@ -2111,6 +2171,7 @@ components:
         accountIds:
           title: AccountIds
           type: array
+          description: AWS account identifiers to re-onboard into the project.
           items:
             type: string
     ReonboardProjectAccountResponse:
@@ -2185,7 +2246,7 @@ components:
         userId:
           title: UserId
           type: string
-          description: User TID
+          description: Unique identifier of the user to assign to the project
         roles:
           title: Roles
           type: array
@@ -2221,7 +2282,7 @@ components:
         userIds:
           title: UserIds
           type: array
-          description: User IDs
+          description: User identifiers to remove from the project
           items:
             type: string
     RemoveUsersResponse:
@@ -2260,7 +2321,7 @@ components:
         userId:
           title: UserId
           type: string
-          description: User TID
+          description: Unique identifier of the user to assign to the project
         roles:
           title: Roles
           type: array
@@ -2304,7 +2365,7 @@ components:
         userId:
           title: UserId
           type: string
-          description: User TID
+          description: Unique identifier of the user to assign to the project
         roles:
           title: Roles
           type: array
@@ -2341,7 +2402,7 @@ components:
         userId:
           title: UserId
           type: string
-          description: User TID
+          description: Unique identifier of the user to assign to the project
         userEmail:
           title: userEmail
           type: string

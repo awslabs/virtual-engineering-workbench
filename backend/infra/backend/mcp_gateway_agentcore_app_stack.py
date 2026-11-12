@@ -46,6 +46,16 @@ from infra.helpers import mcp_openapi_transform
 _MAX_INSTRUCTIONS_LEN = 2048
 
 
+def build_target_specs(source_specs: dict[str, dict], base_urls: dict[str, str]) -> dict[str, dict]:
+    """Build and validate the exact transformed schemas uploaded by the gateway."""
+    published = {
+        context: mcp_openapi_transform.transform(source_spec, base_urls[context])
+        for context, source_spec in source_specs.items()
+    }
+    mcp_openapi_transform.validate_target_specs(published)
+    return published
+
+
 class McpGatewayAgentcoreStack(aws_cdk.Stack):
     def __init__(
         self,
@@ -162,12 +172,19 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
         instruction_blocks: list[str] = []
         if enabled_stacks:
             sources = []
+            source_specs = {
+                stack.bounded_context: self._load_source_spec(stack.bounded_context) for stack in enabled_stacks
+            }
+            base_urls = {stack.bounded_context: self._resolve_base_url(stack) for stack in enabled_stacks}
+            published_specs = build_target_specs(source_specs, base_urls)
+
             for stack in enabled_stacks:
-                source_spec = self._load_source_spec(stack.bounded_context)
-                published = mcp_openapi_transform.transform(source_spec, self._resolve_base_url(stack))
+                context = stack.bounded_context
+                source_spec = source_specs[context]
+                published = published_specs[context]
                 digest = hashlib.sha256(json.dumps(published, sort_keys=True, default=str).encode()).hexdigest()[:12]
-                key = f"{stack.bounded_context}-{digest}.json"
-                spec_keys[stack.bounded_context] = key
+                key = f"{context}-{digest}.json"
+                spec_keys[context] = key
                 sources.append(s3deploy.Source.json_data(key, published))
 
                 # Gateway instructions: each BC's OpenAPI info.description (verbatim, generic BC-level
@@ -175,9 +192,7 @@ class McpGatewayAgentcoreStack(aws_cdk.Stack):
                 # reaches the tool doc), XML-wrapped so the agent can tell which BC it belongs to.
                 description = (source_spec.get("info") or {}).get("description")
                 if description:
-                    instruction_blocks.append(
-                        f'<context name="{stack.bounded_context}">\n{description.strip()}\n</context>'
-                    )
+                    instruction_blocks.append(f'<context name="{context}">\n{description.strip()}\n</context>')
             spec_deployment = s3deploy.BucketDeployment(
                 self,
                 "SpecDeployment",

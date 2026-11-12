@@ -39,7 +39,11 @@ def _declared_entries() -> list[tuple[pathlib.Path, int, str]]:
 def _params():
     params = []
     for source, lineno, entry in _declared_entries():
-        marks = [pytest.mark.xfail(reason=f"known missing handler package: {entry}", strict=True)] if entry in KNOWN_MISSING else []
+        marks = (
+            [pytest.mark.xfail(reason=f"known missing handler package: {entry}", strict=True)]
+            if entry in KNOWN_MISSING
+            else []
+        )
         params.append(pytest.param(source, lineno, entry, marks=marks, id=f"{source.name}:{lineno}:{entry}"))
     return params
 
