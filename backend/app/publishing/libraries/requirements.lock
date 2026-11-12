@@ -115,6 +115,10 @@ mypy-boto3-license-manager==1.43.120 \
     --hash=sha256:abe61b78b9d0ac6a11740a79a351aee5bc0a17f5bbc53eab59e98aa50f8b60b4 \
     --hash=sha256:f982851b816bdf7713c7e33a35f95f2ee7931d401c78fd4a700e775e6b33dd4f
     # via -r app/publishing/libraries/requirements.txt
+mypy-boto3-organizations==1.44.0 \
+    --hash=sha256:02166d19d06c83e038ba18b1b06a5ae0ca1c42975b06c19d9384c4907a042596 \
+    --hash=sha256:1e97cd98a71611b080c967b145a63729cb3a2cb1f26a11305b8d8df532560011
+    # via -r app/publishing/libraries/requirements.txt
 mypy-boto3-s3==1.43.50 \
     --hash=sha256:206817d22e80795da35daf704225f2e2a2b561fa4bf8c609f2150b04800ae811 \
     --hash=sha256:778aa2a48314ea47aeccca48ae151fe208b48d568d02578494b7201621ff2d6a
