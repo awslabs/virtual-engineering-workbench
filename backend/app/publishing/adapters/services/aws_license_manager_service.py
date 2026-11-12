@@ -218,3 +218,20 @@ class AwsLicenseManagerService(LicenseManagerService):
             raise adapter_exception.AdapterException(
                 f"Failed to list received grants for license {license_arn} in account {spoke_account_id}: {e}"
             )
+
+    def can_distribute_license(self) -> bool:
+        """Whether the hub can distribute a received licence to an organization account.
+
+        License Manager only allows a grant to another account in the organization when
+        its cross-account integration is switched on, which GetServiceSettings reports
+        as OrganizationConfiguration.EnableIntegration. Used to decide whether an
+        externally-managed subscription can be upgraded from verify-only to an actual
+        grant.
+        """
+        try:
+            settings = self.__get_lm_client().get_service_settings()
+        except ClientError as e:
+            raise adapter_exception.AdapterException(f"Failed to read License Manager service settings: {e}")
+
+        org_config = (settings or {}).get("OrganizationConfiguration") or {}
+        return bool(org_config.get("EnableIntegration"))

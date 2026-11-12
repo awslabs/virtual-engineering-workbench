@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from app.publishing.domain.exceptions import domain_exception
 from app.publishing.domain.model import product, version
-from app.publishing.domain.ports import image_service, shared_amis_query_service
+from app.publishing.domain.ports import image_service, license_manager_service, shared_amis_query_service
 from app.publishing.domain.value_objects import (
     ami_id_value_object,
     aws_account_id_value_object,
@@ -60,11 +60,15 @@ class SharedAMIsDomainQueryService:
         image_svc: image_service.ImageService,
         shared_amis_qry_svc: shared_amis_query_service.SharedAMIsQueryService,
         default_original_ami_region: str,
+        # Optional so the decision still works without it; only the
+        # externally-managed upgrade below consults License Manager.
+        license_manager_svc: license_manager_service.LicenseManagerService | None = None,
     ) -> None:
         self._uow = unit_of_work
         self._image_svc = image_svc
         self._shared_amis_qry_svc = shared_amis_qry_svc
         self._default_original_ami_region = default_original_ami_region
+        self._license_manager_svc = license_manager_svc
 
     # A marketplace subscription VEW owns is licensed by granting the spoke
     # account a share of the hub's licence; one the customer already owns is
@@ -74,24 +78,65 @@ class SharedAMIsDomainQueryService:
         SubscriptionOwnership.EXTERNALLY_MANAGED: ShareAmiDecision.VerifyExternalGrant,
     }
 
+    @staticmethod
+    def _license_location(version_entity: version.Version) -> tuple[str | None, str | None]:
+        """The licence ARN and its home region for a marketplace version.
+
+        Older records predate homeRegion, so fall back to the region segment of the
+        licence ARN: arn:aws:license-manager:<region>:<account>:...
+        """
+        metadata = version_entity.marketplaceMetadata
+        license_arn = metadata.licenseConfigurationArn if metadata else None
+        home_region = metadata.homeRegion if metadata else None
+        if not home_region and license_arn:
+            parts = license_arn.split(":")
+            if len(parts) >= 6 and parts[3]:
+                home_region = parts[3]
+        return license_arn, home_region
+
+    def _upgrade_external_grant_decision(
+        self,
+        version_entity: version.Version,
+        decision: ShareAmiDecision,
+        spoke_account_id: str,
+    ) -> ShareAmiDecision:
+        """Turn a verify-only decision into a real grant when the hub can make one.
+
+        An externally-managed subscription means the customer owns the licence, so VEW
+        normally only verifies that the spoke already has a grant. But when the spoke
+        has no grant AND License Manager's organization integration is switched on, the
+        hub can distribute one itself - which is the difference between a workbench that
+        launches and one that fails with no licence. Without this the decision was
+        always verify-only and such a launch could never succeed.
+        """
+        if decision != ShareAmiDecision.VerifyExternalGrant or self._license_manager_svc is None:
+            return decision
+
+        license_arn, home_region = self._license_location(version_entity)
+        if not license_arn or not home_region:
+            return decision
+
+        if self._license_manager_svc.has_active_received_grant(
+            license_arn=license_arn, spoke_account_id=spoke_account_id, home_region=home_region
+        ):
+            # Already granted; there is nothing to distribute, only to verify.
+            return decision
+
+        if self._license_manager_svc.can_distribute_license():
+            return ShareAmiDecision.LicenseGrant
+        return decision
+
     def _marketplace_decision(
         self,
         version_entity: version.Version,
         decision: ShareAmiDecision,
     ) -> ShareAmiDecisionResult:
-        metadata = version_entity.marketplaceMetadata
-        license_arn = metadata.licenseConfigurationArn if metadata else None
-        home_region = metadata.homeRegion if metadata else None
-        # Older records predate homeRegion, so fall back to the region segment
-        # of the licence ARN: arn:aws:license-manager:<region>:<account>:...
-        if not home_region and license_arn:
-            parts = license_arn.split(":")
-            if len(parts) >= 6 and parts[3]:
-                home_region = parts[3]
+        license_arn, home_region = self._license_location(version_entity)
 
         # A marketplace product publishes a different AMI id per region, so the
         # spoke's own region decides which one to launch. Fall back to the
         # recorded original when the product lists no AMI for that region.
+        metadata = version_entity.marketplaceMetadata
         regional_ami_ids = metadata.regionalAmiIds if metadata else None
         spoke_region = version_entity.region
         regional_ami_id = (
@@ -152,6 +197,9 @@ class SharedAMIsDomainQueryService:
                 )
                 marketplace_decision = self._MARKETPLACE_DECISION_BY_OWNERSHIP.get(subscription_ownership)
                 if marketplace_decision is not None:
+                    marketplace_decision = self._upgrade_external_grant_decision(
+                        version_entity, marketplace_decision, aws_account_id.value
+                    )
                     return self._marketplace_decision(version_entity, marketplace_decision)
 
         # Records written before region joined the key are still found by this query, so no migration is needed.

@@ -21,3 +21,8 @@ class LicenseManagerService(ABC):
 
     @abstractmethod
     def has_active_received_grant(self, license_arn: str, spoke_account_id: str, home_region: str) -> bool: ...
+
+    @abstractmethod
+    def can_distribute_license(self) -> bool:
+        """Whether this account may distribute a received licence to an org account."""
+        ...

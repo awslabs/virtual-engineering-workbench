@@ -234,6 +234,10 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                     "license-manager:ListDistributedGrants",
                                     "license-manager:ListReceivedLicenses",
                                     "license-manager:GetLicense",
+                                    # Read by can_distribute_license, which decides
+                                    # whether an externally-managed subscription can be
+                                    # upgraded from verify-only to an actual grant.
+                                    "license-manager:GetServiceSettings",
                                 ],
                                 resources=["*"],
                             )
@@ -411,6 +415,10 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                     "license-manager:ListDistributedGrants",
                                     "license-manager:ListReceivedLicenses",
                                     "license-manager:GetLicense",
+                                    # Read by can_distribute_license, which decides
+                                    # whether an externally-managed subscription can be
+                                    # upgraded from verify-only to an actual grant.
+                                    "license-manager:GetServiceSettings",
                                 ],
                                 resources=["*"],
                             )

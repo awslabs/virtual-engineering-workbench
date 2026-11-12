@@ -293,3 +293,105 @@ def test_marketplace_decision_falls_back_to_the_registered_ami_for_an_unlisted_r
     # ASSERT
     assertpy.assert_that(result.original_ami_id).is_equal_to("ami-023c04780e65e723c")
     assertpy.assert_that(result.image_id).is_equal_to("ami-023c04780e65e723c")
+
+
+def _lm_service(has_grant: bool, can_distribute: bool):
+    from app.publishing.domain.ports import license_manager_service
+
+    svc = mock.create_autospec(spec=license_manager_service.LicenseManagerService)
+    svc.has_active_received_grant.return_value = has_grant
+    svc.can_distribute_license.return_value = can_distribute
+    return svc
+
+
+def _external_decision(lm_service, image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo):
+    mock_version_repo.get.return_value = _marketplace_version("eu-west-1", "EXTERNALLY_MANAGED")
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+        license_manager_svc=lm_service,
+    )
+    return domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+
+def test_external_subscription_is_upgraded_to_a_grant_when_the_hub_can_distribute(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    """The spoke has no grant and License Manager's organization integration is on, so
+    the hub can distribute one itself. Without this the decision was always verify-only
+    and the launch could never succeed."""
+    # ARRANGE
+    lm = _lm_service(has_grant=False, can_distribute=True)
+
+    # ACT
+    result = _external_decision(lm, image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo)
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant)
+
+
+def test_external_subscription_stays_verify_only_when_the_spoke_already_has_a_grant(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    # ARRANGE
+    lm = _lm_service(has_grant=True, can_distribute=True)
+
+    # ACT
+    result = _external_decision(lm, image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo)
+
+    # ASSERT — there is nothing to distribute, only to verify
+    assertpy.assert_that(result.decision).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecision.VerifyExternalGrant
+    )
+    lm.can_distribute_license.assert_not_called()
+
+
+def test_external_subscription_stays_verify_only_when_the_hub_cannot_distribute(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    # ARRANGE — integration off, so VEW holds nothing it may grant
+    lm = _lm_service(has_grant=False, can_distribute=False)
+
+    # ACT
+    result = _external_decision(lm, image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo)
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecision.VerifyExternalGrant
+    )
+
+
+def test_vew_managed_subscription_is_not_affected_by_the_upgrade(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    """A VEW-managed subscription is already a grant decision; the upgrade must not
+    consult License Manager for it."""
+    # ARRANGE
+    lm = _lm_service(has_grant=False, can_distribute=True)
+    mock_version_repo.get.return_value = _marketplace_version("eu-west-1", "VEW_MANAGED")
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+        license_manager_svc=lm,
+    )
+
+    # ACT
+    result = domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant)
+    lm.has_active_received_grant.assert_not_called()

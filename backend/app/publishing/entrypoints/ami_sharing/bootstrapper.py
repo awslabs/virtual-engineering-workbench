@@ -187,6 +187,7 @@ def bootstrap(  # noqa: C901
         image_svc=ec2_img_srv,
         shared_amis_qry_svc=shared_amis_qry_svc,
         default_original_ami_region=app_config.get_default_region(),
+        license_manager_svc=license_manager_svc,
     )
     return Dependencies(
         command_bus=command_bus,
