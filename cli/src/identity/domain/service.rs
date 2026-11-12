@@ -82,7 +82,7 @@ impl<
         )
         .map_err(|e| IdentityError::ProviderError(format!("invalid authorize URL: {e}")))?
         .to_string();
-        debug_log!("login: authorize_url={authorize_url}");
+        debug_log!("login: authorization URL constructed");
 
         if cmd.no_browser {
             println!("{authorize_url}");
@@ -452,6 +452,47 @@ mod tests {
 
         // Assert
         assert_eq!(result.unwrap().access_token_expires_in, 3600);
+    }
+
+    #[test]
+    fn test_login_does_not_log_authorization_secrets() {
+        crate::shared::verbose::capture::enable();
+        let svc = make_svc(
+            MockOidc::success(),
+            MockStore::empty(),
+            MockValidator { should_fail: false },
+            MockCallbackServer {
+                state: "test_state".into(),
+            },
+            MockBrowser {
+                should_fail: false,
+                open_called: RefCell::new(false),
+            },
+        );
+
+        let result = svc.login(Login {
+            profile_id: "dev".into(),
+            provider: test_provider(),
+            no_browser: false,
+        });
+
+        assert!(result.is_ok());
+        let log = crate::shared::verbose::capture::joined();
+        for secret in [
+            "test_state",
+            "test_nonce",
+            "test_challenge",
+            "test_verifier",
+        ] {
+            assert!(
+                !log.contains(secret),
+                "authorization secret {secret} reached the debug log:\n{log}"
+            );
+        }
+        assert!(
+            !log.contains("https://auth.example.com/authorize"),
+            "the authorization URL reached the debug log:\n{log}"
+        );
     }
 
     #[test]

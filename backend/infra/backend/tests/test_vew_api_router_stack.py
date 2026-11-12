@@ -134,8 +134,9 @@ def test_reads_each_bounded_context_api_url_from_ssm(template):
 
 
 def test_creates_no_ssm_parameters(template):
-    # deploy.sh owns /<app>-<env>/vew-api-endpoint in both deploy modes, and the
-    # Cognito parameters belong to the frontend user pool construct. Creating any
+    # deploy.sh owns /<app-name>-ui-<env>/vew-api-endpoint in both deploy
+    # modes; its APP_NAME variable already includes the -ui suffix. The Cognito
+    # parameters belong to the frontend user pool construct. Creating any
     # of them here would collide on the parameter name at deploy time while
     # passing synth.
     assertpy.assert_that(template.find_resources("AWS::SSM::Parameter")).is_empty()

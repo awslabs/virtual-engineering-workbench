@@ -8,13 +8,18 @@
 //! this file compiles to nothing, so CI runs `cargo test --features log-capture`.
 #![cfg(feature = "log-capture")]
 
+use std::io::Write;
+use std::net::TcpStream;
+use std::time::Duration;
 use url::Url;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use vew::identity::adapters::http_oidc_client::HttpOidcClient;
-use vew::identity::domain::model::{AuthorizationCode, OidcProvider};
-use vew::identity::ports::outbound::OidcClient;
+use vew::identity::adapters::tcp_callback_server::TcpCallbackServer;
+use vew::identity::domain::error::IdentityError;
+use vew::identity::domain::model::{AuthorizationCode, CallbackResult, OidcProvider};
+use vew::identity::ports::outbound::{CallbackServer, OidcClient};
 use vew::shared::verbose::capture;
 
 // One marker per test: the capture buffer is shared by the whole binary, so a
@@ -26,6 +31,10 @@ const EXCHANGE_PARSE: &str = "MARKER-exchange-parse-3d4e";
 const EXCHANGE_SUCCESS: &str = "MARKER-exchange-success-5a6f";
 const REVOKE_ECHO: &str = "MARKER-revoke-echo-8b7c";
 const REFRESH_ECHO: &str = "MARKER-refresh-echo-2e9d";
+const CALLBACK_BAD_METHOD: &str = "MARKER-callback-method-4a8c";
+const CALLBACK_BAD_QUERY: &str = "MARKER-callback-bad-query-6e1f";
+const CALLBACK_CODE: &str = "MARKER-callback-code-8d3b";
+const CALLBACK_STATE: &str = "MARKER-callback-state-0f5a";
 
 fn provider(base: &str) -> OidcProvider {
     OidcProvider {
@@ -59,6 +68,49 @@ fn assert_no_secret(context: &str, marker: &str, error_text: &str) {
         !error_text.contains(marker),
         "{context}: the secret reached the error text: {error_text}"
     );
+}
+
+fn send_callback_request(request: &str) -> Result<CallbackResult, IdentityError> {
+    let server = TcpCallbackServer::new(Duration::from_secs(5));
+    let (port, receiver) = server.start().expect("callback server should start");
+    let handle = std::thread::spawn(move || receiver.wait_for_callback());
+    std::thread::sleep(Duration::from_millis(50));
+
+    let mut stream = TcpStream::connect(format!("127.0.0.1:{port}"))
+        .expect("test client should connect to callback server");
+    stream
+        .write_all(request.as_bytes())
+        .expect("test request should be written");
+    stream.flush().expect("test request should be flushed");
+    handle.join().expect("callback thread should finish")
+}
+
+#[test]
+fn callback_request_data_is_not_logged_or_surfaced() {
+    capture::enable();
+
+    let malformed_request = format!(
+        "{CALLBACK_BAD_METHOD}?secret={CALLBACK_BAD_QUERY} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+    );
+    let err = send_callback_request(&malformed_request)
+        .expect_err("an arbitrary request method must be rejected");
+    let error_text = err.to_string();
+    assert_no_secret(
+        "malformed callback method",
+        CALLBACK_BAD_METHOD,
+        &error_text,
+    );
+    assert_no_secret("malformed callback query", CALLBACK_BAD_QUERY, &error_text);
+
+    let valid_request = format!(
+        "GET /callback?code={CALLBACK_CODE}&state={CALLBACK_STATE} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+    );
+    let result =
+        send_callback_request(&valid_request).expect("a valid callback request should be accepted");
+    assert_eq!(result.code.0, CALLBACK_CODE);
+    assert_eq!(result.state.0, CALLBACK_STATE);
+    assert_no_secret("callback authorization code", CALLBACK_CODE, "");
+    assert_no_secret("callback state", CALLBACK_STATE, "");
 }
 
 #[tokio::test]

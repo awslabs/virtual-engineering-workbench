@@ -112,25 +112,21 @@ impl CallbackReceiver for TcpCallbackReceiverImpl {
         }
 
         let parts: Vec<&str> = request_line.split_whitespace().collect();
-        // The request target carries the authorization code in its query
-        // string, so only the method and path are logged.
-        debug_log!(
-            "callback: received {} {}",
-            parts.first().copied().unwrap_or("?"),
-            parts
-                .get(1)
-                .copied()
-                .unwrap_or("?")
-                .split('?')
-                .next()
-                .unwrap_or("?")
-        );
         if parts.len() < 2 || parts[0] != "GET" {
+            // The request line is unauthenticated input. Do not quote any part
+            // of a malformed line because either token may contain secrets.
+            debug_log!("callback: received malformed request");
             send_response(&stream, "404 Not Found", "Not Found");
             return Err(IdentityError::CallbackError("expected GET request".into()));
         }
 
         let path_and_query = parts[1];
+        // The request target carries the authorization code in its query
+        // string, so log only the fixed method and query-free path.
+        debug_log!(
+            "callback: received GET {}",
+            path_and_query.split('?').next().unwrap_or("?")
+        );
         if !path_and_query.starts_with("/callback") {
             send_response(&stream, "404 Not Found", "Not Found");
             // The request target carries code and state in its query string, so

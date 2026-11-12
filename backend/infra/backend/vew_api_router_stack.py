@@ -33,11 +33,13 @@ class VewApiRouterStack(aws_cdk.Stack):
     unauthenticated traffic never reaches a backend Lambda authorizer.
 
     Publishes the resulting URL as CloudFormation output ``VewApiEndpoint``.
-    deploy.sh copies that into ``/<app-name>-<env>/vew-api-endpoint``, which is
-    what the CLI reads for ``api_endpoint``, and writes the custom-domain URL
-    into the same parameter when this stack is not deployed. Keeping deploy.sh as
-    the only writer means the CLI never has to know which mode it is running
-    against, and switching modes cannot collide on the parameter name.
+    deploy.sh copies that into ``/<app-name>-ui-<env>/vew-api-endpoint``,
+    where ``<app-name>`` is the backend application name before deploy.sh adds
+    its ``-ui`` suffix. The CLI reads this parameter for ``api_endpoint``, and
+    deploy.sh writes the custom-domain URL into the same parameter when this
+    stack is not deployed. Keeping deploy.sh as the only writer means the CLI
+    never has to know which mode it is running against, and switching modes
+    cannot collide on the parameter name.
     """
 
     def __init__(
@@ -91,11 +93,12 @@ class VewApiRouterStack(aws_cdk.Stack):
 
         endpoint = http_api.api_endpoint
 
-        # This stack deliberately does NOT write the /<app>-<env>/vew-api-endpoint
-        # SSM parameter the CLI reads. deploy.sh owns that parameter in both deploy
-        # modes: it publishes the VewApiEndpoint output below when the router is
-        # deployed, and the custom-domain URL when ApiIntegrationStack provides the
-        # unified host instead.
+        # This stack deliberately does NOT write the
+        # /<app-name>-ui-<env>/vew-api-endpoint SSM parameter the CLI reads.
+        # deploy.sh owns that parameter in both deploy modes; APP_NAME already
+        # includes the -ui suffix. It publishes the VewApiEndpoint output below
+        # when the router is deployed, and the custom-domain URL when
+        # ApiIntegrationStack provides the unified host instead.
         #
         # A stack-owned parameter would turn a mode switch into a deploy failure.
         # An environment that started with a custom API domain already has the

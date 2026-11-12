@@ -71,13 +71,14 @@ frontend deployment's `ADDITIONAL_APP_CLIENTS` list: add an entry named `vew-cli
 stack creates it and publishes its id. Without that entry there is no CLI client
 and the router's authorizer has nothing to read.
 
-Note the two different parameter prefixes: the endpoint is owned by `deploy.sh`
-under `<app-name>-<env>`, while the Cognito values are published by the frontend
-stack under `<app-name>-ui-<env>`.
+The deployment uses one shared `-ui` prefix for all three parameters.
+`deploy.sh` sets `APP_NAME` to `<app-name>-ui`, then appends `-<env>` once;
+`<app-name>` below means `${ORG_PREFIX}-${APP_PREFIX}` and does not itself
+include `-ui`.
 
 | Config field | SSM parameter |
 |---|---|
-| `api_endpoint` | `/<app-name>-<env>/vew-api-endpoint` |
+| `api_endpoint` | `/<app-name>-ui-<env>/vew-api-endpoint` |
 | `oidc_client_id` | `/<app-name>-ui-<env>/app-client-id/vew-cli` |
 | `issuer_url` | `/<app-name>-ui-<env>/user-pool-id` — read the pool ID, then construct `https://cognito-idp.<region>.amazonaws.com/<pool-id>` |
 
@@ -89,9 +90,10 @@ no such stack — `deploy.sh` writes the custom domain into the parameter instea
 The parameter is the same in both cases, which is why it is the value to use.
 
 ```bash
-# Example: fetch all three values after deploy (adjust <app-name>-<env> to match your deployment)
+# Example: fetch all three values after deploy
+# (<app-name> is ORG_PREFIX-APP_PREFIX; deploy.sh adds -ui once)
 AWS_PROFILE=<profile> aws ssm get-parameters \
-  --names "/<app-name>-<env>/vew-api-endpoint" \
+  --names "/<app-name>-ui-<env>/vew-api-endpoint" \
           "/<app-name>-ui-<env>/app-client-id/vew-cli" \
           "/<app-name>-ui-<env>/user-pool-id" \
   --query 'Parameters[].[Name,Value]' --output table
