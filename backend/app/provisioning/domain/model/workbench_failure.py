@@ -74,7 +74,13 @@ _PATTERNS: list[tuple[FailureCode, re.Pattern]] = [
         FailureCode.Template,
         re.compile(
             r"ValidationError|Parameter validation failed|Template (format )?error|Missing .* in the output|"
-            r"Exceeded attempts to wait|InvalidParameter|Encountered unsupported property\b",
+            r"Exceeded attempts to wait|InvalidParameter|Encountered unsupported property\b|"
+            # A Marketplace product restricts which instance types may run it. The
+            # message names no AZ and does not start with "Unsupported", so it fell
+            # through every pattern to UNKNOWN. It is a template problem: the
+            # instance type in the product's parameters is not one the Marketplace
+            # offer permits, and the fix is to change that parameter.
+            r"instance configuration for this AWS Marketplace product is not supported",
             re.IGNORECASE,
         ),
     ),

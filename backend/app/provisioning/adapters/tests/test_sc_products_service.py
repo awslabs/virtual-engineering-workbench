@@ -492,3 +492,60 @@ def test_get_provisioned_product_failure_reason_returns_the_first_failed_resourc
     )
 
     assertpy.assert_that(reason).contains("VcpuLimitExceeded")
+
+
+def test_get_provisioned_product_failure_reason_falls_back_to_the_record_errors(
+    mock_moto_calls,
+    mock_describe_stack_events_request,
+    mock_describe_record_request,
+):
+    """A launch can fail before the stack exists. Returning None then meant the user
+    saw a failed workbench with no reason at all."""
+    # ARRANGE — the stack has no failed resource to report
+    mock_describe_stack_events_request.return_value = {
+        "StackEvents": [{"LogicalResourceId": "Role", "ResourceStatus": "CREATE_COMPLETE"}]
+    }
+    record = dict(mock_describe_record_request.return_value)
+    record["RecordErrors"] = [{"Code": "ResourceNotFound", "Description": "The launch constraint role is missing"}]
+    mock_describe_record_request.return_value = record
+
+    service = sc_products_service.ServiceCatalogProductsService(
+        sc_boto_client_provider=mock.MagicMock(return_value=boto3.client("servicecatalog", region_name="us-east-1")),
+        cf_boto_client_provider=mock.MagicMock(return_value=boto3.client("cloudformation", region_name="us-east-1")),
+        logger=mock.MagicMock(),
+    )
+
+    # ACT
+    reason = service.get_provisioned_product_failure_reason(
+        user_id="T0011AA", aws_account_id="001234567890", provisioned_product_id="pp-123", region="us-east-1"
+    )
+
+    # ASSERT
+    assertpy.assert_that(reason).contains("ResourceNotFound")
+    assertpy.assert_that(reason).contains("launch constraint role is missing")
+
+
+def test_get_provisioned_product_failure_reason_does_not_raise_when_the_stack_cannot_be_read(
+    mock_moto_calls,
+    mock_describe_stack_events_request,
+):
+    """__get_stack_events raises an AdapterException when a stack has no events, which
+    used to escape to the caller: a missing stack turned a reportable failure into an
+    unhandled adapter error."""
+    # ARRANGE
+    mock_describe_stack_events_request.return_value = {"StackEvents": []}
+
+    service = sc_products_service.ServiceCatalogProductsService(
+        sc_boto_client_provider=mock.MagicMock(return_value=boto3.client("servicecatalog", region_name="us-east-1")),
+        cf_boto_client_provider=mock.MagicMock(return_value=boto3.client("cloudformation", region_name="us-east-1")),
+        logger=mock.MagicMock(),
+    )
+
+    # ACT — must return, not raise
+    reason = service.get_provisioned_product_failure_reason(
+        user_id="T0011AA", aws_account_id="001234567890", provisioned_product_id="pp-123", region="us-east-1"
+    )
+
+    # ASSERT — the call returned instead of raising, and reports whatever Service
+    # Catalog had, which for this fixture is the record's status message or nothing.
+    assertpy.assert_that(reason is None or isinstance(reason, str)).is_true()
