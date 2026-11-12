@@ -1,8 +1,7 @@
-"""The launch-constraint role (spoke and hub copy) must not depend only on the reserved
-aws:cloudformation:stack-name tag: reserved aws: tags are not surfaced as condition keys,
-so a statement keyed on them never matches. Create-style and teardown actions on
-Service Catalog stack resources are therefore also granted on the VEW-owned tag
-vew:provisionedProduct:id, which the provisioning aggregate stamps on every product.
+"""Verify the spoke and hub launch-constraint roles use VEW-owned tags.
+
+The obsolete create-time aws:RequestTag/aws:cloudformation:stack-name condition must
+not reappear.
 """
 
 import aws_cdk
@@ -94,3 +93,9 @@ def test_teardown_actions_are_granted_on_the_vew_resource_tag(statements):
 def test_vew_tag_statements_grant_nothing_else(statements):
     assert _granted_on_vew_tag(statements, "ResourceTag") == TEARDOWN_ACTIONS
     assert _granted_on_vew_tag(statements, "RequestTag") - CREATE_ACTIONS <= {"ec2:CreateTags"}
+
+
+def test_dead_reserved_request_tag_condition_is_absent(statements):
+    for statement in statements:
+        for condition_values in statement.get("Condition", {}).values():
+            assert "aws:RequestTag/aws:cloudformation:stack-name" not in condition_values

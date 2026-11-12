@@ -1,12 +1,5 @@
 import cdk_nag
-from aws_cdk import (
-    Stack,
-    aws_ec2,
-    aws_events,
-    aws_events_targets,
-    aws_iam,
-    aws_ssm,
-)
+from aws_cdk import Stack, aws_ec2, aws_events, aws_events_targets, aws_iam, aws_ssm
 from constructs import Construct
 
 from infra import config, constants
@@ -110,47 +103,20 @@ class ProvisioningEnablementStack(Stack):
                 actions=["ec2:DescribeInstances"],
                 resources=["*"],
             ),
-            # ec2:ModifyInstanceMetadataOptions. ec2:SourceInstanceARN is a
-            # request-context key AWS populates only when the caller is an EC2 instance
-            # using its instance role, which is what this managed policy is attached to.
-            # (It appears among EC2's condition keys but against no individual action,
-            # because it describes the caller rather than the target.) Requiring it
-            # blocks these credentials being used from anywhere other than an EC2
-            # instance in this account.
-            #
-            # This does NOT narrow the grant to the calling instance's own id. IAM has no
-            # policy variable for the target resource's ARN, so ec2:SourceInstanceARN
-            # cannot be compared against the instance being modified, and an instance
-            # role carries no principal-side user identity to compare the owner tag
-            # against either. One VEW instance can therefore still modify another's
-            # metadata options; closing that needs the call moved to the backend, which
-            # already has a per-user condition. Narrowing the caller is what is
-            # achievable here.
+            # Users have root on their instances, and this policy is on every instance in the account.
+            # Unscoped, one user could turn off another instance's metadata service (cutting off its role
+            # credentials and SSM Agent), bring back IMDSv1, or raise its hop limit. An instance may change
+            # only its own metadata options: the one it is calling from.
             aws_iam.PolicyStatement(
                 effect=aws_iam.Effect.ALLOW,
                 actions=["ec2:ModifyInstanceMetadataOptions"],
-                resources=[
-                    self.format_arn(
-                        account=self.account,
-                        partition=self.partition,
-                        region=self.region,
-                        resource="instance",
-                        resource_name="*",
-                        service="ec2",
-                    ),
-                ],
+                resources=[f"arn:{self.partition}:ec2:{self.region}:{self.account}:instance/*"],
                 conditions={
-                    "Null": {"aws:ResourceTag/vew:provisionedProduct:ownerId": "false"},
-                    "ArnLike": {
-                        "ec2:SourceInstanceARN": self.format_arn(
-                            account=self.account,
-                            partition=self.partition,
-                            region=self.region,
-                            resource="instance",
-                            resource_name="*",
-                            service="ec2",
+                    "StringEquals": {
+                        "ec2:SourceInstanceARN": (
+                            f"arn:{self.partition}:ec2:{self.region}:{self.account}:instance/${{ec2:InstanceID}}"
                         )
-                    },
+                    }
                 },
             ),
         ]

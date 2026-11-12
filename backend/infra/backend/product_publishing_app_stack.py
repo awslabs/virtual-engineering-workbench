@@ -200,15 +200,6 @@ class ProductPublishingAppStack(Stack):
                         resources=["*"],
                     )
                 ),
-                # NOTE: a statement here granted the elastic-IP actions and
-                # secretsmanager:CreateSecret conditioned on
-                # aws:RequestTag/aws:cloudformation:stack-name matching "SC-*". That
-                # condition can never be satisfied: the "aws:" tag prefix is reserved
-                # and AWS supplies no aws:RequestTag/* key for a reserved tag at
-                # authorization time. It is removed rather than repaired, because the
-                # vew:provisionedProduct:id statement below already grants exactly
-                # those actions through a condition that does match - so the deleted
-                # statement was both inert and redundant, and nothing loses a grant.
                 # ec2:CreateTags for the resources Service Catalog templates
                 # create.
                 #
@@ -254,36 +245,15 @@ class ProductPublishingAppStack(Stack):
                         },
                     )
                 ),
-                # ECS actions restored to a satisfiable form.
+                # ECS actions scoped by resource type.
                 #
-                # The statement above grants ecs:RegisterTaskDefinition,
-                # ecs:DeregisterTaskDefinition, ecs:TagResource and
-                # ecs:CreateService, and the statement further down grants
-                # ecs:DeleteService — but all five sit under conditions keyed on
-                # aws:cloudformation:stack-name
-                # (aws:RequestTag/... and aws:ResourceTag/... respectively).
-                # "aws:" is an AWS-reserved tag prefix. CloudFormation really
-                # does stamp aws:cloudformation:stack-name onto the resources it
-                # creates, so the tag exists on the resource — but reserved keys
-                # are never surfaced as aws:RequestTag/* or aws:ResourceTag/*
-                # condition keys at authorization time. A caller cannot set them
-                # (IAM rejects user-supplied "aws:"-prefixed tags) and the
-                # service does not expose them. Those conditions therefore
-                # cannot evaluate true for any principal, so the five grants are
-                # permanently dead.
+                # The earlier create-time ECS grants conditioned on
+                # aws:RequestTag/aws:cloudformation:stack-name were removed. The
+                # retained resource-tag statement above still includes
+                # ecs:DeleteService, while these ARN-scoped statements provide the
+                # operative ECS permissions.
                 #
-                # ecs:DescribeServices is the one action left unconditioned, and
-                # it is the one that still works. Confirmed in both directions
-                # with the IAM policy simulator: the other five return
-                # implicitDeny with no context, and allow once the reserved key
-                # is injected manually.
-                #
-                # The spoke-side copy of this role grants all six ECS actions
-                # unconditioned on Resource="*" and works, so the hub was both
-                # more restrictive and broken.
-                #
-                # The fix does not restore Resource="*" wholesale. Scoping is
-                # per-action, as tight as each action supports:
+                # Scoping is per-action, as tight as each action supports:
                 #
                 #  * ecs:RegisterTaskDefinition DOES have a "task-definition"
                 #    resource type (AWS service reference for ecs), so it is
@@ -318,13 +288,8 @@ class ProductPublishingAppStack(Stack):
                 # for ec2:CreateTags above, is verified for EC2 resources but
                 # only inferred for ECS: no ECS product template exists in this
                 # repo, so propagation to ECS resources cannot be observed.
-                # Shipping a condition that cannot be verified is what made the
-                # grants above dead, so this uses ARN scoping, which is
-                # verifiable, instead.
-                #
-                # The dead statements above and below are deliberately left in
-                # place. They are inert rather than harmful, and removing the
-                # ECS actions from them would be an unrelated deletion.
+                # The earlier create-time condition could not be verified, so this
+                # uses ARN scoping, which is verifiable, instead.
                 #
                 # Scope note: the grant is verified by simulator readback with
                 # positive and negative controls. No product template in this
@@ -658,12 +623,9 @@ class ProductPublishingAppStack(Stack):
             ],
         )
         # Create-style and teardown actions on Service Catalog stack resources,
-        # keyed on the VEW-owned tag vew:provisionedProduct:id (vew-pp-<uuid>)
-        # instead of the reserved aws:cloudformation:stack-name. Reserved aws:
-        # tags are not surfaced as condition keys, so the reserved-key statements
-        # above are not relied on; these are. Additive: those statements are left
-        # unchanged. A separate named policy keeps the role's default policy below
-        # the size at which CDK splits it into an unsuppressed overflow policy.
+        # keyed on the VEW-owned tag vew:provisionedProduct:id (vew-pp-<uuid>).
+        # A separate named policy keeps the role's default policy below the size
+        # at which CDK splits it into an unsuppressed overflow policy.
         self.launch_constraint_vew_tag_policy = Policy(
             self,
             "LaunchConstraintVewTagPolicy",

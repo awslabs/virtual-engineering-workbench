@@ -103,17 +103,6 @@ class ProductPublishingEnablementAppStack(Stack):
                 resources=["*"],
                 effect=iam.Effect.ALLOW,
             ),
-            # Create-style actions inside Service Catalog stacks.
-            #
-            # NOTE: a statement here granted the elastic-IP actions and
-            # secretsmanager:CreateSecret conditioned on
-            # aws:RequestTag/aws:cloudformation:stack-name matching "SC-*". That
-            # condition can never be satisfied: the "aws:" tag prefix is reserved and
-            # AWS supplies no aws:RequestTag/* key for a reserved tag at authorization
-            # time. It is removed rather than repaired, because the
-            # vew:provisionedProduct:id statement below already grants exactly those
-            # actions through a condition that does match - so the deleted statement
-            # was both inert and redundant, and nothing loses a grant.
             # ec2:CreateTags for the resources Service Catalog templates create.
             #
             # Keyed on a NON-reserved tag that VEW itself stamps on every
@@ -140,22 +129,19 @@ class ProductPublishingEnablementAppStack(Stack):
                     },
                 },
             ),
-            # Same create-style actions, keyed on the VEW-owned tag instead of the
-            # reserved aws:cloudformation:stack-name. Reserved aws: tags are not surfaced
-            # as condition keys, so the statement above is not relied on; this one is.
-            # vew:provisionedProduct:id (vew-pp-<uuid>) is set by the provisioning
-            # aggregate and propagated by Service Catalog to every stack resource.
-            # Additive: the statement above is left unchanged.
+            # Create-style actions keyed on the VEW-owned tag
+            # vew:provisionedProduct:id (vew-pp-<uuid>), which is set by the
+            # provisioning aggregate and propagated by Service Catalog to every
+            # stack resource.
             iam.PolicyStatement(
                 actions=["ec2:AllocateAddress", "secretsmanager:CreateSecret"],
                 resources=["*"],
                 effect=iam.Effect.ALLOW,
                 conditions={"StringLike": {"aws:RequestTag/vew:provisionedProduct:id": "vew-pp-*"}},
             ),
-            # Teardown / tag-update actions on existing resources of a VEW-provisioned
-            # product, keyed on the VEW-owned tag. The aws:ResourceTag/aws:cloudformation:
-            # stack-name statement below relies on a reserved key and is not relied on.
-            # Additive: that statement is left unchanged.
+            # Teardown / tag-update actions on existing resources of a
+            # VEW-provisioned product, keyed on the VEW-owned tag. The statement
+            # below separately retains the existing SC stack resource-tag grant.
             iam.PolicyStatement(
                 actions=[
                     "ec2:AssociateAddress",
