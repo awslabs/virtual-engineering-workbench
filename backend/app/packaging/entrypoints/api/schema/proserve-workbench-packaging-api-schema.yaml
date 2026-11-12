@@ -4715,27 +4715,12 @@ components:
     MarketplaceMetadataInput:
       title: MarketplaceMetadataInput
       type: object
+      description: Identifies the Marketplace subscription to revalidate server-side before import
       required:
         - productCode
-        - subscriptionOwnership
-        - regionalAmiIds
       properties:
         productCode:
           title: ProductCode
-          type: string
-        subscriptionOwnership:
-          title: SubscriptionOwnership
-          type: string
-        regionalAmiIds:
-          title: RegionalAmiIds
-          type: object
-          additionalProperties:
-            type: string
-        licenseConfigurationArn:
-          title: LicenseConfigurationArn
-          type: string
-        homeRegion:
-          title: HomeRegion
           type: string
     DiscoveredMarketplaceSubscription:
       title: DiscoveredMarketplaceSubscription
@@ -4764,6 +4749,11 @@ components:
         subscriptionOwnership:
           title: SubscriptionOwnership
           type: string
+        licenseGrantAllowed:
+          title: LicenseGrantAllowed
+          type: boolean
+          default: false
+          description: Whether this specific received license allows CreateGrant
         alreadyImported:
           title: AlreadyImported
           type: boolean

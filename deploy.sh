@@ -25,6 +25,8 @@ mkdir -p "$SCRIPT_DIR/.deploy-logs"
 
 # shellcheck source=scripts/deploy-regions.sh
 source "$SCRIPT_DIR/scripts/deploy-regions.sh"
+# shellcheck source=scripts/license-manager-readiness.sh
+source "$SCRIPT_DIR/scripts/license-manager-readiness.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -1233,34 +1235,37 @@ deactivate
 # does not use Marketplace images is unaffected.
 step "7c" "Checking the License Manager Organizations integration (read-only)"
 
-LM_ORG_INTEGRATION=$(aws license-manager get-service-settings \
-  --region "$AWS_REGION" \
-  --query 'OrganizationConfiguration.EnableIntegration' \
-  --output text 2>/dev/null || echo "unknown")
+LM_READINESS=$(license_manager_readiness "$AWS_REGION" "$AWS_ACCOUNT_ID")
+LM_READINESS_STATUS=${LM_READINESS%%$'\t'*}
+LM_MANAGEMENT_ACCOUNT=""
+if [[ "$LM_READINESS" == *$'\t'* ]]; then
+  LM_MANAGEMENT_ACCOUNT=${LM_READINESS#*$'\t'}
+fi
 
-ORG_MANAGEMENT_ACCOUNT=$(aws organizations describe-organization \
-  --query 'Organization.MasterAccountId' --output text 2>/dev/null || echo "unknown")
-
-case "$LM_ORG_INTEGRATION" in
-  True|true)
-    log "License Manager Organizations integration: enabled"
+case "$LM_READINESS_STATUS" in
+  active)
+    log "License Manager Organizations integration: ACTIVE"
     ;;
-  False|false)
+  disabled)
     warn "License Manager Organizations integration: DISABLED"
     warn "Importing an AWS Marketplace AMI will not be able to distribute licence"
     warn "grants to spoke accounts until an admin enables it in the hub account."
     warn "See docs/marketplace-integration.md. Allow ~30 minutes to take effect."
     ;;
+  pending-not-active)
+    warn "License Manager Organizations integration: PENDING/NOT ACTIVE"
+    warn "The setting is enabled, but its RAM resource share is not visible as ACTIVE"
+    warn "from this hub account and owned by the organization's management account yet."
+    warn "Allow ~30 minutes, then retry."
+    ;;
+  member-not-distributor)
+    warn "License Manager automatic grant distribution: HUB IS A MEMBER ACCOUNT"
+    warn "This deployment can inspect the management account's active RAM share,"
+    warn "but License Manager grants must be created from management account"
+    warn "$LM_MANAGEMENT_ACCOUNT. Marketplace imports remain verify-only here."
+    ;;
   *)
-    if [ "$ORG_MANAGEMENT_ACCOUNT" = "unknown" ]; then
-      log "License Manager Organizations integration: not determined (no Organizations access)"
-    elif [ "$ORG_MANAGEMENT_ACCOUNT" != "$AWS_ACCOUNT_ID" ]; then
-      log "License Manager Organizations integration: not determined - this is not the"
-      log "organization's management account ($ORG_MANAGEMENT_ACCOUNT), which is where"
-      log "the setting lives."
-    else
-      log "License Manager Organizations integration: not determined"
-    fi
+    log "License Manager Organizations integration: not determined (read access unavailable)"
     ;;
 esac
 

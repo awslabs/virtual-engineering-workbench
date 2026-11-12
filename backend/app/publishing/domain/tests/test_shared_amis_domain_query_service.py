@@ -200,7 +200,12 @@ def test_verify_copy_raises_exception_when_status_invalid(image_svc_mock, shared
         )
 
 
-def _marketplace_version(region: str, ownership: str, regional_ami_ids: dict | None = None):
+def _marketplace_version(
+    region: str,
+    ownership: str,
+    regional_ami_ids: dict | None = None,
+    license_grant_allowed: bool = True,
+):
     """A version imported from a Marketplace subscription, whose product publishes a
     different AMI id per region."""
     from app.publishing.domain.model.marketplace_metadata import MarketplaceMetadata
@@ -210,6 +215,7 @@ def _marketplace_version(region: str, ownership: str, regional_ami_ids: dict | N
     entity.marketplaceMetadata = MarketplaceMetadata(
         productCode="pc-1",
         subscriptionOwnership=ownership,
+        licenseGrantAllowed=license_grant_allowed,
         regionalAmiIds=regional_ami_ids if regional_ami_ids is not None else {region: "ami-regional-euwest1"},
         licenseConfigurationArn="arn:aws:license-manager:us-east-1:111111111111:license:l-1",
         homeRegion="us-east-1",
@@ -395,3 +401,49 @@ def test_vew_managed_subscription_is_not_affected_by_the_upgrade(
     # ASSERT
     assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant)
     lm.has_active_received_grant.assert_not_called()
+
+
+def test_external_subscription_without_create_grant_stays_verify_only_when_account_is_ready(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    """Account-level readiness cannot override this license's AllowedOperations."""
+    # ARRANGE
+    lm = _lm_service(has_grant=False, can_distribute=True)
+    mock_version_repo.get.return_value = _marketplace_version(
+        "eu-west-1", "EXTERNALLY_MANAGED", license_grant_allowed=False
+    )
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+        license_manager_svc=lm,
+    )
+
+    # ACT
+    result = domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecision.VerifyExternalGrant
+    )
+    lm.has_active_received_grant.assert_not_called()
+    lm.can_distribute_license.assert_not_called()
+
+
+def test_historical_marketplace_metadata_defaults_to_not_grant_capable():
+    from app.publishing.domain.model.marketplace_metadata import MarketplaceMetadata
+
+    metadata = MarketplaceMetadata.model_validate(
+        {
+            "productCode": "pc-1",
+            "subscriptionOwnership": "EXTERNALLY_MANAGED",
+        }
+    )
+
+    assertpy.assert_that(metadata.licenseGrantAllowed).is_false()

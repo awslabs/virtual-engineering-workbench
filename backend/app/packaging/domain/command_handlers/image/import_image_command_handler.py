@@ -55,6 +55,7 @@ def _validate_and_build_marketplace_metadata(
             "regionalAmiIds": command.regionalAmiIds or {ami_region: command.amiId.value},
             "licenseConfigurationArn": command.licenseConfigurationArn,
             "homeRegion": command.homeRegion,
+            "licenseGrantAllowed": command.licenseGrantAllowed,
         }
     )
 

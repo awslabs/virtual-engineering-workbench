@@ -37,7 +37,10 @@ from app.packaging.domain.commands.recipe import (
     update_recipe_version_command,
 )
 from app.packaging.domain.exceptions import domain_exception
-from app.packaging.domain.model.image.image_constants import SubscriptionOwnership
+from app.packaging.domain.model.image.image_constants import (
+    ImageSource,
+    SubscriptionOwnership,
+)
 from app.packaging.domain.value_objects.component import (
     component_description_value_object,
     component_id_value_object,
@@ -1523,13 +1526,53 @@ def import_image(
     project_id: str,
 ) -> api_gateway.Response[api_model.ImportImageResponse]:
     """Imports an existing or marketplace AMI into VEW."""
-    marketplace_metadata = request.marketplaceMetadata
-    product_code_raw = marketplace_metadata.productCode if marketplace_metadata else None
+    project_id_value = project_id_value_object.from_str(project_id)
+    image_source = image_source_value_object.from_str(request.imageSource)
+    ami_id = ami_id_value_object.from_str(request.amiId)
+
+    marketplace_product_code = None
+    license_configuration_arn = None
+    subscription_ownership = None
+    regional_ami_ids = None
+    home_region = None
+    license_grant_allowed = False
+
+    if image_source.value == ImageSource.MARKETPLACE_PRODUCT:
+        requested_metadata = request.marketplaceMetadata
+        if not requested_metadata:
+            raise domain_exception.DomainException(
+                "marketplaceMetadata with productCode is required for MARKETPLACE_PRODUCT."
+            )
+
+        subscriptions = dependencies.marketplace_subscription_qry_svc.discover(project_id=project_id_value)
+        matching_subscriptions = [
+            subscription
+            for subscription in subscriptions
+            if (
+                subscription.hubRegionAmiId == ami_id.value
+                and subscription.productCode == requested_metadata.productCode
+            )
+        ]
+        if len(matching_subscriptions) != 1:
+            raise domain_exception.DomainException(
+                "Marketplace subscription is unavailable or no longer matches "
+                f"AMI {ami_id.value} and product code {requested_metadata.productCode}. "
+                "Refresh Marketplace subscriptions and try again."
+            )
+
+        subscription = matching_subscriptions[0]
+        ami_id = ami_id_value_object.from_str(subscription.hubRegionAmiId)
+        marketplace_product_code = product_code_value_object.from_str(subscription.productCode)
+        license_configuration_arn = subscription.licenseConfigurationArn
+        subscription_ownership = SubscriptionOwnership(subscription.subscriptionOwnership)
+        regional_ami_ids = subscription.regionalAmiIds
+        home_region = subscription.homeRegion
+        license_grant_allowed = subscription.licenseGrantAllowed
 
     command = import_image_command.ImportImageCommand(
-        projectId=project_id_value_object.from_str(project_id),
-        imageSource=image_source_value_object.from_str(request.imageSource),
-        amiId=ami_id_value_object.from_str(request.amiId),
+        projectId=project_id_value,
+        imageSource=image_source,
+        amiId=ami_id,
         imageName=image_name_value_object.from_str(request.imageName),
         imageDescription=request.imageDescription,
         platform=platform_value_object.from_str(request.platform),
@@ -1537,15 +1580,12 @@ def import_image(
         componentVersionDetails=[
             c.model_dump() if hasattr(c, "model_dump") else c for c in (request.componentVersionDetails or [])
         ],
-        marketplaceProductCode=product_code_value_object.from_str(product_code_raw) if product_code_raw else None,
-        licenseConfigurationArn=marketplace_metadata.licenseConfigurationArn if marketplace_metadata else None,
-        subscriptionOwnership=(
-            SubscriptionOwnership(marketplace_metadata.subscriptionOwnership)
-            if marketplace_metadata and marketplace_metadata.subscriptionOwnership
-            else None
-        ),
-        regionalAmiIds=marketplace_metadata.regionalAmiIds if marketplace_metadata else None,
-        homeRegion=marketplace_metadata.homeRegion if marketplace_metadata else None,
+        marketplaceProductCode=marketplace_product_code,
+        licenseConfigurationArn=license_configuration_arn,
+        subscriptionOwnership=subscription_ownership,
+        regionalAmiIds=regional_ami_ids,
+        homeRegion=home_region,
+        licenseGrantAllowed=license_grant_allowed,
         imageServiceAccountId=dependencies.image_service_account_id,
     )
 

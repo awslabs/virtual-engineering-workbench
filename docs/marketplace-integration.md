@@ -16,7 +16,11 @@ The hub received the license from outside — a vendor grant, an Organization-le
 
 ## Prerequisites
 
-These are one-time setup steps performed by an AWS administrator in the hub account.
+These are one-time setup steps performed by an AWS administrator. License Manager
+Organizations integration and automatic entitlement distribution run from the
+organization's management account. A VEW hub in a member account can inspect the
+management-owned RAM share, but it cannot create grants; Marketplace imports in that
+hub remain externally managed and require a pre-existing spoke grant or subscription.
 
 ### Enable License Manager Organization integration
 
@@ -104,13 +108,27 @@ VEW creates a License Manager grant from the hub to the spoke, accepts it in the
 
 VEW first checks whether the spoke account already has an active grant or its own subscription for the product. If it does, the version proceeds normally — no new grant is created.
 
-If the spoke has neither, VEW checks whether it can distribute a grant itself, which it can when the License Manager Organizations integration is enabled in the hub. In that case it creates and accepts the grant exactly as for a VEW Managed licence, so no manual step is needed.
+If the spoke has neither, VEW checks whether it can distribute a grant itself. The
+specific persisted license must permit `CreateGrant`, the VEW hub must be the
+organization's management account, the License Manager Organizations integration must
+be enabled, and its exact RAM resource share must be active and owned by that account.
+The hub checks the share as `SELF`; a member hub checks `OTHER-ACCOUNTS` so it can report
+the real integration state, but it does not claim that it can distribute. If all grant
+conditions pass, VEW creates and accepts the grant exactly as for a VEW Managed licence.
 
-Only when the spoke has no grant *and* the integration is off does the version fail. Either enable the integration (see [above](#enable-license-manager-organization-integration)) and retry, or distribute the grant by hand (see [Distribute grants to spoke accounts](#distribute-grants-to-spoke-accounts-externally-managed-only)) and then retry.
+Publishing fails when the spoke has no grant and VEW cannot create one because the hub
+is a member account, the persisted license does not permit `CreateGrant`, or the
+integration is not ready. Historical imports
+that do not contain the capability flag are treated as not grant-capable; rediscover and
+re-import to record the current license capability. Otherwise, enable the integration
+(see [above](#enable-license-manager-organization-integration)) and wait for its resource
+share to become active before retrying, or distribute the grant by hand (see
+[Distribute grants to spoke accounts](#distribute-grants-to-spoke-accounts-externally-managed-only))
+and then retry.
 
 ## When a version fails
 
-A failed version distribution carries a `statusReason` alongside its status, returned by `GetProductVersion` and shown in the UI, so the reason no longer has to be dug out of the Step Functions execution. It is a short line — an error name and message, never a stack trace — and is cleared when the version succeeds or is retried.
+A failed version distribution carries a `statusReason` alongside its status and returns it from `GetProductVersion`, so API clients and operators do not have to inspect the Step Functions execution. The current UI does not display this field. It is a short line — an error name and message, never a stack trace — and is cleared when the version succeeds or is retried.
 
 The reasons specific to Marketplace images are:
 
@@ -134,10 +152,10 @@ there is nothing in the failure itself to tell you which to pick.
 
 ## Deprecated AMIs
 
-A seller deprecates an AMI when it is superseded. VEW lists deprecated images so
-a subscription whose images are all deprecated can still be imported, and
-prefers a supported image whenever the product publishes one — you only get a
-deprecated AMI when there is no alternative.
+A seller can schedule an AMI deprecation time. VEW treats the AMI as deprecated only
+once that UTC time has passed. VEW lists deprecated images so a subscription whose
+images are all deprecated can still be imported, and prefers a supported image whenever
+the product publishes one — you only get a deprecated AMI when there is no alternative.
 
 A subscription in that state carries a **Deprecated** badge in the subscriptions
 list and in the import wizard, and the wizard warns before you import. The

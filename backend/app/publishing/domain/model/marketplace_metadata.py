@@ -9,6 +9,8 @@ class MarketplaceMetadata(BaseModel):
     productCode: Optional[str] = Field(None, title="ProductCode")
     marketplaceProductId: Optional[str] = Field(None, title="MarketplaceProductId")
     subscriptionOwnership: Optional[str] = Field(None, title="SubscriptionOwnership")
+    # Historical records omit this field and must never be assumed grant-capable.
+    licenseGrantAllowed: bool = Field(False, title="LicenseGrantAllowed")
     vendorName: Optional[str] = Field(None, title="VendorName")
     regionalAmiIds: Optional[dict[str, str]] = Field(None, title="RegionalAmiIds")
     agreementId: Optional[str] = Field(None, title="AgreementId")

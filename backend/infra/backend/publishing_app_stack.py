@@ -48,6 +48,17 @@ USED_AMI_LIST_FILE_PATH = "amis/used-ami-list.json"
 
 TECHNICAL_PARAMETERS_NAMES = ["CpuArchitecture", "LaunchType", "OwnerTID"]
 
+API_LICENSE_MANAGER_ACTIONS = [
+    "license-manager:CreateGrant",
+    "license-manager:ListDistributedGrants",
+]
+AMI_SHARING_LICENSE_MANAGER_ACTIONS = [
+    *API_LICENSE_MANAGER_ACTIONS,
+    "license-manager:GetServiceSettings",
+    "organizations:DescribeOrganization",
+    "ram:GetResourceShares",
+]
+
 GSI_ATTRIBUTE_NAME_ENTITY = "entity"
 GSI_NAME_ENTITIES = "gsi_entities"
 GSI_NAME_CUSTOM_QUERY_BY_STATUS = "gsi_custom_query_by_status"
@@ -225,20 +236,8 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
-                                actions=[
-                                    # The hub only creates a grant and looks for an
-                                    # existing one. It never reads a single grant,
-                                    # deletes one, or accepts one - those are the
-                                    # spoke's side of the handshake.
-                                    "license-manager:CreateGrant",
-                                    "license-manager:ListDistributedGrants",
-                                    "license-manager:ListReceivedLicenses",
-                                    "license-manager:GetLicense",
-                                    # Read by can_distribute_license, which decides
-                                    # whether an externally-managed subscription can be
-                                    # upgraded from verify-only to an actual grant.
-                                    "license-manager:GetServiceSettings",
-                                ],
+                                # The hub creates grants and recovers idempotent retries.
+                                actions=API_LICENSE_MANAGER_ACTIONS,
                                 resources=["*"],
                             )
                         ),
@@ -406,20 +405,10 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
-                                actions=[
-                                    # The hub only creates a grant and looks for an
-                                    # existing one. It never reads a single grant,
-                                    # deletes one, or accepts one - those are the
-                                    # spoke's side of the handshake.
-                                    "license-manager:CreateGrant",
-                                    "license-manager:ListDistributedGrants",
-                                    "license-manager:ListReceivedLicenses",
-                                    "license-manager:GetLicense",
-                                    # Read by can_distribute_license, which decides
-                                    # whether an externally-managed subscription can be
-                                    # upgraded from verify-only to an actual grant.
-                                    "license-manager:GetServiceSettings",
-                                ],
+                                # AMI sharing also proves the License Manager RAM
+                                # resource share is active and owned by the management
+                                # account before it tries to distribute a grant.
+                                actions=AMI_SHARING_LICENSE_MANAGER_ACTIONS,
                                 resources=["*"],
                             )
                         ),

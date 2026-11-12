@@ -129,6 +129,7 @@ def test_handle_should_import_image_when_marketplace_ami_valid(
         image_source="MARKETPLACE_PRODUCT",
         marketplaceProductCode=product_code_value_object.from_str("abc123def456ghi"),
         subscriptionOwnership="VEW_MANAGED",
+        licenseGrantAllowed=True,
         regionalAmiIds={"eu-west-1": "ami-12345678"},
     )
 
@@ -137,6 +138,10 @@ def test_handle_should_import_image_when_marketplace_ami_valid(
 
     # ASSERT
     assertpy.assert_that(result).starts_with("image-")
+    saved_entity = uow_mock.get_repository.return_value.add.call_args.args[0]
+    assertpy.assert_that(saved_entity.marketplaceMetadata["licenseGrantAllowed"]).is_true()
+    event = message_bus_mock.publish.call_args.args[0]
+    assertpy.assert_that(event.marketplaceMetadata["licenseGrantAllowed"]).is_true()
     message_bus_mock.publish.assert_called_once()
 
 

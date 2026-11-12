@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -19,4 +20,9 @@ class MarketplaceAmi(BaseModel):
 
     @property
     def deprecated(self) -> bool:
-        return self.deprecationTime is not None
+        if not self.deprecationTime:
+            return False
+        deprecation_time = datetime.fromisoformat(self.deprecationTime.replace("Z", "+00:00"))
+        if deprecation_time.tzinfo is None:
+            deprecation_time = deprecation_time.replace(tzinfo=timezone.utc)
+        return deprecation_time <= datetime.now(timezone.utc)

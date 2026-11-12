@@ -723,10 +723,6 @@ class ComponentVersionDetailInput(BaseModel):
 
 class MarketplaceMetadataInput(BaseModel):
     productCode: str = Field(..., title="ProductCode")
-    subscriptionOwnership: str = Field(..., title="SubscriptionOwnership")
-    regionalAmiIds: Dict[str, str] = Field(..., title="RegionalAmiIds")
-    licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")
-    homeRegion: Optional[str] = Field(None, title="HomeRegion")
 
 
 class DiscoveredMarketplaceSubscription(BaseModel):
@@ -737,6 +733,7 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")
     homeRegion: Optional[str] = Field(None, title="HomeRegion")
     subscriptionOwnership: Optional[str] = Field(None, title="SubscriptionOwnership")
+    licenseGrantAllowed: bool = Field(False, title="LicenseGrantAllowed")
     alreadyImported: Optional[bool] = Field(None, title="AlreadyImported")
     newerVersionAvailable: Optional[bool] = Field(None, title="NewerVersionAvailable")
     latestAmiId: Optional[str] = Field(None, title="LatestAmiId")

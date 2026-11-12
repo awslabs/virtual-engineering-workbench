@@ -105,7 +105,9 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         dated_amis = [a for a in all_amis if a.creationDate]
         if not dated_amis:
             return False, None, None
-        latest = max(dated_amis, key=lambda a: a.creationDate)
+        supported_amis = [a for a in dated_amis if not a.deprecated]
+        candidates = supported_amis or dated_amis
+        latest = max(candidates, key=lambda a: (a.creationDate, a.amiId))
         if latest.amiId not in imported_ami_ids:
             return True, latest.amiId, latest.creationDate
         return False, None, None
@@ -188,6 +190,7 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             regionalAmiIds=regional_ami_ids,
             licenseConfigurationArn=license.licenseArn,
             homeRegion=license.homeRegion,
+            licenseGrantAllowed=CREATE_GRANT in license.allowedOperations,
             subscriptionOwnership=ownership.value,
             alreadyImported=hub_ami.productCode in imported_product_codes,
             newerVersionAvailable=newer_version_available,

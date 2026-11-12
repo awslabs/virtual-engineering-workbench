@@ -12,9 +12,8 @@
  * Do not edit the class manually.
  */
 
-import { exists, mapValues } from '../runtime';
 /**
- *
+ * Identifies the Marketplace subscription to revalidate server-side before import
  * @export
  * @interface MarketplaceMetadataInput
  */
@@ -25,30 +24,6 @@ export interface MarketplaceMetadataInput {
      * @memberof MarketplaceMetadataInput
      */
     productCode: string;
-    /**
-     *
-     * @type {string}
-     * @memberof MarketplaceMetadataInput
-     */
-    subscriptionOwnership: string;
-    /**
-     *
-     * @type {{ [key: string]: string; }}
-     * @memberof MarketplaceMetadataInput
-     */
-    regionalAmiIds: { [key: string]: string; };
-    /**
-     *
-     * @type {string}
-     * @memberof MarketplaceMetadataInput
-     */
-    licenseConfigurationArn?: string;
-    /**
-     *
-     * @type {string}
-     * @memberof MarketplaceMetadataInput
-     */
-    homeRegion?: string;
 }
 
 /**
@@ -57,8 +32,6 @@ export interface MarketplaceMetadataInput {
 export function instanceOfMarketplaceMetadataInput(value: object): boolean {
     let isInstance = true;
     isInstance = isInstance && "productCode" in value;
-    isInstance = isInstance && "subscriptionOwnership" in value;
-    isInstance = isInstance && "regionalAmiIds" in value;
 
     return isInstance;
 }
@@ -74,10 +47,6 @@ export function MarketplaceMetadataInputFromJSONTyped(json: any, ignoreDiscrimin
     return {
 
         'productCode': json['productCode'],
-        'subscriptionOwnership': json['subscriptionOwnership'],
-        'regionalAmiIds': json['regionalAmiIds'],
-        'licenseConfigurationArn': !exists(json, 'licenseConfigurationArn') ? undefined : json['licenseConfigurationArn'],
-        'homeRegion': !exists(json, 'homeRegion') ? undefined : json['homeRegion'],
     };
 }
 
@@ -91,9 +60,5 @@ export function MarketplaceMetadataInputToJSON(value?: MarketplaceMetadataInput 
     return {
 
         'productCode': value.productCode,
-        'subscriptionOwnership': value.subscriptionOwnership,
-        'regionalAmiIds': value.regionalAmiIds,
-        'licenseConfigurationArn': value.licenseConfigurationArn,
-        'homeRegion': value.homeRegion,
     };
 }

@@ -62,6 +62,12 @@ export interface DiscoveredMarketplaceSubscription {
      */
     subscriptionOwnership?: string;
     /**
+     * Whether this specific received license allows CreateGrant
+     * @type {boolean}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    licenseGrantAllowed?: boolean;
+    /**
      *
      * @type {boolean}
      * @memberof DiscoveredMarketplaceSubscription
@@ -125,6 +131,7 @@ export function DiscoveredMarketplaceSubscriptionFromJSONTyped(json: any, ignore
         'licenseConfigurationArn': !exists(json, 'licenseConfigurationArn') ? undefined : json['licenseConfigurationArn'],
         'homeRegion': !exists(json, 'homeRegion') ? undefined : json['homeRegion'],
         'subscriptionOwnership': !exists(json, 'subscriptionOwnership') ? undefined : json['subscriptionOwnership'],
+        'licenseGrantAllowed': !exists(json, 'licenseGrantAllowed') ? false : json['licenseGrantAllowed'],
         'alreadyImported': !exists(json, 'alreadyImported') ? undefined : json['alreadyImported'],
         'newerVersionAvailable': !exists(json, 'newerVersionAvailable') ? undefined : json['newerVersionAvailable'],
         'latestAmiId': !exists(json, 'latestAmiId') ? undefined : json['latestAmiId'],
@@ -150,6 +157,7 @@ export function DiscoveredMarketplaceSubscriptionToJSON(value?: DiscoveredMarket
         'licenseConfigurationArn': value.licenseConfigurationArn,
         'homeRegion': value.homeRegion,
         'subscriptionOwnership': value.subscriptionOwnership,
+        'licenseGrantAllowed': value.licenseGrantAllowed,
         'alreadyImported': value.alreadyImported,
         'newerVersionAvailable': value.newerVersionAvailable,
         'latestAmiId': value.latestAmiId,

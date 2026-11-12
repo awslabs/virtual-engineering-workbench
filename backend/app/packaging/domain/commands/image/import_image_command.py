@@ -27,6 +27,7 @@ class ImportImageCommand(command_bus.Command):
     marketplaceProductCode: Optional[product_code_value_object.ProductCodeValueObject] = None
     licenseConfigurationArn: Optional[str] = None
     subscriptionOwnership: Optional[SubscriptionOwnership] = None
+    licenseGrantAllowed: bool = False
     regionalAmiIds: Optional[dict] = None
     homeRegion: Optional[str] = None
     imageServiceAccountId: Optional[str] = None

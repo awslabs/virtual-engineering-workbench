@@ -1,10 +1,13 @@
 import hashlib
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import boto3
 from botocore.exceptions import ClientError
 from mypy_boto3_ec2.client import EC2Client
 from mypy_boto3_license_manager.client import LicenseManagerClient
+from mypy_boto3_organizations.client import OrganizationsClient
+from mypy_boto3_ram.client import RAMClient
+from mypy_boto3_sts.client import STSClient
 
 from app.publishing.adapters.exceptions import adapter_exception
 from app.publishing.domain.ports.license_manager_service import LicenseManagerService
@@ -14,10 +17,13 @@ from app.shared.api import sts_api
 
 EC2 = "ec2"
 LICENSE_MANAGER = "license-manager"
+ORGANIZATIONS = "organizations"
+RAM = "ram"
+STS = "sts"
 SESSION_USER = "LicenseGrantManagement"
 GRANT_ACTIVE_STATUS = "ACTIVE"
 GRANT_DISABLED_STATUS = "DISABLED"
-ACTIVATION_OVERRIDE = "ALL_GRANTS_PERMITTED_BY_ISSUER"
+ACTIVATION_OVERRIDE: Literal["ALL_GRANTS_PERMITTED_BY_ISSUER"] = "ALL_GRANTS_PERMITTED_BY_ISSUER"
 ALLOWED_OPERATIONS = ["CheckoutLicense", "ListPurchasedLicenses"]
 
 
@@ -26,6 +32,7 @@ class AwsLicenseManagerService(LicenseManagerService):
         self._spoke_account_role = spoke_account_role
         self._region = region
         self._boto_session = boto_session
+        self._account_id: str | None = None
 
     def __get_lm_client(self, region: str | None = None) -> LicenseManagerClient:
         _region = region or self._region
@@ -33,6 +40,27 @@ class AwsLicenseManagerService(LicenseManagerService):
             self._boto_session.client(LICENSE_MANAGER, region_name=_region)
             if self._boto_session
             else boto3.client(LICENSE_MANAGER, region_name=_region)
+        )
+
+    def __get_organizations_client(self) -> OrganizationsClient:
+        return (
+            self._boto_session.client(ORGANIZATIONS, region_name=self._region)
+            if self._boto_session
+            else boto3.client(ORGANIZATIONS, region_name=self._region)
+        )
+
+    def __get_ram_client(self) -> RAMClient:
+        return (
+            self._boto_session.client(RAM, region_name=self._region)
+            if self._boto_session
+            else boto3.client(RAM, region_name=self._region)
+        )
+
+    def __get_sts_client(self) -> STSClient:
+        return (
+            self._boto_session.client(STS, region_name=self._region)
+            if self._boto_session
+            else boto3.client(STS, region_name=self._region)
         )
 
     def __get_spoke_lm_client(self, account_id: str, region: str) -> LicenseManagerClient:
@@ -219,29 +247,67 @@ class AwsLicenseManagerService(LicenseManagerService):
                 f"Failed to list received grants for license {license_arn} in account {spoke_account_id}: {e}"
             )
 
-    def can_distribute_license(self) -> bool:
-        """Whether the hub can distribute a received licence to an organization account.
+    def _resolve_account_id(self) -> str:
+        if self._account_id is None:
+            try:
+                self._account_id = self.__get_sts_client().get_caller_identity()["Account"]
+            except ClientError as e:
+                raise adapter_exception.AdapterException(f"Failed to resolve caller account id: {e}")
+        return self._account_id
 
-        License Manager only allows a grant to another account in the organization when
-        its cross-account integration is switched on, which GetServiceSettings reports
-        as OrganizationConfiguration.EnableIntegration. Used to decide whether an
-        externally-managed subscription can be upgraded from verify-only to an actual
-        grant.
-        """
+    def _get_management_account_id(self) -> str | None:
         try:
-            settings = self.__get_lm_client().get_service_settings()
+            organization = self.__get_organizations_client().describe_organization().get("Organization", {})
+        except ClientError as e:
+            raise adapter_exception.AdapterException(f"Failed to describe organization: {e}")
+
+        # AWS is replacing the legacy MasterAccountId response name with
+        # ManagementAccountId. Accept either during the SDK transition.
+        return organization.get("ManagementAccountId") or organization.get("MasterAccountId")
+
+    def _list_resource_shares(self, resource_share_arn: str, resource_owner: str) -> list[dict]:
+        shares: list[dict] = []
+        next_token: str | None = None
+        try:
+            ram_client = self.__get_ram_client()
+            while True:
+                kwargs = {"nextToken": next_token} if next_token else {}
+                response = ram_client.get_resource_shares(
+                    resourceOwner=resource_owner,
+                    resourceShareArns=[resource_share_arn],
+                    **kwargs,
+                )
+                shares.extend(response.get("resourceShares", []))
+                next_token = response.get("nextToken")
+                if not next_token:
+                    return shares
+        except ClientError as e:
+            raise adapter_exception.AdapterException(f"Failed to list License Manager RAM resource share: {e}")
+
+    def can_distribute_license(self) -> bool:
+        """Whether this hub can distribute a received licence to an organization account."""
+        try:
+            settings = self.__get_lm_client().get_service_settings() or {}
         except ClientError as e:
             raise adapter_exception.AdapterException(f"Failed to read License Manager service settings: {e}")
 
-        settings = settings or {}
         org_config = settings.get("OrganizationConfiguration") or {}
-        if not org_config.get("EnableIntegration"):
+        resource_share_arn = settings.get("LicenseManagerResourceShareArn")
+        if not org_config.get("EnableIntegration") or not resource_share_arn:
             return False
 
-        # EnableIntegration reads back true as soon as the setting is saved, but the
-        # RAM resource share that actually permits a cross-account grant takes around
-        # half an hour to propagate. In that window the flag says yes and CreateGrant
-        # still fails, so require the share as well. GetServiceSettings reports it
-        # directly, which is why this needs no organizations:DescribeOrganization or
-        # ram:GetResourceShares.
-        return bool(settings.get("LicenseManagerResourceShareArn"))
+        management_account_id = self._get_management_account_id()
+        if not management_account_id:
+            return False
+
+        caller_account_id = self._resolve_account_id()
+        resource_owner = "SELF" if caller_account_id == management_account_id else "OTHER-ACCOUNTS"
+        share_is_active = any(
+            share.get("resourceShareArn") == resource_share_arn
+            and share.get("status") == "ACTIVE"
+            and share.get("owningAccountId") == management_account_id
+            for share in self._list_resource_shares(resource_share_arn, resource_owner)
+        )
+        # License Manager entitlement distribution is a management-account
+        # operation. A member can see the shared RAM resource, but cannot re-grant.
+        return caller_account_id == management_account_id and share_is_active

@@ -159,6 +159,7 @@ def image_imported_event_payload():
             "productCode": "abc123def456ghi",
             "marketplaceProductId": "prod-123",
             "subscriptionOwnership": "VEW_MANAGED",
+            "licenseGrantAllowed": True,
             "vendorName": "Acme Corp",
             "regionalAmiIds": {"us-east-1": "ami-0583ab768d71fb824"},
         },

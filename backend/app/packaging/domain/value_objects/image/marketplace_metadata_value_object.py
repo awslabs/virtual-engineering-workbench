@@ -20,6 +20,9 @@ class MarketplaceMetadataValueObject:
     productCode: str
     subscriptionOwnership: str
     regionalAmiIds: dict[str, str]
+    # False is intentionally backward compatible for records/import callers that
+    # predate the per-license CreateGrant capability.
+    licenseGrantAllowed: bool = False
     licenseConfigurationArn: Optional[str] = None
     homeRegion: Optional[str] = None
 
@@ -55,4 +58,5 @@ def from_dict(value: dict) -> MarketplaceMetadataValueObject:
         regionalAmiIds=value["regionalAmiIds"],
         licenseConfigurationArn=license_arn,
         homeRegion=value.get("homeRegion"),
+        licenseGrantAllowed=value.get("licenseGrantAllowed", False),
     )

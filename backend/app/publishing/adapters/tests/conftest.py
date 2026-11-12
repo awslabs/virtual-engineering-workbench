@@ -159,6 +159,21 @@ def mock_moto_calls(
                 "LicenseManagerResourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
             }
         ),
+        "DescribeOrganization": mock.MagicMock(
+            return_value={"Organization": {"MasterAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID}}
+        ),
+        "GetResourceShares": mock.MagicMock(
+            return_value={
+                "resourceShares": [
+                    {
+                        "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
+                        "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
+                        "status": "ACTIVE",
+                    }
+                ]
+            }
+        ),
+        "GetCallerIdentity": mock.MagicMock(return_value={"Account": TEST_ORG_MANAGEMENT_ACCOUNT_ID}),
         "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
     }
 
@@ -729,6 +744,7 @@ def mocked_describe_provisioning_parameters_response():
 TEST_LICENSE_ARN = "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123"
 TEST_GRANT_ARN = "arn:aws:license-manager:us-east-1:999888777666:grant:g-abc123"
 TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:111111111111:resource-share/lm-abc123"
+TEST_ORG_MANAGEMENT_ACCOUNT_ID = "111111111111"
 TEST_SPOKE_ACCOUNT_ROLE = "arn:aws:iam::999888777666:role/VewSpokeRole"
 TEST_SPOKE_ACCOUNT_ID = "999888777666"
 

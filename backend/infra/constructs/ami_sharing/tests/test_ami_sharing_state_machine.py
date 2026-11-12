@@ -3,6 +3,10 @@ import json
 import assertpy
 
 
+def _entered_states(history: list[dict]) -> list[str]:
+    return [event["stateEnteredEventDetails"]["name"] for event in history if event.get("stateEnteredEventDetails")]
+
+
 def test_ami_sharing_copy_path(start_execution, wait_for_execution, mocked_test_event):
     # ARRANGE
 
@@ -81,6 +85,23 @@ def test_ami_sharing_license_grant_path(start_execution, wait_for_execution, moc
     assertpy.assert_that(output_parsed["succeedAmiSharingResponse"]["eventType"]).is_equal_to(
         "SucceedAmiSharingResponse"
     )
+    assertpy.assert_that(_entered_states(history)).is_equal_to(
+        [
+            "StartState",
+            "CheckOldVersionIdChoice",
+            "PassAssignOldVersionId",
+            "DecideActionLambda",
+            "DecideActionChoice",
+            "PassLicenseGrant",
+            "CreateLicenseGrantLambda",
+            "AcceptLicenseGrantLambda",
+            "VerifyLaunchPermissionLambda",
+            "VerifyLaunchPermissionChoice",
+            "PassMarketplaceAmi",
+            "SucceedAmiSharingLambda",
+            "SuccessState",
+        ]
+    )
 
 
 def test_ami_sharing_verify_external_grant_path(start_execution, wait_for_execution, mocked_test_event):
@@ -96,6 +117,22 @@ def test_ami_sharing_verify_external_grant_path(start_execution, wait_for_execut
     output_parsed = json.loads(output)
     assertpy.assert_that(output_parsed["succeedAmiSharingResponse"]["eventType"]).is_equal_to(
         "SucceedAmiSharingResponse"
+    )
+    assertpy.assert_that(_entered_states(history)).is_equal_to(
+        [
+            "StartState",
+            "CheckOldVersionIdChoice",
+            "PassAssignOldVersionId",
+            "DecideActionLambda",
+            "DecideActionChoice",
+            "VerifyExternalGrantLambda",
+            "VerifyExternalGrantChoice",
+            "VerifyLaunchPermissionLambda",
+            "VerifyLaunchPermissionChoice",
+            "PassMarketplaceAmi",
+            "SucceedAmiSharingLambda",
+            "SuccessState",
+        ]
     )
 
 

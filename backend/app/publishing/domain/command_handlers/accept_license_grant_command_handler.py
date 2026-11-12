@@ -29,9 +29,9 @@ def handle(
             raise domain_exception.DomainException("License grant %s not found." % command.grantId.value)
 
     license_manager_service.accept_grant(
-        grant_arn=command.grantArn.value,
-        home_region=command.homeRegion.value,
-        spoke_account_id=command.targetAccountId.value,
+        grant_arn=grant_entity.grantArn,
+        home_region=grant_entity.homeRegion,
+        spoke_account_id=grant_entity.targetAccountId,
     )
 
     with uow:
@@ -45,10 +45,10 @@ def handle(
 
     msg_bus.publish(
         license_grant_accepted.LicenseGrantAccepted(
-            grantId=command.grantId.value,
-            grantArn=command.grantArn.value,
+            grantId=grant_entity.grantId,
+            grantArn=grant_entity.grantArn,
             targetAccountId=grant_entity.targetAccountId,
         )
     )
 
-    logger.debug("License grant accepted: %s", command.grantId.value)
+    logger.debug("License grant accepted: %s", grant_entity.grantId)

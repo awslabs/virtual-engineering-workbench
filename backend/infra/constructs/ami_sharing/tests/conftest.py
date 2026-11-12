@@ -6,7 +6,11 @@ from mypy_boto3_stepfunctions import client
 
 STATE_MACHINE_ARN = "arn:aws:states:us-east-1:123456789012:stateMachine:AmiSharingStateMachine"
 SFN_CLIENT: client.SFNClient = boto3.client(
-    "stepfunctions", region_name="us-east-1", endpoint_url="http://localhost:8083"
+    "stepfunctions",
+    region_name="us-east-1",
+    endpoint_url="http://localhost:8083",
+    aws_access_key_id="testing",
+    aws_secret_access_key="testing",
 )
 MAX_RETRIES = 10
 
@@ -35,7 +39,7 @@ def wait_for_execution():
             output = result.get("output")
             retries += 1
         history = SFN_CLIENT.get_execution_history(executionArn=execution_arn)
-        return status, output, history
+        return status, output, history.get("events", [])
 
     return _wait_for_execution
 

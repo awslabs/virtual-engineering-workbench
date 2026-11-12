@@ -50,14 +50,10 @@ interface ImportImageWizardLogicProps {
   serviceApi: ServiceAPI,
 }
 
-const buildMarketplaceMetadata = (
+export const buildMarketplaceMetadata = (
   subscription: MarketplaceSubscription,
 ): MarketplaceMetadata => ({
   productCode: subscription.productCode || '',
-  subscriptionOwnership: subscription.subscriptionOwnership || '',
-  regionalAmiIds: subscription.regionalAmiIds || {},
-  licenseConfigurationArn: subscription.licenseConfigurationArn,
-  homeRegion: subscription.homeRegion,
 });
 
 export const useImportImageWizard = (

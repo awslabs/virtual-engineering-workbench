@@ -11,6 +11,9 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")
     homeRegion: Optional[str] = Field(None, title="HomeRegion")
     subscriptionOwnership: str = Field(..., title="SubscriptionOwnership")
+    # Persist this per-license fact separately from ownership. An externally
+    # managed license may still permit CreateGrant when account readiness changes.
+    licenseGrantAllowed: bool = Field(False, title="LicenseGrantAllowed")
     alreadyImported: bool = Field(..., title="AlreadyImported")
     newerVersionAvailable: bool = Field(False, title="NewerVersionAvailable")
     # True when the AMI this subscription would import is past its deprecation

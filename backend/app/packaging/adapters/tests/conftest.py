@@ -442,6 +442,12 @@ def mock_moto_calls(
         "DescribeEntity": mock.MagicMock(return_value=mock_describe_entity_response),
         "DescribeImages": mock.MagicMock(return_value=mock_describe_images_response),
         "ListReceivedLicenses": mock.MagicMock(return_value=mock_list_received_licenses_response),
+        "GetServiceSettings": mock.MagicMock(
+            return_value={
+                "OrganizationConfiguration": {"EnableIntegration": True},
+                "LicenseManagerResourceShareArn": GlobalVariables.TEST_LM_RESOURCE_SHARE_ARN.value,
+            }
+        ),
         "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
         "GetCallerIdentity": mock.MagicMock(return_value=mock_get_caller_identity_response),
         "DescribeOrganization": mock.MagicMock(return_value=mock_describe_organization_response),

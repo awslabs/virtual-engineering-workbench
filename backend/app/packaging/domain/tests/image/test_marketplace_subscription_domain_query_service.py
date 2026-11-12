@@ -56,6 +56,7 @@ def test_discover_should_return_vew_managed_when_agreement_license_and_org_integ
     assertpy.assert_that(result).is_length(1)
     sub = result[0]
     assertpy.assert_that(sub.subscriptionOwnership).is_equal_to(SubscriptionOwnership.VEW_MANAGED.value)
+    assertpy.assert_that(sub.licenseGrantAllowed).is_true()
     assertpy.assert_that(sub.licenseConfigurationArn).is_equal_to("arn:aws:license-manager::123:license/lic-1")
     assertpy.assert_that(sub.alreadyImported).is_false()
 
@@ -93,6 +94,7 @@ def test_discover_should_return_externally_managed_when_license_without_agreemen
     # ASSERT
     assertpy.assert_that(result).is_length(1)
     assertpy.assert_that(result[0].subscriptionOwnership).is_equal_to(SubscriptionOwnership.EXTERNALLY_MANAGED.value)
+    assertpy.assert_that(result[0].licenseGrantAllowed).is_true()
 
 
 def test_discover_should_return_externally_managed_when_license_lacks_create_grant(
@@ -129,6 +131,7 @@ def test_discover_should_return_externally_managed_when_license_lacks_create_gra
     # ASSERT
     assertpy.assert_that(result).is_length(1)
     assertpy.assert_that(result[0].subscriptionOwnership).is_equal_to(SubscriptionOwnership.EXTERNALLY_MANAGED.value)
+    assertpy.assert_that(result[0].licenseGrantAllowed).is_false()
 
 
 def test_discover_should_return_externally_managed_when_org_integration_inactive(
@@ -165,6 +168,7 @@ def test_discover_should_return_externally_managed_when_org_integration_inactive
     # ASSERT
     assertpy.assert_that(result).is_length(1)
     assertpy.assert_that(result[0].subscriptionOwnership).is_equal_to(SubscriptionOwnership.EXTERNALLY_MANAGED.value)
+    assertpy.assert_that(result[0].licenseGrantAllowed).is_true()
 
 
 def test_discover_should_mark_already_imported_when_ami_exists_in_project(
@@ -389,7 +393,7 @@ def test_hub_ami_lookup_prefers_a_supported_ami_over_a_newer_deprecated_one(
         get_test_marketplace_ami(
             ami_id="ami-deprecated-newer",
             creation_date="2026-06-01T00:00:00.000Z",
-            deprecation_time="2026-07-01T00:00:00.000Z",
+            deprecation_time="2020-07-01T00:00:00.000Z",
         ),
         get_test_marketplace_ami(ami_id="ami-supported-older", creation_date="2026-01-01T00:00:00.000Z"),
     ]
@@ -451,12 +455,12 @@ def test_hub_ami_lookup_falls_back_to_the_newest_deprecated_ami(
         get_test_marketplace_ami(
             ami_id="ami-dep-old",
             creation_date="2026-01-01T00:00:00.000Z",
-            deprecation_time="2026-02-01T00:00:00.000Z",
+            deprecation_time="2020-02-01T00:00:00.000Z",
         ),
         get_test_marketplace_ami(
             ami_id="ami-dep-new",
             creation_date="2026-04-01T00:00:00.000Z",
-            deprecation_time="2026-05-01T00:00:00.000Z",
+            deprecation_time="2020-05-01T00:00:00.000Z",
         ),
     ]
 
@@ -487,3 +491,82 @@ def test_hub_ami_lookup_returns_none_without_any_ami(
 
     # ACT / ASSERT
     assertpy.assert_that(service._lookup_hub_ami_by_product_id("prod-1", "us-east-1")).is_none()
+
+
+def test_newer_version_detection_prefers_supported_amis_over_newer_deprecated_amis(
+    get_test_marketplace_ami,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE — the imported supported AMI remains the preferred version even
+    # though a deprecated AMI has a later creation date.
+    service = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [
+        get_test_marketplace_ami(ami_id="ami-supported", creation_date="2026-01-01T00:00:00.000Z"),
+        get_test_marketplace_ami(
+            ami_id="ami-deprecated",
+            creation_date="2026-05-01T00:00:00.000Z",
+            deprecation_time="2020-06-01T00:00:00.000Z",
+        ),
+    ]
+
+    # ACT
+    result = service._check_for_newer_version(
+        "pc-1",
+        "us-east-1",
+        imported_product_codes={"pc-1"},
+        imported_ami_ids={"ami-supported"},
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to((False, None, None))
+
+
+def test_newer_version_detection_falls_back_to_deprecated_when_all_amis_are_deprecated(
+    get_test_marketplace_ami,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_org_integration_service,
+    mock_image_query_service,
+):
+    # ARRANGE
+    service = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_org_integration_service,
+        mock_image_query_service,
+    )
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [
+        get_test_marketplace_ami(
+            ami_id="ami-deprecated-old",
+            creation_date="2026-01-01T00:00:00.000Z",
+            deprecation_time="2020-02-01T00:00:00.000Z",
+        ),
+        get_test_marketplace_ami(
+            ami_id="ami-deprecated-new",
+            creation_date="2026-05-01T00:00:00.000Z",
+            deprecation_time="2020-06-01T00:00:00.000Z",
+        ),
+    ]
+
+    # ACT
+    result = service._check_for_newer_version(
+        "pc-1",
+        "us-east-1",
+        imported_product_codes={"pc-1"},
+        imported_ami_ids={"ami-deprecated-old"},
+    )
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to((True, "ami-deprecated-new", "2026-05-01T00:00:00.000Z"))

@@ -102,18 +102,22 @@ class SharedAMIsDomainQueryService:
     ) -> ShareAmiDecision:
         """Turn a verify-only decision into a real grant when the hub can make one.
 
-        An externally-managed subscription means the customer owns the licence, so VEW
-        normally only verifies that the spoke already has a grant. But when the spoke
-        has no grant AND License Manager's organization integration is switched on, the
-        hub can distribute one itself - which is the difference between a workbench that
-        launches and one that fails with no licence. Without this the decision was
-        always verify-only and such a launch could never succeed.
+        An externally-managed subscription means VEW normally only verifies that
+        the spoke already has a grant. A grant can be created only when the exact
+        persisted license allowed CreateGrant at discovery time and the account-level
+        Organizations integration is ready.
         """
         if decision != ShareAmiDecision.VerifyExternalGrant or self._license_manager_svc is None:
             return decision
 
         license_arn, home_region = self._license_location(version_entity)
         if not license_arn or not home_region:
+            return decision
+
+        metadata = version_entity.marketplaceMetadata
+        # This fact comes from ReceivedMetadata.AllowedOperations for this exact
+        # license. Missing on historical records intentionally means false.
+        if not metadata or not metadata.licenseGrantAllowed:
             return decision
 
         if self._license_manager_svc.has_active_received_grant(

@@ -5,6 +5,8 @@ import assertpy
 from app.publishing.adapters.tests.conftest import (
     TEST_GRANT_ARN,
     TEST_LICENSE_ARN,
+    TEST_LM_RESOURCE_SHARE_ARN,
+    TEST_ORG_MANAGEMENT_ACCOUNT_ID,
     TEST_SPOKE_ACCOUNT_ID,
 )
 
@@ -159,6 +161,11 @@ def test_can_distribute_license_requires_both_the_flag_and_the_resource_share(mo
 
     # ACT / ASSERT
     assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_true()
+    mock_moto_calls["DescribeOrganization"].assert_called_once_with()
+    mock_moto_calls["GetResourceShares"].assert_called_once_with(
+        resourceOwner="SELF",
+        resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN],
+    )
 
     # ARRANGE — integration on, share not there yet
     mock_moto_calls["GetServiceSettings"].return_value = {"OrganizationConfiguration": {"EnableIntegration": True}}
@@ -186,3 +193,81 @@ def test_can_distribute_license_is_false_without_any_organization_configuration(
 
     # ACT / ASSERT
     assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+
+
+def test_can_distribute_license_requires_an_active_share_owned_by_the_management_account(
+    mock_moto_calls, get_license_manager_srv
+):
+    # ARRANGE — the configured share exists, but it is still propagating
+    share = {
+        "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
+        "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
+        "status": "PENDING",
+    }
+    mock_moto_calls["GetResourceShares"].return_value = {"resourceShares": [share]}
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+
+    # ARRANGE — an active share owned by another account is not the management
+    # account's License Manager integration share
+    share["status"] = "ACTIVE"
+    share["owningAccountId"] = "222222222222"
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+
+    # ARRANGE — an active management-account share is still irrelevant unless it
+    # is the exact share reported by License Manager
+    share["owningAccountId"] = TEST_ORG_MANAGEMENT_ACCOUNT_ID
+    share["resourceShareArn"] = "arn:aws:ram:us-east-1:111111111111:resource-share/unrelated"
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+
+
+def test_can_distribute_license_follows_ram_resource_share_pages(mock_moto_calls, get_license_manager_srv):
+    # ARRANGE — the matching active share appears only on the second page
+    mock_moto_calls["GetResourceShares"].side_effect = [
+        {"resourceShares": [], "nextToken": "page-2"},
+        {
+            "resourceShares": [
+                {
+                    "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
+                    "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
+                    "status": "ACTIVE",
+                }
+            ]
+        },
+    ]
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_true()
+    assertpy.assert_that(mock_moto_calls["GetResourceShares"].call_count).is_equal_to(2)
+    mock_moto_calls["GetResourceShares"].assert_has_calls(
+        [
+            mock.call(resourceOwner="SELF", resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN]),
+            mock.call(
+                resourceOwner="SELF",
+                resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN],
+                nextToken="page-2",
+            ),
+        ]
+    )
+
+
+def test_can_distribute_license_checks_other_accounts_but_rejects_a_member_hub(
+    mock_moto_calls, get_license_manager_srv
+):
+    # ARRANGE
+    mock_moto_calls["GetCallerIdentity"].return_value = {"Account": "222222222222"}
+
+    # ACT
+    result = get_license_manager_srv.can_distribute_license()
+
+    # ASSERT
+    assertpy.assert_that(result).is_false()
+    mock_moto_calls["GetResourceShares"].assert_called_once_with(
+        resourceOwner="OTHER-ACCOUNTS",
+        resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN],
+    )
