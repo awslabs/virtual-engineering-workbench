@@ -151,6 +151,14 @@ def mock_moto_calls(
         "GetLicense": mock.MagicMock(return_value=mock_get_license_response),
         "ListDistributedGrants": mock.MagicMock(return_value={"Grants": []}),
         "ListReceivedGrants": mock.MagicMock(return_value={"Grants": []}),
+        # Organizations integration on, and the RAM share already propagated, so
+        # can_distribute_license says yes unless a test says otherwise.
+        "GetServiceSettings": mock.MagicMock(
+            return_value={
+                "OrganizationConfiguration": {"EnableIntegration": True},
+                "LicenseManagerResourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
+            }
+        ),
         "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
     }
 
@@ -720,6 +728,7 @@ def mocked_describe_provisioning_parameters_response():
 
 TEST_LICENSE_ARN = "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123"
 TEST_GRANT_ARN = "arn:aws:license-manager:us-east-1:999888777666:grant:g-abc123"
+TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:111111111111:resource-share/lm-abc123"
 TEST_SPOKE_ACCOUNT_ROLE = "arn:aws:iam::999888777666:role/VewSpokeRole"
 TEST_SPOKE_ACCOUNT_ID = "999888777666"
 

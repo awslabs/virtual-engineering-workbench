@@ -233,5 +233,15 @@ class AwsLicenseManagerService(LicenseManagerService):
         except ClientError as e:
             raise adapter_exception.AdapterException(f"Failed to read License Manager service settings: {e}")
 
-        org_config = (settings or {}).get("OrganizationConfiguration") or {}
-        return bool(org_config.get("EnableIntegration"))
+        settings = settings or {}
+        org_config = settings.get("OrganizationConfiguration") or {}
+        if not org_config.get("EnableIntegration"):
+            return False
+
+        # EnableIntegration reads back true as soon as the setting is saved, but the
+        # RAM resource share that actually permits a cross-account grant takes around
+        # half an hour to propagate. In that window the flag says yes and CreateGrant
+        # still fails, so require the share as well. GetServiceSettings reports it
+        # directly, which is why this needs no organizations:DescribeOrganization or
+        # ram:GetResourceShares.
+        return bool(settings.get("LicenseManagerResourceShareArn"))

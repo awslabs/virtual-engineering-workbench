@@ -148,3 +148,41 @@ def test_should_skip_accept_when_grant_already_active(mock_moto_calls, get_licen
     mock_moto_calls["AcceptGrant"].assert_not_called()
     mock_moto_calls["CreateGrantVersion"].assert_not_called()
     mock_moto_calls["ListReceivedGrants"].assert_called_once_with(GrantArns=[grant_arn])
+
+
+def test_can_distribute_license_requires_both_the_flag_and_the_resource_share(mock_moto_calls, get_license_manager_srv):
+    """EnableIntegration reads back true the moment the setting is saved, but the RAM
+    resource share that actually permits a cross-account grant takes around half an
+    hour to propagate. Trusting the flag alone would upgrade an externally-managed
+    subscription to a grant inside that window, where CreateGrant still fails."""
+    # ARRANGE — integration on, share already propagated (the conftest default)
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_true()
+
+    # ARRANGE — integration on, share not there yet
+    mock_moto_calls["GetServiceSettings"].return_value = {"OrganizationConfiguration": {"EnableIntegration": True}}
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+
+
+def test_can_distribute_license_is_false_when_the_integration_is_off(mock_moto_calls, get_license_manager_srv):
+    # ARRANGE
+    mock_moto_calls["GetServiceSettings"].return_value = {
+        "OrganizationConfiguration": {"EnableIntegration": False},
+        "LicenseManagerResourceShareArn": "arn:aws:ram:us-east-1:111111111111:resource-share/lm-abc123",
+    }
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+
+
+def test_can_distribute_license_is_false_without_any_organization_configuration(
+    mock_moto_calls, get_license_manager_srv
+):
+    # ARRANGE
+    mock_moto_calls["GetServiceSettings"].return_value = {}
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
