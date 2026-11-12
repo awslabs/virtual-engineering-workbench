@@ -26,6 +26,8 @@ def handle(
                     productId=cmd.productId.value, versionId=cmd.versionId.value, awsAccountId=cmd.awsAccountId.value
                 ),
                 copiedAmiId=cmd.copiedAmiId.value,
+                # Clear any reason left by a previous failed attempt.
+                statusReason=None,
                 lastUpdateDate=datetime.now(timezone.utc).isoformat(),
             )
             uow.commit()

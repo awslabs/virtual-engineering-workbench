@@ -80,6 +80,10 @@ class FailAmiSharingRequest(BaseModel):
     product_id: str = Field(..., alias="productId")
     version_id: str = Field(..., alias="versionId")
     aws_account_id: str = Field(..., alias="awsAccountId")
+    # The state machine sets $.error on every route into FailAmiSharingLambda,
+    # either from a task catch or from the Pass on a failing Choice branch.
+    # Optional so an older in-flight execution without it still parses.
+    error: Optional[dict] = Field(None, alias="error")
 
 
 class FailAmiSharingResponse(BaseModel):

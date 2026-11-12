@@ -1931,6 +1931,11 @@ components:
           title: Status
           type: string
           description: Status of the version distribution
+        statusReason:
+          title: StatusReason
+          type: string
+          nullable: true
+          description: Why the distribution reached its current status, when that status is a failure
         lastUpdateDate:
           title: LastUpdateDate
           type: string

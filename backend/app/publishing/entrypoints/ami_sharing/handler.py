@@ -24,7 +24,7 @@ from app.publishing.domain.value_objects import (
     region_value_object,
     version_id_value_object,
 )
-from app.publishing.entrypoints.ami_sharing import bootstrapper, config
+from app.publishing.entrypoints.ami_sharing import bootstrapper, config, step_error
 from app.publishing.entrypoints.ami_sharing.model import step_function_model
 from app.shared.middleware import event_handler
 from app.shared.middleware.custom_events import step_function_event
@@ -125,6 +125,7 @@ def handle_fail_ami_sharing(event: step_function_model.FailAmiSharingRequest):
         productId=product_id_value_object.from_str(event.product_id),
         versionId=version_id_value_object.from_str(event.version_id),
         awsAccountId=aws_account_id_value_object.from_str(event.aws_account_id),
+        statusReason=step_error.summarize(event.error),
     )
 
     dependencies.command_bus.handle(command)

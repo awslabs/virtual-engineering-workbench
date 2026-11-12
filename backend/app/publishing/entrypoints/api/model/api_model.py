@@ -130,6 +130,11 @@ class VersionDistribution(BaseModel):
     region: str = Field(..., description="Region where this version is distributed", title="Region")
     stage: str = Field(..., description="Stage of the version distribution", title="Stage")
     status: str = Field(..., description="Status of the version distribution", title="Status")
+    statusReason: Optional[str] = Field(
+        None,
+        description="Why the distribution reached its current status, when that status is a failure",
+        title="StatusReason",
+    )
     lastUpdateDate: str = Field(..., description="Last update date of the product.", title="LastUpdateDate")
     restoredFromVersionName: Optional[str] = Field(
         None,

@@ -142,6 +142,9 @@ class Version(unit_of_work.Entity):
     draftTemplateLocation: Optional[str] = Field(None, title="DraftTemplateLocation")
     templateLocation: Optional[str] = Field(None, title="TemplateLocation")
     retireReason: Optional[str] = Field(None, title="RetireReason")
+    # Why the last state transition failed, so a Failed version says more than
+    # "Failed". Cleared on success and on retry.
+    statusReason: Optional[str] = Field(None, title="StatusReason")
     restoredFromVersionName: Optional[str] = Field(None, title="RestoredFromVersionName")
     parameters: Optional[List[VersionParameter]] = Field(None, title="Parameters")
     metadata: Optional[Dict[str, ProductVersionMetadataItem]] = Field(None, title="Metadata")

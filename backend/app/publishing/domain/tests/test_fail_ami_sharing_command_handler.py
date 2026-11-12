@@ -42,6 +42,31 @@ def test_fail_ami_sharing_command_handler_updates_version_as_failed(
     mock_version_repo.update_attributes.assert_called_once_with(
         version.VersionPrimaryKey(productId="prod-12345abc", versionId="vers-12345abc", awsAccountId="123456789012"),
         status=version.VersionStatus.Failed,
+        statusReason=None,
         lastUpdateDate="2023-07-31T00:00:00+00:00",
     )
     mock_unit_of_work.commit.assert_called_once()
+
+
+@freeze_time("2023-07-31")
+def test_fail_ami_sharing_command_handler_stores_the_reason(mock_unit_of_work, logger_mock, mock_version_repo):
+    """A Failed version used to say only "Failed". The state machine now reports why,
+    and the reason has to reach the version record for anyone to see it."""
+    # ARRANGE
+    command = fail_ami_sharing_command.FailAmiSharingCommand(
+        productId=product_id_value_object.from_str("prod-12345abc"),
+        versionId=version_id_value_object.from_str("vers-12345abc"),
+        awsAccountId=aws_account_id_value_object.from_str("123456789012"),
+        statusReason="LaunchPermissionDenied: The target account cannot launch the regional Marketplace AMI.",
+    )
+
+    # ACT
+    fail_ami_sharing_command_handler.handle(cmd=command, uow=mock_unit_of_work, logger=logger_mock)
+
+    # ASSERT
+    mock_version_repo.update_attributes.assert_called_once_with(
+        version.VersionPrimaryKey(productId="prod-12345abc", versionId="vers-12345abc", awsAccountId="123456789012"),
+        status=version.VersionStatus.Failed,
+        statusReason="LaunchPermissionDenied: The target account cannot launch the regional Marketplace AMI.",
+        lastUpdateDate="2023-07-31T00:00:00+00:00",
+    )
