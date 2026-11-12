@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from app.publishing.adapters.query_services import (
     dynamodb_amis_query_service,
     dynamodb_shared_amis_query_service,
+    projects_api_query_service,
 )
 from app.publishing.adapters.repository import dynamo_entity_config
 from app.publishing.adapters.services import ec2_image_service
@@ -36,7 +37,7 @@ from app.shared.adapters.message_bus import (
     message_bus_metrics,
 )
 from app.shared.adapters.unit_of_work_v2 import dynamodb_unit_of_work
-from app.shared.api import aws_events_api
+from app.shared.api import aws_events_api, bounded_contexts, service_registry
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
 
@@ -123,6 +124,15 @@ def bootstrap(  # noqa: C901
 
         return _handle_command
 
+    # Cross-BC read used to authorize a licence grant: the AMI must belong to the
+    # project and the target account must be one of its active accounts.
+    projects_aws_api = service_registry.ServiceRegistry.from_config(
+        app_config=app_config,
+        ssm_client=boto3.client("ssm", region_name=app_config.get_default_region()),
+        logger=logger,
+    ).api_for(bounded_contexts.BoundedContext.PROJECTS)
+    projects_api_qry_srv = projects_api_query_service.ProjectsApiQueryService(api=projects_aws_api)
+
     def _create_license_grant_cmd_handler_factory():
         def _handle_command(command: create_license_grant_command.CreateLicenseGrantCommand):
             return create_license_grant_command_handler.handle(
@@ -131,6 +141,7 @@ def bootstrap(  # noqa: C901
                 license_manager_service=license_manager_svc,
                 msg_bus=message_bus,
                 amis_query_service=amis_qry_svc,
+                projects_query_service=projects_api_qry_srv,
                 logger=logger,
             )
 

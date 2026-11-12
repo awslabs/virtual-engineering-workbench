@@ -1,9 +1,11 @@
 import os
 
-from pydantic import BaseModel
+from app.shared import config
 
 
-class AppConfig(BaseModel):
+# See the note in the api entrypoint's config: VEWBaseConfig only wraps globally
+# injected environment variables, and ServiceRegistry needs them.
+class AppConfig(config.VEWBaseConfig):
     def get_default_region(self) -> str:
         return os.environ.get("AWS_DEFAULT_REGION")
 

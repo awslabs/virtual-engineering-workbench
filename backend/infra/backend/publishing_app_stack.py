@@ -243,6 +243,12 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
                     timeout=aws_cdk.Duration.seconds(5),
                     memory_size=1792,
+                    # The licence-grant authorization check reads projects'
+                    # active accounts to confirm the target account belongs to
+                    # the project before the hub distributes a licence.
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [("GET", "/internal/accounts")],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=domain_event_handler_name,
@@ -415,6 +421,12 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     provisioned_concurrency=None,
                     timeout=aws_cdk.Duration.seconds(30),
                     memory_size=1792,
+                    # The licence-grant authorization check reads projects'
+                    # active accounts to confirm the target account belongs to
+                    # the project before the hub distributes a licence.
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [("GET", "/internal/accounts")],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=packaging_event_handler_name,
