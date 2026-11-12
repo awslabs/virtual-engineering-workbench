@@ -31,6 +31,42 @@ impl StringOrVec {
     }
 }
 
+/// A fixed name for a jsonwebtoken error, safe to log and show.
+///
+/// Neither the error's Display nor its kind's Debug output is safe: several
+/// variants carry text, and `Json` wraps the serde error, which quotes the
+/// rejected claim value ("invalid type: integer 4242, expected a string").
+/// Name the variant and drop whatever it carries.
+fn error_kind_label(kind: &jsonwebtoken::errors::ErrorKind) -> &'static str {
+    use jsonwebtoken::errors::ErrorKind;
+    match kind {
+        ErrorKind::InvalidToken => "InvalidToken",
+        ErrorKind::InvalidSignature => "InvalidSignature",
+        ErrorKind::InvalidEcdsaKey => "InvalidEcdsaKey",
+        ErrorKind::InvalidEddsaKey => "InvalidEddsaKey",
+        ErrorKind::InvalidRsaKey(_) => "InvalidRsaKey",
+        ErrorKind::RsaFailedSigning => "RsaFailedSigning",
+        ErrorKind::Signing(_) => "Signing",
+        ErrorKind::InvalidAlgorithmName => "InvalidAlgorithmName",
+        ErrorKind::InvalidKeyFormat => "InvalidKeyFormat",
+        ErrorKind::MissingRequiredClaim(_) => "MissingRequiredClaim",
+        ErrorKind::InvalidClaimFormat(_) => "InvalidClaimFormat",
+        ErrorKind::ExpiredSignature => "ExpiredSignature",
+        ErrorKind::InvalidIssuer => "InvalidIssuer",
+        ErrorKind::InvalidAudience => "InvalidAudience",
+        ErrorKind::InvalidSubject => "InvalidSubject",
+        ErrorKind::ImmatureSignature => "ImmatureSignature",
+        ErrorKind::InvalidAlgorithm => "InvalidAlgorithm",
+        ErrorKind::MissingAlgorithm => "MissingAlgorithm",
+        ErrorKind::Base64(_) => "Base64",
+        ErrorKind::Json(_) => "Json",
+        ErrorKind::Utf8(_) => "Utf8",
+        ErrorKind::Provider(_) => "Provider",
+        // ErrorKind is #[non_exhaustive].
+        _ => "Other",
+    }
+}
+
 pub struct JwtTokenValidator {
     http: reqwest::blocking::Client,
 }
@@ -106,9 +142,7 @@ impl TokenValidator for JwtTokenValidator {
             .map_err(|_| IdentityError::TokenValidation("unusable signing key".into()))?;
 
         let token_data = decode::<Claims>(id_token, &key, &validation).map_err(|e| {
-            // Report only the library's error kind, which is a fixed enum, not
-            // its Display text, which can quote the token.
-            let kind = format!("{:?}", e.kind());
+            let kind = error_kind_label(e.kind());
             debug_log!("validate_id_token: decode failed, kind={kind}");
             IdentityError::TokenValidation(format!("token rejected: {kind}"))
         })?;

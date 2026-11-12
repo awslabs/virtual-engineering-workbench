@@ -35,6 +35,9 @@ const CALLBACK_BAD_METHOD: &str = "MARKER-callback-method-4a8c";
 const CALLBACK_BAD_QUERY: &str = "MARKER-callback-bad-query-6e1f";
 const CALLBACK_CODE: &str = "MARKER-callback-code-8d3b";
 const CALLBACK_STATE: &str = "MARKER-callback-state-0f5a";
+// A claim value must be numeric to trigger the serde type error, so this marker
+// is a number no other test uses.
+const ID_TOKEN_CLAIM_NUMBER: u64 = 8_675_309_123_457;
 
 fn provider(base: &str) -> OidcProvider {
     OidcProvider {
@@ -254,4 +257,75 @@ async fn refresh_error_body_does_not_echo_the_refresh_token() {
         .expect_err("a 400 must fail");
 
     assert_no_secret("refresh_tokens", REFRESH_ECHO, &err.to_string());
+}
+
+/// A signed ID token whose `sub` is an integer instead of a string. jsonwebtoken
+/// reports it as `ErrorKind::Json`, whose serde error quotes the rejected value.
+#[tokio::test]
+async fn a_rejected_id_token_claim_value_is_not_logged_or_surfaced() {
+    use base64::Engine;
+    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+    use rsa::RsaPrivateKey;
+    use rsa::pkcs1::EncodeRsaPrivateKey;
+    use rsa::traits::PublicKeyParts;
+    use vew::identity::adapters::jwt_token_validator::JwtTokenValidator;
+    use vew::identity::domain::model::ValidationParams;
+    use vew::identity::ports::outbound::TokenValidator;
+
+    capture::enable();
+
+    let private_key = RsaPrivateKey::new(&mut rand::thread_rng(), 2048).unwrap();
+    let pem = private_key
+        .to_pkcs1_pem(rsa::pkcs1::LineEnding::LF)
+        .unwrap();
+    let encoding_key = EncodingKey::from_rsa_pem(pem.as_bytes()).unwrap();
+    let public_key = private_key.to_public_key();
+    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    let jwks = serde_json::json!({ "keys": [{
+        "kty": "RSA", "kid": "test-kid", "use": "sig", "alg": "RS256",
+        "n": b64.encode(public_key.n().to_bytes_be()),
+        "e": b64.encode(public_key.e().to_bytes_be()),
+    }]});
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/certs"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(jwks))
+        .mount(&server)
+        .await;
+    let issuer = server.uri();
+
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some("test-kid".into());
+    let claims = serde_json::json!({
+        "sub": ID_TOKEN_CLAIM_NUMBER,
+        "iss": issuer,
+        "aud": "client",
+        "exp": 4_102_444_800_i64,
+    });
+    let token = encode(&header, &claims, &encoding_key).unwrap();
+
+    let err = blocking(move || {
+        JwtTokenValidator::new().validate_id_token(
+            &token,
+            &ValidationParams {
+                issuer: issuer.clone(),
+                audience: "client".into(),
+                nonce: None,
+                jwks_uri: format!("{issuer}/certs"),
+            },
+        )
+    })
+    .expect_err("a token whose sub is not a string must be rejected");
+
+    let error_text = err.to_string();
+    assert!(
+        error_text.contains("Json"),
+        "expected the Json error kind: {error_text}"
+    );
+    assert_no_secret(
+        "rejected id token claim",
+        &ID_TOKEN_CLAIM_NUMBER.to_string(),
+        &error_text,
+    );
 }
