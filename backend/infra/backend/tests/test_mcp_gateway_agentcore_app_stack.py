@@ -229,3 +229,17 @@ def test_stack_passes_exact_transformed_spec_to_json_data(mocker):
     )
 
     json_data.assert_called_once_with(expected_key, expected)
+
+
+def test_redirect_uris_pass_the_frontend_app_client_validation():
+    """deploy.sh registers these as the mcp-gateway-agentcore client's CallbackUrls,
+    and frontend/infrastructure/lib/app-config.ts rejects any URL that is not https
+    or http://localhost (Cognito's own rule). One bad entry fails the frontend deploy."""
+    import re
+
+    allowed = re.compile(r"^(?:https://|http://localhost(?:[:/]|$))")
+    assert constants.MCP_GATEWAY_OAUTH_REDIRECT_URIS
+    for uri in constants.MCP_GATEWAY_OAUTH_REDIRECT_URIS:
+        assert allowed.match(uri) and "#" not in uri, uri
+    # The printed Kiro and Claude configs use the base port; it must be registered.
+    assert f"http://localhost:{constants.MCP_GATEWAY_OAUTH_CALLBACK_PORT}" in constants.MCP_GATEWAY_OAUTH_REDIRECT_URIS

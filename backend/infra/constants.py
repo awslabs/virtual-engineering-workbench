@@ -108,12 +108,14 @@ VEW_API_ROUTER_BOUNDED_CONTEXTS: list[str] = [
 # gateway from any MCP client. The client itself is created by the frontend
 # stack from its AdditionalAppClients config; register these URIs there.
 MCP_GATEWAY_OAUTH_CALLBACK_PORT = 19876
-# Cognito requires exact callback matches, so register a small port range on both
-# loopback names, with and without a /callback path.
+# Cognito requires exact callback matches, so register a small port range, with
+# and without a /callback path. localhost only: Cognito, and the frontend's
+# AdditionalAppClients validation, accept plain http for localhost and no other
+# host, so a 127.0.0.1 entry fails the frontend deploy. The Claude and Kiro
+# configs this stack prints both use localhost.
 MCP_GATEWAY_OAUTH_REDIRECT_URIS = [
-    f"http://{host}:{port}{path}"
+    f"http://localhost:{port}{path}"
     for port in range(MCP_GATEWAY_OAUTH_CALLBACK_PORT, MCP_GATEWAY_OAUTH_CALLBACK_PORT + 5)
-    for host in ("127.0.0.1", "localhost")
     for path in ("", "/callback")
 ]
 

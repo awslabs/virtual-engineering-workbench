@@ -484,37 +484,48 @@ discovery.register(
 # MCP Gateway on AgentCore
 # One Amazon Bedrock AgentCore Gateway aggregates the bounded contexts that pass
 # enable_mcp=True to their BackendAppOpenApi as MCP tool targets.
-mcp_agentcore_app_config = config.AppConfig(
-    **base_config.model_dump(),
-    component_name=constants.MCP_AGENTCORE_COMPONENT_NAME,
-    environment_config=config.env_config[environment],
-    component_specific=config.mcp_gateway_agentcore_app_config[environment],
-)
+#
+# Registered only when the gateway's Cognito client exists. The stack resolves
+# /<app>-ui-<env>/app-client-id/mcp-gateway-agentcore at deploy time, and the
+# frontend publishes that parameter only when its AdditionalAppClients contains an
+# "mcp-gateway-agentcore" entry; without it the deploy fails for a stack nothing
+# uses. deploy.sh sets this context value from ADDITIONAL_APP_CLIENTS and clears it
+# when the frontend and backend are in different regions, because the parameter is
+# written in the frontend region and read in this one.
+mcp_gateway_enabled = str(app.node.try_get_context("mcp-gateway-enabled") or "").lower() == "true"
 
-mcp_agentcore_stacks = [
-    s
-    for s in [
-        projects_stack,
-        packaging_stack,
-        publishing_stack,
-        provisioning_stack,
+if mcp_gateway_enabled:
+    mcp_agentcore_app_config = config.AppConfig(
+        **base_config.model_dump(),
+        component_name=constants.MCP_AGENTCORE_COMPONENT_NAME,
+        environment_config=config.env_config[environment],
+        component_specific=config.mcp_gateway_agentcore_app_config[environment],
+    )
+
+    mcp_agentcore_stacks = [
+        s
+        for s in [
+            projects_stack,
+            packaging_stack,
+            publishing_stack,
+            provisioning_stack,
+        ]
+        if s.api and s.api.mcp_enabled
     ]
-    if s.api and s.api.mcp_enabled
-]
 
-mcp_agentcore_stack = mcp_gateway_agentcore_app_stack.McpGatewayAgentcoreStack(
-    app,
-    "McpGatewayAgentcoreStack",
-    app_config=mcp_agentcore_app_config,
-    enabled_stacks=mcp_agentcore_stacks,
-    custom_domain=custom_domain if (custom_domain and cert_arn) else None,
-    stack_name=base_config.format_base_resource_name(constants.MCP_AGENTCORE_COMPONENT_NAME),
-    env=aws_cdk.Environment(account=base_config.account, region=base_config.region),
-)
-# With a custom API domain the gateway targets https://<custom domain>/<bc>, which only
-# resolves once the api-integration stack has mapped the base paths. Deploy after it.
-if api_integration_stack is not None:
-    mcp_agentcore_stack.add_dependency(api_integration_stack)
+    mcp_agentcore_stack = mcp_gateway_agentcore_app_stack.McpGatewayAgentcoreStack(
+        app,
+        "McpGatewayAgentcoreStack",
+        app_config=mcp_agentcore_app_config,
+        enabled_stacks=mcp_agentcore_stacks,
+        custom_domain=custom_domain if (custom_domain and cert_arn) else None,
+        stack_name=base_config.format_base_resource_name(constants.MCP_AGENTCORE_COMPONENT_NAME),
+        env=aws_cdk.Environment(account=base_config.account, region=base_config.region),
+    )
+    # With a custom API domain the gateway targets https://<custom domain>/<bc>, which only
+    # resolves once the api-integration stack has mapped the base paths. Deploy after it.
+    if api_integration_stack is not None:
+        mcp_agentcore_stack.add_dependency(api_integration_stack)
 
 aws_cdk.Aspects.of(app).add(cdk_nag.AwsSolutionsChecks(reports=True, verbose=True))
 aws_cdk.Aspects.of(app).add(cdk_nag.NIST80053R4Checks(reports=True, verbose=True))
