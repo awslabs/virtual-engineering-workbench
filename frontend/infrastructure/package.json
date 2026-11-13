@@ -69,7 +69,7 @@
     "brace-expansion": "^5.0.12",
     "undici": "^6.29.0",
     "diff": "^8.0.3",
-    "fast-xml-parser": "^5.10.1",
+    "fast-xml-parser": "^5.12.1",
     "js-yaml": "^4.3.2",
     "min-document": "^2.19.2",
     "path-to-regexp": "^8.0.0",
@@ -78,7 +78,10 @@
     "picomatch": "^4.0.4",
     "yaml": "^2.8.3",
     "follow-redirects": "^1.16.2",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "minimatch@npm:^9.0.4": "^11.0.1",
+    "minimatch@npm:^10.2.2": "^11.0.1",
+    "minimatch@npm:^10.2.5": "^11.0.1"
   },
   "dependenciesMeta": {
     "aws-sdk": {
