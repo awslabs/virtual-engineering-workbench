@@ -1155,6 +1155,7 @@ def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, g
     # ASSERT
     region_map = yaml.load(rendered, Loader=_CfnLoader)["Mappings"]["RegionMap"]
     assertpy.assert_that(region_map).contains_key("eu-north-1")
+    assertpy.assert_that(region_map).does_not_contain_key("placeholder")
     assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
 
 
@@ -1200,6 +1201,21 @@ def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_p
     assertpy.assert_that(region_map).is_length(2)
     assertpy.assert_that(region_map["eu-north-1"]["AMIId"]).is_equal_to("ami-eunorth1")
     assertpy.assert_that(region_map["us-east-1"]["AMIId"]).is_equal_to("ami-useast1")
+
+
+@pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_unrendered_template_passes_the_editor_and_validate_template(template_file):
+    """The version wizard's editor parses the draft as YAML, and ValidateTemplate runs on it before
+    any rendering, so mapping keys must already be names CloudFormation accepts.
+
+    This is a proxy for both: a YAML parse plus a check on the mapping key names. It runs neither the
+    editor nor ValidateTemplate, so CI does not cover ValidateTemplate."""
+    # ACT
+    draft = yaml.load(template_file.read_text(), Loader=_CfnLoader)
+
+    # ASSERT
+    for name in draft["Mappings"]["RegionMap"]:
+        assertpy.assert_that(name).matches(r"^[A-Za-z0-9.-]+$")
 
 
 def test_workbench_template_emits_an_ssh_key_the_login_dialog_can_offer(get_version, get_product):

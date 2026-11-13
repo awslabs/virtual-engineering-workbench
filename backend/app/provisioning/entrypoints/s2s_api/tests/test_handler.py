@@ -513,6 +513,40 @@ def test_get_provisioned_product(
 
 
 @unittest.mock.patch(
+    "app.provisioning.domain.query_services.provisioned_products_domain_query_service.ProvisionedProductsDomainQueryService",
+    autospec=True,
+)
+def test_get_provisioned_product_reports_ssh_off_when_the_deployment_turns_it_off(
+    pp_domain_qs,
+    lambda_context,
+    authenticated_event,
+    mock_provisioned_product,
+    mock_product_version,
+    monkeypatch,
+):
+    # ARRANGE
+    monkeypatch.setenv("SSH_CONNECTION_OPTION", "false")
+    pp_domain_qs.return_value.get_provisioned_product.return_value = (
+        mock_provisioned_product("vt-1", "prod-1", "user-1"),
+        mock_product_version(),
+    )
+
+    from app.provisioning.entrypoints.s2s_api import handler
+
+    importlib.reload(handler)
+    minimal_event = authenticated_event(
+        None, "/projects/proj-12345/products/provisioned/vt-1234", "GET", {"productType": "virtualTarget"}
+    )
+
+    # ACT
+    result = handler.handler(minimal_event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    assertpy.assert_that(json.loads(result["body"])["provisionedProduct"]["sshEnabled"]).is_false()
+
+
+@unittest.mock.patch(
     "app.provisioning.domain.command_handlers.provisioned_product_state.initiate_start.handle",
     autospec=True,
 )

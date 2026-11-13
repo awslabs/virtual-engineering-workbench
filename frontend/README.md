@@ -197,6 +197,7 @@ cdk deploy --all --require-approval never \
 | `CustomLoginDNSEnabled` | `false` | Enable custom DNS for Cognito login page |
 | `cert-arn` | — | TLS certificate ARN for custom domain |
 | `cert-arn-login` | — | TLS certificate ARN in us-east-1 for Cognito (if deploying to another region) |
+| `private-ca-arn` | — | AWS Private CA ARN the private deployment requests its certificate from, in place of `cert-arn` |
 | `use-custom-domain` | — | Custom domain name |
 
 ### Stack cleanup

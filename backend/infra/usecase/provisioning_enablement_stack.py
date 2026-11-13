@@ -1,5 +1,12 @@
 import cdk_nag
-from aws_cdk import Stack, aws_ec2, aws_events, aws_events_targets, aws_iam, aws_ssm
+from aws_cdk import (
+    Stack,
+    aws_ec2,
+    aws_events,
+    aws_events_targets,
+    aws_iam,
+    aws_ssm,
+)
 from constructs import Construct
 
 from infra import config, constants
@@ -97,8 +104,9 @@ class ProvisioningEnablementStack(Stack):
 
         # Provisioned product instance profile managed policy
         instance_profile_statements = [
-            # ec2:DescribeInstances is unscopeable (list-style action). Keep on "*".
+            # EC2's Describe actions take no resource or condition, so this can't be narrowed.
             aws_iam.PolicyStatement(
+                sid="DescribeInstances",
                 effect=aws_iam.Effect.ALLOW,
                 actions=["ec2:DescribeInstances"],
                 resources=["*"],
@@ -108,6 +116,7 @@ class ProvisioningEnablementStack(Stack):
             # credentials and SSM Agent), bring back IMDSv1, or raise its hop limit. An instance may change
             # only its own metadata options: the one it is calling from.
             aws_iam.PolicyStatement(
+                sid="ModifyOwnInstanceMetadataOptions",
                 effect=aws_iam.Effect.ALLOW,
                 actions=["ec2:ModifyInstanceMetadataOptions"],
                 resources=[f"arn:{self.partition}:ec2:{self.region}:{self.account}:instance/*"],

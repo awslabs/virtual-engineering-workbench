@@ -13,13 +13,14 @@ def map_provisioned_product(
     provisioned_product_entity: provisioned_product.ProvisionedProduct,
     include_sensitive: bool = False,
     include_status_reason: bool = False,
+    ssh_enabled: bool = True,
 ) -> api_model.ProvisionedProduct:
     provisioned_product_response = (
         api_model.ProvisionedProductInternal.model_validate(provisioned_product_entity.model_dump())
         if include_sensitive
         else api_model.ProvisionedProduct.model_validate(provisioned_product_entity.model_dump())
     )
-    provisioned_product_response.sshEnabled = provisioned_product_entity.sshKeyPath is not None
+    provisioned_product_response.sshEnabled = ssh_enabled and provisioned_product_entity.sshKeyPath is not None
     provisioned_product_response.usernamePasswordLoginEnabled = (
         provisioned_product_entity.userCredentialName is not None
     )

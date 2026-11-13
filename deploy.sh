@@ -623,6 +623,8 @@ for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
 done
 RESOURCE_TAGS="${RESOURCE_TAGS:-}"
 ADDITIONAL_APP_CLIENTS="${ADDITIONAL_APP_CLIENTS:-}"
+SSH_CONNECTION_OPTION="${SSH_CONNECTION_OPTION:-true}"
+[[ "$SSH_CONNECTION_OPTION" =~ ^(true|false)$ ]] || err "SSH_CONNECTION_OPTION must be true or false"
 if [ -z "$RESOURCE_TAGS" ]; then
   RESOURCE_TAGS='{}'
 fi
@@ -691,8 +693,25 @@ if [ "$PRIVATE_DEPLOYMENT" = "true" ]; then
   [[ -n "$CUSTOM_DOMAIN" ]]     || err "Private deployment requires CUSTOM_DOMAIN."
   [[ -n "$API_CUSTOM_DOMAIN" ]] || err "Private deployment requires API_CUSTOM_DOMAIN."
   if [ -z "$CERT_ARN" ]; then
+    prompt PRIVATE_CA_ARN "AWS Private CA ARN to issue the certificates from (empty = self-signed)" ""
+  fi
+  if [ -z "$CERT_ARN" ] && [ -z "${PRIVATE_CA_ARN:-}" ]; then
     warn "No CERT_ARN provided — a self-signed certificate will be generated and imported into ACM. Clients must trust it (distribute it to user trust stores)."
   fi
+fi
+
+# Each CDK app requests the certificate for its own domain from this CA, and
+# ACM renews it. ACM issues from a CA in the certificate's own region only,
+# and CloudFront serves no certificate from a private CA.
+PRIVATE_CA_ARN="${PRIVATE_CA_ARN:-}"
+if [ -n "$PRIVATE_CA_ARN" ]; then
+  [ "$PRIVATE_DEPLOYMENT" = "true" ] || err "PRIVATE_CA_ARN requires a private deployment: CloudFront cannot serve a private CA's certificate."
+  [ -z "$CERT_ARN" ] || err "Set CERT_ARN or PRIVATE_CA_ARN, not both."
+  [[ "$PRIVATE_CA_ARN" =~ ^arn:aws[a-z-]*:acm-pca:([a-z0-9-]+):([0-9]{12}):certificate-authority/[0-9a-f-]+$ ]] || \
+    err "PRIVATE_CA_ARN is not a private CA ARN: $PRIVATE_CA_ARN"
+  [ "${BASH_REMATCH[1]}" = "$AWS_REGION" ] || \
+    err "PRIVATE_CA_ARN is in ${BASH_REMATCH[1]}, but ACM issues only from a CA in AWS_REGION ($AWS_REGION)."
+  PRIVATE_CA_ACCOUNT="${BASH_REMATCH[2]}"
 fi
 
 # us-east-1 cert needed for Cognito/CloudFront in public mode when deploying to another region
@@ -770,6 +789,7 @@ OIDC_USER_ID_CLAIM=$OIDC_USER_ID_CLAIM_CONFIG
 OIDC_LOGOUT_URL=$OIDC_LOGOUT_URL_CONFIG
 CERT_ARN="$CERT_ARN"
 CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
+PRIVATE_CA_ARN="$PRIVATE_CA_ARN"
 CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
 API_CUSTOM_DOMAIN="$API_CUSTOM_DOMAIN"
 SPOKE_ACCOUNT_ID="${SPOKE_ACCOUNT_ID:-}"
@@ -783,6 +803,7 @@ HUB_VPC_NAME='${HUB_VPC_NAME}'
 HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
 RESOURCE_TAGS='${RESOURCE_TAGS}'
 ADDITIONAL_APP_CLIENTS='${ADDITIONAL_APP_CLIENTS}'
+SSH_CONNECTION_OPTION="$SSH_CONNECTION_OPTION"
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -799,6 +820,27 @@ log "Hub account credentials verified: $AWS_ACCOUNT_ID"
 ORG_ID=$(aws organizations describe-organization --query 'Organization.Id' --output text 2>/dev/null || echo "")
 [[ -n "$ORG_ID" ]] || err "AWS Organization ID is required. Account must be part of an AWS Organization."
 log "Organization ID: $ORG_ID"
+
+# ACM renews a certificate from a CA in this account only while the CA grants
+# acm.amazonaws.com IssueCertificate, GetCertificate and ListPermissions.
+# Without that grant the certificates deploy and then expire unrenewed. A CA
+# shared from another account takes its permissions from the share instead.
+if [ -n "$PRIVATE_CA_ARN" ] && [ "$PRIVATE_CA_ACCOUNT" = "$AWS_ACCOUNT_ID" ]; then
+  if ACM_CA_ACTIONS=$(aws acm-pca list-permissions --certificate-authority-arn "$PRIVATE_CA_ARN" \
+      --query "Permissions[?Principal=='acm.amazonaws.com'].Actions[]" \
+      --output text --region "$AWS_REGION" 2>>"$LOG_FILE"); then
+    ACM_CA_ACTIONS=" ${ACM_CA_ACTIONS//[[:space:]]/ } "
+    MISSING_CA_ACTIONS=""
+    for ca_action in IssueCertificate GetCertificate ListPermissions; do
+      [[ "$ACM_CA_ACTIONS" == *" $ca_action "* ]] || MISSING_CA_ACTIONS+=" $ca_action"
+    done
+    [ -z "$MISSING_CA_ACTIONS" ] || \
+      err "PRIVATE_CA_ARN does not grant ACM${MISSING_CA_ACTIONS}, so ACM could not renew the certificates it issues. Grant it with: aws acm-pca create-permission --certificate-authority-arn $PRIVATE_CA_ARN --principal acm.amazonaws.com --actions IssueCertificate GetCertificate ListPermissions --region $AWS_REGION"
+    log "PRIVATE_CA_ARN lets ACM renew the certificates it issues"
+  else
+    warn "Could not list PRIVATE_CA_ARN's permissions (see $LOG_FILE), so whether ACM can renew its certificates is unchecked."
+  fi
+fi
 
 if [ "$DRY_RUN" = "true" ]; then
   echo ""
@@ -837,6 +879,7 @@ sed -i.bak \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
   -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
   -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
+  -e "s/^SSH_CONNECTION_OPTION = .*/SSH_CONNECTION_OPTION = $([ "$SSH_CONNECTION_OPTION" = true ] && echo True || echo False)/" \
   -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${COGNITO_REGION}\"/" \
   -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${COGNITO_REGION}/g" \
   "$BACKEND_CONFIG"
@@ -1013,13 +1056,13 @@ else
   log "VPC '$VPC_NAME' already exists ($EXISTING_VPC)"
 fi
 
-# --- Self-signed TLS certificate (private deployment, no CERT_ARN provided) ---
+# --- Self-signed TLS certificate (private deployment, no CERT_ARN or PRIVATE_CA_ARN provided) ---
 # A preview must not mint and import a certificate. Without one the
 # frontend stack is diffed as it would be with CERT_ARN unset, which is
 # the honest comparison for a deployment that has none yet.
-if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ] && [ -z "$PRIVATE_CA_ARN" ]; then
   warn "Skipping the self-signed certificate import (--diff); the frontend diff assumes no CERT_ARN"
-elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ] && [ -z "$PRIVATE_CA_ARN" ]; then
   command -v openssl >/dev/null || err "openssl is required to generate a self-signed certificate (no CERT_ARN provided)."
   log "Generating self-signed certificate for $CUSTOM_DOMAIN, $API_CUSTOM_DOMAIN"
 
@@ -1137,6 +1180,9 @@ fi
 if [ -n "$CERT_ARN_US_EAST_1" ]; then
   FE_CDK_CONTEXT+=(-c "cert-arn-login=$CERT_ARN_US_EAST_1")
 fi
+if [ -n "$PRIVATE_CA_ARN" ]; then
+  FE_CDK_CONTEXT+=(-c "private-ca-arn=$PRIVATE_CA_ARN")
+fi
 
 log "Deploying frontend CDK stacks"
 (
@@ -1173,6 +1219,9 @@ if [ -n "$API_CUSTOM_DOMAIN" ]; then
 fi
 if [ -n "$CERT_ARN" ]; then
   BE_CDK_CONTEXT+=(-c "cert-arn=$CERT_ARN")
+fi
+if [ -n "$PRIVATE_CA_ARN" ]; then
+  BE_CDK_CONTEXT+=(-c "private-ca-arn=$PRIVATE_CA_ARN")
 fi
 if [ -n "${CI_COMMIT_SHA:-}" ]; then
   BE_CDK_CONTEXT+=(-c "ci-commit-sha=$CI_COMMIT_SHA")

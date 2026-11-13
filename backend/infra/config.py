@@ -17,6 +17,11 @@ HUB_VPC_NAME = ""
 # may build in. Empty derives them from the prefixes, matching the subnets VEW
 # names when it creates the VPC itself.
 HUB_SUBNET_NAMES = ""
+
+# Whether users may connect to provisioned products over SSH. When False, VEW
+# never opens port 22 to a user's IP and hands out no SSH keys, whatever the
+# product templates provide.
+SSH_CONNECTION_OPTION = True
 SSM_PARAM_UI_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_COGNITO_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_BE_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-backend-{{environment}}"
@@ -280,6 +285,7 @@ _dev_packaging_config = {
     "image-builder-events-reserved-concurrency": 10,
     "recipe-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-defs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-test-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-tests-{{environment}}-{{image_service_account_id}}-{{region}}",
+    "build-logs-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-build-logs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-version-testing-reserved-concurrency": 10,
     "scheduled-jobs-lambda-reserved-concurrency": 10,
     "ssm-run-command-timeout": 43200,
@@ -311,6 +317,7 @@ _dev_provisioning_config = {
     "provisioning-subnet-selector": "TaggedSubnet",
     "provisioning-subnet-selector-tag": "ProvisioningEnabled:True",
     "authorize-user-ip-address-param-value": True,
+    "ssh-connection-option": SSH_CONNECTION_OPTION,
     "pp-cleanup-config": {
         "pp-cleanup-alert": 7,
         "pp-cleanup": 14,
@@ -330,6 +337,7 @@ image_sharing_app_config = {"dev": {}, "qa": {}, "prod": {}}
 
 _dev_product_packaging_config = {
     "ami-factory-vpc-name": HUB_VPC_NAME or f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    "build-logs-retention-days": 365,
 }
 
 product_packaging_app_config = {
