@@ -1230,7 +1230,11 @@ fi
 # Whether the backend's custom-domain integration supplies the CLI endpoint.
 # Both values are required by backend_app.py before it creates that stack.
 CUSTOM_API_ENDPOINT=false
-if [ -n "${API_CUSTOM_DOMAIN:-}" ] && [ -n "${CERT_ARN:-}" ]; then
+# The same condition backend_app.py uses to build ApiIntegrationStack instead of
+# the router: a custom API domain with a certificate from CERT_ARN (supplied or
+# self-signed) or issued from PRIVATE_CA_ARN. If the two disagreed, phase 7b
+# would look for a router the backend never built and fail.
+if [ -n "${API_CUSTOM_DOMAIN:-}" ] && { [ -n "${CERT_ARN:-}" ] || [ -n "${PRIVATE_CA_ARN:-}" ]; }; then
   CUSTOM_API_ENDPOINT=true
 fi
 
