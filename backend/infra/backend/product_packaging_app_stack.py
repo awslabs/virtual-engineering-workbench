@@ -220,6 +220,21 @@ class ProductPackagingAppStack(aws_cdk.Stack):
             ],
         )
 
+        # Image Builder build logs are kept as audit records, apart from test artefacts.
+        build_logs_retention = Duration.days(app_config.component_specific["build-logs-retention-days"])
+        self.__build_logs_bucket = bucket.Bucket(
+            self,
+            "BuildLogsBucket",
+            bucket_name=app_config.format_base_resource_name(constants.BUILD_LOGS_BUCKET),
+            lifecycle_rules=[
+                aws_s3.LifecycleRule(
+                    expiration=build_logs_retention,
+                    noncurrent_version_expiration=build_logs_retention,
+                ),
+                aws_s3.LifecycleRule(expired_object_delete_marker=True),
+            ],
+        )
+
         # Prerequisites resources for EC2 Image Builder pipelines
         self.__artifacts_storage_bucket = bucket.Bucket(
             self,
@@ -605,6 +620,7 @@ class ProductPackagingAppStack(aws_cdk.Stack):
             self.components_versions_tests_bucket.bucket.grant_read_write(role_construct.role)
             self.recipes_definitions_bucket.bucket.grant_read_write(role_construct.role)
             self.recipes_versions_tests_bucket.bucket.grant_read_write(role_construct.role)
+        self.__build_logs_bucket.bucket.grant_put(self.product_packaging_instance_role.role)
 
         # Permissions for web application account to topic
         self.__product_packaging_topic.topic.add_to_resource_policy(
