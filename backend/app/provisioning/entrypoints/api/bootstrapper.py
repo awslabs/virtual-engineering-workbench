@@ -248,7 +248,8 @@ def bootstrap(  # noqa: C901
     )
 
     instance_mgmt_srv = ec2_instance_management_service.EC2InstanceManagementService(
-        ec2_boto_client_provider=_get_ec2_boto_client
+        ec2_boto_client_provider=_get_ec2_boto_client,
+        ssh_enabled=app_config.get_ssh_connection_option(),
     )
 
     provisioned_products_domain_qry_srv = (

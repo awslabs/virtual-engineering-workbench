@@ -156,7 +156,8 @@ def bootstrap(  # noqa: C901
         return _get_boto_client_for(client_name="ecs", aws_account_id=aws_account_id, region=region, user_id=user_id)
 
     instance_mgmt_srv = ec2_instance_management_service.EC2InstanceManagementService(
-        ec2_boto_client_provider=_get_ec2_boto_client
+        ec2_boto_client_provider=_get_ec2_boto_client,
+        ssh_enabled=app_config.get_ssh_connection_option(),
     )
 
     products_srv = sc_products_service.ServiceCatalogProductsService(

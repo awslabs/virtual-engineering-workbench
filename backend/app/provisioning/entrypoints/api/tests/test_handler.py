@@ -1424,6 +1424,28 @@ def test_get_provisioned_product_ssh_key(
     )
 
 
+def test_get_provisioned_product_ssh_key_is_refused_when_ssh_is_off(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_virtual_targets_domain_query_service,
+    monkeypatch,
+):
+    # ARRANGE
+    from app.provisioning.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    monkeypatch.setenv("SSH_CONNECTION_OPTION", "false")
+    minimal_event = authenticated_event(None, "/projects/proj-12345/products/provisioned/vt-1234/ssh-key", "GET")
+
+    # ACT
+    result = handler.handler(minimal_event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(400)
+    mocked_virtual_targets_domain_query_service.get_provisioned_product_ssh_key.assert_not_called()
+
+
 def test_get_provisioned_product_user_credentials(
     lambda_context,
     authenticated_event,
