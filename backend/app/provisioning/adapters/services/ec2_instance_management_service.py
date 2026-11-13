@@ -12,6 +12,7 @@ from app.provisioning.domain.model import (
     network_route_table,
     network_subnet,
 )
+from app.provisioning.domain.model.connection_option import ConnectionOption
 from app.provisioning.domain.ports import instance_management_service
 
 
@@ -19,8 +20,10 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
     def __init__(
         self,
         ec2_boto_client_provider: typing.Callable[[str, str, str], client.EC2Client],
+        ssh_enabled: bool = True,
     ):
         self._ec2_boto_client_provider = ec2_boto_client_provider
+        self._ssh_enabled = ssh_enabled
 
     def get_instance_state_reason(self, user_id: str, aws_account_id: str, region: str, instance_id: str) -> str | None:
         """Returns the change status reason for the EC2 instance.
@@ -263,6 +266,10 @@ class EC2InstanceManagementService(instance_management_service.InstanceManagemen
             protocol (str): The protocol authorized in this rule
             user_sg_id (str): User security group ID
         """
+
+        # Callers revoke the user's previous rule first, so with SSH off a port 22 rule left from before is gone too.
+        if connection_option == ConnectionOption.SSH and not self._ssh_enabled:
+            return
 
         ec2_client = self._ec2_boto_client_provider(aws_account_id, region, user_id)
         name = self.__get_user_security_group_rule_name(

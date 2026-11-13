@@ -255,6 +255,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |
 | `RESOURCE_TAGS` | `{}` | JSON object of tags applied to resources VEW provisions at runtime — Image Builder instances and AMIs, Service Catalog products, and the instances launched by component and recipe testing. Needed where an organisation denies resource creation without required tags |
 | `ADDITIONAL_APP_CLIENTS` | `[]` | JSON list of Cognito app clients besides the web client, for applications that call the API with their users' own tokens. Each signs in through the web client's identity providers with the authorization code grant, and its id is added to the clients the API accepts. Fields: `Name`, `CallbackUrls`, and optionally `LogoutUrls`, `GenerateSecret`, `RefreshTokenValidityHours` (default 48). The deploy summary lists the client ids |
+| `SSH_CONNECTION_OPTION` | `true` | `false` stops VEW opening port 22 to users' IPs and handing out SSH keys, whatever the product templates provide. A user's existing port 22 rule is removed the next time VEW authorizes their IP, such as when they start a product |
 
 Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 

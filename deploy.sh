@@ -623,6 +623,8 @@ for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
 done
 RESOURCE_TAGS="${RESOURCE_TAGS:-}"
 ADDITIONAL_APP_CLIENTS="${ADDITIONAL_APP_CLIENTS:-}"
+SSH_CONNECTION_OPTION="${SSH_CONNECTION_OPTION:-true}"
+[[ "$SSH_CONNECTION_OPTION" =~ ^(true|false)$ ]] || err "SSH_CONNECTION_OPTION must be true or false"
 if [ -z "$RESOURCE_TAGS" ]; then
   RESOURCE_TAGS='{}'
 fi
@@ -783,6 +785,7 @@ HUB_VPC_NAME='${HUB_VPC_NAME}'
 HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
 RESOURCE_TAGS='${RESOURCE_TAGS}'
 ADDITIONAL_APP_CLIENTS='${ADDITIONAL_APP_CLIENTS}'
+SSH_CONNECTION_OPTION="$SSH_CONNECTION_OPTION"
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -837,6 +840,7 @@ sed -i.bak \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
   -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
   -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
+  -e "s/^SSH_CONNECTION_OPTION = .*/SSH_CONNECTION_OPTION = $([ "$SSH_CONNECTION_OPTION" = true ] && echo True || echo False)/" \
   -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${COGNITO_REGION}\"/" \
   -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${COGNITO_REGION}/g" \
   "$BACKEND_CONFIG"
