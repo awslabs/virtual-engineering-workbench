@@ -151,44 +151,189 @@ class ProductPublishingAppStack(Stack):
                             "cloudformation:DescribeStacks",
                             "cloudformation:GetTemplateSummary",
                             "cloudformation:ListStacks",
-                            "ec2:AllocateAddress",
-                            "ec2:AssociateAddress",
-                            "ec2:CreateTags",
                             "ec2:DescribeAddresses",
                             "ec2:DescribeAvailabilityZones",
-                            "ec2:DescribeKeyPairs",
+                            # Service Catalog reads this after RunInstances succeeds,
+                            # while reconciling the provisioned product's resource
+                            # view. It has no resource type, so Resource="*" is the
+                            # only valid form.
+                            "ec2:DescribeInstanceCreditSpecifications",
                             "ec2:DescribeInstances",
+                            "ec2:DescribeKeyPairs",
                             "ec2:DescribeNetworkInterfaces",
                             "ec2:DescribeSecurityGroups",
                             "ec2:DescribeSubnets",
-                            "lambda:GetFunction",
+                            # Called by the Service Catalog / CloudFormation
+                            # pre-flight immediately before
+                            # CreateSecurityGroup, alongside the
+                            # already-granted DescribeSubnets and
+                            # DescribeSecurityGroups. EC2 Describe* actions do
+                            # not support resource-level permissions, so
+                            # Resource="*" is the only valid form.
+                            "ec2:DescribeVpcs",
+                            "ec2:DescribeVolumes",
+                            "ec2:DescribeVolumesModifications",
+                            "ec2:DescribeVolumeStatus",
                             "iam:GetPolicy",
                             "iam:ListPolicyVersions",
-                            "ec2:DescribeVolumes",
-                            "ec2:DescribeVolumeStatus",
-                            "ec2:DescribeVolumesModifications",
-                            "ec2:DisassociateAddress",
-                            "ec2:ReleaseAddress",
-                            "secretsmanager:CreateSecret",
-                            "secretsmanager:DeleteSecret",
+                            "lambda:GetFunction",
                             "secretsmanager:ListSecrets",
+                            "secretsmanager:GetRandomPassword",
+                            # Deliberately not granted:
+                            #   iam:GetAccountSummary
+                            #   iam:ListEntitiesForPolicy
+                            # CloudFormation's IAM provider attempts both during
+                            # pre-flight, but neither is retried, neither has a
+                            # call site in this repo, and iam:GetPolicy on the
+                            # same policy ARN succeeds regardless. The denials
+                            # are log noise. iam:GetAccountSummary also only
+                            # accepts Resource="*" and cannot be scoped at all.
+                            # Listed here so they are not mistaken for an
+                            # oversight.
+                            #
+                            # Granted below: also called post-RunInstances by Service Catalog.
+                            # ssm:ListAssociations does not support
+                            # resource-level authorization.
+                            "ssm:ListAssociations",
+                            "ecs:DescribeServices",
+                        ],
+                        resources=["*"],
+                    )
+                ),
+                # ec2:CreateTags for the resources Service Catalog templates
+                # create.
+                #
+                # Keyed on a non-reserved tag that VEW itself stamps on every
+                # provisioned product and that Service Catalog propagates to
+                # every resource in the stack: vew:provisionedProduct:id. The
+                # spoke-side copy of this role in
+                # infra/usecase/product_publishing_enablement_app_stack.py
+                # carries the same fix.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["ec2:CreateTags"],
+                        resources=[
+                            f"arn:{self.partition}:ec2:*:{self.account}:security-group/*",
+                            f"arn:{self.partition}:ec2:*:{self.account}:instance/*",
+                            f"arn:{self.partition}:ec2:*:{self.account}:volume/*",
+                            f"arn:{self.partition}:ec2:*:{self.account}:network-interface/*",
+                            f"arn:{self.partition}:ec2:*:{self.account}:key-pair/*",
+                            f"arn:{self.partition}:ec2:*:{self.account}:elastic-ip/*",
+                        ],
+                        conditions={
+                            "StringLike": {
+                                "aws:RequestTag/vew:provisionedProduct:id": "vew-pp-*",
+                            },
+                        },
+                    )
+                ),
+                # Destructive / tag-update actions on existing SC-managed
+                # resources.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=[
+                            "secretsmanager:DeleteSecret",
                             "secretsmanager:TagResource",
                             "secretsmanager:UntagResource",
-                            "secretsmanager:GetRandomPassword",
-                            "ecs:RegisterTaskDefinition",
-                            "ecs:DeregisterTaskDefinition",
-                            "ecs:TagResource",
-                            "ecs:CreateService",
-                            "ecs:DescribeServices",
                             "ecs:DeleteService",
                         ],
+                        resources=["*"],
+                        conditions={
+                            "StringLike": {
+                                "aws:ResourceTag/aws:cloudformation:stack-name": "SC-*",
+                            },
+                        },
+                    )
+                ),
+                # ECS actions scoped by resource type.
+                #
+                # The earlier create-time ECS grants conditioned on
+                # aws:RequestTag/aws:cloudformation:stack-name were removed. The
+                # retained resource-tag statement above still includes
+                # ecs:DeleteService, while these ARN-scoped statements provide the
+                # operative ECS permissions.
+                #
+                # Scoping is per-action, as tight as each action supports:
+                #
+                #  * ecs:RegisterTaskDefinition DOES have a "task-definition"
+                #    resource type (AWS service reference for ecs), so it is
+                #    scoped to task-definition/*. An earlier comment here said
+                #    it had none; that was wrong. The family name is chosen by
+                #    the product template author and is not SC- prefixed, so
+                #    task-definition/* is as tight as this one gets.
+                #  * ecs:DeregisterTaskDefinition really has no resource type,
+                #    so "*" is the only form that can work for it. The two
+                #    actions are therefore split rather than granted together.
+                #    An earlier simulator run reported implicitDeny when a
+                #    task-definition ARN was passed even under a blanket ecs:*;
+                #    that is a known simulator artefact for ECS resource-level
+                #    checks and is contradicted by the service reference, but
+                #    the Register scope is not confirmed by a real deploy.
+                #  * ecs:CreateService, ecs:DeleteService and ecs:TagResource do
+                #    support resource ARNs, so they are scoped to service/*/SC-*
+                #    — Service Catalog names every stack resource with the SC-
+                #    physical-id prefix. Verified against both a matching SC-*
+                #    service name and a non-SC one, so the scope reaches what it
+                #    must and nothing else.
+                #  * ecs:TagResource additionally needs the task-definition
+                #    resource type for tag-on-create of an
+                #    AWS::ECS::TaskDefinition, whose family name is chosen by
+                #    the product template author and is therefore not SC-*
+                #    prefixed and cannot be scoped further than
+                #    task-definition/*. Still strictly narrower than
+                #    Resource="*".
+                #
+                # No tag condition is used. Keying on a non-reserved tag such as
+                # aws:RequestTag/vew:provisionedProduct:id, the approach used
+                # for ec2:CreateTags above, is verified for EC2 resources but
+                # only inferred for ECS: no ECS product template exists in this
+                # repo, so propagation to ECS resources cannot be observed.
+                # The earlier create-time condition could not be verified, so this
+                # uses ARN scoping, which is verifiable, instead.
+                #
+                # Scope note: the grant is verified by simulator readback with
+                # positive and negative controls. No product template in this
+                # repo creates an ECS service, so the end-to-end path cannot be
+                # exercised until one exists.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["ecs:RegisterTaskDefinition"],
+                        resources=[f"arn:{self.partition}:ecs:{self.region}:{self.account}:task-definition/*"],
+                    )
+                ),
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["ecs:DeregisterTaskDefinition"],
                         resources=["*"],
                     )
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
                     PolicyStatement(
                         actions=[
+                            "ecs:CreateService",
+                            "ecs:DeleteService",
+                            "ecs:TagResource",
+                        ],
+                        resources=[f"arn:{self.partition}:ecs:{self.region}:{self.account}:service/*/SC-*"],
+                    )
+                ),
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["ecs:TagResource"],
+                        resources=[f"arn:{self.partition}:ecs:{self.region}:{self.account}:task-definition/*"],
+                    )
+                ),
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=[
                             "cloudformation:CreateStack",
+                            # cloudformation:UpdateStack is required because
+                            # sc_products_service.update_provisioned_product()
+                            # drives Service Catalog UpdateProvisionedProduct,
+                            # which performs a CloudFormation stack UPDATE on
+                            # the SC-* stack using this launch-constraint role.
+                            # Needed here as well as on the spoke side.
+                            "cloudformation:UpdateStack",
                             "cloudformation:DeleteStack",
                             "cloudformation:DescribeStackEvents",
                         ],
@@ -220,6 +365,11 @@ class ProductPublishingAppStack(Stack):
                     PolicyStatement(
                         actions=[
                             "ec2:AttachNetworkInterface",
+                            # ec2:DescribeInstanceAttribute DOES have an "instance"
+                            # resource type (AWS service reference for ec2), unlike its
+                            # Describe* neighbours, so it is granted here rather than on
+                            # Resource="*".
+                            "ec2:DescribeInstanceAttribute",
                             "ec2:DetachNetworkInterface",
                             "ec2:ModifyNetworkInterfaceAttribute",
                             "ec2:RunInstances",
@@ -231,6 +381,31 @@ class ProductPublishingAppStack(Stack):
                             "ec2:StartInstances",
                         ],
                         resources=[f"arn:{self.partition}:ec2:{self.region}:{self.account}:instance/*"],
+                    )
+                ),
+                # Key-pair actions. Required by both shipped example products,
+                # which each declare an AWS::EC2::KeyPair.
+                #
+                # ec2:CreateKeyPair and ec2:DeleteKeyPair act on the key-pair
+                # resource only, so this is their sole grant — granting them on
+                # instance/* never applied. ec2:RunInstances and ec2:DeleteTags
+                # do have a key-pair resource type.
+                #
+                # The Get*/List*/Describe* wildcards previously in this statement
+                # were inert: no EC2 read action has a key-pair resource type
+                # (ec2:DescribeKeyPairs has none at all), so they granted
+                # nothing. They are removed rather than moved; the operative
+                # grant for describes is the Resource="*" statement at the top
+                # of this role.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=[
+                            "ec2:CreateKeyPair",
+                            "ec2:DeleteKeyPair",
+                            "ec2:DeleteTags",
+                            "ec2:RunInstances",
+                        ],
+                        resources=[f"arn:{self.partition}:ec2:{self.region}:{self.account}:key-pair/*"],
                     )
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
@@ -261,6 +436,56 @@ class ProductPublishingAppStack(Stack):
                             "iam:UntagRole",
                         ],
                         resources=[f"arn:{self.partition}:iam::{self.account}:role/*"],
+                    )
+                ),
+                # Service Catalog, acting as the CloudFormation AWS::IAM::Role
+                # resource provider, enumerates the inline and attached policies
+                # of the provisioned-product instance role it created, as part
+                # of the detach -> delete-policies -> DeleteRole teardown
+                # sequence and the post-delete reconciliation read. Without
+                # these the role delete retries until it eventually succeeds,
+                # adding most of the time that step takes.
+                #
+                # List-only, and strictly narrower than the iam write statement
+                # directly above, which already permits CreateRole / DeleteRole
+                # / PutRolePolicy / GetRolePolicy on role/* in this account.
+                # Scoped to role/SC-* to match this role's existing SC-*
+                # conventions (stack/SC-*, log-group:SC-*, function:SC-*).
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["iam:ListRolePolicies", "iam:ListAttachedRolePolicies"],
+                        resources=[f"arn:{self.partition}:iam::{self.account}:role/SC-*"],
+                    )
+                ),
+                # The CloudFormation SecretsManager resource provider reads the
+                # secret's metadata back after CreateSecret and again during
+                # DeleteSecret, for the workbench's DCV user credential secret.
+                # Without it both calls retry with backoff, continuing past the
+                # point the stack reports complete. DescribeSecret supports
+                # resource-level ARNs, so it is scoped to secret:SC-* rather
+                # than added to the Resource="*" read statement.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["secretsmanager:DescribeSecret"],
+                        resources=[f"arn:{self.partition}:secretsmanager:{self.region}:{self.account}:secret:SC-*"],
+                    )
+                ),
+                # Service Catalog / CloudFormation pre-flight capacity check run
+                # immediately before CreateSecurityGroup, against the "VPC
+                # security groups per Region" quota. This role has no
+                # servicequotas statement otherwise — a missing service rather
+                # than a missing action. The denial fails open: in an account
+                # near the quota the provider loses the ability to fail fast
+                # with "quota exceeded" and fails late inside
+                # CreateSecurityGroup instead.
+                #
+                # Scoped to vpc/* only, the one quota namespace this path uses.
+                # An ec2/* instance-quota check is plausible but has not been
+                # observed, so it is deliberately not granted.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    PolicyStatement(
+                        actions=["servicequotas:GetServiceQuota"],
+                        resources=[f"arn:{self.partition}:servicequotas:{self.region}:{self.account}:vpc/*"],
                     )
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
@@ -313,6 +538,12 @@ class ProductPublishingAppStack(Stack):
                             f"arn:{self.partition}:ec2:{self.region}:*:subnet/*",
                             f"arn:{self.partition}:ec2:{self.region}:{self.account}:volume/*",
                             f"arn:{self.partition}:ec2:{self.region}::image/*",
+                            # RunInstances is authorized against every resource
+                            # it touches, including the key pair, when a
+                            # template launches an instance with a KeyName.
+                            # Both shipped example products do. Needed here as
+                            # well as on the spoke side.
+                            f"arn:{self.partition}:ec2:{self.region}:{self.account}:key-pair/*",
                         ],
                     )
                 ),
@@ -331,7 +562,20 @@ class ProductPublishingAppStack(Stack):
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
                     PolicyStatement(
-                        actions=["ssm:GetParameters"],
+                        # ssm:GetParameters is used by CloudFormation to resolve
+                        # AWS::SSM::Parameter::Value<String> template parameters
+                        # (both shipped example products and the workbench
+                        # template read /workbench/vpc/* this way).
+                        #
+                        # Reads only. No shipped product template declares an
+                        # AWS::SSM::Parameter, and this role runs
+                        # publisher-authored templates in the account that holds
+                        # the workbench key-pair parameters, so write and delete
+                        # are deliberately not granted here.
+                        actions=[
+                            "ssm:GetParameters",
+                            "ssm:GetParameter",
+                        ],
                         resources=[f"arn:{self.partition}:ssm:{self.region}:{self.account}:parameter/*"],
                     )
                 ),
@@ -347,6 +591,10 @@ class ProductPublishingAppStack(Stack):
                             "logs:DeleteLogGroup",
                             "logs:CreateLogGroup",
                             "logs:PutRetentionPolicy",
+                            # CloudFormation stamps its stack tags onto log
+                            # groups it creates, which requires logs:TagResource
+                            # on the SC-* log groups.
+                            "logs:TagResource",
                         ],
                         resources=[f"arn:{self.partition}:logs:{self.region}:{self.account}:log-group:SC-*"],
                     )
@@ -357,6 +605,11 @@ class ProductPublishingAppStack(Stack):
                             "lambda:CreateFunction",
                             "lambda:DeleteFunction",
                             "lambda:InvokeFunction",
+                            # examples/android-cuttlefish/product.yaml
+                            # declares an AWS::Lambda::Function, and
+                            # CloudFormation stamps its stack tags onto it,
+                            # which requires lambda:TagResource.
+                            "lambda:TagResource",
                         ],
                         resources=[f"arn:{self.partition}:lambda:{self.region}:{self.account}:function:SC-*"],
                     )
@@ -366,6 +619,46 @@ class ProductPublishingAppStack(Stack):
                         actions=["kms:Decrypt", "kms:GenerateDataKey"],
                         resources=[f"arn:{self.partition}:kms:*:{self.account}:key/*"],
                     )
+                ),
+            ],
+        )
+        # Create-style and teardown actions on Service Catalog stack resources,
+        # keyed on the VEW-owned tag vew:provisionedProduct:id (vew-pp-<uuid>).
+        # A separate named policy keeps the role's default policy below the size
+        # at which CDK splits it into an unsuppressed overflow policy.
+        self.launch_constraint_vew_tag_policy = Policy(
+            self,
+            "LaunchConstraintVewTagPolicy",
+            roles=[self.product_publishing_launch_constraint_role.role],
+            statements=[
+                PolicyStatement(
+                    actions=["ec2:AllocateAddress", "secretsmanager:CreateSecret"],
+                    resources=["*"],
+                    conditions={"StringLike": {"aws:RequestTag/vew:provisionedProduct:id": "vew-pp-*"}},
+                ),
+                PolicyStatement(
+                    actions=[
+                        "ec2:AssociateAddress",
+                        "ec2:DisassociateAddress",
+                        "ec2:ReleaseAddress",
+                        "secretsmanager:DeleteSecret",
+                        "secretsmanager:TagResource",
+                        "secretsmanager:UntagResource",
+                    ],
+                    resources=["*"],
+                    conditions={"StringLike": {"aws:ResourceTag/vew:provisionedProduct:id": "vew-pp-*"}},
+                ),
+            ],
+        )
+        cdk_nag.NagSuppressions.add_resource_suppressions(
+            self.launch_constraint_vew_tag_policy,
+            [
+                cdk_nag.NagPackSuppression(
+                    id="AwsSolutions-IAM5",
+                    reason=(
+                        "Resource '*' is constrained by the vew:provisionedProduct:id tag condition: "
+                        "these actions only apply to resources of a VEW-provisioned product."
+                    ),
                 ),
             ],
         )

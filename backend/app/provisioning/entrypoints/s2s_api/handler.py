@@ -188,7 +188,9 @@ def get_provisioned_product(
         return_technical_params=False,
     )
     provisioned_product_parsed = api_model.ProvisionedProduct.model_validate(
-        api_model_mappers.map_provisioned_product(provisioned_product_entity).model_dump()
+        api_model_mappers.map_provisioned_product(
+            provisioned_product_entity, ssh_enabled=app_config.get_ssh_connection_option()
+        ).model_dump()
     )
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
@@ -303,7 +305,10 @@ def get_project_provisioned_products_paginated(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetPaginatedProvisionedProductsResponse(
-            provisionedProducts=[api_model_mappers.map_provisioned_product(pp) for pp in provisioned_products],
+            provisionedProducts=[
+                api_model_mappers.map_provisioned_product(pp, ssh_enabled=app_config.get_ssh_connection_option())
+                for pp in provisioned_products
+            ],
             pagingKey=paging_key,
         ),
         content_type=content_types.APPLICATION_JSON,

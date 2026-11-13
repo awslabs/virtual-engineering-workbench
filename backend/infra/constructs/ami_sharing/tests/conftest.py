@@ -56,7 +56,7 @@ def mocked_test_event():
                 "eventName": "ProductVersionCreationStarted",
                 "productId": "prod-dt3ycosm",
                 "versionId": "vers-1vbc9box",
-                "awsAccountId": "105249321508",
+                "awsAccountId": "123456789012",
                 "productType": product_type,
             },
         }

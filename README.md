@@ -1,5 +1,7 @@
 # Virtual Engineering Workbench (VEW)
 
+> **⚠️ This project is provided as sample/reference code for educational purposes. It is not intended for production use without additional security hardening. See [SECURITY.md](./SECURITY.md) for production hardening recommendations.**
+
 Modern engineering organizations — particularly in automotive, manufacturing, and embedded systems — face a common set of challenges:
 
 - **Hardware scarcity**: Physical prototypes and development boards are expensive and in short supply during early development stages.
@@ -247,12 +249,14 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `PRIVATE_DEPLOYMENT` | `false` | `true` for an internal ALB-based private deployment (no CloudFront). Requires `CUSTOM_DOMAIN`, `API_CUSTOM_DOMAIN`; deployable to any `AWS_REGION` |
 | `PRIVATE_DNS_AUTOMATE` | `true` | When private, create a Route 53 private hosted zone (associated with the hub VPC) with alias records to both ALBs |
 | `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
+| `PRIVATE_CA_ARN` | — | When private and `CERT_ARN` is empty, an AWS Private CA in `AWS_REGION` that each stack requests the certificate for its own domain from, through ACM, which renews it. A CA in this account must allow ACM to renew (see [Private deployment](#private-deployment)) |
 | `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
 | `HUB_VPC_NAME` | — | Name tag of an existing VPC in the hub account to deploy into. Empty derives the name from the prefixes and creates the VPC if absent |
 | `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |
 | `RESOURCE_TAGS` | `{}` | JSON object of tags applied to resources VEW provisions at runtime — Image Builder instances and AMIs, Service Catalog products, and the instances launched by component and recipe testing. Needed where an organisation denies resource creation without required tags |
 | `ADDITIONAL_APP_CLIENTS` | `[]` | JSON list of Cognito app clients besides the web client, for applications that call the API with their users' own tokens. Each signs in through the web client's identity providers with the authorization code grant, and its id is added to the clients the API accepts. Fields: `Name`, `CallbackUrls`, and optionally `LogoutUrls`, `GenerateSecret`, `RefreshTokenValidityHours` (default 48). The deploy summary lists the client ids |
+| `SSH_CONNECTION_OPTION` | `true` | `false` stops VEW opening port 22 to users' IPs and handing out SSH keys, whatever the product templates provide. A user's existing port 22 rule is removed the next time VEW authorizes their IP, such as when they start a product |
 
 Additional configuration not managed by `deploy.sh` (edit manually for advanced tuning):
 
@@ -287,10 +291,11 @@ If you deploy with the defaults (`proserve`/`wb`/`us-east-1`), no patching occur
 
 Set `PRIVATE_DEPLOYMENT=true` (in your config file or the interactive prompt) to deploy behind internal Application Load Balancers in a VPC instead of CloudFront. In this mode the platform is never exposed to the internet; users reach it over a corporate network path (VPN, Direct Connect, or Transit Gateway).
 
-Private mode requires `CUSTOM_DOMAIN` and `API_CUSTOM_DOMAIN`, and a TLS certificate. It is **not** pinned to us-east-1 — set `AWS_REGION` to your target region. The certificate is handled by `CERT_ARN`:
+Private mode requires `CUSTOM_DOMAIN` and `API_CUSTOM_DOMAIN`, and a TLS certificate. It is **not** pinned to us-east-1: set `AWS_REGION` to your target region. The certificate is handled by `CERT_ARN` or `PRIVATE_CA_ARN`:
 
 - If `CERT_ARN` is set, the script uses your regional ACM certificate in `AWS_REGION` (issued/imported however your organization manages certificates).
-- If `CERT_ARN` is empty, the script generates a self-signed certificate with SANs for both domains and imports it into ACM, setting `CERT_ARN` automatically. This is free and fully self-contained, but clients must trust the certificate: distribute it to user trust stores (e.g. via MDM), otherwise browsers reject it and the web app's API calls fail. The certificate is valid for 397 days (under the 398-day browser limit); re-run the deploy to rotate it.
+- If `PRIVATE_CA_ARN` is set instead, the frontend and backend stacks each request an ACM certificate for their own domain from that AWS Private CA, which must be in `AWS_REGION` and in this account or shared with it. ACM renews the certificates, and clients trust them wherever the CA's root is trusted, so nothing new reaches trust stores when they renew. A CA in this account must allow ACM to renew, which the script checks before it deploys: `aws acm-pca create-permission --certificate-authority-arn <arn> --principal acm.amazonaws.com --actions IssueCertificate GetCertificate ListPermissions`.
+- If both are empty, the script generates a self-signed certificate with SANs for both domains and imports it into ACM, setting `CERT_ARN` automatically. This is free and fully self-contained, but clients must trust the certificate: distribute it to user trust stores (e.g. via MDM), otherwise browsers reject it and the web app's API calls fail. The certificate is valid for 397 days (under the 398-day browser limit); re-run the deploy to rotate it.
 
 The script then:
 

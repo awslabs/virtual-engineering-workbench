@@ -30,6 +30,7 @@ app = aws_cdk.App()
 
 environment = app.node.try_get_context("environment")
 cert_arn = app.node.try_get_context("cert-arn")
+private_ca_arn = app.node.try_get_context("private-ca-arn")
 custom_domain = app.node.try_get_context("use-custom-domain")
 organization_id = app.node.try_get_context("organization-id")
 # Tags stamped both on what VEW provisions at runtime and on the stacks' own
@@ -341,7 +342,7 @@ security_stack = security_stack.SecurityStack(
 
 api_integration_stack = None
 
-if custom_domain and cert_arn:
+if custom_domain and (cert_arn or private_ca_arn):
     mappings = [
         integration_stack.ApiToPathMapping(api=api, base_path=base_path)
         for api, base_path in [
@@ -367,6 +368,7 @@ if custom_domain and cert_arn:
         domain_name=f"{custom_domain}",
         cert_arn=cert_arn,
         mappings=mappings,
+        private_ca_arn=private_ca_arn,
     )
 
     api_integration_config = config.AppConfig(
