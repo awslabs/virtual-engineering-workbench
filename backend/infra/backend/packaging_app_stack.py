@@ -254,6 +254,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         ),
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -380,6 +381,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -434,6 +436,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -503,6 +506,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         ),
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "RECIPE_S3_BUCKET_NAME": app_config.component_specific["recipe-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
@@ -551,6 +555,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION": GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION,
                         "GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY": GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY,
                         "GSI_NAME_IMAGE_UPSTREAM_ID": GSI_NAME_IMAGE_UPSTREAM_ID,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "TABLE_NAME": self._storage.table.table_name,
                         "TOPIC_NAME": PRODUCT_PACKAGING_TOPIC_NAME,
                     },
@@ -597,7 +602,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             self,
             "PackagingAppOpenApi",
             app_config,
-            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name("api")],
+            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name(Entrypoint.API)],
             schema_directory="app/packaging/entrypoints/api/schema/",
             schema="proserve-workbench-packaging-api-schema.yaml",
             api_version="v1",
@@ -616,6 +621,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 cedar_schema=packaging_auth_schema.packaging_schema,
                 cedar_policies=packaging_auth.packaging_bc_auth_policies,
             ),
+            enable_mcp=True,
         )
 
         cognito_user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(
@@ -746,7 +752,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(
             stack=aws_cdk.Stack.of(self),
-            path=f"/PackagingAppStack/PackagingApp/{app_config.format_resource_name("api")}/BackendAppFunction/ServiceRole/DefaultPolicy/Resource",
+            path=f"/PackagingAppStack/PackagingApp/{app_config.format_resource_name(Entrypoint.API)}/BackendAppFunction/ServiceRole/DefaultPolicy/Resource",
             suppressions=[
                 cdk_nag.NagPackSuppression(
                     id="AwsSolutions-IAM5",

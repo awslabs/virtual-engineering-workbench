@@ -14,6 +14,7 @@ models/GetProjectEnrolmentsResponse.ts
 models/GetProjectEnrolmentsResponseItem.ts
 models/GetProjectResponse.ts
 models/GetProjectsResponse.ts
+models/GetServiceClientAssignmentResponse.ts
 models/GetTechnologiesResponse.ts
 models/GetUserResponse.ts
 models/GetUserRolesResponse.ts
@@ -26,6 +27,7 @@ models/ProjectEnrolment.ts
 models/ReAssignUsersRequest.ts
 models/RemoveUsersRequest.ts
 models/ReonboardProjectAccountRequest.ts
+models/ServiceClientAssignment.ts
 models/Technology.ts
 models/UpdateEnrolmentsRequest.ts
 models/UpdateProjectAccountRequest.ts

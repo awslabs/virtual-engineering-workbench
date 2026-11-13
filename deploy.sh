@@ -1263,6 +1263,24 @@ if echo "$ADDITIONAL_APP_CLIENTS" | jq -e 'any(.[]; .Name == "vew-cli")' >/dev/n
 fi
 BE_CDK_CONTEXT+=(-c "vew-cli-enabled=$VEW_CLI_ROUTER")
 
+# Whether to register McpGatewayAgentcoreStack. It reads
+# /<app>-ui-<env>/app-client-id/mcp-gateway-agentcore at deploy time, so
+# ADDITIONAL_APP_CLIENTS must contain an "mcp-gateway-agentcore" entry, and the
+# parameter is written in FE_REGION while the gateway reads it in AWS_REGION. A
+# custom API domain does not change that, unlike for the CLI router.
+MCP_GATEWAY_ENABLED=false
+if echo "$ADDITIONAL_APP_CLIENTS" | jq -e 'any(.[]; .Name == "mcp-gateway-agentcore")' >/dev/null 2>&1; then
+  if [ "$FE_REGION" = "$AWS_REGION" ]; then
+    MCP_GATEWAY_ENABLED=true
+  else
+    warn "ADDITIONAL_APP_CLIENTS contains mcp-gateway-agentcore, but the frontend"
+    warn "deploys to $FE_REGION and the backend to $AWS_REGION. The gateway's"
+    warn "client-id parameter is written in $FE_REGION and read in $AWS_REGION, so"
+    warn "the MCP gateway is skipped; deploy both stacks in one region to use it."
+  fi
+fi
+BE_CDK_CONTEXT+=(-c "mcp-gateway-enabled=$MCP_GATEWAY_ENABLED")
+
 FE_STACK_NAME="${APP_NAME}-${ENVIRONMENT}"
 # The frontend stack follows FE_REGION, which is us-east-1 for a public
 # deployment outside it.
@@ -1398,6 +1416,23 @@ if [ "$VEW_CLI_ROUTER" != "true" ]; then
     fi
   else
     log "No stale vew CLI router stack to remove"
+  fi
+fi
+
+# The same for the MCP gateway after its app client is removed or the frontend
+# moves to a different region.
+MCP_GATEWAY_STACK_NAME="${BACKEND_APP_NAME}-mcp-gateway-agentcore-${ENVIRONMENT}"
+if [ "$MCP_GATEWAY_ENABLED" != "true" ]; then
+  if aws cloudformation describe-stacks --stack-name "$MCP_GATEWAY_STACK_NAME" \
+    --region "$AWS_REGION" >/dev/null 2>&1; then
+    warn "$MCP_GATEWAY_STACK_NAME exists but the MCP gateway is no longer configured; deleting it"
+    if delete_one_stack "$MCP_GATEWAY_STACK_NAME" 1 1 "$AWS_REGION"; then
+      log "Removed the stale MCP gateway stack"
+    else
+      warn "Could not delete $MCP_GATEWAY_STACK_NAME; remove it by hand. The deploy is unaffected."
+    fi
+  else
+    log "No stale MCP gateway stack to remove"
   fi
 fi
 

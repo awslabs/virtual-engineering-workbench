@@ -173,6 +173,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "GSI_NAME_CUSTOM_QUERY_BY_STATUS": GSI_NAME_CUSTOM_QUERY_BY_STATUS,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PUBLISHING,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_API_PATH_PUBLISHING,
@@ -236,6 +237,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         # Only string values allowed - Converting to comma-separeted list
                         "TECHNICAL_PARAMETERS_NAMES": ",".join(TECHNICAL_PARAMETERS_NAMES),
                         "TOOLS_AWS_ACCOUNT_ID": self.get_tools_account_id(app_config),
@@ -294,6 +296,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "ADMIN_ROLE": PRODUCT_PUBLISHING_ADMIN_ROLE,
                         "USE_CASE_ROLE": PRODUCT_PUBLISHING_USE_CASE_ROLE,
@@ -346,6 +349,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "IMAGE_SERVICE_ROLE": PRODUCT_PUBLISHING_IMAGE_SERVICE_ROLE,
                         "IMAGE_SERVICE_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
@@ -386,6 +390,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "TOOLS_AWS_ACCOUNT_ID": self.get_tools_account_id(app_config),
                         "ADMIN_ROLE": PRODUCT_PUBLISHING_ADMIN_ROLE,
@@ -431,6 +436,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     entry="app/publishing/entrypoints/product_sync_event_handler",
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                     },
                     permissions=[
@@ -497,6 +503,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 cedar_schema=publishing_auth_schema.publishing_schema,
                 cedar_policies=publishing_auth.publishing_bc_auth_policies,
             ),
+            enable_mcp=True,
         )
 
         # Ami sharing step function

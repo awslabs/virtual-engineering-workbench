@@ -41,5 +41,6 @@ models/RemoveProvisionedProductsRequest.ts
 models/StopProvisionedProductsRequest.ts
 models/UpdateProvisionedProductRequest.ts
 models/UpdateUserProfileRequest.ts
+models/WorkbenchFailure.ts
 models/index.ts
 runtime.ts

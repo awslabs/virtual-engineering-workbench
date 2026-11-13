@@ -104,3 +104,24 @@ VEW_API_ROUTER_BOUNDED_CONTEXTS: list[str] = [
     BoundedContext.PUBLISHING.value,
     BoundedContext.PROVISIONING.value,
 ]
+
+# MCP Gateway (AgentCore-based)
+# One Amazon Bedrock AgentCore Gateway aggregates the opted-in bounded-context
+# REST APIs behind a single MCP endpoint. Callers obtain a Cognito access token
+# from the gateway's app client (auth-code + PKCE, no secret) and drive the
+# gateway from any MCP client. The client itself is created by the frontend
+# stack from its AdditionalAppClients config; register these URIs there.
+MCP_GATEWAY_OAUTH_CALLBACK_PORT = 19876
+# Cognito requires exact callback matches, so register a small port range, with
+# and without a /callback path. localhost only: Cognito, and the frontend's
+# AdditionalAppClients validation, accept plain http for localhost and no other
+# host, so a 127.0.0.1 entry fails the frontend deploy. The Claude and Kiro
+# configs this stack prints both use localhost.
+MCP_GATEWAY_OAUTH_REDIRECT_URIS = [
+    f"http://localhost:{port}{path}"
+    for port in range(MCP_GATEWAY_OAUTH_CALLBACK_PORT, MCP_GATEWAY_OAUTH_CALLBACK_PORT + 5)
+    for path in ("", "/callback")
+]
+
+MCP_AGENTCORE_COMPONENT_NAME = "mcp-gateway-agentcore"
+MCP_AGENTCORE_SPEC_BUCKET_NAME = "mcp-specs"
