@@ -1,5 +1,7 @@
 # Virtual Engineering Workbench (VEW)
 
+> **⚠️ This project is provided as sample/reference code for educational purposes. It is not intended for production use without additional security hardening. See [SECURITY.md](./SECURITY.md) for production hardening recommendations.**
+
 Modern engineering organizations — particularly in automotive, manufacturing, and embedded systems — face a common set of challenges:
 
 - **Hardware scarcity**: Physical prototypes and development boards are expensive and in short supply during early development stages.

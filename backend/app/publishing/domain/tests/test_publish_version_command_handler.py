@@ -1202,6 +1202,18 @@ def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_p
     assertpy.assert_that(region_map["us-east-1"]["AMIId"]).is_equal_to("ami-useast1")
 
 
+@pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
+def test_unrendered_template_passes_the_editor_and_validate_template(template_file):
+    """The version wizard's editor parses the draft as YAML, and ValidateTemplate runs on it before
+    any rendering, so mapping keys must already be names CloudFormation accepts."""
+    # ACT
+    draft = yaml.load(template_file.read_text(), Loader=_CfnLoader)
+
+    # ASSERT
+    for name in draft["Mappings"]["RegionMap"]:
+        assertpy.assert_that(name).matches(r"^[A-Za-z0-9.-]+$")
+
+
 def test_workbench_template_emits_an_ssh_key_the_login_dialog_can_offer(get_version, get_product):
     """With RDP and DCV off by default, the SSHKeyPair output is the template's only login path:
     provisioning reads it into sshKeyPath, which is what enables the SSH option."""
