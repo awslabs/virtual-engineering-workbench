@@ -32,25 +32,25 @@ def _is_type_checking_guard(node: ast.If) -> bool:
     )
 
 
+def _imported_modules(node: ast.AST) -> list[str]:
+    if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+        return [node.module]
+    if isinstance(node, ast.Import):
+        return [alias.name for alias in node.names]
+    return []
+
+
 def _runtime_stub_imports(path: pathlib.Path) -> set[str]:
     found: set[str] = set()
 
     def visit(node: ast.AST) -> None:
         if isinstance(node, ast.If) and _is_type_checking_guard(node):
-            for child in node.orelse:
-                visit(child)
-            return
-        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            names = [node.module]
-        elif isinstance(node, ast.Import):
-            names = [alias.name for alias in node.names]
+            # Only the else branch of `if TYPE_CHECKING:` runs.
+            children = list(node.orelse)
         else:
-            names = []
-        for name in names:
-            top = name.split(".")[0]
-            if top.startswith("mypy_boto3_"):
-                found.add(top)
-        for child in ast.iter_child_nodes(node):
+            found.update(m.split(".")[0] for m in _imported_modules(node) if m.startswith("mypy_boto3_"))
+            children = list(ast.iter_child_nodes(node))
+        for child in children:
             visit(child)
 
     visit(ast.parse(path.read_text(), filename=str(path)))
