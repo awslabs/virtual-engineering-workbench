@@ -180,6 +180,12 @@ _dev_env_config = {
     "cognito-userpool-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-id",
     "cognito-userpool-client-ids-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-client-ids",
     "cognito-url-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-domain",
+    # The vew CLI's own Cognito app client, used as the JWT audience by
+    # VewApiRouterStack because Cognito access tokens carry client_id and no aud.
+    # Register the client by adding a "vew-cli" entry to the frontend
+    # deployment's AdditionalAppClients; the frontend stack then publishes its id
+    # at this path, one parameter per client.
+    "cognito-vew-cli-client-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/app-client-id/vew-cli",
     "cognito-region": "us-east-1",
     "enabled-workbench-regions": ["us-east-1"],
     "spoke-account-vpc-id-param-name": "/workbench/vpc/vpc-id",

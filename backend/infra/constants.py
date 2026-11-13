@@ -1,5 +1,7 @@
 from aws_cdk import aws_lambda
 
+from app.shared.api.bounded_contexts import BoundedContext
+
 PRIVATE_API_ENDPOINT = False
 LOCAL_BUNDLING = True
 
@@ -81,3 +83,24 @@ AUTH_BC_HANDLER_ROLE_PARAM_NAME = "authorizer-role-arn"
 AUTH_BC_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-authorizer-request-events-handler-role-arn"
 AUTH_BC_SCHEDULED_JOB_HANDLER_ROLE_ARN_EXPORT_NAME = f"{AUTH_BC_NAME}-scheduled-jobs-handler-role-arn"
 CEDAR_POLICY_NAMESPACE = "VEW"
+
+# --- vew CLI API router ---
+# Path-routing layer giving the vew CLI a single endpoint in front of the per
+# bounded-context API Gateways. Only deployed when there is no custom API domain;
+# with one configured, ApiIntegrationStack already provides the unified host.
+VEW_API_ROUTER_COMPONENT_NAME = "vew-api-router"
+
+# Taken from BoundedContext rather than spelled out, so a rename cannot silently
+# stop routing a context. Deliberately a subset: AUTHORIZATION has no user-facing
+# API the CLI calls — it backs the Cedar authorizer the other contexts invoke — so
+# routing it would expose an endpoint with no caller.
+#
+# Each entry needs an SSM parameter at /<prefix>-<bc>-api-<env>/api/url, which the
+# context's own stack publishes. Adding a context here without that parameter
+# fails the router's deploy.
+VEW_API_ROUTER_BOUNDED_CONTEXTS: list[str] = [
+    BoundedContext.PROJECTS.value,
+    BoundedContext.PACKAGING.value,
+    BoundedContext.PUBLISHING.value,
+    BoundedContext.PROVISIONING.value,
+]

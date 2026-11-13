@@ -1227,6 +1227,42 @@ if [ -n "${CI_COMMIT_SHA:-}" ]; then
   BE_CDK_CONTEXT+=(-c "ci-commit-sha=$CI_COMMIT_SHA")
 fi
 
+# Whether the backend's custom-domain integration supplies the CLI endpoint.
+# Both values are required by backend_app.py before it creates that stack.
+CUSTOM_API_ENDPOINT=false
+# The same condition backend_app.py uses to build ApiIntegrationStack instead of
+# the router: a custom API domain with a certificate from CERT_ARN (supplied or
+# self-signed) or issued from PRIVATE_CA_ARN. If the two disagreed, phase 7b
+# would look for a router the backend never built and fail.
+if [ -n "${API_CUSTOM_DOMAIN:-}" ] && { [ -n "${CERT_ARN:-}" ] || [ -n "${PRIVATE_CA_ARN:-}" ]; }; then
+  CUSTOM_API_ENDPOINT=true
+fi
+
+# Whether to register VewApiRouterStack, which exists only to give the vew CLI a
+# single api_endpoint when the custom-domain integration does not provide one.
+#
+# The router's authorizer reads /<app>-ui-<env>/app-client-id/vew-cli at synth
+# time, so ADDITIONAL_APP_CLIENTS must contain a "vew-cli" entry. The frontend
+# writes that parameter in FE_REGION while the router reads it in AWS_REGION;
+# when the regions differ, only the custom-domain integration can provide the
+# unified endpoint.
+VEW_CLI_ROUTER=false
+if echo "$ADDITIONAL_APP_CLIENTS" | jq -e 'any(.[]; .Name == "vew-cli")' >/dev/null 2>&1; then
+  if [ "$CUSTOM_API_ENDPOINT" = "true" ]; then
+    log "Custom API domain supplies the vew CLI endpoint; the API router is not required"
+  elif [ "$FE_REGION" = "$AWS_REGION" ]; then
+    VEW_CLI_ROUTER=true
+  else
+    warn "ADDITIONAL_APP_CLIENTS contains vew-cli, but the frontend deploys to"
+    warn "$FE_REGION and the backend to $AWS_REGION. The CLI client-id parameter"
+    warn "is written in $FE_REGION and the API router reads it in $AWS_REGION, so"
+    warn "the router is skipped. The vew CLI will have no api_endpoint in this"
+    warn "deployment; configure both API_CUSTOM_DOMAIN and CERT_ARN, or deploy"
+    warn "both stacks in one region."
+  fi
+fi
+BE_CDK_CONTEXT+=(-c "vew-cli-enabled=$VEW_CLI_ROUTER")
+
 FE_STACK_NAME="${APP_NAME}-${ENVIRONMENT}"
 # The frontend stack follows FE_REGION, which is us-east-1 for a public
 # deployment outside it.
@@ -1272,8 +1308,37 @@ log "Deploying backend CDK stacks"
 deactivate
 
 # ---------------------------------------------------------------------------
-# Phase 8: Build and deploy frontend web application
+# Phase 7b: Publish the vew CLI endpoint
 # ---------------------------------------------------------------------------
+# The vew CLI reads one SSM parameter for its `api_endpoint`:
+#   /${APP_NAME}-${ENVIRONMENT}/vew-api-endpoint
+# Exactly one thing writes it, depending on deploy mode, and the CLI never has
+# to know which:
+#
+#   no custom API domain -> VewApiRouterStack, part of the backend CDK app
+#     (backend/infra/backend/vew_api_router_stack.py), deployed in Phase 7. It
+#     path-routes /{bc}/* to each bounded-context API Gateway and exposes its URL
+#     as the VewApiEndpoint output, which this phase copies into the parameter.
+#
+#   custom API domain    -> the backend's ApiIntegrationStack already fronts the
+#     per-BC gateways under one host via API Gateway base path mappings, so the
+#     router is not registered at all and this phase writes the custom-domain URL.
+#
+# The two are mutually exclusive by construction: backend_app.py registers
+# VewApiRouterStack as the `else` of the ApiIntegrationStack condition.
+#
+# This phase is the only writer of the parameter in both modes, deliberately. If
+# the router stack owned it, an environment that started with a custom API domain
+# and later dropped it would fail at deploy time, because CloudFormation cannot
+# create a parameter whose name already exists.
+# APP_NAME already includes the -ui suffix, so this resolves to
+# /<app-name>-ui-<env>/vew-api-endpoint without adding -ui a second time.
+VEW_API_ENDPOINT_PARAM="/${APP_NAME}-${ENVIRONMENT}/vew-api-endpoint"
+
+# A diff must not write. Phase 7b's put-parameter is a real write, and the
+# router-output read below fails outright when the router stack does not exist
+# yet, so a diff on a fresh account would stop here with an error about a stack
+# a deploy has not created. Everything after this point is deploy-only.
 if [ "$DIFF_MODE" = "true" ]; then
   echo ""
   if [ -s "${DIFF_CAPTURE:-/dev/null}" ]; then
@@ -1288,10 +1353,67 @@ if [ "$DIFF_MODE" = "true" ]; then
   warn "bootstrap stack, and the SSM parameters the stacks read while"
   warn "synthesizing. Both are no-ops on an account already deployed."
   warn "Everything else is skipped: the service-linked role, the self-signed"
-  warn "certificate import, and the OIDC secret."
+  warn "certificate import, the OIDC secret, the vew CLI endpoint parameter,"
+  warn "and the frontend build."
   log "Run without --diff to apply."
   exit 0
 fi
+
+ROUTER_STACK_NAME="${BACKEND_APP_NAME}-vew-api-router-${ENVIRONMENT}"
+if [ "$CUSTOM_API_ENDPOINT" = "true" ]; then
+  step "7b" "Publishing vew CLI endpoint (custom API domain configured)"
+
+  log "Backend ApiIntegrationStack already fronts per-BC gateways at $API_CUSTOM_DOMAIN"
+  VEW_API_ENDPOINT="https://${API_CUSTOM_DOMAIN}"
+elif [ "$VEW_CLI_ROUTER" = "true" ]; then
+  step "7b" "Publishing vew CLI endpoint (router deployed with the backend stacks)"
+
+  ROUTER_OUTPUTS=$(aws cloudformation describe-stacks \
+    --stack-name "$ROUTER_STACK_NAME" \
+    --query 'Stacks[0].Outputs' \
+    --output json --region "$AWS_REGION" 2>/dev/null || echo "[]")
+  VEW_API_ENDPOINT=$(echo "$ROUTER_OUTPUTS" | jq -r '.[] | select(.OutputKey=="VewApiEndpoint") | .OutputValue // empty')
+  [ -n "$VEW_API_ENDPOINT" ] ||
+    err "Could not read the VewApiEndpoint output from $ROUTER_STACK_NAME. Phase 7 should have deployed it; check that stack in the CloudFormation console."
+else
+  # Nothing provides a unified endpoint, so there is no value to publish.
+  step "7b" "Skipping vew CLI endpoint (no custom endpoint or API router configured)"
+  VEW_API_ENDPOINT=""
+fi
+
+# CDK does not delete a stack merely because it is no longer registered. Remove
+# a router left behind after disabling the CLI client, moving the frontend to a
+# different region, or switching to a custom API domain.
+if [ "$VEW_CLI_ROUTER" != "true" ]; then
+  if aws cloudformation describe-stacks --stack-name "$ROUTER_STACK_NAME" \
+    --region "$AWS_REGION" >/dev/null 2>&1; then
+    warn "$ROUTER_STACK_NAME exists but the router is no longer configured; deleting it"
+    # delete_one_stack returns 1 when a CloudFormation export blocks the delete
+    # and 2 on failure. Neither should abort a deploy that is otherwise fine:
+    # the router is already out of the CDK app, so the leftover is inert.
+    if delete_one_stack "$ROUTER_STACK_NAME" 1 1 "$AWS_REGION"; then
+      log "Removed the stale router stack"
+    else
+      warn "Could not delete $ROUTER_STACK_NAME; remove it by hand. The deploy is unaffected."
+    fi
+  else
+    log "No stale vew CLI router stack to remove"
+  fi
+fi
+
+if [ -n "$VEW_API_ENDPOINT" ]; then
+  log "Writing $VEW_API_ENDPOINT_PARAM = $VEW_API_ENDPOINT"
+  run_cmd aws ssm put-parameter \
+    --name "$VEW_API_ENDPOINT_PARAM" \
+    --value "$VEW_API_ENDPOINT" \
+    --type String \
+    --overwrite \
+    --region "$AWS_REGION"
+fi
+
+# ---------------------------------------------------------------------------
+# Phase 8: Build and deploy frontend web application
+# ---------------------------------------------------------------------------
 
 step 8 "Building frontend web application and uploading to S3"
 
