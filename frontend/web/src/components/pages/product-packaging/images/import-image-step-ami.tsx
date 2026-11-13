@@ -87,12 +87,12 @@ export const ImportImageStepAmi: FC<Props> = ({
             {
               id: 'productName',
               header: i18n.columnProductName,
-              cell: (item) => (
+              cell: (item) =>
                 <SpaceBetween direction="horizontal" size="xs">
                   <span>{item.productName}</span>
                   {item.deprecated && <Badge color="red">{i18n.badgeDeprecated}</Badge>}
                 </SpaceBetween>
-              ),
+              ,
             },
             {
               id: 'subscriptionOwnership',

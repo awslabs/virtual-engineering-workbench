@@ -53,12 +53,12 @@ const MarketplaceSubscriptions: FC<MarketplaceSubscriptionsProps> = ({ serviceAp
       header: i18n.columnProductName,
       // A deprecated AMI can still be imported, so this is a warning rather than a
       // blocker. It sits next to the name because that is what a reader scans.
-      cell: (item) => (
+      cell: (item) =>
         <SpaceBetween direction="horizontal" size="xs">
           <span>{item.productName}</span>
           {item.deprecated && <Badge color="red">{i18n.badgeDeprecated}</Badge>}
         </SpaceBetween>
-      ),
+      ,
       sortingField: 'productName',
     },
     {
