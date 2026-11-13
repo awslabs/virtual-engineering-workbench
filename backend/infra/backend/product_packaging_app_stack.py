@@ -220,6 +220,21 @@ class ProductPackagingAppStack(aws_cdk.Stack):
             ],
         )
 
+        # Image Builder build logs are kept as audit records, apart from test artefacts.
+        build_logs_retention = Duration.days(app_config.component_specific["build-logs-retention-days"])
+        self.__build_logs_bucket = bucket.Bucket(
+            self,
+            "BuildLogsBucket",
+            bucket_name=app_config.format_base_resource_name(constants.BUILD_LOGS_BUCKET),
+            lifecycle_rules=[
+                aws_s3.LifecycleRule(
+                    expiration=build_logs_retention,
+                    noncurrent_version_expiration=build_logs_retention,
+                ),
+                aws_s3.LifecycleRule(expired_object_delete_marker=True),
+            ],
+        )
+
         # Prerequisites resources for EC2 Image Builder pipelines
         self.__artifacts_storage_bucket = bucket.Bucket(
             self,
@@ -291,18 +306,75 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                 lambda lambda_f: lambda_f.add_to_policy(
                     statement=aws_iam.PolicyStatement(
                         actions=[
-                            "ec2:CreateTags",
                             "ec2:DescribeImages",
                             "ec2:DescribeInstanceStatus",
                             "ec2:DescribeInstances",
                             "kms:ListAliases",
-                            "ssm:ListCommandInvocations",
-                            "ssm:SendCommand",
                         ],
                         effect=aws_iam.Effect.ALLOW,
                         resources=[
                             "*",
                         ],
+                    ),
+                ),
+                # ec2:CreateTags is scoped to the EC2 resource types the build
+                # instance tags, rather than Resource="*". ssm:SendCommand and
+                # ssm:ListCommandInvocations were removed from this instance
+                # profile because the instance itself never
+                # calls those APIs — SendCommand is issued by the packaging Lambda through
+                # ProductPackagingAdminRole, which is already scoped to instance
+                # and document ARNs.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=["ec2:CreateTags"],
+                        effect=aws_iam.Effect.ALLOW,
+                        resources=[
+                            self.format_arn(
+                                # EC2 image and snapshot ARNs have an EMPTY account
+                                # field (arn:aws:ec2:<region>::image/ami-...), so an
+                                # account-bearing ARN never matches them. Same shape as
+                                # the RunInstances statement below.
+                                account=(self.account if resource not in ["image", "snapshot"] else ""),
+                                partition=self.partition,
+                                region=self.region,
+                                resource=resource,
+                                resource_name="*",
+                                service="ec2",
+                            )
+                            for resource in [
+                                "instance",
+                                "volume",
+                                "network-interface",
+                                "security-group",
+                                "snapshot",
+                                "image",
+                            ]
+                        ],
+                    ),
+                ),
+                # The build instance may tag its own build resources, but must never
+                # set an ownership tag: those keys are what the provisioning role's
+                # conditions authorize against, so being able to write them here would
+                # let this instance attribute a resource to any user. Tag keys are
+                # case-sensitive in EC2, so the Deny uses StringEqualsIgnoreCase to
+                # catch differently-cased spellings of the same key as well.
+                #
+                # Packaging has no legitimate reason to set provisioning ownership
+                # tags; the keys denied here are deliberately only those two, so the
+                # build's own vew:* build tags are unaffected.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=["ec2:CreateTags", "ec2:DeleteTags"],
+                        effect=aws_iam.Effect.DENY,
+                        resources=["*"],
+                        conditions={
+                            "ForAnyValue:StringEqualsIgnoreCase": {
+                                "aws:TagKeys": [
+                                    "vew:provisionedProduct:ownerId",
+                                    "vew:securityGroup:ownerId",
+                                ]
+                            },
+                        },
                     ),
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
@@ -605,6 +677,7 @@ class ProductPackagingAppStack(aws_cdk.Stack):
             self.components_versions_tests_bucket.bucket.grant_read_write(role_construct.role)
             self.recipes_definitions_bucket.bucket.grant_read_write(role_construct.role)
             self.recipes_versions_tests_bucket.bucket.grant_read_write(role_construct.role)
+        self.__build_logs_bucket.bucket.grant_put(self.product_packaging_instance_role.role)
 
         # Permissions for web application account to topic
         self.__product_packaging_topic.topic.add_to_resource_policy(

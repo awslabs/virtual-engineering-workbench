@@ -66,6 +66,9 @@ class EntityConfigurator(dynamodb_repository.DynamoDBEntityConfiguratorBase):
         )
 
         # ex. AWS_ACCOUNT#12345678912#REGION#eu-west-1
+        # Rows written before region joined the key keep AWS_ACCOUNT#<account> and stay unmigrated on purpose:
+        # they are only ever added and read, and get_shared_amis finds both shapes. Anything that updates or
+        # deletes a SharedAmi by key must handle the old shape too.
         cfg.sort_key(
             name="SK",
             value_template=lambda account_id, region: f"{DBPrefix.AwsAccount}#{account_id}#{DBPrefix.Region}#{region}",

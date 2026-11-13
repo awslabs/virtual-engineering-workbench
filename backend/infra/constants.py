@@ -43,6 +43,7 @@ PRODUCT_PACKAGING_TARGET_EVENT_BUS_NAME = "tools-integration-events"
 PRODUCT_PACKAGING_TOPIC = "ProductPackagingTopic"
 RECIPES_DEFINITIONS_BUCKET = "recipes-defs"
 RECIPES_VERSIONS_TESTS_BUCKET = "recipes-tests"
+BUILD_LOGS_BUCKET = "build-logs"
 PRODUCT_PUBLISHING_LAUNCH_CONSTRAINT_ROLE = "ProductPublishingLaunchConstraintRoleV2"
 PRODUCT_PUBLISHING_ADMIN_ROLE = "ProductPublishingAdminRoleV2"
 PRODUCT_PUBLISHING_CONFIGURATION_ROLE = "ProductPublishingConfigurationRole"
@@ -70,6 +71,9 @@ LAMBDA_ALIAS_NAME = "live_v2"
 RESOURCE_ACCESS_MANAGEMENT_TAG_NAME = "vew:shared-with-spoke"
 
 PRODUCT_PROVISIONING_ROLE = "WorkbenchWebAppProvisioningRoleV2"
+# AWS::EC2::KeyPair stores the private key at /ec2/keypair/<key-pair-id>. Workbench templates
+# output that path as the SSH key path, and the provisioning role reads it for the key download.
+EC2_KEY_PAIR_SSM_PARAMETER_PREFIX = "/ec2/keypair"
 
 
 AUTH_BC_NAME = "authorization"

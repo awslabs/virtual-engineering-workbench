@@ -517,8 +517,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     entry="app/packaging/entrypoints/domain_event_handler",
                     environment={
                         "RESOURCE_TAGS": self._resource_tags,
-                        # The build instance role can already write to the recipe test bucket.
-                        "BUILD_LOGS_S3_BUCKET_NAME": app_config.component_specific["recipe-test-s3-bucket-name"].format(
+                        "BUILD_LOGS_S3_BUCKET_NAME": app_config.component_specific["build-logs-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
                             region=app_config.region,
