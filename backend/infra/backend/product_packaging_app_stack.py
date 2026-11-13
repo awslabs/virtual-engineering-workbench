@@ -306,18 +306,75 @@ class ProductPackagingAppStack(aws_cdk.Stack):
                 lambda lambda_f: lambda_f.add_to_policy(
                     statement=aws_iam.PolicyStatement(
                         actions=[
-                            "ec2:CreateTags",
                             "ec2:DescribeImages",
                             "ec2:DescribeInstanceStatus",
                             "ec2:DescribeInstances",
                             "kms:ListAliases",
-                            "ssm:ListCommandInvocations",
-                            "ssm:SendCommand",
                         ],
                         effect=aws_iam.Effect.ALLOW,
                         resources=[
                             "*",
                         ],
+                    ),
+                ),
+                # ec2:CreateTags is scoped to the EC2 resource types the build
+                # instance tags, rather than Resource="*". ssm:SendCommand and
+                # ssm:ListCommandInvocations were removed from this instance
+                # profile because the instance itself never
+                # calls those APIs — SendCommand is issued by the packaging Lambda through
+                # ProductPackagingAdminRole, which is already scoped to instance
+                # and document ARNs.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=["ec2:CreateTags"],
+                        effect=aws_iam.Effect.ALLOW,
+                        resources=[
+                            self.format_arn(
+                                # EC2 image and snapshot ARNs have an EMPTY account
+                                # field (arn:aws:ec2:<region>::image/ami-...), so an
+                                # account-bearing ARN never matches them. Same shape as
+                                # the RunInstances statement below.
+                                account=(self.account if resource not in ["image", "snapshot"] else ""),
+                                partition=self.partition,
+                                region=self.region,
+                                resource=resource,
+                                resource_name="*",
+                                service="ec2",
+                            )
+                            for resource in [
+                                "instance",
+                                "volume",
+                                "network-interface",
+                                "security-group",
+                                "snapshot",
+                                "image",
+                            ]
+                        ],
+                    ),
+                ),
+                # The build instance may tag its own build resources, but must never
+                # set an ownership tag: those keys are what the provisioning role's
+                # conditions authorize against, so being able to write them here would
+                # let this instance attribute a resource to any user. Tag keys are
+                # case-sensitive in EC2, so the Deny uses StringEqualsIgnoreCase to
+                # catch differently-cased spellings of the same key as well.
+                #
+                # Packaging has no legitimate reason to set provisioning ownership
+                # tags; the keys denied here are deliberately only those two, so the
+                # build's own vew:* build tags are unaffected.
+                lambda lambda_f: lambda_f.add_to_policy(
+                    statement=aws_iam.PolicyStatement(
+                        actions=["ec2:CreateTags", "ec2:DeleteTags"],
+                        effect=aws_iam.Effect.DENY,
+                        resources=["*"],
+                        conditions={
+                            "ForAnyValue:StringEqualsIgnoreCase": {
+                                "aws:TagKeys": [
+                                    "vew:provisionedProduct:ownerId",
+                                    "vew:securityGroup:ownerId",
+                                ]
+                            },
+                        },
                     ),
                 ),
                 lambda lambda_f: lambda_f.add_to_policy(
