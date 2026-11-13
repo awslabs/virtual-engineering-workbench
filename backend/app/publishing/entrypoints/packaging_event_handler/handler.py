@@ -10,6 +10,7 @@ from app.publishing.entrypoints.packaging_event_handler import bootstrapper, con
 from app.publishing.entrypoints.packaging_event_handler.integration_events import (
     automated_image_registration_completed,
     image_deregistered,
+    image_imported,
     image_registration_completed,
 )
 from app.shared.middleware import event_handler
@@ -58,6 +59,34 @@ def handle_image_registration_completed_event(
 @app.handle(image_deregistered.ImageDeregistered)
 def handle_image_deregistered_event(event: image_deregistered.ImageDeregistered):
     dependencies.delete_ami_read_model_event_handler(ami_id_value_object.from_str(event.ami_id))
+
+
+@app.handle(image_imported.ImageImported)
+def handle_image_imported_event(event: image_imported.ImageImported):
+    component_details = []
+    for cvd in event.componentVersionDetails or []:
+        try:
+            component_details.append(component_version_detail.ComponentVersionDetail(**cvd))
+        except Exception as e:
+            logger.warning(
+                "Dropping malformed componentVersionDetail entry for image %s: %s (%s)", event.imageId, cvd, e
+            )
+    new_ami = ami.Ami(
+        projectId=event.projectId,
+        amiId=event.amiId,
+        amiName=event.imageName,
+        amiDescription=event.imageDescription,
+        createDate=event.createDate,
+        lastUpdateDate=datetime.now(timezone.utc).isoformat(),
+        componentVersionDetails=component_details,
+        osVersion=event.osVersion,
+        platform=event.platform,
+        architecture=event.architecture,
+        integrations=[],
+        imageSource=event.imageSource,
+        marketplaceMetadata=event.marketplaceMetadata,
+    )
+    dependencies.update_ami_read_model_event_handler(new_ami, [])
 
 
 @app.handle(automated_image_registration_completed.AutomatedImageRegistrationCompleted)

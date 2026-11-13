@@ -7,6 +7,7 @@ export const i18n = {
     'View all images that are available in the selected program for product packaging.',
   navHeaderInfo: 'Info',
   infoHeader: 'Images',
+  importAmiButton: 'Import AMI',
   createButtonText: 'Create image',
   emptyImages: 'No images',
   emptyImagesSubTitle: 'No available images',
@@ -58,6 +59,11 @@ export const i18n = {
   infoPanelPoint1Message: 'View images that have previously been created.',
   infoPanelPoint2: 'Create image',
   infoPanelPoint2Message: 'Create an image based off of a previously created pipeline.',
+  tableHeaderImageSource: 'Source',
+  imageSourcePipeline: 'Pipeline',
+  imageSourceImported: 'Imported',
+  imageSourceMarketplace: 'Marketplace',
+  updateAvailable: 'Update available',
 };
 
 export const IMAGE_STATUS_COLOR_MAP: { [key: string]: StatusIndicatorProps.Type } = {

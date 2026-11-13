@@ -1,9 +1,14 @@
 import os
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from app.shared import config
 
 
-class AppConfig(BaseModel):
+# VEWBaseConfig adds only getters over the environment variables
+# BackendAppEntrypoints injects into every Lambda, which ServiceRegistry needs
+# to resolve the projects API for the licence-grant authorization check.
+class AppConfig(config.VEWBaseConfig):
     cors_config: dict = Field(..., title="CORS configuration")
 
     def get_api_base_path(self) -> str:
@@ -66,6 +71,9 @@ class AppConfig(BaseModel):
     @staticmethod
     def get_used_ami_list_file_path() -> str:
         return os.environ.get("USED_AMI_LIST_FILE_PATH", "amis/used-ami-list.json")
+
+    def get_spoke_account_role(self) -> str:
+        return os.environ.get("SPOKE_ACCOUNT_ROLE", "")
 
 
 config = {

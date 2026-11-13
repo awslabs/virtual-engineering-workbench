@@ -131,6 +131,42 @@ def automated_image_registration_completed_event_payload():
     }
 
 
+@pytest.fixture
+def image_imported_event_payload():
+    return {
+        "eventName": "ImageImported",
+        "projectId": "proj-12345",
+        "imageId": "image-abc123",
+        "amiId": "ami-0583ab768d71fb824",
+        "imageSource": "MARKETPLACE_PRODUCT",
+        "imageStatus": "CREATED",
+        "imageName": "My Marketplace AMI",
+        "imageDescription": "A marketplace AMI",
+        "platform": "Linux/UNIX",
+        "architecture": "x86_64",
+        "osVersion": "Ubuntu 22.04",
+        "componentVersionDetails": [
+            {
+                "componentName": "marketplace-tool",
+                "componentVersionType": "MAIN",
+                "softwareVendor": "Acme Corp",
+                "softwareVersion": "2.0.0",
+                "licenseDashboard": None,
+                "notes": None,
+            }
+        ],
+        "marketplaceMetadata": {
+            "productCode": "abc123def456ghi",
+            "marketplaceProductId": "prod-123",
+            "subscriptionOwnership": "VEW_MANAGED",
+            "licenseGrantAllowed": True,
+            "vendorName": "Acme Corp",
+            "regionalAmiIds": {"us-east-1": "ami-0583ab768d71fb824"},
+        },
+        "createDate": "2024-03-06T10:00:00+00:00",
+    }
+
+
 @pytest.fixture()
 def mock_logger():
     yield mock.create_autospec(spec=logging.Logger, instance=True)

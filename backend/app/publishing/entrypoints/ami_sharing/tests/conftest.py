@@ -5,11 +5,14 @@ import pytest
 from attr import dataclass
 
 from app.publishing.domain.commands import (
+    accept_license_grant_command,
     copy_ami_command,
+    create_license_grant_command,
     fail_ami_sharing_command,
     share_ami_command,
     succeed_ami_sharing_command,
 )
+from app.publishing.domain.ports import license_manager_service
 from app.publishing.domain.query_services import shared_amis_domain_query_service
 from app.publishing.entrypoints.ami_sharing import bootstrapper
 from app.shared.adapters.message_bus import in_memory_command_bus
@@ -75,14 +78,31 @@ def mock_fail_ami_sharing_command_handler():
     return mock.Mock()
 
 
+@pytest.fixture
+def mock_create_license_grant_command_handler():
+    handler = mock.Mock()
+    handler.return_value = "lg-test1234"
+    return handler
+
+
+@pytest.fixture
+def mock_accept_license_grant_command_handler():
+    return mock.Mock()
+
+
+@pytest.fixture()
+def mock_license_manager_svc():
+    return mock.create_autospec(spec=license_manager_service.LicenseManagerService)
+
+
 @pytest.fixture()
 def shared_amis_domain_qry_svc():
     qry_svc = mock.create_autospec(spec=shared_amis_domain_query_service.SharedAMIsDomainQueryService)
-    qry_svc.make_share_ami_decision.return_value = (
-        shared_amis_domain_query_service.ShareAmiDecision.Done,
-        "eu-west-3",
-        "ami-12345",
-        "ami-54321",
+    qry_svc.make_share_ami_decision.return_value = shared_amis_domain_query_service.ShareAmiDecisionResult(
+        decision=shared_amis_domain_query_service.ShareAmiDecision.Done,
+        region="eu-west-3",
+        original_ami_id="ami-12345",
+        copied_ami_id="ami-54321",
     )
     qry_svc.verify_copy.return_value = True
     return qry_svc
@@ -95,6 +115,9 @@ def mock_dependencies(
     mock_share_ami_command_handler,
     mock_succeed_ami_sharing_command_handler,
     mock_fail_ami_sharing_command_handler,
+    mock_create_license_grant_command_handler,
+    mock_accept_license_grant_command_handler,
+    mock_license_manager_svc,
     shared_amis_domain_qry_svc,
 ):
     return bootstrapper.Dependencies(
@@ -106,6 +129,13 @@ def mock_dependencies(
         .register_handler(
             succeed_ami_sharing_command.SucceedAmiSharingCommand, mock_succeed_ami_sharing_command_handler
         )
-        .register_handler(fail_ami_sharing_command.FailAmiSharingCommand, mock_fail_ami_sharing_command_handler),
+        .register_handler(fail_ami_sharing_command.FailAmiSharingCommand, mock_fail_ami_sharing_command_handler)
+        .register_handler(
+            create_license_grant_command.CreateLicenseGrantCommand, mock_create_license_grant_command_handler
+        )
+        .register_handler(
+            accept_license_grant_command.AcceptLicenseGrantCommand, mock_accept_license_grant_command_handler
+        ),
         shared_amis_domain_qry_svc=shared_amis_domain_qry_svc,
+        license_manager_svc=mock_license_manager_svc,
     )

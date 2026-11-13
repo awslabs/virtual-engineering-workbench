@@ -79,19 +79,68 @@ class ServiceCatalogProductsService(products_service.ProductsService):
         region: str,
     ) -> str | None:
         """the first failed resource's reason in the product's stack (events are newest first), skipping
-        the follow-ups CloudFormation adds once something has failed."""
-        stack_events = self.__get_stack_events(
-            provisioned_product_id=provisioned_product_id,
-            user_id=user_id,
-            aws_account_id=aws_account_id,
-            region=region,
-        )
+        the follow-ups CloudFormation adds once something has failed.
+
+        Falls back to Service Catalog when the stack gives nothing: a launch can fail
+        before the stack exists, or the stack can be gone by the time this runs, and
+        previously both cases returned None and the user saw a failure with no reason.
+
+        Reading the reason must never be what fails. `__get_stack_events` raises an
+        AdapterException when the product or its events cannot be read, which used to
+        escape to the caller, so a missing stack turned a reportable failure into an
+        unhandled adapter error."""
+        try:
+            stack_events = self.__get_stack_events(
+                provisioned_product_id=provisioned_product_id,
+                user_id=user_id,
+                aws_account_id=aws_account_id,
+                region=region,
+            )
+        except (adapter_exception.AdapterException, exceptions.ClientError) as e:
+            self._logger.warning(f"Could not read stack events for {provisioned_product_id}: {e}")
+            stack_events = None
+
         for stack_event in reversed(stack_events or []):
             status = stack_event.get("ResourceStatus") or ""
             reason = stack_event.get("ResourceStatusReason")
             if status.endswith("_FAILED") and reason and not _is_follow_up_reason(reason):
                 return reason
-        return None
+
+        return self.__failure_reason_from_service_catalog(
+            provisioned_product_id=provisioned_product_id,
+            user_id=user_id,
+            aws_account_id=aws_account_id,
+            region=region,
+        )
+
+    def __failure_reason_from_service_catalog(
+        self,
+        provisioned_product_id: str,
+        user_id: str,
+        aws_account_id: str,
+        region: str,
+    ) -> str | None:
+        """The record's errors, or failing that the product's status message."""
+        try:
+            sc_client = self._sc_boto_client_provider(aws_account_id, region, user_id)
+            result = sc_client.describe_provisioned_product(Id=provisioned_product_id)
+            detail = (result or {}).get("ProvisionedProductDetail") or {}
+
+            record_id = detail.get("LastProvisioningRecordId")
+            if record_id:
+                record = sc_client.describe_record(Id=record_id)
+                parts = [
+                    " ".join(piece for piece in (error.get("Code"), error.get("Description")) if piece).strip()
+                    for error in (record or {}).get("RecordErrors") or []
+                ]
+                joined = "; ".join(part for part in parts if part)
+                if joined:
+                    return joined
+
+            return detail.get("StatusMessage") or None
+        except (adapter_exception.AdapterException, exceptions.ClientError) as e:
+            self._logger.warning(f"Could not read a Service Catalog failure reason for {provisioned_product_id}: {e}")
+            return None
 
     def has_provisioned_product_missing_removal_signal_error(
         self,

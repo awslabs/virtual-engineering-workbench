@@ -70,6 +70,7 @@ def test_succeed_ami_sharing_command_handler_updates_version_and_publishes_event
     mock_version_repo.update_attributes.assert_called_once_with(
         version.VersionPrimaryKey(productId="prod-12345abc", versionId="vers-12345abc", awsAccountId="123456789012"),
         copiedAmiId="ami-54321",
+        statusReason=None,
         lastUpdateDate="2023-07-31T00:00:00+00:00",
     )
     mock_unit_of_work.commit.assert_called_once()

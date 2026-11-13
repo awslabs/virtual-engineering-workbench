@@ -3,6 +3,11 @@ import { WizardProps } from '@cloudscape-design/components';
 
 export const i18n = {
   wizardHeader: 'Enter Details',
+  externallyManagedAmiAlert:
+    'Externally Managed Marketplace AMI: VEW cannot automatically distribute this product. '
+    + 'Ensure every target spoke account has its own active Marketplace subscription, '
+    + 'or that an Org admin has distributed an active License Manager grant, before publishing. '
+    + 'The version will fail at publish time if neither is present.',
   step1Title: 'Enter details',
   step1Header: 'Version details',
   step1InputDescription: 'Description',

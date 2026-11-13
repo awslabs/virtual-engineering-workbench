@@ -7,6 +7,11 @@ import { useNavigationPaths } from '../../../../layout/navigation/navigation-pat
 import { RouteNames } from '../../../../layout/navigation/navigation.static';
 import { i18n } from './create-recipe.translations';
 import { PACKAGING_OS_VERSIONS, PACKAGING_SUPPORTED_ARCHITECTURES } from '../../shared';
+import {
+  CreateRecipeRequestRecipeArchitectureEnum,
+  CreateRecipeRequestRecipeOsVersionEnum,
+  CreateRecipeRequestRecipePlatformEnum,
+} from '../../../../../services/API/proserve-wb-packaging-api';
 
 const RECIPE_NAME_REGEX = /^[A-Za-z0-9_ -]{1,50}$/u;
 const RECIPE_DESCRIPTION_REGEX = /^[A-Za-z0-9_ -]{0,100}$/u;
@@ -64,9 +69,9 @@ export const useCreateRecipe = ({ projectId }: CreateRecipeProps) => {
     packagingAPI.createRecipe(projectId, {
       recipeName: recipeName.trim(),
       recipeDescription: recipeDescription.trim(),
-      recipePlatform: recipePlatform,
-      recipeOsVersion: recipeOsVersion?.value || '',
-      recipeArchitecture: recipeArchitecture?.value || '',
+      recipePlatform: recipePlatform as CreateRecipeRequestRecipePlatformEnum,
+      recipeOsVersion: (recipeOsVersion?.value || '') as CreateRecipeRequestRecipeOsVersionEnum,
+      recipeArchitecture: (recipeArchitecture?.value || '') as CreateRecipeRequestRecipeArchitectureEnum,
     }).then(() => {
       showSuccessNotification({
         header: i18n.createSuccessMessageHeader,

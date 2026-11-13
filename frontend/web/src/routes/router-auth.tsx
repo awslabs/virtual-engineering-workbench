@@ -194,6 +194,14 @@ export const RouterAuth = (): React.ReactElement => {
         }
       />
       <Route
+        path={getPathFor(RouteNames.ImportImage)}
+        element={getComponentFor(RouteNames.ImportImage)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MarketplaceSubscriptions)}
+        element={getComponentFor(RouteNames.MarketplaceSubscriptions)}
+      />
+      <Route
         path={getPathFor(RouteNames.Images)}
         element={getComponentFor(RouteNames.Images)}
       />

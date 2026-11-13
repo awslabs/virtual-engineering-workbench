@@ -60,8 +60,18 @@ class AppConfig(BaseModel):
     def get_gsi_name_query_by_status_key(self) -> str:
         return os.environ.get("GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY", "")
 
+    def get_available_regions(self) -> list[str]:
+        regions_str = os.environ.get("AVAILABLE_REGIONS", self.get_default_region())
+        return [r.strip() for r in regions_str.split(",") if r.strip()]
+
     def get_image_key_name(self) -> str:
         return os.environ.get("IMAGE_KEY_NAME", "")
+
+    def get_image_service_aws_account_id(self) -> str:
+        return os.environ.get("IMAGE_SERVICE_AWS_ACCOUNT_ID", "")
+
+    def get_image_service_role(self) -> str:
+        return os.environ.get("IMAGE_SERVICE_ROLE", "")
 
     def get_instance_profile_name(self) -> str:
         return os.environ.get("INSTANCE_PROFILE_NAME", "")

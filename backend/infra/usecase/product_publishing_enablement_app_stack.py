@@ -458,7 +458,24 @@ class ProductPublishingEnablementAppStack(Stack):
             statements=[
                 iam.PolicyStatement(
                     effect=iam.Effect.ALLOW, actions=["iam:GetRole", "servicecatalog:*"], resources=["*"]
-                )
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=[
+                        # The spoke accepts and activates the grant the hub
+                        # distributed, and lists what it received to find it.
+                        # It never reads a grant by ARN.
+                        "license-manager:AcceptGrant",
+                        "license-manager:CreateGrantVersion",
+                        "license-manager:ListReceivedGrants",
+                    ],
+                    resources=["*"],
+                ),
+                iam.PolicyStatement(
+                    effect=iam.Effect.ALLOW,
+                    actions=["ec2:DescribeImages"],
+                    resources=["*"],
+                ),
             ],
         )
 

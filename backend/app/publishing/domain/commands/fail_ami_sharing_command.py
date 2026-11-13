@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 from app.publishing.domain.value_objects import (
@@ -11,4 +13,5 @@ class FailAmiSharingCommand(BaseModel):
     productId: product_id_value_object.ProductIdValueObject
     versionId: version_id_value_object.VersionIdValueObject
     awsAccountId: aws_account_id_value_object.AWSAccountIDValueObject
+    statusReason: Optional[str] = None
     model_config = ConfigDict(arbitrary_types_allowed=True)

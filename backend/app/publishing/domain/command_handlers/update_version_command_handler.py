@@ -122,6 +122,17 @@ def __prepare_additional_attributes(command, product_entity, amis_qry_srv):
             else None
         )
         additional_attributes["osVersion"] = ami.osVersion
+        additional_attributes["platform"] = ami.platform
+        additional_attributes["architecture"] = ami.architecture
+        additional_attributes["integrations"] = ami.integrations or []
+        # Set both unconditionally. Guarding on `if ami.imageSource` left the
+        # previous AMI's image source and Marketplace metadata in place when the
+        # new AMI has none, so a version updated from a Marketplace AMI to a
+        # pipeline-built one kept claiming a Marketplace origin and licence.
+        additional_attributes["imageSource"] = ami.imageSource
+        additional_attributes["marketplaceMetadata"] = (
+            ami.marketplaceMetadata.model_dump() if ami.marketplaceMetadata else None
+        )
     return additional_attributes
 
 

@@ -440,6 +440,11 @@ def mocked_set_recommended_version_cmd_handler():
 
 
 @pytest.fixture
+def mocked_create_license_grant_cmd_handler():
+    return unittest.mock.MagicMock()
+
+
+@pytest.fixture
 def mocked_dependencies(
     mocked_versions_domain_query_service,
     mocked_versions_query_service,
@@ -457,7 +462,10 @@ def mocked_dependencies(
     mocked_archive_product_cmd_handler,
     mocked_set_recommended_version_cmd_handler,
     mocked_templates_domain_query_service,
+    mocked_create_license_grant_cmd_handler,
 ) -> bootstrapper.Dependencies:
+    from app.publishing.domain.commands import create_license_grant_command
+
     return bootstrapper.Dependencies(
         command_bus=in_memory_command_bus.InMemoryCommandBus(
             logger=unittest.mock.MagicMock(),
@@ -501,6 +509,10 @@ def mocked_dependencies(
         .register_handler(
             set_recommended_version_command.SetRecommendedVersionCommand,
             mocked_set_recommended_version_cmd_handler,
+        )
+        .register_handler(
+            create_license_grant_command.CreateLicenseGrantCommand,
+            mocked_create_license_grant_cmd_handler,
         ),
         products_domain_qry_srv=mocked_products_domain_query_service,
         amis_domain_qry_srv=mocked_amis_domain_query_service,
@@ -1341,3 +1353,33 @@ def test_get_published_amis_internal(lambda_context, authenticated_event, mocked
     response = api_model.GetPublishedAmisResponse.model_validate(json.loads(result["body"]))
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response.amis).is_length(5)
+
+
+def test_create_license_grant_should_return_201(
+    lambda_context, authenticated_event, mocked_dependencies, mocked_create_license_grant_cmd_handler
+):
+    # ARRANGE
+    from app.publishing.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    from app.publishing.domain.read_models.create_license_grant_result import CreateLicenseGrantResult
+
+    mocked_create_license_grant_cmd_handler.return_value = CreateLicenseGrantResult(
+        grantId="grant-abc123",
+        grantArn="arn:aws:license-manager::123456789012:grant/grant-abc123",
+        homeRegion="us-east-1",
+    )
+
+    body = {"targetAccountId": "123456789012", "grantName": "test-grant"}
+
+    event = authenticated_event(
+        json.dumps(body),
+        "/projects/proj-123/images/image-abc/license-grants",
+        "POST",
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(201)

@@ -36,43 +36,43 @@ export interface Image {
      * @type {string}
      * @memberof Image
      */
-    imageBuildVersionArn: string;
+    imageBuildVersionArn?: string;
     /**
      * Pipeline ID that created the image
      * @type {string}
      * @memberof Image
      */
-    pipelineId: string;
+    pipelineId?: string;
     /**
      * Pipeline Name that created the image
      * @type {string}
      * @memberof Image
      */
-    pipelineName: string;
+    pipelineName?: string;
     /**
      * Recipe ID that is used by the pipeline
      * @type {string}
      * @memberof Image
      */
-    recipeId: string;
+    recipeId?: string;
     /**
      * Recipe Name that is used by the pipeline
      * @type {string}
      * @memberof Image
      */
-    recipeName: string;
+    recipeName?: string;
     /**
      * Recipe version ID that used by the pipeline
      * @type {string}
      * @memberof Image
      */
-    recipeVersionId: string;
+    recipeVersionId?: string;
     /**
      * Recipe version Name that used by the pipeline
      * @type {string}
      * @memberof Image
      */
-    recipeVersionName: string;
+    recipeVersionName?: string;
     /**
      * Status of the image (CREATING/CREATED/FAILED/RETIRED)
      * @type {string}
@@ -85,6 +85,18 @@ export interface Image {
      * @memberof Image
      */
     imageUpstreamId?: string;
+    /**
+     * Source of the image (PIPELINE, EXISTING_AMI, MARKETPLACE_PRODUCT)
+     * @type {string}
+     * @memberof Image
+     */
+    imageSource?: string;
+    /**
+     * Whether a newer marketplace AMI version is available for this image
+     * @type {boolean}
+     * @memberof Image
+     */
+    updateAvailable?: boolean;
     /**
      * Creation date of the image
      * @type {string}
@@ -106,13 +118,6 @@ export function instanceOfImage(value: object): boolean {
     let isInstance = true;
     isInstance = isInstance && "imageId" in value;
     isInstance = isInstance && "imageBuildVersion" in value;
-    isInstance = isInstance && "imageBuildVersionArn" in value;
-    isInstance = isInstance && "pipelineId" in value;
-    isInstance = isInstance && "pipelineName" in value;
-    isInstance = isInstance && "recipeId" in value;
-    isInstance = isInstance && "recipeName" in value;
-    isInstance = isInstance && "recipeVersionId" in value;
-    isInstance = isInstance && "recipeVersionName" in value;
     isInstance = isInstance && "status" in value;
     isInstance = isInstance && "createDate" in value;
     isInstance = isInstance && "lastUpdateDate" in value;
@@ -132,15 +137,17 @@ export function ImageFromJSONTyped(json: any, ignoreDiscriminator: boolean): Ima
 
         'imageId': json['imageId'],
         'imageBuildVersion': json['imageBuildVersion'],
-        'imageBuildVersionArn': json['imageBuildVersionArn'],
-        'pipelineId': json['pipelineId'],
-        'pipelineName': json['pipelineName'],
-        'recipeId': json['recipeId'],
-        'recipeName': json['recipeName'],
-        'recipeVersionId': json['recipeVersionId'],
-        'recipeVersionName': json['recipeVersionName'],
+        'imageBuildVersionArn': !exists(json, 'imageBuildVersionArn') ? undefined : json['imageBuildVersionArn'],
+        'pipelineId': !exists(json, 'pipelineId') ? undefined : json['pipelineId'],
+        'pipelineName': !exists(json, 'pipelineName') ? undefined : json['pipelineName'],
+        'recipeId': !exists(json, 'recipeId') ? undefined : json['recipeId'],
+        'recipeName': !exists(json, 'recipeName') ? undefined : json['recipeName'],
+        'recipeVersionId': !exists(json, 'recipeVersionId') ? undefined : json['recipeVersionId'],
+        'recipeVersionName': !exists(json, 'recipeVersionName') ? undefined : json['recipeVersionName'],
         'status': json['status'],
         'imageUpstreamId': !exists(json, 'imageUpstreamId') ? undefined : json['imageUpstreamId'],
+        'imageSource': !exists(json, 'imageSource') ? undefined : json['imageSource'],
+        'updateAvailable': !exists(json, 'updateAvailable') ? undefined : json['updateAvailable'],
         'createDate': json['createDate'],
         'lastUpdateDate': json['lastUpdateDate'],
     };
@@ -166,6 +173,8 @@ export function ImageToJSON(value?: Image | null): any {
         'recipeVersionName': value.recipeVersionName,
         'status': value.status,
         'imageUpstreamId': value.imageUpstreamId,
+        'imageSource': value.imageSource,
+        'updateAvailable': value.updateAvailable,
         'createDate': value.createDate,
         'lastUpdateDate': value.lastUpdateDate,
     };

@@ -6,7 +6,11 @@ from mypy_boto3_stepfunctions import client
 
 STATE_MACHINE_ARN = "arn:aws:states:us-east-1:123456789012:stateMachine:AmiSharingStateMachine"
 SFN_CLIENT: client.SFNClient = boto3.client(
-    "stepfunctions", region_name="us-east-1", endpoint_url="http://localhost:8083"
+    "stepfunctions",
+    region_name="us-east-1",
+    endpoint_url="http://localhost:8083",
+    aws_access_key_id="testing",
+    aws_secret_access_key="testing",
 )
 MAX_RETRIES = 10
 
@@ -35,7 +39,7 @@ def wait_for_execution():
             output = result.get("output")
             retries += 1
         history = SFN_CLIENT.get_execution_history(executionArn=execution_arn)
-        return status, output, history
+        return status, output, history.get("events", [])
 
     return _wait_for_execution
 
@@ -48,7 +52,7 @@ def mocked_test_event():
             "id": "a0fd2d09-02c3-1696-1cee-406e4cc14c86",
             "detail-type": "ProductVersionCreationStarted",
             "source": "proserve.workbench.publishing.dev",
-            "account": "201223934255",
+            "account": "111111111111",
             "time": "2023-08-01T14:18:48Z",
             "region": "us-east-1",
             "resources": [],
@@ -56,7 +60,7 @@ def mocked_test_event():
                 "eventName": "ProductVersionCreationStarted",
                 "productId": "prod-dt3ycosm",
                 "versionId": "vers-1vbc9box",
-                "awsAccountId": "123456789012",
+                "awsAccountId": "222222222222",
                 "productType": product_type,
             },
         }

@@ -1,5 +1,8 @@
+from typing import Optional
+
 from pydantic import Field
 
+from app.publishing.domain.model import marketplace_metadata
 from app.publishing.domain.read_models import component_version_detail
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -22,3 +25,5 @@ class Ami(unit_of_work.Entity):
     integrations: list[str] = Field([], title="integrations")
     createDate: str = Field(..., title="CreateDate")
     lastUpdateDate: str = Field(..., title="LastUpdateDate")
+    imageSource: Optional[str] = Field(None, title="ImageSource")
+    marketplaceMetadata: Optional[marketplace_metadata.MarketplaceMetadata] = Field(None, title="MarketplaceMetadata")

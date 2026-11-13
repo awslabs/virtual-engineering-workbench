@@ -20,6 +20,8 @@ import {
   ValidateProductVersionRequest,
   GetLatestTemplateResponse,
   GetLatestMajorVersionsResponse,
+  CreateLicenseGrantRequest,
+  CreateLicenseGrantResponse,
 } from './proserve-wb-publishing-api';
 import { getAccessToken } from '..';
 
@@ -243,6 +245,21 @@ export const publishingAPI = {
       projectId: projectId,
       productId: productId,
       versionId: versionId
+    });
+  },
+
+  createLicenseGrant: async (
+    projectId: string,
+    imageId: string,
+    body: CreateLicenseGrantRequest,
+  ): Promise<CreateLicenseGrantResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.createLicenseGrant({
+      authorization: `Bearer ${access}`,
+      projectId,
+      imageId,
+      createLicenseGrantRequest: body,
     });
   },
 };

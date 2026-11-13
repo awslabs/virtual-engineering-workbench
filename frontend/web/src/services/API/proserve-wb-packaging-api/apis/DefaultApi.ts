@@ -23,6 +23,7 @@ import type {
   CreatePipelineRequest,
   CreateRecipeRequest,
   CreateRecipeVersionRequest,
+  DiscoverMarketplaceSubscriptionsResponse,
   GetComponentResponse,
   GetComponentVersionResponse,
   GetComponentVersionTestExecutionLogsUrlResponse,
@@ -44,6 +45,9 @@ import type {
   GetRecipeVersionsResponse,
   GetRecipesResponse,
   GetRecipesVersionsResponse,
+  ImportImageRequest,
+  ImportImageResponse,
+  ListImportableAmisResponse,
   ShareComponentRequest,
   UpdateComponentRequest,
   UpdateComponentVersionRequest,
@@ -69,6 +73,8 @@ import {
     CreateRecipeRequestToJSON,
     CreateRecipeVersionRequestFromJSON,
     CreateRecipeVersionRequestToJSON,
+    DiscoverMarketplaceSubscriptionsResponseFromJSON,
+    DiscoverMarketplaceSubscriptionsResponseToJSON,
     GetComponentResponseFromJSON,
     GetComponentResponseToJSON,
     GetComponentVersionResponseFromJSON,
@@ -111,6 +117,12 @@ import {
     GetRecipesResponseToJSON,
     GetRecipesVersionsResponseFromJSON,
     GetRecipesVersionsResponseToJSON,
+    ImportImageRequestFromJSON,
+    ImportImageRequestToJSON,
+    ImportImageResponseFromJSON,
+    ImportImageResponseToJSON,
+    ListImportableAmisResponseFromJSON,
+    ListImportableAmisResponseToJSON,
     ShareComponentRequestFromJSON,
     ShareComponentRequestToJSON,
     UpdateComponentRequestFromJSON,
@@ -217,6 +229,11 @@ export interface CreateRecipeVersionOperationRequest {
     projectId: string;
     recipeId: string;
     createRecipeVersionRequest: CreateRecipeVersionRequest;
+}
+
+export interface DiscoverMarketplaceSubscriptionsRequest {
+    authorization: string;
+    projectId: string;
 }
 
 export interface GetComponentRequest {
@@ -385,8 +402,33 @@ export interface ImagesOperationsCorsRequest {
     imageId: string;
 }
 
+export interface ImportImageOperationRequest {
+    authorization: string;
+    projectId: string;
+    importImageRequest: ImportImageRequest;
+}
+
+export interface ImportImageCorsRequest {
+    projectId: string;
+}
+
+export interface ImportableAmisCorsRequest {
+    projectId: string;
+}
+
+export interface ListImportableAmisRequest {
+    authorization: string;
+    projectId: string;
+}
+
+export interface MarketplaceSubscriptionsCorsRequest {
+    projectId: string;
+}
+
 export interface PipelinesAllowedBuildTypeCorsRequest {
     projectId: string;
+    imageSource?: string;
+    status?: string;
 }
 
 export interface PipelinesCorsRequest {
@@ -1210,6 +1252,48 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async createRecipeVersion(requestParameters: CreateRecipeVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createRecipeVersionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Discovers active Marketplace subscriptions in the hub account
+     */
+    async discoverMarketplaceSubscriptionsRaw(requestParameters: DiscoverMarketplaceSubscriptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<DiscoverMarketplaceSubscriptionsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling discoverMarketplaceSubscriptions.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling discoverMarketplaceSubscriptions.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/subscriptions`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => DiscoverMarketplaceSubscriptionsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Discovers active Marketplace subscriptions in the hub account
+     */
+    async discoverMarketplaceSubscriptions(requestParameters: DiscoverMarketplaceSubscriptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DiscoverMarketplaceSubscriptionsResponse> {
+        const response = await this.discoverMarketplaceSubscriptionsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -2550,6 +2634,187 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Imports an existing or marketplace AMI into VEW
+     */
+    async importImageRaw(requestParameters: ImportImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ImportImageResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling importImage.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling importImage.');
+        }
+
+        if (requestParameters.importImageRequest === null || requestParameters.importImageRequest === undefined) {
+            throw new runtime.RequiredError('importImageRequest','Required parameter requestParameters.importImageRequest was null or undefined when calling importImage.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/import`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ImportImageRequestToJSON(requestParameters.importImageRequest),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ImportImageResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Imports an existing or marketplace AMI into VEW
+     */
+    async importImage(requestParameters: ImportImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ImportImageResponse> {
+        const response = await this.importImageRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async importImageCorsRaw(requestParameters: ImportImageCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling importImageCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/import`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async importImageCors(requestParameters: ImportImageCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.importImageCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async importableAmisCorsRaw(requestParameters: ImportableAmisCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling importableAmisCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/importable-amis`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async importableAmisCors(requestParameters: ImportableAmisCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.importableAmisCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Lists AMIs from the Image Service account that can be imported
+     */
+    async listImportableAmisRaw(requestParameters: ListImportableAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ListImportableAmisResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling listImportableAmis.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling listImportableAmis.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/importable-amis`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ListImportableAmisResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Lists AMIs from the Image Service account that can be imported
+     */
+    async listImportableAmis(requestParameters: ListImportableAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ListImportableAmisResponse> {
+        const response = await this.listImportableAmisRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceSubscriptionsCorsRaw(requestParameters: MarketplaceSubscriptionsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceSubscriptionsCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/subscriptions`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceSubscriptionsCors(requestParameters: MarketplaceSubscriptionsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceSubscriptionsCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * CORS
      */
     async pipelinesAllowedBuildTypeCorsRaw(requestParameters: PipelinesAllowedBuildTypeCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -2558,6 +2823,14 @@ export class DefaultApi extends runtime.BaseAPI {
         }
 
         const queryParameters: any = {};
+
+        if (requestParameters.imageSource !== undefined) {
+            queryParameters['imageSource'] = requestParameters.imageSource;
+        }
+
+        if (requestParameters.status !== undefined) {
+            queryParameters['status'] = requestParameters.status;
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 

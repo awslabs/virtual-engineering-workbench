@@ -1284,12 +1284,48 @@ wheels = [
 ]
 
 [[package]]
+name = "mypy-boto3-license-manager"
+version = "1.43.120"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/eb/60757a9314c3570702f08000b5bf14a1e7d17c1c72f250dae0e945026acb/mypy_boto3_license_manager-1.43.120.tar.gz", hash = "sha256:abe61b78b9d0ac6a11740a79a351aee5bc0a17f5bbc53eab59e98aa50f8b60b4", size = 35532, upload-time = "2026-10-27T22:16:38.289Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/31/df4f4cba950e82ad2e1d99ab676ee446e3c97e4104ead25719508f4b741f/mypy_boto3_license_manager-1.43.120-py3-none-any.whl", hash = "sha256:f982851b816bdf7713c7e33a35f95f2ee7931d401c78fd4a700e775e6b33dd4f", size = 40260, upload-time = "2026-10-27T22:16:35.222Z" },
+]
+
+[[package]]
 name = "mypy-boto3-logs"
 version = "1.43.33"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/26/da/8a411b5933df7e779d75ec1b7f1b67dfff2a1593de46119a94a267eb0668/mypy_boto3_logs-1.43.33.tar.gz", hash = "sha256:01ca79bf2496fd83d8d75c331ca135fecfcaddf3fe68801e77a19e42977446ed", size = 54666, upload-time = "2026-06-18T20:11:10.033Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/6d/79599278862853aa7b830c4981ab1dce394d1283d482d2ecf04e830cbd71/mypy_boto3_logs-1.43.33-py3-none-any.whl", hash = "sha256:34329e1f2f4c78268c4dc5704f6e8e061af6e2fd30e50c9a1372209687818f76", size = 62066, upload-time = "2026-06-18T20:11:07.571Z" },
+]
+
+[[package]]
+name = "mypy-boto3-marketplace-agreement"
+version = "1.43.110"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ed/d0/fa7f5ab2b2bc1c1969c025c83bcf914337648f9c273964f3378d501a7c33/mypy_boto3_marketplace_agreement-1.43.110.tar.gz", hash = "sha256:fae0d4437d93d8eefc1126c91de984666de2eedf25c595e47844b33bf399c735", size = 28076, upload-time = "2026-10-08T22:26:32.856Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/6c/faeda8284e550b20de98156c693ca26e5765ebaef5349a237d4763ba8c42/mypy_boto3_marketplace_agreement-1.43.110-py3-none-any.whl", hash = "sha256:802f7a5268b38d56478433b2744de63fde1d3e73c344a2e3ad463fe14a1b5dd3", size = 35806, upload-time = "2026-10-08T22:26:30.541Z" },
+]
+
+[[package]]
+name = "mypy-boto3-marketplace-catalog"
+version = "1.43.119"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/fa/0d408a42c884b4bd8d8422cc1896723b7c8a993482c86863718edf9b8b88/mypy_boto3_marketplace_catalog-1.43.119.tar.gz", hash = "sha256:e30ea6327f27045a99ac060faf82cb76d8c8824dac972f29ba2134c4436cf9c6", size = 26861, upload-time = "2026-10-26T21:50:04.281Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/48/1d325a3a8fdeec30a98d18601e8bdaf9136f116230b550c55a92c461b485/mypy_boto3_marketplace_catalog-1.43.119-py3-none-any.whl", hash = "sha256:66f667f4a68fb8a6400a2974bdf9ad7e80dca07db1c4b17be82eb0e930018e9a", size = 33428, upload-time = "2026-10-26T21:50:01.884Z" },
+]
+
+[[package]]
+name = "mypy-boto3-organizations"
+version = "1.43.114"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f3/4e/a59b09bce7c0a425578c83995363e6d518a8b5a4476ede72fa1334b19938/mypy_boto3_organizations-1.43.114.tar.gz", hash = "sha256:8606f26e21629782831124d3664167d304e3b65ca8c0b2463dcdd74bf9137f32", size = 36415, upload-time = "2026-10-14T19:39:41.442Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/b7/87a784e759d50324014ea429c7a653823d1104a82507c26c8d185e08846d/mypy_boto3_organizations-1.43.114-py3-none-any.whl", hash = "sha256:f081ea1bddadcdaa7d2253f965d32501cc691441d0115367b6ad1969308fa763", size = 42801, upload-time = "2026-10-14T19:39:38.649Z" },
 ]
 
 [[package]]
@@ -2156,7 +2192,11 @@ dependencies = [
     { name = "mypy-boto3-iam" },
     { name = "mypy-boto3-imagebuilder" },
     { name = "mypy-boto3-lambda" },
+    { name = "mypy-boto3-license-manager" },
     { name = "mypy-boto3-logs" },
+    { name = "mypy-boto3-marketplace-agreement" },
+    { name = "mypy-boto3-marketplace-catalog" },
+    { name = "mypy-boto3-organizations" },
     { name = "mypy-boto3-ram" },
     { name = "mypy-boto3-route53" },
     { name = "mypy-boto3-s3" },
@@ -2233,7 +2273,11 @@ requires-dist = [
     { name = "mypy-boto3-iam", specifier = "~=1.42" },
     { name = "mypy-boto3-imagebuilder", specifier = "~=1.42" },
     { name = "mypy-boto3-lambda", specifier = "~=1.42" },
+    { name = "mypy-boto3-license-manager", specifier = "~=1.42" },
     { name = "mypy-boto3-logs", specifier = "~=1.42" },
+    { name = "mypy-boto3-marketplace-agreement", specifier = "~=1.42" },
+    { name = "mypy-boto3-marketplace-catalog", specifier = "~=1.42" },
+    { name = "mypy-boto3-organizations", specifier = "~=1.42" },
     { name = "mypy-boto3-ram", specifier = "~=1.42" },
     { name = "mypy-boto3-route53", specifier = "~=1.42" },
     { name = "mypy-boto3-s3", specifier = "~=1.42" },

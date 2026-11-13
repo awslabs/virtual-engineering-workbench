@@ -387,6 +387,8 @@ Platform engineers make images available to users:
 1. Create a **product** from the template and publish it to the Service Catalog portfolio
 1. Create **product versions** as images evolve
 
+Products can also be built from AWS Marketplace AMIs. See [Use AWS Marketplace images](docs/marketplace-integration.md) for the setup and workflow.
+
 ### 3. Provisioning — Launch and manage workbenches
 
 Developers use the self-service portal to:
@@ -403,6 +405,7 @@ If you just deployed VEW and want to see it in action, start here:
 
 - [Onboard a technology account](docs/onboard-an-account.md) — the one-time platform setup that creates the Service Catalog portfolio products publish into. Do this before building your first product.
 - [Build your first product](examples/freertos/README.md) — create a FreeRTOS virtual target from scratch: component, recipe, pipeline, product, and a running instance you can SSH into.
+- [Use AWS Marketplace images](docs/marketplace-integration.md) — import AMIs from Marketplace subscriptions and publish them as products.
 - [Launch a product](docs/launch-a-product.md) — provision any product from the catalog.
 - [Connect to a product](docs/connect-to-a-product.md) — reach your running product via browser, DCV client, or SSH.
 

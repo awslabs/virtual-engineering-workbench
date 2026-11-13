@@ -23,7 +23,7 @@ class AmiSharingStateMachine(constructs.Construct):
             "id": "a0fd2d09-02c3-1696-1cee-406e4cc14c86",
             "detail-type": "ProductVersionCreationStarted",
             "source": "proserve.workbench.publishing.dev",
-            "account": "201223934255",
+            "account": "111111111111",
             "time": "2023-08-01T14:18:48Z",
             "region": "us-east-1",
             "resources": [],
@@ -31,7 +31,7 @@ class AmiSharingStateMachine(constructs.Construct):
                 "eventName": "ProductVersionCreationStarted",
                 "productId": "prod-dt3ycosm",
                 "versionId": "vers-1vbc9box",
-                "awsAccountId": "123456789012",
+                "awsAccountId": "222222222222",
                 "oldVersionId": "vers-12345abc"  # Only in ProductVersionRestorationStarted
                 "productType": "VIRTUAL_TARGET"
             }
@@ -94,6 +94,38 @@ class AmiSharingStateMachine(constructs.Construct):
             result_path="$.PassOldVersionIdResponse",
         )
 
+        # Synthetic $.error for the Choice branches that end in failure. A task failure
+        # populates $.error through add_catch; a Choice taking its otherwise branch does
+        # not, so each one sets its own reason before FailAmiSharingLambda, which now
+        # reads $.error unconditionally.
+        pass_unexpected_decision_error: sfn.Pass = sfn.Pass(
+            self,
+            "PassUnexpectedDecisionError",
+            parameters={
+                "Error": "UnexpectedDecision",
+                "Cause": "DecideAction returned a decision this state machine does not handle.",
+            },
+            result_path="$.error",
+        )
+        pass_grant_not_verified_error: sfn.Pass = sfn.Pass(
+            self,
+            "PassGrantNotVerifiedError",
+            parameters={
+                "Error": "LicenseGrantNotVerified",
+                "Cause": "The target account has no active license grant for this Marketplace product.",
+            },
+            result_path="$.error",
+        )
+        pass_launch_permission_denied_error: sfn.Pass = sfn.Pass(
+            self,
+            "PassLaunchPermissionDeniedError",
+            parameters={
+                "Error": "LaunchPermissionDenied",
+                "Cause": "The target account cannot launch the regional Marketplace AMI.",
+            },
+            result_path="$.error",
+        )
+
         # Fail ami sharing lambda
         fail_ami_sharing_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
             self,
@@ -105,6 +137,11 @@ class AmiSharingStateMachine(constructs.Construct):
                     "productId.$": "$.productId",
                     "versionId.$": "$.versionId",
                     "awsAccountId.$": "$.awsAccountId",
+                    # Every route into this state sets $.error: a task failure through
+                    # add_catch(result_path="$.error"), and each Choice branch through
+                    # its own Pass below. Without it the reason a share failed was
+                    # dropped here and the version showed a bare Failed status.
+                    "error.$": "$.error",
                 }
             ),
             result_selector={"eventType.$": "$.Payload.eventType"},
@@ -131,6 +168,11 @@ class AmiSharingStateMachine(constructs.Construct):
                 "originalAmiId.$": "$.Payload.originalAmiId",
                 "copiedAmiId.$": "$.Payload.copiedAmiId",
                 "region.$": "$.Payload.region",
+                "imageId.$": "$.Payload.imageId",
+                "projectId.$": "$.Payload.projectId",
+                "licenseArn.$": "$.Payload.licenseArn",
+                "homeRegion.$": "$.Payload.homeRegion",
+                "grantName.$": "$.Payload.grantName",
             },
             result_path="$.decideActionResponse",
         )
@@ -175,6 +217,150 @@ class AmiSharingStateMachine(constructs.Construct):
             result_path="$.verifyCopyResponse",
         )
         verify_copy_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Create license grant lambda
+        create_license_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "CreateLicenseGrantLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "CreateLicenseGrantRequest",
+                    "productId.$": "$.productId",
+                    "versionId.$": "$.versionId",
+                    "awsAccountId.$": "$.awsAccountId",
+                    # The registered AMI, not the regional one: the grant is recorded
+                    # against the image the project imported, and that is what
+                    # create_license_grant looks up to authorize the request.
+                    "imageId.$": "$.decideActionResponse.originalAmiId",
+                    "grantName.$": "$.decideActionResponse.grantName",
+                    "projectId.$": "$.decideActionResponse.projectId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "grantId.$": "$.Payload.grantId",
+                "grantArn.$": "$.Payload.grantArn",
+                "homeRegion.$": "$.Payload.homeRegion",
+            },
+            result_path="$.createLicenseGrantResponse",
+        )
+        create_license_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Accept license grant lambda
+        accept_license_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "AcceptLicenseGrantLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "AcceptLicenseGrantRequest",
+                    "grantId.$": "$.createLicenseGrantResponse.grantId",
+                    "grantArn.$": "$.createLicenseGrantResponse.grantArn",
+                    "homeRegion.$": "$.createLicenseGrantResponse.homeRegion",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "projectId.$": "$.decideActionResponse.projectId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+            },
+            result_path="$.acceptLicenseGrantResponse",
+        )
+        # Retry accept: grant distribution from hub to spoke is async — the grant may not
+        # be visible in the spoke's ListReceivedGrants immediately after CreateGrant returns.
+        accept_license_grant_lambda.add_retry(
+            max_attempts=3,
+            interval=aws_cdk.Duration.seconds(10),
+        )
+        accept_license_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Verify launch permission lambda (shared by LICENSE_GRANT and VERIFY_EXTERNAL_GRANT paths)
+        verify_launch_permission_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "VerifyLaunchPermissionLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "VerifyLicenseGrantRequest",
+                    "amiId.$": "$.decideActionResponse.imageId",
+                    "region.$": "$.decideActionResponse.region",
+                    "awsAccountId.$": "$.awsAccountId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "launchPermissionVerified.$": "$.Payload.isAccessible",
+            },
+            result_path="$.verifyLaunchPermissionResponse",
+            retry_on_service_exceptions=False,
+        )
+        verify_launch_permission_lambda.add_retry(
+            max_attempts=3,
+            interval=aws_cdk.Duration.seconds(30),
+        )
+        verify_launch_permission_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Verify external grant lambda
+        verify_external_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "VerifyExternalGrantLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "VerifyExternalGrantRequest",
+                    "productId.$": "$.productId",
+                    "versionId.$": "$.versionId",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "amiId.$": "$.decideActionResponse.imageId",
+                    "region.$": "$.decideActionResponse.region",
+                    "licenseArn.$": "$.decideActionResponse.licenseArn",
+                    "homeRegion.$": "$.decideActionResponse.homeRegion",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "grantVerified.$": "$.Payload.grantVerified",
+            },
+            result_path="$.verifyExternalGrantResponse",
+        )
+        verify_external_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Verify external grant choice
+        verify_external_grant_choice: sfn.Choice = sfn.Choice(self, "VerifyExternalGrantChoice")
+        verify_external_grant_choice.when(
+            sfn.Condition.boolean_equals("$.verifyExternalGrantResponse.grantVerified", True),
+            verify_launch_permission_lambda,
+        )
+        verify_external_grant_choice.otherwise(pass_grant_not_verified_error)
+
+        # Launch permission choice. VerifyLaunchPermissionLambda reports whether the
+        # spoke can actually launch the regional AMI, and previously nothing read the
+        # answer: both Marketplace paths ran straight on to SucceedAmiSharing, so a
+        # spoke that could not launch the image was recorded as shared successfully.
+        verify_launch_permission_choice: sfn.Choice = sfn.Choice(self, "VerifyLaunchPermissionChoice")
+
+        # Pass state for the Marketplace paths' copied-ami placeholder. SucceedAmiSharing
+        # reads $.copiedAmi.copiedAmiId, and on the verify-external-grant path nothing set
+        # it, so that path could never complete. Both Marketplace paths record the REGIONAL
+        # AMI, which is the image the spoke launches.
+        pass_marketplace_ami: sfn.Pass = sfn.Pass(
+            self,
+            "PassMarketplaceAmi",
+            parameters={"copiedAmiId.$": "$.decideActionResponse.imageId"},
+            result_path="$.copiedAmi",
+        )
+
+        # Pass state for license grant path to set copiedAmi placeholder
+        pass_license_grant: sfn.Pass = sfn.Pass(
+            self,
+            "PassLicenseGrant",
+            parameters={"copiedAmiId.$": "$.decideActionResponse.originalAmiId"},
+            result_path="$.copiedAmi",
+        )
+        # NOTE: both Marketplace paths overwrite $.copiedAmi with the regional AMI at
+        # PassMarketplaceAmi after the launch-permission check, so this placeholder only
+        # covers the states in between.
 
         # Share ami lambda
         share_ami_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
@@ -244,6 +430,33 @@ class AmiSharingStateMachine(constructs.Construct):
         )
         chain_share = sfn.Chain.start(pass_share).next(share_ami_lambda)
         chain_done = sfn.Chain.start(pass_done)
+
+        # LICENSE_GRANT chain: CreateLicenseGrant → AcceptLicenseGrant →
+        # VerifyLaunchPermission → Choice(launchPermissionVerified?)
+        chain_license_grant = (
+            sfn.Chain.start(pass_license_grant)
+            .next(create_license_grant_lambda)
+            .next(accept_license_grant_lambda)
+            .next(verify_launch_permission_lambda)
+            .next(verify_launch_permission_choice.afterwards(include_otherwise=False))
+        )
+
+        # VERIFY_EXTERNAL_GRANT chain: VerifyExternalGrant → Choice(grantVerified?) →
+        # VerifyLaunchPermission → Choice(launchPermissionVerified?)
+        chain_verify_external_grant = sfn.Chain.start(verify_external_grant_lambda).next(
+            verify_external_grant_choice.afterwards(include_otherwise=False)
+        )
+
+        # Both Marketplace paths converge here: record the regional AMI, then succeed.
+        verify_launch_permission_choice.when(
+            sfn.Condition.boolean_equals("$.verifyLaunchPermissionResponse.launchPermissionVerified", True),
+            pass_marketplace_ami,
+        )
+        verify_launch_permission_choice.otherwise(pass_launch_permission_denied_error)
+
+        pass_grant_not_verified_error.next(fail_ami_sharing_lambda)
+        pass_launch_permission_denied_error.next(fail_ami_sharing_lambda)
+        pass_unexpected_decision_error.next(fail_ami_sharing_lambda)
         fail_ami_sharing_lambda.next(fail_state)
 
         # Decide action choice
@@ -254,7 +467,14 @@ class AmiSharingStateMachine(constructs.Construct):
         decide_action_choice.when(
             sfn.Condition.string_equals("$.decideActionResponse.decision", "NOT_REQUIRED"), chain_done
         )
-        decide_action_choice.otherwise(fail_ami_sharing_lambda)
+        decide_action_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.decision", "LICENSE_GRANT"), chain_license_grant
+        )
+        decide_action_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.decision", "VERIFY_EXTERNAL_GRANT"),
+            chain_verify_external_grant,
+        )
+        decide_action_choice.otherwise(pass_unexpected_decision_error)
 
         # Define log group
         log_group = aws_logs.LogGroup(

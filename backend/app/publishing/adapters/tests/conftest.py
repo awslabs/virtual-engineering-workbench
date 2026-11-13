@@ -74,6 +74,12 @@ def mock_moto_calls(
     mocked_validate_template_response,
     mocked_list_launch_paths_response,
     mocked_describe_provisioning_parameters_response,
+    mock_create_grant_response,
+    mock_accept_grant_response,
+    mock_create_grant_version_response,
+    mock_get_license_response,
+    mock_spoke_describe_images_response,
+    mock_assume_role_response,
 ):
     describe_portfolio_name = "DescribePortfolio"
     create_portfolio_name = "CreatePortfolio"
@@ -98,7 +104,6 @@ def mock_moto_calls(
     mocked_validate_template_name = "ValidateTemplate"
     mocked_list_launch_paths_name = "ListLaunchPaths"
     mocked_describe_provisioning_parameters_name = "DescribeProvisioningParameters"
-    mocked_create_grant_name = "CreateGrant"
 
     invocations = {
         describe_portfolio_name: mock.MagicMock(return_value=mocked_describe_portfolio_response),
@@ -140,9 +145,36 @@ def mock_moto_calls(
         mocked_describe_provisioning_parameters_name: mock.MagicMock(
             return_value=mocked_describe_provisioning_parameters_response
         ),
-        mocked_create_grant_name: mock.MagicMock(
-            return_value={"GrantToken": "fake-grant-token", "GrantId": "fake-grant-id"}
+        "CreateGrant": mock.MagicMock(return_value=mock_create_grant_response),
+        "AcceptGrant": mock.MagicMock(return_value=mock_accept_grant_response),
+        "CreateGrantVersion": mock.MagicMock(return_value=mock_create_grant_version_response),
+        "GetLicense": mock.MagicMock(return_value=mock_get_license_response),
+        "ListDistributedGrants": mock.MagicMock(return_value={"Grants": []}),
+        "ListReceivedGrants": mock.MagicMock(return_value={"Grants": []}),
+        # Organizations integration on, and the RAM share already propagated, so
+        # can_distribute_license says yes unless a test says otherwise.
+        "GetServiceSettings": mock.MagicMock(
+            return_value={
+                "OrganizationConfiguration": {"EnableIntegration": True},
+                "LicenseManagerResourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
+            }
         ),
+        "DescribeOrganization": mock.MagicMock(
+            return_value={"Organization": {"MasterAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID}}
+        ),
+        "GetResourceShares": mock.MagicMock(
+            return_value={
+                "resourceShares": [
+                    {
+                        "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
+                        "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
+                        "status": "ACTIVE",
+                    }
+                ]
+            }
+        ),
+        "GetCallerIdentity": mock.MagicMock(return_value={"Account": TEST_ORG_MANAGEMENT_ACCOUNT_ID}),
+        "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
     }
 
     def _interceptor(self, operation_name, kwarg):
@@ -705,3 +737,80 @@ def mocked_describe_provisioning_parameters_response():
             "RetryAttempts": 0,
         },
     }
+
+
+# --- License Manager Service fixtures ---
+
+TEST_LICENSE_ARN = "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123"
+TEST_GRANT_ARN = "arn:aws:license-manager:us-east-1:999888777666:grant:g-abc123"
+TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:111111111111:resource-share/lm-abc123"
+TEST_ORG_MANAGEMENT_ACCOUNT_ID = "111111111111"
+TEST_SPOKE_ACCOUNT_ROLE = "arn:aws:iam::999888777666:role/VewSpokeRole"
+TEST_SPOKE_ACCOUNT_ID = "999888777666"
+
+
+@pytest.fixture()
+def mock_create_grant_response():
+    return {
+        "GrantArn": TEST_GRANT_ARN,
+        "Status": "PENDING_ACCEPTANCE",
+    }
+
+
+@pytest.fixture()
+def mock_accept_grant_response():
+    return {}
+
+
+@pytest.fixture()
+def mock_create_grant_version_response():
+    return {
+        "GrantArn": TEST_GRANT_ARN,
+        "Status": "ACTIVE",
+    }
+
+
+@pytest.fixture()
+def mock_get_license_response():
+    return {
+        "License": {
+            "LicenseArn": TEST_LICENSE_ARN,
+            "LicenseName": "My License",
+            "ProductName": "My Product",
+            "Status": "AVAILABLE",
+            "HomeRegion": "us-east-1",
+        }
+    }
+
+
+@pytest.fixture()
+def mock_spoke_describe_images_response():
+    return {
+        "Images": [{"ImageId": "ami-12345678"}],
+    }
+
+
+@pytest.fixture()
+def mock_assume_role_response():
+    return {
+        "Credentials": {
+            "AccessKeyId": "testing",
+            "SecretAccessKey": "testing",
+            "SessionToken": "testing",
+            "Expiration": "2099-01-01T00:00:00Z",
+        },
+        "AssumedRoleUser": {
+            "AssumedRoleId": "AROA1234567890:session",
+            "Arn": "arn:aws:sts::999888777666:assumed-role/role/session",
+        },
+    }
+
+
+@pytest.fixture()
+def get_license_manager_srv():
+    from app.publishing.adapters.services.aws_license_manager_service import AwsLicenseManagerService
+
+    return AwsLicenseManagerService(
+        spoke_account_role=TEST_SPOKE_ACCOUNT_ROLE,
+        region=TEST_REGION,
+    )

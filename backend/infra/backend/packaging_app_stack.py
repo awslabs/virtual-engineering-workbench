@@ -35,6 +35,10 @@ GSI_NAME_ENTITIES = "gsi_entities"
 GSI_NAME_INVERTED_PK = "gsi_inverted_primary_key"
 GSI_NAME_IMAGE_UPSTREAM_ID = "gsi_image_upstream_id"
 IMAGE_KEY_NAME = constants.IMAGE_SHARING_KEY_NAME
+PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS = [
+    "license-manager:ListReceivedLicenses",
+    "license-manager:GetServiceSettings",
+]
 PRODUCT_PACKAGING_ADMIN_ROLE = constants.PRODUCT_PACKAGING_ADMIN_ROLE
 PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME = constants.PRODUCT_PACKAGING_INSTANCE_PROFILE
 PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME = constants.PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP
@@ -90,10 +94,10 @@ VEW_SERVICE = "Packaging"
 
 class Entrypoint(enum.StrEnum):
     API = "api"
-    DOMAIN_EVENTS = "domain-events"
-    IMAGE_BUILDER_EVENTS = "image-builder-events"
     COMPONENT_VERSION_TESTING = "component-version-testing"
     RECIPE_VERSION_TESTING = "recipe-version-testing"
+    DOMAIN_EVENTS = "domain-events"
+    IMAGE_BUILDER_EVENTS = "image-builder-events"
     S2S_API = "s2s-api"
 
 
@@ -290,10 +294,44 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
                         lambda lambda_f: system_configuration_mapping.grant_read(lambda_f),
                         lambda lambda_f: pipelines_configuration_mapping.grant_read(lambda_f),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=[
+                                    "ec2:DescribeImages",
+                                    "ec2:DescribeImageAttribute",
+                                ],
+                                resources=["*"],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=["aws-marketplace:SearchAgreements"],
+                                resources=["*"],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS,
+                                resources=["*"],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=[
+                                    "organizations:DescribeOrganization",
+                                    "ram:GetResourceShares",
+                                ],
+                                resources=["*"],
+                            )
+                        ),
                     ],
                     reserved_concurrency=app_config.component_specific["api-lambda-reserved-concurrency"],
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
-                    timeout=aws_cdk.Duration.seconds(5),
+                    timeout=aws_cdk.Duration.seconds(29),
                     memory_size=1792,
                 ),
                 backend_app_entrypoints.AppEntryPoint(

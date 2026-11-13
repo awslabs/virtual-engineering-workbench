@@ -1788,11 +1788,130 @@ paths:
         passthroughBehavior: "when_no_match"
         contentHandling: "CONVERT_TO_TEXT"
         credentials: "{{apigw_invocation_role_arn}}"
+  /projects/{projectId}/images/{imageId}/license-grants:
+    post:
+      description: >-
+        Creates an AWS License Manager grant that lets one active account of this project launch a Marketplace AMI the project imported. The grant must then be accepted in that account.
+      operationId: CreateLicenseGrant
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: imageId
+          in: path
+          description: ID of the Marketplace AMI the grant is for, for example ami-0123456789abcdef0.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLicenseGrantRequest"
+        required: true
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateLicenseGrantResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: LicenseGrantsCors
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: "when_no_match"
 components:
   schemas:
     Empty:
       title: "Empty Schema"
       type: "object"
+    CreateLicenseGrantRequest:
+      title: CreateLicenseGrantRequest
+      type: object
+      required:
+        - targetAccountId
+        - grantName
+      properties:
+        targetAccountId:
+          title: TargetAccountId
+          description: 12-digit AWS account ID that receives the grant; must be active in the project.
+          type: string
+        grantName:
+          title: GrantName
+          description: Name for the License Manager grant.
+          type: string
+    CreateLicenseGrantResponse:
+      title: CreateLicenseGrantResponse
+      type: object
+      properties:
+        grantId:
+          title: GrantId
+          type: string
+        status:
+          title: Status
+          type: string
+        targetAccountId:
+          title: TargetAccountId
+          type: string
     VersionSummary:
       title: Version
       type: object
@@ -1995,6 +2114,11 @@ components:
           title: Status
           type: string
           description: Status of the version distribution
+        statusReason:
+          title: StatusReason
+          type: string
+          nullable: true
+          description: Why the distribution reached its current status, when that status is a failure
         lastUpdateDate:
           title: LastUpdateDate
           type: string
@@ -2331,6 +2455,46 @@ components:
           title: LastUpdateDate
           type: string
           description: Last update date of the AMI
+        imageSource:
+          title: ImageSource
+          type: string
+          description: Source of the image (PIPELINE, EXISTING_AMI, MARKETPLACE_PRODUCT)
+        marketplaceMetadata:
+          title: MarketplaceMetadata
+          $ref: "#/components/schemas/MarketplaceMetadata"
+    MarketplaceMetadata:
+      title: MarketplaceMetadata
+      type: object
+      properties:
+        productCode:
+          title: ProductCode
+          type: string
+        marketplaceProductId:
+          title: MarketplaceProductId
+          type: string
+        subscriptionOwnership:
+          title: SubscriptionOwnership
+          type: string
+        vendorName:
+          title: VendorName
+          type: string
+        regionalAmiIds:
+          title: RegionalAmiIds
+          type: object
+          additionalProperties:
+            type: string
+        agreementId:
+          title: AgreementId
+          type: string
+        licenseConfigurationArn:
+          title: LicenseConfigurationArn
+          type: string
+        homeRegion:
+          title: HomeRegion
+          type: string
+        marketplaceListingUrl:
+          title: MarketplaceListingUrl
+          type: string
     AvailableProduct:
       title: AvailableProduct
       type: object

@@ -10,8 +10,18 @@ class ImageDomainQueryService(image_query_service.ImageQueryService):
     def __init__(self, image_qry_srv: image_query_service.ImageQueryService):
         self._image_qry_srv = image_qry_srv
 
-    def get_images(self, project_id: project_id_value_object.ProjectIdValueObject):
-        return self._image_qry_srv.get_images(project_id=project_id.value, exclude_status=image.ImageStatus.Deleted)
+    def get_images(
+        self,
+        project_id: project_id_value_object.ProjectIdValueObject,
+        image_source: str | None = None,
+        status: str | None = None,
+    ):
+        images = self._image_qry_srv.get_images(project_id=project_id.value, exclude_status=image.ImageStatus.Deleted)
+        if image_source:
+            images = [img for img in images if img.imageSource == image_source]
+        if status:
+            images = [img for img in images if img.status == status]
+        return images
 
     def get_images_by_recipe_id_and_version_name(
         self,
@@ -38,3 +48,6 @@ class ImageDomainQueryService(image_query_service.ImageQueryService):
 
     def get_image_by_image_upstream_id(self, image_upstream_id: str):
         return self._image_qry_srv.get_image_by_image_upstream_id(image_upstream_id=image_upstream_id)
+
+    def get_images_by_image_upstream_id(self, image_upstream_id: str):
+        return self._image_qry_srv.get_images_by_image_upstream_id(image_upstream_id=image_upstream_id)

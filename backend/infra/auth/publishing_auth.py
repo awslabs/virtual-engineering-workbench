@@ -72,4 +72,17 @@ publishing_bc_auth_policies: list[backend_app_api_auth.CedarPolicy] = [
             );
     """,
     ),
+    backend_app_api_auth.CedarPolicy(
+        description="Allows admins to create License Manager grants for marketplace AMI distribution.",
+        statement=f"""
+            permit (
+                principal,
+                action in {publishing_auth_schema.get_full_action_names([
+                    publishing_auth_schema.PublishingBCActions.CreateLicenseGrant,
+                ])},
+                resource
+            )
+            when {{ principal in {config.CedarResourceAttribute.ADMINS} }};
+    """,
+    ),
 ]

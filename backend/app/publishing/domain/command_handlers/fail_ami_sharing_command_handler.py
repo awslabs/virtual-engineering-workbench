@@ -22,10 +22,15 @@ def handle(
                 productId=cmd.productId.value, versionId=cmd.versionId.value, awsAccountId=cmd.awsAccountId.value
             ),
             status=version.VersionStatus.Failed,
+            statusReason=cmd.statusReason,
             lastUpdateDate=datetime.now(timezone.utc).isoformat(),
         )
         uow.commit()
 
     logger.error(
-        f"Ami sharing failed. Product Id: {cmd.productId.value}, Version Id: {cmd.versionId.value}, AWS Account Id: {cmd.awsAccountId.value}"
+        "Ami sharing failed. Product Id: %s, Version Id: %s, AWS Account Id: %s, Reason: %s",
+        cmd.productId.value,
+        cmd.versionId.value,
+        cmd.awsAccountId.value,
+        cmd.statusReason or "not reported",
     )
