@@ -454,6 +454,29 @@ class ServiceCatalogProductsService(products_service.ProductsService):
 
         return response["RecordDetail"].get("Status")
 
+    def get_provisioning_artifact_id(
+        self,
+        user_id: str,
+        aws_account_id: str,
+        sc_product_id: str,
+        version_name: str,
+        region: str,
+    ) -> str | None:
+        sc_client = self._sc_boto_client_provider(aws_account_id, region, user_id)
+        try:
+            response = sc_client.list_provisioning_artifacts(ProductId=sc_product_id)
+        except exceptions.ClientError:
+            self._logger.exception(f"Unable to list the provisioning artifacts of {sc_product_id}")
+            return None
+        return next(
+            (
+                artifact["Id"]
+                for artifact in response.get("ProvisioningArtifactDetails", [])
+                if artifact.get("Name") == version_name and artifact.get("Active", True)
+            ),
+            None,
+        )
+
     def get_provisioned_product_details(
         self, provisioned_product_id: str, user_id: str, aws_account_id: str, region: str
     ) -> provisioned_product_details.ProvisionedProductDetails | None:

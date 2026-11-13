@@ -721,3 +721,58 @@ def test_handle_should_clear_the_last_failure(
     assertpy.assert_that(stored_entity.status).is_equal_to(product_status.ProductStatus.Updating)
     assertpy.assert_that(stored_entity.statusReason).is_none()
     assertpy.assert_that(stored_entity.failedOperation).is_none()
+
+
+@pytest.mark.parametrize(
+    "current_name,target_name,refused",
+    [
+        ("1.0.6", "1.0.0", True),
+        ("1.0.6", "1.0.8-rc.1", False),
+        ("1.0.6", "1.0.6", False),  # an instance type change is an update to the same version
+        ("1.0.6-rc.1", "1.0.6", False),
+    ],
+)
+def test_handle_refuses_an_older_version(
+    current_name,
+    target_name,
+    refused,
+    mock_publisher,
+    mock_versions_query_service,
+    mock_logger,
+    mock_provisioned_products_qs,
+    get_provisioned_product,
+    get_test_version,
+):
+    # ARRANGE
+    mock_versions_query_service.get_product_version_distributions.return_value = [
+        get_test_version(version_id="vers-321", version_name=target_name, parameters=[])
+    ]
+    mock_provisioned_products_qs.get_by_id.return_value = get_provisioned_product(
+        status=product_status.ProductStatus.Stopped, version_name=current_name
+    )
+    command = start_provisioned_product_update_command.StartProvisionedProductUpdateCommand(
+        provisioned_product_id=provisioned_product_id_value_object.from_str("pp-123"),
+        project_id=project_id_value_object.from_str("proj-123"),
+        user_id=user_id_value_object.from_str("T0011AA"),
+        provisioning_parameters=provisioning_parameters_value_object.from_list([]),
+        user_ip_address=ip_address_value_object.from_str("127.0.0.1"),
+        version_id=product_version_id_value_object.from_str("vers-321"),
+        is_auto_update=is_auto_update_value_object.IsAutoUpdateValueObject(value=False),
+    )
+
+    def act():
+        start_update.handle(
+            command=command,
+            publisher=mock_publisher,
+            versions_qs=mock_versions_query_service,
+            logger=mock_logger,
+            provisioned_products_qs=mock_provisioned_products_qs,
+        )
+
+    # ACT / ASSERT
+    if refused:
+        with pytest.raises(domain_exception.DomainException) as e:
+            act()
+        assertpy.assert_that(str(e.value)).contains("older than the provisioned product's version")
+    else:
+        act()
