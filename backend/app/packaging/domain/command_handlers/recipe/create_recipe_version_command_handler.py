@@ -5,6 +5,7 @@ from enum import StrEnum
 import boto3
 import semver
 
+from app.packaging.domain.command_handlers.recipe import recipe_version_parent_image
 from app.packaging.domain.commands.recipe import create_recipe_version_command
 from app.packaging.domain.events.recipe import recipe_version_creation_started
 from app.packaging.domain.exceptions import domain_exception
@@ -12,8 +13,10 @@ from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe, recipe_version
 from app.packaging.domain.model.shared import component_version_entry
 from app.packaging.domain.ports import (
+    ami_validation_service,
     component_query_service,
     component_version_query_service,
+    image_query_service,
     mandatory_components_list_query_service,
     parameter_service,
     recipe_query_service,
@@ -217,29 +220,13 @@ def __assemble_recipe_components(
     return recipe_component_versions
 
 
-def handle(
-    command: create_recipe_version_command.CreateRecipeVersionCommand,
-    uow: unit_of_work.UnitOfWork,
-    message_bus: message_bus.MessageBus,
-    component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
-    recipe_version_qry_srv: recipe_version_query_service.RecipeVersionQueryService,
-    recipe_qry_srv: recipe_query_service.RecipeQueryService,
+def __get_default_parent_image_upstream_id(
     parameter_srv: parameter_service.ParameterDefinitionService,
-    mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     system_configuration_mapping: dict,
-    component_qry_srv: component_query_service.ComponentQueryService,
-):
-    recipe_entity = __get_recipe_entity(
-        recipe_qry_srv=recipe_qry_srv,
-        project_id=command.projectId.value,
-        recipe_id=command.recipeId.value,
-    )
-
-    latest_recipe_version_name = recipe_version_qry_srv.get_latest_recipe_version_name(command.recipeId.value)
-    new_recipe_version_name = __calculate_new_version_name(command, latest_recipe_version_name)
-
+    recipe_entity: recipe.Recipe,
+) -> str:
     try:
-        parent_image_upstream_id = recipe_version_parent_image_upstream_id_value_object.from_str(
+        return recipe_version_parent_image_upstream_id_value_object.from_str(
             parameter_srv.get_parameter_value(
                 system_configuration_mapping.get(recipe_entity.recipePlatform)
                 .get(recipe_entity.recipeArchitecture)
@@ -251,6 +238,64 @@ def handle(
         raise domain_exception.DomainException(
             f"Parameter {SystemConfigurationMappingAttributes.AMI_SSM_PARAM_NAME.value} not found."
         )
+
+
+def __get_parent_image_upstream_id(
+    command: create_recipe_version_command.CreateRecipeVersionCommand,
+    recipe_entity: recipe.Recipe,
+    parameter_srv: parameter_service.ParameterDefinitionService,
+    system_configuration_mapping: dict,
+    image_qry_srv: image_query_service.ImageQueryService,
+    ami_validation_svc: ami_validation_service.AmiValidationService,
+    region: str,
+) -> str:
+    if command.parentImageId is None:
+        return __get_default_parent_image_upstream_id(parameter_srv, system_configuration_mapping, recipe_entity)
+
+    return recipe_version_parent_image.get_parent_image_upstream_id(
+        parent_image_id=command.parentImageId.value,
+        project_id=command.projectId.value,
+        recipe_entity=recipe_entity,
+        volume_size=command.recipeVersionVolumeSize.value,
+        region=region,
+        image_qry_srv=image_qry_srv,
+        ami_validation_svc=ami_validation_svc,
+    )
+
+
+def handle(
+    command: create_recipe_version_command.CreateRecipeVersionCommand,
+    uow: unit_of_work.UnitOfWork,
+    message_bus: message_bus.MessageBus,
+    component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
+    recipe_version_qry_srv: recipe_version_query_service.RecipeVersionQueryService,
+    recipe_qry_srv: recipe_query_service.RecipeQueryService,
+    parameter_srv: parameter_service.ParameterDefinitionService,
+    mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
+    system_configuration_mapping: dict,
+    component_qry_srv: component_query_service.ComponentQueryService,
+    image_qry_srv: image_query_service.ImageQueryService,
+    ami_validation_svc: ami_validation_service.AmiValidationService,
+    region: str,
+):
+    recipe_entity = __get_recipe_entity(
+        recipe_qry_srv=recipe_qry_srv,
+        project_id=command.projectId.value,
+        recipe_id=command.recipeId.value,
+    )
+
+    latest_recipe_version_name = recipe_version_qry_srv.get_latest_recipe_version_name(command.recipeId.value)
+    new_recipe_version_name = __calculate_new_version_name(command, latest_recipe_version_name)
+
+    parent_image_upstream_id = __get_parent_image_upstream_id(
+        command=command,
+        recipe_entity=recipe_entity,
+        parameter_srv=parameter_srv,
+        system_configuration_mapping=system_configuration_mapping,
+        image_qry_srv=image_qry_srv,
+        ami_validation_svc=ami_validation_svc,
+        region=region,
+    )
 
     (
         mandatory_component_versions,
@@ -278,6 +323,7 @@ def handle(
         recipeId=command.recipeId.value,
         recipeVersionName=recipe_version_name_value_object.from_str(new_recipe_version_name).value,
         parentImageUpstreamId=parent_image_upstream_id,
+        parentImageId=command.parentImageId.value if command.parentImageId else None,
         recipeComponentsVersions=recipe_version_components_versions_value_object.from_list(
             recipe_component_versions
         ).value,

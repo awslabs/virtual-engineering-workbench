@@ -12,8 +12,15 @@ from app.packaging.domain.exceptions.domain_exception import DomainException
 from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe, recipe_version
 from app.packaging.domain.model.shared import component_version_entry
+from app.packaging.domain.tests.conftest import (
+    TEST_MARKETPLACE_AMI_ID,
+    TEST_MARKETPLACE_IMAGE_ID,
+    TEST_PROJECT_ID,
+    TEST_REGION,
+)
 from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_components_versions_value_object,
+    recipe_version_parent_image_id_value_object,
     recipe_version_release_type_value_object,
 )
 from app.shared.adapters.message_bus import message_bus
@@ -47,6 +54,8 @@ def test_handle_should_create_new_version_recipe_if_version_in_repository(
     recipe_query_service_mock,
     parameter_service_mock,
     mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -85,6 +94,9 @@ def test_handle_should_create_new_version_recipe_if_version_in_repository(
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
     )
 
     # ASSERT
@@ -250,6 +262,8 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
     recipe_query_service_mock,
     parameter_service_mock,
     mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -288,6 +302,9 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
     )
 
     # ASSERT
@@ -453,6 +470,8 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
     recipe_query_service_mock,
     parameter_service_mock,
     mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -491,6 +510,9 @@ def test_handle_should_create_new_inital_version_for_recipe_if_no_version_in_rep
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
     )
 
     # ASSERT
@@ -833,6 +855,8 @@ def test_handle_should_create_new_version_recipe_with_correct_component_versions
     recipe_query_service_mock,
     parameter_service_mock,
     mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -876,6 +900,9 @@ def test_handle_should_create_new_version_recipe_with_correct_component_versions
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
     )
 
     # ASSERT
@@ -920,6 +947,8 @@ def test_handle_should_raise_exception_if_recipe_not_found(
     parameter_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -943,6 +972,9 @@ def test_handle_should_raise_exception_if_recipe_not_found(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
 
     # ASSERT
@@ -961,6 +993,8 @@ def test_handle_should_raise_exception_if_recipe_status_is_archived(
     parameter_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -986,6 +1020,9 @@ def test_handle_should_raise_exception_if_recipe_status_is_archived(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
 
     # ASSERT
@@ -1014,6 +1051,8 @@ def test_handle_should_raise_exception_if_parameter_doesnt_exist_when_creating_n
     recipe_query_service_mock,
     mock_system_configuration_mapping,
     parameter_service_mock,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     os.environ["AWS_REGION"] = "us-east-1"
@@ -1047,6 +1086,9 @@ def test_handle_should_raise_exception_if_parameter_doesnt_exist_when_creating_n
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
     assertpy.assert_that(str(exec_info.value)).is_equal_to("Parameter ami_ssm_param_name not found.")
 
@@ -1061,6 +1103,8 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_don_t_exi
     parameter_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -1090,6 +1134,9 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_don_t_exi
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
 
     # ASSERT
@@ -1122,6 +1169,8 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_are_not_v
     recipe_version_query_service_mock,
     recipe_query_service_mock,
     status,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -1160,6 +1209,9 @@ def test_handle_should_raise_an_exception_if_recipe_component_versions_are_not_v
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
 
     # ASSERT
@@ -1289,6 +1341,8 @@ def test_handle_should_raise_exception_with_duplicate_components(
     parameter_service_mock,
     recipe_version_query_service_mock,
     recipe_query_service_mock,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -1330,6 +1384,9 @@ def test_handle_should_raise_exception_with_duplicate_components(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
 
     # ASSERT
@@ -1349,6 +1406,8 @@ def test_handle_should_order_components_prepended_user_appended(
     recipe_query_service_mock,
     parameter_service_mock,
     mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -1386,6 +1445,9 @@ def test_handle_should_order_components_prepended_user_appended(
         mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
         system_configuration_mapping=mock_system_configuration_mapping,
         component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
     )
 
     # ASSERT
@@ -1412,6 +1474,8 @@ def test_handle_should_detect_duplicate_mandatory_components(
     recipe_query_service_mock,
     parameter_service_mock,
     mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
 ):
     # ARRANGE
     message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
@@ -1452,6 +1516,204 @@ def test_handle_should_detect_duplicate_mandatory_components(
             mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
             system_configuration_mapping=mock_system_configuration_mapping,
             component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
         )
 
     assertpy.assert_that(str(exc_info.value)).contains("duplicate components")
+
+
+def _released_component_versions(command, get_test_component_version_with_specific_status):
+    component_version_entities = []
+    for recipe_component_version in command.recipeComponentsVersions.value:
+        component_version_entity = get_test_component_version_with_specific_status(
+            status=component_version.ComponentVersionStatus.Released
+        )
+        component_version_entity.componentId = recipe_component_version.componentId
+        component_version_entity.componentVersionId = recipe_component_version.componentVersionId
+        component_version_entities.append(component_version_entity)
+    return component_version_entities
+
+
+@mock.patch("app.packaging.domain.model.recipe.recipe_version.random.choice", lambda _: "1")
+@freeze_time("2023-09-29")
+def test_handle_should_build_on_marketplace_image_when_parent_image_id_is_given(
+    create_recipe_version_command_mock,
+    get_test_component_version_with_specific_status,
+    get_test_mandatory_components_list_with_positioned_components,
+    get_test_marketplace_base_image,
+    get_test_marketplace_base_ami_description,
+    component_version_query_service_mock,
+    component_query_service_mock,
+    mandatory_components_list_query_service_mock,
+    recipe_version_query_service_mock,
+    recipe_query_service_mock,
+    parameter_service_mock,
+    mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
+):
+    # ARRANGE
+    message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
+    recipe_version_repo_mock = mock.create_autospec(spec=unit_of_work.GenericRepository)
+    repos_dict = {recipe_version.RecipeVersion: recipe_version_repo_mock}
+    uow_mock = mock.create_autospec(spec=unit_of_work.UnitOfWork)
+    uow_mock.get_repository.side_effect = lambda pk, x: repos_dict.get(x)
+    mandatory_components_list_query_service_mock.get_mandatory_components_list.return_value = (
+        get_test_mandatory_components_list_with_positioned_components()
+    )
+    component_version_query_service_mock.get_component_version.side_effect = _released_component_versions(
+        create_recipe_version_command_mock, get_test_component_version_with_specific_status
+    )
+    create_recipe_version_command_mock.parentImageId = recipe_version_parent_image_id_value_object.from_str(
+        TEST_MARKETPLACE_IMAGE_ID
+    )
+    image_query_service_mock.get_image.return_value = get_test_marketplace_base_image()
+    ami_validation_service_mock.describe_marketplace_image.return_value = get_test_marketplace_base_ami_description()
+
+    # ACT
+    create_recipe_version_command_handler.handle(
+        command=create_recipe_version_command_mock,
+        uow=uow_mock,
+        message_bus=message_bus_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        recipe_version_qry_srv=recipe_version_query_service_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+        parameter_srv=parameter_service_mock,
+        mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
+        system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
+    )
+
+    # ASSERT
+    parameter_service_mock.get_parameter_value.assert_not_called()
+    image_query_service_mock.get_image.assert_called_once_with(
+        project_id=TEST_PROJECT_ID, image_id=TEST_MARKETPLACE_IMAGE_ID
+    )
+    recipe_version_entity = recipe_version_repo_mock.add.call_args[0][0]
+    assertpy.assert_that(recipe_version_entity.parentImageUpstreamId).is_equal_to(TEST_MARKETPLACE_AMI_ID)
+    assertpy.assert_that(recipe_version_entity.parentImageId).is_equal_to(TEST_MARKETPLACE_IMAGE_ID)
+    published_event = message_bus_mock.publish.call_args[0][0]
+    assertpy.assert_that(published_event.parent_image_upstream_id).is_equal_to(TEST_MARKETPLACE_AMI_ID)
+
+
+@mock.patch("app.packaging.domain.model.recipe.recipe_version.random.choice", lambda _: "1")
+@freeze_time("2023-09-29")
+def test_handle_should_build_on_default_image_when_parent_image_id_is_not_given(
+    create_recipe_version_command_mock,
+    get_test_ami_id,
+    get_test_component_version_with_specific_status,
+    get_test_mandatory_components_list_with_positioned_components,
+    component_version_query_service_mock,
+    component_query_service_mock,
+    mandatory_components_list_query_service_mock,
+    recipe_version_query_service_mock,
+    recipe_query_service_mock,
+    parameter_service_mock,
+    mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
+):
+    # ARRANGE
+    message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
+    recipe_version_repo_mock = mock.create_autospec(spec=unit_of_work.GenericRepository)
+    repos_dict = {recipe_version.RecipeVersion: recipe_version_repo_mock}
+    uow_mock = mock.create_autospec(spec=unit_of_work.UnitOfWork)
+    uow_mock.get_repository.side_effect = lambda pk, x: repos_dict.get(x)
+    mandatory_components_list_query_service_mock.get_mandatory_components_list.return_value = (
+        get_test_mandatory_components_list_with_positioned_components()
+    )
+    component_version_query_service_mock.get_component_version.side_effect = _released_component_versions(
+        create_recipe_version_command_mock, get_test_component_version_with_specific_status
+    )
+
+    # ACT
+    create_recipe_version_command_handler.handle(
+        command=create_recipe_version_command_mock,
+        uow=uow_mock,
+        message_bus=message_bus_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        recipe_version_qry_srv=recipe_version_query_service_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+        parameter_srv=parameter_service_mock,
+        mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
+        system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        ami_validation_svc=ami_validation_service_mock,
+        region=TEST_REGION,
+    )
+
+    # ASSERT
+    image_query_service_mock.get_image.assert_not_called()
+    ami_validation_service_mock.describe_marketplace_image.assert_not_called()
+    recipe_version_entity = recipe_version_repo_mock.add.call_args[0][0]
+    assertpy.assert_that(recipe_version_entity.parentImageUpstreamId).is_equal_to(get_test_ami_id)
+    assertpy.assert_that(recipe_version_entity.parentImageId).is_none()
+
+
+@pytest.mark.parametrize(
+    "image_kwargs,root_volume_size,expected_message",
+    (
+        (None, 8, f"Image {TEST_MARKETPLACE_IMAGE_ID} can not be found in project {TEST_PROJECT_ID}."),
+        ({"architecture": "arm64"}, 8, "is a Linux arm64 image, but the recipe is Linux amd64"),
+        ({"regional_ami_ids": {}, "original_ami_region": "eu-west-1"}, 8, f"has no AMI in {TEST_REGION}"),
+        ({}, 30, "needs a volume size of at least 30 GB"),
+    ),
+)
+def test_handle_should_raise_exception_if_marketplace_image_cannot_be_used(
+    image_kwargs,
+    root_volume_size,
+    expected_message,
+    create_recipe_version_command_mock,
+    get_test_marketplace_base_image,
+    get_test_marketplace_base_ami_description,
+    component_version_query_service_mock,
+    component_query_service_mock,
+    mandatory_components_list_query_service_mock,
+    recipe_version_query_service_mock,
+    recipe_query_service_mock,
+    parameter_service_mock,
+    mock_system_configuration_mapping,
+    image_query_service_mock,
+    ami_validation_service_mock,
+):
+    # ARRANGE
+    message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
+    uow_mock = mock.create_autospec(spec=unit_of_work.UnitOfWork)
+    create_recipe_version_command_mock.parentImageId = recipe_version_parent_image_id_value_object.from_str(
+        TEST_MARKETPLACE_IMAGE_ID
+    )
+    image_query_service_mock.get_image.return_value = (
+        get_test_marketplace_base_image(**image_kwargs) if image_kwargs is not None else None
+    )
+    ami_validation_service_mock.describe_marketplace_image.return_value = get_test_marketplace_base_ami_description(
+        root_volume_size=root_volume_size
+    )
+
+    # ACT
+    with pytest.raises(DomainException) as exc_info:
+        create_recipe_version_command_handler.handle(
+            command=create_recipe_version_command_mock,
+            uow=uow_mock,
+            message_bus=message_bus_mock,
+            component_version_qry_srv=component_version_query_service_mock,
+            recipe_version_qry_srv=recipe_version_query_service_mock,
+            recipe_qry_srv=recipe_query_service_mock,
+            parameter_srv=parameter_service_mock,
+            mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
+            system_configuration_mapping=mock_system_configuration_mapping,
+            component_qry_srv=component_query_service_mock,
+            image_qry_srv=image_query_service_mock,
+            ami_validation_svc=ami_validation_service_mock,
+            region=TEST_REGION,
+        )
+
+    # ASSERT
+    assertpy.assert_that(str(exc_info.value)).contains(expected_message)
+    uow_mock.commit.assert_not_called()
+    message_bus_mock.publish.assert_not_called()

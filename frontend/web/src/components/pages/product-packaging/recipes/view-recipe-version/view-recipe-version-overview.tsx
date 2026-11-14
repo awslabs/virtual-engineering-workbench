@@ -8,7 +8,8 @@ import { RecipeVersionStatus } from '../shared/recipe-version-status';
 export const ViewRecipeVersionOverview = ({
   recipeVersion,
   recipeVersionLoading,
-}: { recipeVersion?: RecipeVersion, recipeVersionLoading: boolean }) => {
+  baseImageName,
+}: { recipeVersion?: RecipeVersion, recipeVersionLoading: boolean, baseImageName?: string }) => {
 
   if (recipeVersionLoading) { return <Spinner />; }
   if (!recipeVersion) { return <></>; }
@@ -61,6 +62,12 @@ export const ViewRecipeVersionOverview = ({
             <UserDate date={recipeVersion.lastUpdateDate} />
           </ValueWithLabel>
         </SpaceBetween>
+        {recipeVersion.parentImageId &&
+          <SpaceBetween size="l">
+            <ValueWithLabel label={i18n.detailsBaseImage} data-test="base-image">
+              {baseImageName || recipeVersion.parentImageId}
+            </ValueWithLabel>
+          </SpaceBetween>}
       </ColumnLayout>
     </Container>
   );

@@ -3736,6 +3736,10 @@ components:
           items:
             type: string
           description: List of the selected integrations for the recipe version
+        parentImageId:
+          title: ParentImageId
+          type: string
+          description: ID of the imported AWS Marketplace image the recipe version builds on, if any
         status:
           title: Status
           type: string
@@ -3789,6 +3793,10 @@ components:
           type: array
           items:
             type: string
+        parentImageId:
+          title: ParentImageId
+          type: string
+          description: ID of an imported AWS Marketplace image to build on instead of the default base image
     CreateRecipeVersionResponse:
       title: CreateRecipeVersionResponse
       type: object
@@ -4584,6 +4592,10 @@ components:
           type: array
           items:
             type: string
+        parentImageId:
+          title: ParentImageId
+          type: string
+          description: ID of an imported AWS Marketplace image to build on instead of the default base image
     UpdateRecipeVersionResponse:
       title: CreateRecipeVersionResponse
       type: object
@@ -4958,6 +4970,22 @@ components:
           title: ImageSource
           type: string
           description: Source of the image (PIPELINE, EXISTING_AMI, MARKETPLACE_PRODUCT)
+        imageName:
+          title: ImageName
+          type: string
+          description: Name of an imported image
+        platform:
+          title: Platform
+          type: string
+          description: Platform of an imported image (Linux|Windows)
+        architecture:
+          title: Architecture
+          type: string
+          description: Architecture of an imported image (amd64|arm64)
+        osVersion:
+          title: OsVersion
+          type: string
+          description: Operating system version of an imported image
         updateAvailable:
           title: UpdateAvailable
           type: boolean

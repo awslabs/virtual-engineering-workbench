@@ -28,6 +28,7 @@ export const ViewRecipeVersion = () => {
   const {
     recipeVersion,
     recipeVersionLoading,
+    baseImageName,
     isReleaseRecipeVersionModalOpen,
     setIsReleaseRecipeVersionModalOpen,
     releaseRecipeVersion,
@@ -97,6 +98,7 @@ export const ViewRecipeVersion = () => {
         <ViewRecipeVersionOverview
           recipeVersion={recipeVersion}
           recipeVersionLoading={recipeVersionLoading}
+          baseImageName={baseImageName}
         />
         <Tabs tabs={tabDefinitions} />
       </SpaceBetween>

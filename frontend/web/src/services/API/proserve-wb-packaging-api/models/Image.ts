@@ -92,6 +92,30 @@ export interface Image {
      */
     imageSource?: string;
     /**
+     * Name of an imported image
+     * @type {string}
+     * @memberof Image
+     */
+    imageName?: string;
+    /**
+     * Platform of an imported image (Linux|Windows)
+     * @type {string}
+     * @memberof Image
+     */
+    platform?: string;
+    /**
+     * Architecture of an imported image (amd64|arm64)
+     * @type {string}
+     * @memberof Image
+     */
+    architecture?: string;
+    /**
+     * Operating system version of an imported image
+     * @type {string}
+     * @memberof Image
+     */
+    osVersion?: string;
+    /**
      * Whether a newer marketplace AMI version is available for this image
      * @type {boolean}
      * @memberof Image
@@ -147,6 +171,10 @@ export function ImageFromJSONTyped(json: any, ignoreDiscriminator: boolean): Ima
         'status': json['status'],
         'imageUpstreamId': !exists(json, 'imageUpstreamId') ? undefined : json['imageUpstreamId'],
         'imageSource': !exists(json, 'imageSource') ? undefined : json['imageSource'],
+        'imageName': !exists(json, 'imageName') ? undefined : json['imageName'],
+        'platform': !exists(json, 'platform') ? undefined : json['platform'],
+        'architecture': !exists(json, 'architecture') ? undefined : json['architecture'],
+        'osVersion': !exists(json, 'osVersion') ? undefined : json['osVersion'],
         'updateAvailable': !exists(json, 'updateAvailable') ? undefined : json['updateAvailable'],
         'createDate': json['createDate'],
         'lastUpdateDate': json['lastUpdateDate'],
@@ -174,6 +202,10 @@ export function ImageToJSON(value?: Image | null): any {
         'status': value.status,
         'imageUpstreamId': value.imageUpstreamId,
         'imageSource': value.imageSource,
+        'imageName': value.imageName,
+        'platform': value.platform,
+        'architecture': value.architecture,
+        'osVersion': value.osVersion,
         'updateAvailable': value.updateAvailable,
         'createDate': value.createDate,
         'lastUpdateDate': value.lastUpdateDate,

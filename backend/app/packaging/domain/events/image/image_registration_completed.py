@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -20,5 +20,6 @@ class ImageRegistrationCompleted(message_bus.Message):
     platform: str = Field(..., title="platform")
     architecture: str = Field(..., title="architecture")
     integrations: list[str] = Field([], title="integrations")
+    marketplaceMetadata: Optional[dict] = Field(None, title="marketplaceMetadata")
     createDate: str = Field(..., title="createDate")
     model_config = ConfigDict(populate_by_name=True)

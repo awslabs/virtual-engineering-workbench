@@ -12,7 +12,7 @@ interface ServiceAPI {
 
 
 
-const IMAGE_FETCH_KEY = (projectId?: string,) => {
+export const IMAGE_FETCH_KEY = (projectId?: string,) => {
   if (!projectId) {
     return null;
   }

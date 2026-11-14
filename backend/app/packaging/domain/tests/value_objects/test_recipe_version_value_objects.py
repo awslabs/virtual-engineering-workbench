@@ -10,6 +10,7 @@ from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_arn_value_object,
     recipe_version_components_versions_value_object,
     recipe_version_description_value_object,
+    recipe_version_parent_image_id_value_object,
     recipe_version_parent_image_upstream_id_value_object,
     recipe_version_release_type_value_object,
     recipe_version_status_value_object,
@@ -317,3 +318,24 @@ def test_recipe_version_volume_size_value_object_should_raise_if_invalid_volume_
 
     # ASSERT
     assertpy.assert_that(str(e.value)).is_equal_to(expected_exception_message)
+
+
+def test_recipe_version_parent_image_id_value_object_should_parse_image_id():
+    # ARRANGE
+    image_id = "image-ab12cd34"
+
+    # ACT
+    value_object = recipe_version_parent_image_id_value_object.from_str(image_id)
+
+    # ASSERT
+    assertpy.assert_that(value_object.value).is_equal_to(image_id)
+
+
+@pytest.mark.parametrize("image_id", ["", "ami-0123456789abcdef0", "image-ab12", "image-AB12CD34", "image-ab12cd345"])
+def test_recipe_version_parent_image_id_value_object_should_raise_if_invalid_image_id(image_id):
+    # ACT
+    with pytest.raises(DomainException) as e:
+        recipe_version_parent_image_id_value_object.from_str(image_id)
+
+    # ASSERT
+    assertpy.assert_that(str(e.value)).is_equal_to("Parent image ID should match ^image-[a-z0-9]{8}$ pattern.")

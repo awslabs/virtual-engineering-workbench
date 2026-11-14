@@ -475,6 +475,9 @@ def bootstrap(  # noqa: C901
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
                 component_qry_srv=component_qry_srv,
+                image_qry_srv=image_qry_srv,
+                ami_validation_svc=ami_validation_svc,
+                region=app_config.get_default_region(),
             )
 
         return _handle_command
@@ -522,6 +525,9 @@ def bootstrap(  # noqa: C901
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
                 component_qry_srv=component_qry_srv,
+                image_qry_srv=image_qry_srv,
+                ami_validation_svc=ami_validation_svc,
+                region=app_config.get_default_region(),
             )
 
         return _handle_command

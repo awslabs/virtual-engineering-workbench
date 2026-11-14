@@ -6,13 +6,27 @@ import {
   Header,
   Input,
   RadioGroup,
+  Select,
+  SelectProps,
   SpaceBetween,
 } from '@cloudscape-design/components';
 import { FC } from 'react';
 import { i18n } from './recipe-version-wizard.translations';
 import { RECIPE_VERSION_RELEASE_TYPE_MAP } from '../recipe-version-release-type-map';
+import { Image } from '../../../../../../services/API/proserve-wb-packaging-api';
+import { getBaseImageName } from '../recipe-version-base-image.helpers';
 
 type Integration = { integrationId: string, name: string, type?: string, details?: string };
+
+const EMPTY = 0;
+
+type RecipeVersionBaseImageProps = {
+  images: Image[],
+  baseImages: Image[],
+  isImagesLoading: boolean,
+  parentImageId: string,
+  setParentImageId: (parentImageId: string) => void,
+};
 
 type RecipeVersionIntegrationsProps = {
   availableIntegrations: Integration[],
@@ -35,10 +49,57 @@ export type RecipeVersionWizardStep1Props = {
   versionReleaseType: string,
   setVersionReleaseType: (versionReleaseType: string) => void,
   isVersionReleaseTypeValid: boolean,
-} & RecipeVersionIntegrationsProps;
+} & RecipeVersionIntegrationsProps & RecipeVersionBaseImageProps;
 
 const RecipeVersionIntegrations: FC<RecipeVersionIntegrationsProps> = () => {
   return <></>;
+};
+
+const RecipeVersionBaseImage: FC<RecipeVersionBaseImageProps> = ({
+  images,
+  baseImages,
+  isImagesLoading,
+  parentImageId,
+  setParentImageId,
+}) => {
+  if (baseImages.length === EMPTY && !parentImageId) {
+    return <></>;
+  }
+
+  const defaultBaseImageOption: SelectProps.Option = { label: i18n.step1BaseImageDefault, value: '' };
+  const baseImageOptions: SelectProps.Option[] = [
+    defaultBaseImageOption,
+    ...baseImages.map(image => ({
+      label: image.imageName || image.imageId,
+      value: image.imageId,
+      labelTag: image.imageId,
+      description: image.osVersion,
+    })),
+  ];
+  if (parentImageId && !baseImages.some(image => image.imageId === parentImageId)) {
+    baseImageOptions.push({
+      label: getBaseImageName(images, parentImageId),
+      value: parentImageId,
+      labelTag: parentImageId,
+      description: isImagesLoading ? undefined : i18n.step1BaseImageUnavailable,
+    });
+  }
+
+  return <FormField
+    label={i18n.step1BaseImage}
+    description={i18n.step1BaseImageDescription}
+  >
+    <Select
+      selectedOption={
+        baseImageOptions.find(option => option.value === parentImageId) || defaultBaseImageOption
+      }
+      onChange={({ detail }) => setParentImageId(detail.selectedOption.value || '')}
+      options={baseImageOptions}
+      statusType={isImagesLoading ? 'loading' : 'finished'}
+      loadingText={i18n.step1BaseImageLoading}
+      data-test="recipe-version-base-image"
+    />
+  </FormField>;
 };
 
 export const RecipeVersionWizardStep1: FC<RecipeVersionWizardStep1Props> = ({
@@ -59,6 +120,11 @@ export const RecipeVersionWizardStep1: FC<RecipeVersionWizardStep1Props> = ({
   isIntegrationsLoading,
   selectedIntegrations,
   setSelectedIntegrations,
+  images,
+  baseImages,
+  isImagesLoading,
+  parentImageId,
+  setParentImageId,
 }) => {
   function getReleaseTypeOption(prodType: string) {
     return {
@@ -111,6 +177,13 @@ export const RecipeVersionWizardStep1: FC<RecipeVersionWizardStep1Props> = ({
             inputMode='numeric'
           />
         </FormField>
+        <RecipeVersionBaseImage
+          images={images}
+          baseImages={baseImages}
+          isImagesLoading={isImagesLoading}
+          parentImageId={parentImageId}
+          setParentImageId={setParentImageId}
+        />
         {!isUpdate &&
           <FormField
             label={i18n.step1InputReleaseType}
