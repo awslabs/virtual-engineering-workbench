@@ -17,6 +17,11 @@ class DecideActionResponse(BaseModel):
     original_ami_id: Optional[str] = Field(None, alias="originalAmiId")
     copied_ami_id: Optional[str] = Field(None, alias="copiedAmiId")
     region: str = Field(..., alias="region")
+    license_decision: str = Field(
+        ...,
+        alias="licenseDecision",
+        description="NOT_REQUIRED/LICENSE_GRANT/VERIFY_EXTERNAL_GRANT, the licence step run once the AMI is launchable",
+    )
     image_id: Optional[str] = Field(None, alias="imageId")
     project_id: Optional[str] = Field(None, alias="projectId")
     license_arn: Optional[str] = Field(None, alias="licenseArn")

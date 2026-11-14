@@ -1278,6 +1278,7 @@ def test_publish_version_should_use_regional_ami_ids_from_marketplace_metadata(
     catalog_query_service_mock.get_notification_constraint_id.return_value = "nc-123"
     product_entity = get_product()
     version_entity = get_version()
+    version_entity.imageSource = "MARKETPLACE_PRODUCT"
     version_entity.marketplaceMetadata = MarketplaceMetadata(
         productCode="pc-123",
         subscriptionOwnership="VEW_MANAGED",
@@ -1304,3 +1305,47 @@ def test_publish_version_should_use_regional_ami_ids_from_marketplace_metadata(
 
     # ASSERT — SharedAmi query should NOT be called when marketplaceMetadata has regionalAmiIds
     shared_amis_query_service_mock.get_shared_amis.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "image_source,expected",
+    (
+        # The marketplace product's own AMI: the seller's AMI per region, nothing was shared.
+        ("MARKETPLACE_PRODUCT", "eu-west-1=ami-marketplace-eu;us-east-1=ami-marketplace-us;"),
+        # An image built on top of one carries the metadata too, but launches the image shared into the account.
+        (None, "us-east-1=ami-own-account;"),
+    ),
+)
+def test_handle_ami_product_uses_the_regional_marketplace_amis_only_for_a_marketplace_product(
+    image_source, expected, get_version, get_product, shared_amis_query_service_mock
+):
+    # ARRANGE
+    from app.publishing.domain.model.marketplace_metadata import MarketplaceMetadata
+
+    version_entity = get_version()
+    version_entity.imageSource = image_source
+    version_entity.marketplaceMetadata = MarketplaceMetadata(
+        productCode="pc-123",
+        subscriptionOwnership="VEW_MANAGED",
+        regionalAmiIds={"eu-west-1": "ami-marketplace-eu", "us-east-1": "ami-marketplace-us"},
+        homeRegion="us-east-1",
+    )
+    shared_amis_query_service_mock.get_shared_amis.return_value = [
+        shared_ami.SharedAmi(
+            originalAmiId="ami-12345",
+            copiedAmiId="ami-own-account",
+            awsAccountId=TEST_AWS_ACCOUNT_ID,
+            region="us-east-1",
+            createDate="2023-07-13T00:00:00+00:00",
+            lastUpdateDate="2023-07-13T00:00:00+00:00",
+        ),
+    ]
+    template = b"{% for region, ami in ami_ids | dictsort %}{{ region }}={{ ami }};{% endfor %}"
+
+    # ACT
+    rendered = publish_version_command_handler._handle_ami_product(
+        template, shared_amis_query_service_mock, version_entity, get_product()
+    )
+
+    # ASSERT
+    assertpy.assert_that(rendered).is_equal_to(expected)

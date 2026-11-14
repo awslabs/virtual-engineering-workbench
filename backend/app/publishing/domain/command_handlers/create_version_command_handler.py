@@ -41,8 +41,10 @@ def _build_additional_attributes(
     }
     if ami.imageSource:
         attrs["imageSource"] = ami.imageSource
-        if ami.marketplaceMetadata:
-            attrs["marketplaceMetadata"] = ami.marketplaceMetadata
+    # An image built on top of a Marketplace AMI has no image source of its own but keeps the
+    # product's licence, so its metadata is carried whatever the image source.
+    if ami.marketplaceMetadata:
+        attrs["marketplaceMetadata"] = ami.marketplaceMetadata
     return attrs
 
 

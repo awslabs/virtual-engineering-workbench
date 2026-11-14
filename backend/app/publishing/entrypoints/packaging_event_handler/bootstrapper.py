@@ -145,6 +145,7 @@ def bootstrap(
             platform: str,
             architecture: str,
             integrations: list,
+            marketplace_metadata: dict | None = None,
         ):
             return create_automated_version_event_handler.handle(
                 ami_id=ami_id,
@@ -157,6 +158,7 @@ def bootstrap(
                 platform=platform,
                 architecture=architecture,
                 integrations=integrations,
+                marketplace_metadata=marketplace_metadata,
                 template_domain_qry_srv=template_domain_qry_srv,
                 logger=logger,
                 uow=shared_uow,

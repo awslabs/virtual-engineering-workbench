@@ -42,6 +42,7 @@ def call_handler(
     platform="Linux",
     architecture="x86_64",
     integrations=None,
+    marketplace_metadata=None,
 ):
     if component_details is None:
         component_details = get_default_component_details()
@@ -70,6 +71,7 @@ def call_handler(
         product_rc_version_limit_param_name="rc-limit",
         stack_srv=mock_stack_srv,
         file_service=mock_file_service,
+        marketplace_metadata=marketplace_metadata,
     )
 
 
@@ -144,11 +146,68 @@ def test_handle_creates_automated_version_successfully_for_workbench_product(
     assert added_version.originalAmiId == ami_id
     assert added_version.status == version.VersionStatus.Creating
     assert added_version.createdBy == "T123456"
+    assert added_version.marketplaceMetadata is None
 
     published_event = mock_message_bus.publish.call_args[0][0]
     assert isinstance(published_event, product_version_creation_started.ProductVersionCreationStarted)
     assert published_event.product_id == product_id
     assert published_event.version_id == "vers-11111111"
+
+
+@patch(
+    "app.publishing.domain.model.version.generate_version_id",
+    return_value="vers-11111111",
+)
+@freeze_time("2023-06-20")
+def test_handle_carries_marketplace_metadata_of_an_image_built_on_a_marketplace_ami(
+    mock_unit_of_work,
+    mock_message_bus,
+    mock_portfolios_qry_srv,
+    mock_versions_qry_srv,
+    mock_template_domain_qry_srv,
+    mock_param_service,
+    mock_stack_srv,
+    mock_file_service,
+    mock_product_entity,
+    mock_logger,
+):
+    # ARRANGE
+    metadata = {
+        "productCode": "abc123def456ghi",
+        "subscriptionOwnership": "VEW_MANAGED",
+        "licenseConfigurationArn": "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+        "licenseGrantAllowed": True,
+        "homeRegion": "us-east-1",
+    }
+    mock_product_repo = Mock()
+    mock_product_repo.get.return_value = mock_product_entity
+    mock_repo = Mock()
+    mock_unit_of_work.get_repository.side_effect = lambda pk_param, entity_param: (
+        mock_product_repo if entity_param == product.Product else mock_repo
+    )
+
+    # ACT
+    call_handler(
+        "ami-12345678",
+        "product-456",
+        "project-123",
+        "PATCH",
+        mock_template_domain_qry_srv,
+        mock_logger,
+        mock_unit_of_work,
+        mock_message_bus,
+        mock_portfolios_qry_srv,
+        mock_versions_qry_srv,
+        mock_param_service,
+        mock_stack_srv,
+        mock_file_service,
+        marketplace_metadata=metadata,
+    )
+
+    # ASSERT
+    added_version = mock_repo.add.call_args[0][0]
+    assert added_version.imageSource is None
+    assert added_version.marketplaceMetadata.model_dump(exclude_none=True) == metadata
 
 
 @patch(
