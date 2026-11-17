@@ -25,6 +25,8 @@ mkdir -p "$SCRIPT_DIR/.deploy-logs"
 
 # shellcheck source=scripts/deploy-regions.sh
 source "$SCRIPT_DIR/scripts/deploy-regions.sh"
+# shellcheck source=scripts/license-manager-readiness.sh
+source "$SCRIPT_DIR/scripts/license-manager-readiness.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -623,6 +625,8 @@ for _var in HUB_VPC_NAME HUB_SUBNET_NAMES; do
 done
 RESOURCE_TAGS="${RESOURCE_TAGS:-}"
 ADDITIONAL_APP_CLIENTS="${ADDITIONAL_APP_CLIENTS:-}"
+SSH_CONNECTION_OPTION="${SSH_CONNECTION_OPTION:-true}"
+[[ "$SSH_CONNECTION_OPTION" =~ ^(true|false)$ ]] || err "SSH_CONNECTION_OPTION must be true or false"
 if [ -z "$RESOURCE_TAGS" ]; then
   RESOURCE_TAGS='{}'
 fi
@@ -691,8 +695,25 @@ if [ "$PRIVATE_DEPLOYMENT" = "true" ]; then
   [[ -n "$CUSTOM_DOMAIN" ]]     || err "Private deployment requires CUSTOM_DOMAIN."
   [[ -n "$API_CUSTOM_DOMAIN" ]] || err "Private deployment requires API_CUSTOM_DOMAIN."
   if [ -z "$CERT_ARN" ]; then
+    prompt PRIVATE_CA_ARN "AWS Private CA ARN to issue the certificates from (empty = self-signed)" ""
+  fi
+  if [ -z "$CERT_ARN" ] && [ -z "${PRIVATE_CA_ARN:-}" ]; then
     warn "No CERT_ARN provided — a self-signed certificate will be generated and imported into ACM. Clients must trust it (distribute it to user trust stores)."
   fi
+fi
+
+# Each CDK app requests the certificate for its own domain from this CA, and
+# ACM renews it. ACM issues from a CA in the certificate's own region only,
+# and CloudFront serves no certificate from a private CA.
+PRIVATE_CA_ARN="${PRIVATE_CA_ARN:-}"
+if [ -n "$PRIVATE_CA_ARN" ]; then
+  [ "$PRIVATE_DEPLOYMENT" = "true" ] || err "PRIVATE_CA_ARN requires a private deployment: CloudFront cannot serve a private CA's certificate."
+  [ -z "$CERT_ARN" ] || err "Set CERT_ARN or PRIVATE_CA_ARN, not both."
+  [[ "$PRIVATE_CA_ARN" =~ ^arn:aws[a-z-]*:acm-pca:([a-z0-9-]+):([0-9]{12}):certificate-authority/[0-9a-f-]+$ ]] || \
+    err "PRIVATE_CA_ARN is not a private CA ARN: $PRIVATE_CA_ARN"
+  [ "${BASH_REMATCH[1]}" = "$AWS_REGION" ] || \
+    err "PRIVATE_CA_ARN is in ${BASH_REMATCH[1]}, but ACM issues only from a CA in AWS_REGION ($AWS_REGION)."
+  PRIVATE_CA_ACCOUNT="${BASH_REMATCH[2]}"
 fi
 
 # us-east-1 cert needed for Cognito/CloudFront in public mode when deploying to another region
@@ -770,6 +791,7 @@ OIDC_USER_ID_CLAIM=$OIDC_USER_ID_CLAIM_CONFIG
 OIDC_LOGOUT_URL=$OIDC_LOGOUT_URL_CONFIG
 CERT_ARN="$CERT_ARN"
 CERT_ARN_US_EAST_1="${CERT_ARN_US_EAST_1:-}"
+PRIVATE_CA_ARN="$PRIVATE_CA_ARN"
 CUSTOM_DOMAIN="$CUSTOM_DOMAIN"
 API_CUSTOM_DOMAIN="$API_CUSTOM_DOMAIN"
 SPOKE_ACCOUNT_ID="${SPOKE_ACCOUNT_ID:-}"
@@ -783,6 +805,7 @@ HUB_VPC_NAME='${HUB_VPC_NAME}'
 HUB_SUBNET_NAMES='${HUB_SUBNET_NAMES}'
 RESOURCE_TAGS='${RESOURCE_TAGS}'
 ADDITIONAL_APP_CLIENTS='${ADDITIONAL_APP_CLIENTS}'
+SSH_CONNECTION_OPTION="$SSH_CONNECTION_OPTION"
 CONF
 log "Config saved to $CONFIG_OUT (re-run with --config $CONFIG_OUT)"
 
@@ -799,6 +822,27 @@ log "Hub account credentials verified: $AWS_ACCOUNT_ID"
 ORG_ID=$(aws organizations describe-organization --query 'Organization.Id' --output text 2>/dev/null || echo "")
 [[ -n "$ORG_ID" ]] || err "AWS Organization ID is required. Account must be part of an AWS Organization."
 log "Organization ID: $ORG_ID"
+
+# ACM renews a certificate from a CA in this account only while the CA grants
+# acm.amazonaws.com IssueCertificate, GetCertificate and ListPermissions.
+# Without that grant the certificates deploy and then expire unrenewed. A CA
+# shared from another account takes its permissions from the share instead.
+if [ -n "$PRIVATE_CA_ARN" ] && [ "$PRIVATE_CA_ACCOUNT" = "$AWS_ACCOUNT_ID" ]; then
+  if ACM_CA_ACTIONS=$(aws acm-pca list-permissions --certificate-authority-arn "$PRIVATE_CA_ARN" \
+      --query "Permissions[?Principal=='acm.amazonaws.com'].Actions[]" \
+      --output text --region "$AWS_REGION" 2>>"$LOG_FILE"); then
+    ACM_CA_ACTIONS=" ${ACM_CA_ACTIONS//[[:space:]]/ } "
+    MISSING_CA_ACTIONS=""
+    for ca_action in IssueCertificate GetCertificate ListPermissions; do
+      [[ "$ACM_CA_ACTIONS" == *" $ca_action "* ]] || MISSING_CA_ACTIONS+=" $ca_action"
+    done
+    [ -z "$MISSING_CA_ACTIONS" ] || \
+      err "PRIVATE_CA_ARN does not grant ACM${MISSING_CA_ACTIONS}, so ACM could not renew the certificates it issues. Grant it with: aws acm-pca create-permission --certificate-authority-arn $PRIVATE_CA_ARN --principal acm.amazonaws.com --actions IssueCertificate GetCertificate ListPermissions --region $AWS_REGION"
+    log "PRIVATE_CA_ARN lets ACM renew the certificates it issues"
+  else
+    warn "Could not list PRIVATE_CA_ARN's permissions (see $LOG_FILE), so whether ACM can renew its certificates is unchecked."
+  fi
+fi
 
 if [ "$DRY_RUN" = "true" ]; then
   echo ""
@@ -837,6 +881,7 @@ sed -i.bak \
   -e "s/^APPLICATION_PREFIX = \".*\"/APPLICATION_PREFIX = \"${APP_PREFIX}\"/" \
   -e "s/^HUB_VPC_NAME = \".*\"/HUB_VPC_NAME = \"${HUB_VPC_NAME}\"/" \
   -e "s/^HUB_SUBNET_NAMES = \".*\"/HUB_SUBNET_NAMES = \"${HUB_SUBNET_NAMES}\"/" \
+  -e "s/^SSH_CONNECTION_OPTION = .*/SSH_CONNECTION_OPTION = $([ "$SSH_CONNECTION_OPTION" = true ] && echo True || echo False)/" \
   -e "s/\"cognito-region\": \"[^\"]*\"/\"cognito-region\": \"${COGNITO_REGION}\"/" \
   -e "s/login-[a-z0-9]*\.auth\.[a-z0-9-]*/login-${DEPLOYMENT_QUALIFIER}.auth.${COGNITO_REGION}/g" \
   "$BACKEND_CONFIG"
@@ -1013,13 +1058,13 @@ else
   log "VPC '$VPC_NAME' already exists ($EXISTING_VPC)"
 fi
 
-# --- Self-signed TLS certificate (private deployment, no CERT_ARN provided) ---
+# --- Self-signed TLS certificate (private deployment, no CERT_ARN or PRIVATE_CA_ARN provided) ---
 # A preview must not mint and import a certificate. Without one the
 # frontend stack is diffed as it would be with CERT_ARN unset, which is
 # the honest comparison for a deployment that has none yet.
-if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+if [ "$DIFF_MODE" = "true" ] && [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ] && [ -z "$PRIVATE_CA_ARN" ]; then
   warn "Skipping the self-signed certificate import (--diff); the frontend diff assumes no CERT_ARN"
-elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ]; then
+elif [ "$PRIVATE_DEPLOYMENT" = "true" ] && [ -z "$CERT_ARN" ] && [ -z "$PRIVATE_CA_ARN" ]; then
   command -v openssl >/dev/null || err "openssl is required to generate a self-signed certificate (no CERT_ARN provided)."
   log "Generating self-signed certificate for $CUSTOM_DOMAIN, $API_CUSTOM_DOMAIN"
 
@@ -1137,6 +1182,9 @@ fi
 if [ -n "$CERT_ARN_US_EAST_1" ]; then
   FE_CDK_CONTEXT+=(-c "cert-arn-login=$CERT_ARN_US_EAST_1")
 fi
+if [ -n "$PRIVATE_CA_ARN" ]; then
+  FE_CDK_CONTEXT+=(-c "private-ca-arn=$PRIVATE_CA_ARN")
+fi
 
 log "Deploying frontend CDK stacks"
 (
@@ -1174,9 +1222,66 @@ fi
 if [ -n "$CERT_ARN" ]; then
   BE_CDK_CONTEXT+=(-c "cert-arn=$CERT_ARN")
 fi
+if [ -n "$PRIVATE_CA_ARN" ]; then
+  BE_CDK_CONTEXT+=(-c "private-ca-arn=$PRIVATE_CA_ARN")
+fi
 if [ -n "${CI_COMMIT_SHA:-}" ]; then
   BE_CDK_CONTEXT+=(-c "ci-commit-sha=$CI_COMMIT_SHA")
 fi
+
+# Whether the backend's custom-domain integration supplies the CLI endpoint.
+# Both values are required by backend_app.py before it creates that stack.
+CUSTOM_API_ENDPOINT=false
+# The same condition backend_app.py uses to build ApiIntegrationStack instead of
+# the router: a custom API domain with a certificate from CERT_ARN (supplied or
+# self-signed) or issued from PRIVATE_CA_ARN. If the two disagreed, phase 7b
+# would look for a router the backend never built and fail.
+if [ -n "${API_CUSTOM_DOMAIN:-}" ] && { [ -n "${CERT_ARN:-}" ] || [ -n "${PRIVATE_CA_ARN:-}" ]; }; then
+  CUSTOM_API_ENDPOINT=true
+fi
+
+# Whether to register VewApiRouterStack, which exists only to give the vew CLI a
+# single api_endpoint when the custom-domain integration does not provide one.
+#
+# The router's authorizer reads /<app>-ui-<env>/app-client-id/vew-cli at synth
+# time, so ADDITIONAL_APP_CLIENTS must contain a "vew-cli" entry. The frontend
+# writes that parameter in FE_REGION while the router reads it in AWS_REGION;
+# when the regions differ, only the custom-domain integration can provide the
+# unified endpoint.
+VEW_CLI_ROUTER=false
+if echo "$ADDITIONAL_APP_CLIENTS" | jq -e 'any(.[]; .Name == "vew-cli")' >/dev/null 2>&1; then
+  if [ "$CUSTOM_API_ENDPOINT" = "true" ]; then
+    log "Custom API domain supplies the vew CLI endpoint; the API router is not required"
+  elif [ "$FE_REGION" = "$AWS_REGION" ]; then
+    VEW_CLI_ROUTER=true
+  else
+    warn "ADDITIONAL_APP_CLIENTS contains vew-cli, but the frontend deploys to"
+    warn "$FE_REGION and the backend to $AWS_REGION. The CLI client-id parameter"
+    warn "is written in $FE_REGION and the API router reads it in $AWS_REGION, so"
+    warn "the router is skipped. The vew CLI will have no api_endpoint in this"
+    warn "deployment; configure both API_CUSTOM_DOMAIN and CERT_ARN, or deploy"
+    warn "both stacks in one region."
+  fi
+fi
+BE_CDK_CONTEXT+=(-c "vew-cli-enabled=$VEW_CLI_ROUTER")
+
+# Whether to register McpGatewayAgentcoreStack. It reads
+# /<app>-ui-<env>/app-client-id/mcp-gateway-agentcore at deploy time, so
+# ADDITIONAL_APP_CLIENTS must contain an "mcp-gateway-agentcore" entry, and the
+# parameter is written in FE_REGION while the gateway reads it in AWS_REGION. A
+# custom API domain does not change that, unlike for the CLI router.
+MCP_GATEWAY_ENABLED=false
+if echo "$ADDITIONAL_APP_CLIENTS" | jq -e 'any(.[]; .Name == "mcp-gateway-agentcore")' >/dev/null 2>&1; then
+  if [ "$FE_REGION" = "$AWS_REGION" ]; then
+    MCP_GATEWAY_ENABLED=true
+  else
+    warn "ADDITIONAL_APP_CLIENTS contains mcp-gateway-agentcore, but the frontend"
+    warn "deploys to $FE_REGION and the backend to $AWS_REGION. The gateway's"
+    warn "client-id parameter is written in $FE_REGION and read in $AWS_REGION, so"
+    warn "the MCP gateway is skipped; deploy both stacks in one region to use it."
+  fi
+fi
+BE_CDK_CONTEXT+=(-c "mcp-gateway-enabled=$MCP_GATEWAY_ENABLED")
 
 FE_STACK_NAME="${APP_NAME}-${ENVIRONMENT}"
 # The frontend stack follows FE_REGION, which is us-east-1 for a public
@@ -1223,8 +1328,82 @@ log "Deploying backend CDK stacks"
 deactivate
 
 # ---------------------------------------------------------------------------
-# Phase 8: Build and deploy frontend web application
+# Phase 7c: Report the License Manager Organizations integration
 # ---------------------------------------------------------------------------
+# Importing a Marketplace AMI needs License Manager's Organizations integration
+# enabled in the hub account, and enabling it is a console action an AWS admin
+# performs once (see docs/marketplace-integration.md). It cannot be done from
+# here, and it takes around 30 minutes to become effective, so this reports the
+# state rather than changing anything. Read-only and never fatal: a deploy that
+# does not use Marketplace images is unaffected.
+step "7c" "Checking the License Manager Organizations integration (read-only)"
+
+LM_READINESS=$(license_manager_readiness "$AWS_REGION" "$AWS_ACCOUNT_ID")
+LM_READINESS_STATUS=${LM_READINESS%%$'\t'*}
+LM_MANAGEMENT_ACCOUNT=""
+if [[ "$LM_READINESS" == *$'\t'* ]]; then
+  LM_MANAGEMENT_ACCOUNT=${LM_READINESS#*$'\t'}
+fi
+
+case "$LM_READINESS_STATUS" in
+  active)
+    log "License Manager Organizations integration: ACTIVE"
+    ;;
+  disabled)
+    warn "License Manager Organizations integration: DISABLED"
+    warn "Importing an AWS Marketplace AMI will not be able to distribute licence"
+    warn "grants to spoke accounts until an admin enables it in the hub account."
+    warn "See docs/marketplace-integration.md. Allow ~30 minutes to take effect."
+    ;;
+  pending-not-active)
+    warn "License Manager Organizations integration: PENDING/NOT ACTIVE"
+    warn "The setting is enabled, but its RAM resource share is not visible as ACTIVE"
+    warn "from this hub account and owned by the organization's management account yet."
+    warn "Allow ~30 minutes, then retry."
+    ;;
+  member-not-distributor)
+    warn "License Manager automatic grant distribution: HUB IS A MEMBER ACCOUNT"
+    warn "This deployment can inspect the management account's active RAM share,"
+    warn "but License Manager grants must be created from management account"
+    warn "$LM_MANAGEMENT_ACCOUNT. Marketplace imports remain verify-only here."
+    ;;
+  *)
+    log "License Manager Organizations integration: not determined (read access unavailable)"
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Phase 7b: Publish the vew CLI endpoint
+# ---------------------------------------------------------------------------
+# The vew CLI reads one SSM parameter for its `api_endpoint`:
+#   /${APP_NAME}-${ENVIRONMENT}/vew-api-endpoint
+# Exactly one thing writes it, depending on deploy mode, and the CLI never has
+# to know which:
+#
+#   no custom API domain -> VewApiRouterStack, part of the backend CDK app
+#     (backend/infra/backend/vew_api_router_stack.py), deployed in Phase 7. It
+#     path-routes /{bc}/* to each bounded-context API Gateway and exposes its URL
+#     as the VewApiEndpoint output, which this phase copies into the parameter.
+#
+#   custom API domain    -> the backend's ApiIntegrationStack already fronts the
+#     per-BC gateways under one host via API Gateway base path mappings, so the
+#     router is not registered at all and this phase writes the custom-domain URL.
+#
+# The two are mutually exclusive by construction: backend_app.py registers
+# VewApiRouterStack as the `else` of the ApiIntegrationStack condition.
+#
+# This phase is the only writer of the parameter in both modes, deliberately. If
+# the router stack owned it, an environment that started with a custom API domain
+# and later dropped it would fail at deploy time, because CloudFormation cannot
+# create a parameter whose name already exists.
+# APP_NAME already includes the -ui suffix, so this resolves to
+# /<app-name>-ui-<env>/vew-api-endpoint without adding -ui a second time.
+VEW_API_ENDPOINT_PARAM="/${APP_NAME}-${ENVIRONMENT}/vew-api-endpoint"
+
+# A diff must not write. Phase 7b's put-parameter is a real write, and the
+# router-output read below fails outright when the router stack does not exist
+# yet, so a diff on a fresh account would stop here with an error about a stack
+# a deploy has not created. Everything after this point is deploy-only.
 if [ "$DIFF_MODE" = "true" ]; then
   echo ""
   if [ -s "${DIFF_CAPTURE:-/dev/null}" ]; then
@@ -1239,10 +1418,84 @@ if [ "$DIFF_MODE" = "true" ]; then
   warn "bootstrap stack, and the SSM parameters the stacks read while"
   warn "synthesizing. Both are no-ops on an account already deployed."
   warn "Everything else is skipped: the service-linked role, the self-signed"
-  warn "certificate import, and the OIDC secret."
+  warn "certificate import, the OIDC secret, the vew CLI endpoint parameter,"
+  warn "and the frontend build."
   log "Run without --diff to apply."
   exit 0
 fi
+
+ROUTER_STACK_NAME="${BACKEND_APP_NAME}-vew-api-router-${ENVIRONMENT}"
+if [ "$CUSTOM_API_ENDPOINT" = "true" ]; then
+  step "7b" "Publishing vew CLI endpoint (custom API domain configured)"
+
+  log "Backend ApiIntegrationStack already fronts per-BC gateways at $API_CUSTOM_DOMAIN"
+  VEW_API_ENDPOINT="https://${API_CUSTOM_DOMAIN}"
+elif [ "$VEW_CLI_ROUTER" = "true" ]; then
+  step "7b" "Publishing vew CLI endpoint (router deployed with the backend stacks)"
+
+  ROUTER_OUTPUTS=$(aws cloudformation describe-stacks \
+    --stack-name "$ROUTER_STACK_NAME" \
+    --query 'Stacks[0].Outputs' \
+    --output json --region "$AWS_REGION" 2>/dev/null || echo "[]")
+  VEW_API_ENDPOINT=$(echo "$ROUTER_OUTPUTS" | jq -r '.[] | select(.OutputKey=="VewApiEndpoint") | .OutputValue // empty')
+  [ -n "$VEW_API_ENDPOINT" ] ||
+    err "Could not read the VewApiEndpoint output from $ROUTER_STACK_NAME. Phase 7 should have deployed it; check that stack in the CloudFormation console."
+else
+  # Nothing provides a unified endpoint, so there is no value to publish.
+  step "7b" "Skipping vew CLI endpoint (no custom endpoint or API router configured)"
+  VEW_API_ENDPOINT=""
+fi
+
+# CDK does not delete a stack merely because it is no longer registered. Remove
+# a router left behind after disabling the CLI client, moving the frontend to a
+# different region, or switching to a custom API domain.
+if [ "$VEW_CLI_ROUTER" != "true" ]; then
+  if aws cloudformation describe-stacks --stack-name "$ROUTER_STACK_NAME" \
+    --region "$AWS_REGION" >/dev/null 2>&1; then
+    warn "$ROUTER_STACK_NAME exists but the router is no longer configured; deleting it"
+    # delete_one_stack returns 1 when a CloudFormation export blocks the delete
+    # and 2 on failure. Neither should abort a deploy that is otherwise fine:
+    # the router is already out of the CDK app, so the leftover is inert.
+    if delete_one_stack "$ROUTER_STACK_NAME" 1 1 "$AWS_REGION"; then
+      log "Removed the stale router stack"
+    else
+      warn "Could not delete $ROUTER_STACK_NAME; remove it by hand. The deploy is unaffected."
+    fi
+  else
+    log "No stale vew CLI router stack to remove"
+  fi
+fi
+
+# The same for the MCP gateway after its app client is removed or the frontend
+# moves to a different region.
+MCP_GATEWAY_STACK_NAME="${BACKEND_APP_NAME}-mcp-gateway-agentcore-${ENVIRONMENT}"
+if [ "$MCP_GATEWAY_ENABLED" != "true" ]; then
+  if aws cloudformation describe-stacks --stack-name "$MCP_GATEWAY_STACK_NAME" \
+    --region "$AWS_REGION" >/dev/null 2>&1; then
+    warn "$MCP_GATEWAY_STACK_NAME exists but the MCP gateway is no longer configured; deleting it"
+    if delete_one_stack "$MCP_GATEWAY_STACK_NAME" 1 1 "$AWS_REGION"; then
+      log "Removed the stale MCP gateway stack"
+    else
+      warn "Could not delete $MCP_GATEWAY_STACK_NAME; remove it by hand. The deploy is unaffected."
+    fi
+  else
+    log "No stale MCP gateway stack to remove"
+  fi
+fi
+
+if [ -n "$VEW_API_ENDPOINT" ]; then
+  log "Writing $VEW_API_ENDPOINT_PARAM = $VEW_API_ENDPOINT"
+  run_cmd aws ssm put-parameter \
+    --name "$VEW_API_ENDPOINT_PARAM" \
+    --value "$VEW_API_ENDPOINT" \
+    --type String \
+    --overwrite \
+    --region "$AWS_REGION"
+fi
+
+# ---------------------------------------------------------------------------
+# Phase 8: Build and deploy frontend web application
+# ---------------------------------------------------------------------------
 
 step 8 "Building frontend web application and uploading to S3"
 

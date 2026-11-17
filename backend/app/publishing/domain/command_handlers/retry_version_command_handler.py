@@ -47,6 +47,9 @@ def handle(
                 lastUpdateDate=datetime.now(timezone.utc).isoformat(),
                 lastUpdatedBy=cmd.lastUpdatedBy.value,
                 status=version.VersionStatus.Updating,
+                # A retry starts from a clean slate; the previous failure's reason
+                # would otherwise sit on a version that is running again.
+                statusReason=None,
             )
             uow.commit()
 

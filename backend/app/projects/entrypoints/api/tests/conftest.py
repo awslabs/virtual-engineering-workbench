@@ -260,7 +260,7 @@ def authenticated_event(cognito_user_pool_mock, mock_cognito_user):
             "requestContext": {
                 "authorizer": {
                     "userName": "USER123",
-                    "userEmail": "leto@atreides.com",
+                    "userEmail": "leto@example.com",
                     "stages": '["dev", "qa", "prod"]',
                     "userRoles": '["ADMIN"]',
                     "userDomains": '["DOMAIN"]',

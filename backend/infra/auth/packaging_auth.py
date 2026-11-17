@@ -4,7 +4,7 @@ from infra.constructs import backend_app_api_auth
 
 packaging_bc_auth_policies: list[backend_app_api_auth.CedarPolicy] = [
     backend_app_api_auth.CedarPolicy(
-        description="Allows admins to creaate and update the mandatory component list",
+        description="Allows admins to create and update the mandatory component list",
         statement=f"""
             permit (
                 principal,
@@ -40,6 +40,9 @@ packaging_bc_auth_policies: list[backend_app_api_auth.CedarPolicy] = [
                     packaging_auth_schema.PackagingBCActions.GetComponentsVersions,
                     packaging_auth_schema.PackagingBCActions.GetImage,
                     packaging_auth_schema.PackagingBCActions.GetImages,
+                    packaging_auth_schema.PackagingBCActions.ImportImage,
+                    packaging_auth_schema.PackagingBCActions.ListImportableAmis,
+                    packaging_auth_schema.PackagingBCActions.DiscoverMarketplaceSubscriptions,
                     packaging_auth_schema.PackagingBCActions.GetMandatoryComponentsList,
                     packaging_auth_schema.PackagingBCActions.GetMandatoryComponentsLists,
                     packaging_auth_schema.PackagingBCActions.GetPipeline,

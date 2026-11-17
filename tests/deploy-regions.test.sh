@@ -50,6 +50,7 @@ trap 'rm -rf "$test_root"' EXIT
 mkdir -p "$test_root/scripts" "$test_root/bin"
 cp "$REPO_ROOT/deploy.sh" "$test_root/deploy.sh"
 cp "$REPO_ROOT/scripts/deploy-regions.sh" "$test_root/scripts/deploy-regions.sh"
+cp "$REPO_ROOT/scripts/license-manager-readiness.sh" "$test_root/scripts/license-manager-readiness.sh"
 
 declare -F patch_workbench_regions_config >/dev/null || \
   fail "deployment region helpers must patch the backend configuration"

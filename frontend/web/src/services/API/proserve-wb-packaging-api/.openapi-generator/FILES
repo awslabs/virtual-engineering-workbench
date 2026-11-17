@@ -5,6 +5,7 @@ models/AssociatedProjectsInner.ts
 models/Component.ts
 models/ComponentMetadata.ts
 models/ComponentVersion.ts
+models/ComponentVersionDetailInput.ts
 models/ComponentVersionEntry.ts
 models/ComponentVersionSummary.ts
 models/ComponentVersionTestExecutionSummary.ts
@@ -16,6 +17,8 @@ models/CreateMandatoryComponentsListRequest.ts
 models/CreatePipelineRequest.ts
 models/CreateRecipeRequest.ts
 models/CreateRecipeVersionRequest.ts
+models/DiscoverMarketplaceSubscriptionsResponse.ts
+models/DiscoveredMarketplaceSubscription.ts
 models/GetComponentResponse.ts
 models/GetComponentVersionResponse.ts
 models/GetComponentVersionTestExecutionLogsUrlResponse.ts
@@ -38,7 +41,12 @@ models/GetRecipeVersionsResponse.ts
 models/GetRecipesResponse.ts
 models/GetRecipesVersionsResponse.ts
 models/Image.ts
+models/ImportImageRequest.ts
+models/ImportImageResponse.ts
+models/ImportableAmi.ts
+models/ListImportableAmisResponse.ts
 models/MandatoryComponentsList.ts
+models/MarketplaceMetadataInput.ts
 models/Pipeline.ts
 models/Recipe.ts
 models/RecipeComponentVersion.ts

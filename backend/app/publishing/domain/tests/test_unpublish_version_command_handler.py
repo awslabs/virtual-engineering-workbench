@@ -10,7 +10,7 @@ from app.publishing.domain.commands import unpublish_version_command
 from app.publishing.domain.events import product_version_unpublished
 from app.publishing.domain.exceptions import domain_exception
 from app.publishing.domain.model import version
-from app.publishing.domain.ports import catalog_query_service, catalog_service
+from app.publishing.domain.ports import catalog_query_service, catalog_service, versions_query_service
 from app.publishing.domain.value_objects import (
     aws_account_id_value_object,
     product_id_value_object,
@@ -86,6 +86,13 @@ def catalog_qry_svr():
 
 
 @pytest.fixture()
+def versions_qry_srv_mock():
+    qry_srv_mock = mock.create_autospec(spec=versions_query_service.VersionsQueryService)
+    qry_srv_mock.get_product_version_distributions.return_value = []
+    return qry_srv_mock
+
+
+@pytest.fixture()
 def logger_mock():
     logger_mock = mock.create_autospec(spec=logging.Logger)
     return logger_mock
@@ -103,6 +110,7 @@ def test_unpublish_version_command_handler_unpublish_version(
     get_test_version,
     catalog_service_mock,
     catalog_qry_svr,
+    versions_qry_srv_mock,
     mock_unit_of_work,
     mock_version_repo,
     logger_mock,
@@ -117,6 +125,7 @@ def test_unpublish_version_command_handler_unpublish_version(
         uow=mock_unit_of_work,
         catalog_srv=catalog_service_mock,
         catalog_qry_srv=catalog_qry_svr,
+        versions_qry_srv=versions_qry_srv_mock,
         logger=logger_mock,
         msg_bus=message_bus_mock,
     )
@@ -154,6 +163,7 @@ def test_unpublish_version_command_handler_change_version_status_to_failed_if_er
     command_mock,
     catalog_service_mock,
     catalog_qry_svr,
+    versions_qry_srv_mock,
     mock_unit_of_work,
     mock_version_repo,
     logger_mock,
@@ -168,6 +178,7 @@ def test_unpublish_version_command_handler_change_version_status_to_failed_if_er
             uow=mock_unit_of_work,
             catalog_srv=catalog_service_mock,
             catalog_qry_srv=catalog_qry_svr,
+            versions_qry_srv=versions_qry_srv_mock,
             logger=logger_mock,
             msg_bus=message_bus_mock,
         )
@@ -189,6 +200,7 @@ def test_unpublish_version_command_handler_deletes_sc_product_if_last_version(
     get_test_version,
     catalog_service_mock,
     catalog_qry_svr,
+    versions_qry_srv_mock,
     mock_unit_of_work,
     logger_mock,
     message_bus_mock,
@@ -204,6 +216,7 @@ def test_unpublish_version_command_handler_deletes_sc_product_if_last_version(
         uow=mock_unit_of_work,
         catalog_srv=catalog_service_mock,
         catalog_qry_srv=catalog_qry_svr,
+        versions_qry_srv=versions_qry_srv_mock,
         logger=logger_mock,
         msg_bus=message_bus_mock,
     )
@@ -236,3 +249,73 @@ def test_unpublish_version_command_handler_deletes_sc_product_if_last_version(
             hasIntegrations=True,
         )
     )
+
+
+def test_unpublish_version_keeps_the_sc_product_while_a_live_sibling_is_recorded_in_it(
+    command_mock,
+    get_test_version,
+    catalog_service_mock,
+    catalog_qry_svr,
+    versions_qry_srv_mock,
+    mock_unit_of_work,
+    logger_mock,
+    message_bus_mock,
+    mock_version_repo,
+):
+    # ARRANGE: two versions of one SC product are retired at once; the other retire already deleted
+    # its artifact, so this one counts 1 in Service Catalog, but the hub still records a live sibling there
+    mock_version_repo.get.return_value = get_test_version()
+    catalog_qry_svr.get_provisioning_artifact_count_in_sc.return_value = 1
+    versions_qry_srv_mock.get_product_version_distributions.return_value = [
+        get_test_version(),
+        get_test_version(version_id="vers-live", version_name="1.0.5"),
+    ]
+
+    # ACT
+    unpublish_version_command_handler.handle(
+        command=command_mock,
+        uow=mock_unit_of_work,
+        catalog_srv=catalog_service_mock,
+        catalog_qry_srv=catalog_qry_svr,
+        versions_qry_srv=versions_qry_srv_mock,
+        logger=logger_mock,
+        msg_bus=message_bus_mock,
+    )
+
+    # ASSERT: the product stays, the version is still retired
+    catalog_service_mock.delete_product.assert_not_called()
+    catalog_service_mock.disassociate_product_from_portfolio.assert_not_called()
+    assertpy.assert_that(mock_version_repo.update_attributes.call_args.kwargs["status"]).is_equal_to(
+        version.VersionStatus.Retired
+    )
+
+
+def test_unpublish_version_deletes_the_sc_product_when_its_siblings_are_retired(
+    command_mock,
+    get_test_version,
+    catalog_service_mock,
+    catalog_qry_svr,
+    versions_qry_srv_mock,
+    mock_unit_of_work,
+    logger_mock,
+    message_bus_mock,
+    mock_version_repo,
+):
+    mock_version_repo.get.return_value = get_test_version()
+    catalog_qry_svr.get_provisioning_artifact_count_in_sc.return_value = 1
+    versions_qry_srv_mock.get_product_version_distributions.return_value = [
+        get_test_version(),
+        get_test_version(version_id="vers-old", status=version.VersionStatus.Retired),
+    ]
+
+    unpublish_version_command_handler.handle(
+        command=command_mock,
+        uow=mock_unit_of_work,
+        catalog_srv=catalog_service_mock,
+        catalog_qry_srv=catalog_qry_svr,
+        versions_qry_srv=versions_qry_srv_mock,
+        logger=logger_mock,
+        msg_bus=message_bus_mock,
+    )
+
+    catalog_service_mock.delete_product.assert_called_once_with("us-east-1", "prod-12345")

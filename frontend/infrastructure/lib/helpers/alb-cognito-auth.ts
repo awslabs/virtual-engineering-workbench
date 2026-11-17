@@ -80,9 +80,14 @@ const cognitoAuth = ({
       }]
     };
 
+    // Logs the shape of the mapped request, not the request itself: cfRequest
+    // carries the inbound Cookie header, which holds the Cognito session
+    // cookies. Header names are enough to diagnose a mapping problem.
     logger.debug({
       message: 'Lambda@Edge mapped CloudFront request',
-      cfEvt
+      method: cfRequest.method,
+      uri: cfRequest.uri,
+      headerNames: Object.keys(cfRequest.headers).sort(),
     });
 
     const cfResponse = await AsyncHandler.handleAsync(
@@ -105,9 +110,14 @@ const cognitoAuth = ({
         body: new DefaultIfNull(fcTypedResponse.body, '').value,
       };
 
+      // Logs the shape of the response, not the response itself: on the
+      // auth-redirect path multiValueHeaders carries Set-Cookie, which is
+      // where the session cookie is issued, and body can carry a token.
       logger.debug({
         message: 'Lambda@Edge mapped API Gateway response:',
-        response
+        statusCode: response.statusCode,
+        headerNames: Object.keys(response.multiValueHeaders).sort(),
+        bodyLength: response.body.length,
       });
 
       return response;

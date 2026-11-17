@@ -194,7 +194,10 @@ def test_the_handler_declares_the_route_totals_the_coverage_walks_account_for():
     routes = _routes()
 
     # ASSERT
-    assertpy.assert_that(routes).is_length(42)
+    # 45 = 42 before the AMI import routes, plus list_importable_amis, import_image and
+    # discover_marketplace_subscriptions. All three are project-path scoped and address no
+    # component or recipe, so the two guard counts below are unchanged.
+    assertpy.assert_that(routes).is_length(45)
     assertpy.assert_that([route for route in routes if "<component_id>" in route.path]).is_length(13)
     assertpy.assert_that([route for route in routes if "<recipe_id>" in route.path]).is_length(10)
 

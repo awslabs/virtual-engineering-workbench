@@ -111,6 +111,26 @@ mypy-boto3-imagebuilder==1.43.37 \
     --hash=sha256:7e3f5c34ce10567f48a3e582da6409e813168f8227a9623235308624533c7cb4 \
     --hash=sha256:e8d2ce72af25acc0c1825fa868fac649b3da1f339b1aadaf258ccf9cd4053024
     # via -r app/packaging/libraries/requirements.txt
+mypy-boto3-license-manager==1.43.120 \
+    --hash=sha256:abe61b78b9d0ac6a11740a79a351aee5bc0a17f5bbc53eab59e98aa50f8b60b4 \
+    --hash=sha256:f982851b816bdf7713c7e33a35f95f2ee7931d401c78fd4a700e775e6b33dd4f
+    # via -r app/packaging/libraries/requirements.txt
+mypy-boto3-marketplace-agreement==1.43.110 \
+    --hash=sha256:802f7a5268b38d56478433b2744de63fde1d3e73c344a2e3ad463fe14a1b5dd3 \
+    --hash=sha256:fae0d4437d93d8eefc1126c91de984666de2eedf25c595e47844b33bf399c735
+    # via -r app/packaging/libraries/requirements.txt
+mypy-boto3-marketplace-catalog==1.43.119 \
+    --hash=sha256:66f667f4a68fb8a6400a2974bdf9ad7e80dca07db1c4b17be82eb0e930018e9a \
+    --hash=sha256:e30ea6327f27045a99ac060faf82cb76d8c8824dac972f29ba2134c4436cf9c6
+    # via -r app/packaging/libraries/requirements.txt
+mypy-boto3-organizations==1.43.114 \
+    --hash=sha256:8606f26e21629782831124d3664167d304e3b65ca8c0b2463dcdd74bf9137f32 \
+    --hash=sha256:f081ea1bddadcdaa7d2253f965d32501cc691441d0115367b6ad1969308fa763
+    # via -r app/packaging/libraries/requirements.txt
+mypy-boto3-ram==1.43.126 \
+    --hash=sha256:37fb4768e27b28e0f20a2d80a50c1542b17d3722449e794d03182404dc2e49be \
+    --hash=sha256:f20c3b729006a832d4ae309c07892211c3cdfa5c275f34680d1ea2c5ab1f85d1
+    # via -r app/packaging/libraries/requirements.txt
 mypy-boto3-s3==1.43.50 \
     --hash=sha256:206817d22e80795da35daf704225f2e2a2b561fa4bf8c609f2150b04800ae811 \
     --hash=sha256:778aa2a48314ea47aeccca48ae151fe208b48d568d02578494b7201621ff2d6a
@@ -118,6 +138,10 @@ mypy-boto3-s3==1.43.50 \
 mypy-boto3-ssm==1.43.53 \
     --hash=sha256:d90a5a46e2e5db78ae5354d6cf925be81567704d4d051337feef79b8cfd6d3de \
     --hash=sha256:f20a2f1035a0d58b61647c6f5c883e058152acdccd8a97e7d1916476dc8e7c7b
+    # via -r app/packaging/libraries/requirements.txt
+mypy-boto3-sts==1.43.94 \
+    --hash=sha256:4a740ed21a689fc980fe804a4886fbe4ef84281878cf4a87934e38f27386f2cb \
+    --hash=sha256:d169e309deecf99cb8a897e34733571fcaa605447e29b9f6a8c32202c82690ce
     # via -r app/packaging/libraries/requirements.txt
 natsort==8.4.0 \
     --hash=sha256:45312c4a0e5507593da193dedd04abb1469253b601ecaf63445ad80f0a1ea581 \

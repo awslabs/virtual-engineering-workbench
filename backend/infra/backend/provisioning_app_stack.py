@@ -300,6 +300,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             "AUTHORIZE_USER_IP_ADDRESS_PARAM_VALUE": str(
                 app_config.component_specific["authorize-user-ip-address-param-value"]
             ),
+            "SSH_CONNECTION_OPTION": str(app_config.component_specific["ssh-connection-option"]),
             "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
             "PRODUCT_PROVISIONING_ROLE": PRODUCT_PROVISIONING_ROLE,
         }
@@ -729,6 +730,7 @@ class ProvisioningAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             ),
             provision_iam_api=True,
             iam_role_access=config.VEWRole.PLATFORM_USER,
+            enable_mcp=True,
         )
 
         user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(

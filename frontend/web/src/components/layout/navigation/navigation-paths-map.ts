@@ -122,6 +122,9 @@ export const ROUTES: { [key in RouteNames]: RouteConfig } = {
   Images: {
     path: '/images'
   },
+  ImportImage: {
+    path: '/projects/:projectId/images/import'
+  },
   MandatoryComponentsLists: {
     path: '/mandatory-components-lists'
   },
@@ -133,6 +136,9 @@ export const ROUTES: { [key in RouteNames]: RouteConfig } = {
   },
   ViewMandatoryComponentsList: {
     path: '/mandatory-components-lists/:platform/:architecture/:osVersion'
+  },
+  MarketplaceSubscriptions: {
+    path: '/projects/:projectId/marketplace'
   },
   Pipelines: {
     path: '/pipelines'

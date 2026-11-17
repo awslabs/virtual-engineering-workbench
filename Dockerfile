@@ -1,3 +1,4 @@
+# checkov:skip=CKV_DOCKER_3: One-shot deployer run with `docker run --rm`, the repo bind-mounted at /app and the host Docker socket mounted (see README). A non-root user breaks writes to the bind mount and access to the socket, and adds no isolation: socket access is root-equivalent on the host.
 # Python must match the Lambda runtime (PYTHON_3_13); Dependabot only proposes digest/patch updates.
 FROM public.ecr.aws/docker/library/python:3.13-slim@sha256:d98cc29d3266e535dd9da1099688d9cb3ca4753813571e071763d17725460962
 
@@ -30,4 +31,6 @@ RUN npm install -g aws-cdk@2.1133.0 \
 COPY --from=ghcr.io/astral-sh/uv:0.11.3@sha256:90bbb3c16635e9627f49eec6539f956d70746c409209041800a0280b93152823 /uv /uvx /bin/
 
 WORKDIR /app
+# Run-to-completion CLI container: there is no long-running service to probe.
+HEALTHCHECK NONE
 ENTRYPOINT ["./deploy.sh"]

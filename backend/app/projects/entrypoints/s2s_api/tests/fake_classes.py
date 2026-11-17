@@ -225,7 +225,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
             userId="user-0",
             activeDirectoryGroups=[],
             activeDirectoryGroupStatus=user.UserADStatus.PENDING,
-            userEmail="user-0@email.com",
+            userEmail="user-0@example.com",
         )
 
     def get_all_users(
@@ -239,7 +239,7 @@ class FakeProjectsQueryService(projects_query_service.ProjectsQueryService):
                 userId=f"user-{i}",
                 activeDirectoryGroups=[],
                 activeDirectoryGroupStatus=user.UserADStatus.PENDING,
-                userEmail=f"user-{i}@email.com",
+                userEmail=f"user-{i}@example.com",
             )
             users.append(new_user)
         users = [user.User.model_validate(item) for item in users]

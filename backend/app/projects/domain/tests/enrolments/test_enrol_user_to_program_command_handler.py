@@ -20,7 +20,7 @@ def enrol_user_command():
     return command.EnrolUserToProgramCommand(
         project_id=project_id_value_object.from_str("p-1"),
         user_id=user_id_value_object.from_str("t001"),
-        user_email=user_email_value_object.from_str("marty@mcfly.com"),
+        user_email=user_email_value_object.from_str("marty@example.com"),
         source_system=source_system_value_object.from_str("VEW"),
     )
 

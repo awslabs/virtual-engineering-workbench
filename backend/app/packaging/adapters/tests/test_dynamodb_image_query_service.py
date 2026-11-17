@@ -175,6 +175,50 @@ def test_get_image_by_image_upstream_id_returns_none_when_not_found(
     assertpy.assert_that(image_entity).is_equal_to(None)
 
 
+def test_get_images_by_image_upstream_id_returns_every_project_and_status(
+    mock_dynamodb, get_mock_image, backend_app_table, get_dynamodb_image_query_service, uow_mock
+):
+    # ARRANGE
+    query_service = get_dynamodb_image_query_service
+    first = get_mock_image(project_id="proj-a", image_id="image-a", status="RETIRED")
+    second = get_mock_image(project_id="proj-b", image_id="image-b", status="CREATED")
+    other_ami = get_mock_image(project_id="proj-c", image_id="image-c", image_upstream_id="ami-other")
+    fill_db_with_images(backend_app_table, [first, second, other_ami], uow_mock)
+
+    # ACT
+    images = query_service.get_images_by_image_upstream_id(
+        image_upstream_id=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value
+    )
+
+    # ASSERT
+    assertpy.assert_that({(i.projectId, i.imageId, i.status) for i in images}).is_equal_to(
+        {("proj-a", "image-a", "RETIRED"), ("proj-b", "image-b", "CREATED")}
+    )
+
+
+def test_get_images_by_image_upstream_id_follows_last_evaluated_key(get_dynamodb_image_query_service, get_mock_image):
+    # ARRANGE
+    query_service = get_dynamodb_image_query_service
+    pages = [
+        {"Items": [get_mock_image(image_id="image-1").model_dump()], "LastEvaluatedKey": {"k": "1"}},
+        {"Items": [get_mock_image(image_id="image-2").model_dump()]},
+    ]
+    calls = []
+
+    def fake_query(**kwargs):
+        calls.append(kwargs)
+        return pages[len(calls) - 1]
+
+    query_service._dynamodb_client = type("FakeClient", (), {"query": staticmethod(fake_query)})()
+
+    # ACT
+    images = query_service.get_images_by_image_upstream_id(image_upstream_id="ami-any")
+
+    # ASSERT
+    assertpy.assert_that([i.imageId for i in images]).is_equal_to(["image-1", "image-2"])
+    assertpy.assert_that(calls[1]["ExclusiveStartKey"]).is_equal_to({"k": "1"})
+
+
 def test_get_images_excludes_given_status(
     mock_dynamodb, get_mock_image, backend_app_table, get_dynamodb_image_query_service, uow_mock
 ):

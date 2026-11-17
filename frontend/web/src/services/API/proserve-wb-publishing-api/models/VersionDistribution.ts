@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Publishing API
- * API in charge of publishing workbench products
+ * VEW product catalog: create products, manage versions through DEV/QA/PROD stages, distribute to project accounts via AWS Service Catalog. Depends on Projects and Packaging BCs (built AMIs/images); upstream to Provisioning BC.
  *
  * The version of the OpenAPI document: 2023-01-26T12:00:00Z
  *
@@ -92,6 +92,12 @@ export interface VersionDistribution {
      */
     status: string;
     /**
+     * Why the distribution reached its current status, when that status is a failure
+     * @type {string}
+     * @memberof VersionDistribution
+     */
+    statusReason?: string | null;
+    /**
      * Last update date of the product.
      * @type {string}
      * @memberof VersionDistribution
@@ -145,6 +151,7 @@ export function VersionDistributionFromJSONTyped(json: any, ignoreDiscriminator:
         'region': json['region'],
         'stage': json['stage'],
         'status': json['status'],
+        'statusReason': !exists(json, 'statusReason') ? undefined : json['statusReason'],
         'lastUpdateDate': json['lastUpdateDate'],
         'restoredFromVersionName': !exists(json, 'restoredFromVersionName') ? undefined : json['restoredFromVersionName'],
     };
@@ -171,6 +178,7 @@ export function VersionDistributionToJSON(value?: VersionDistribution | null): a
         'region': value.region,
         'stage': value.stage,
         'status': value.status,
+        'statusReason': value.statusReason,
         'lastUpdateDate': value.lastUpdateDate,
         'restoredFromVersionName': value.restoredFromVersionName,
     };

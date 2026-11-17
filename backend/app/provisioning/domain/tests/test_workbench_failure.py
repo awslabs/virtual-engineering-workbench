@@ -60,6 +60,19 @@ from app.provisioning.domain.model.workbench_failure import (
         ("UnauthorizedOperation: You are not authorized to perform this operation.", FailureCode.Permissions),
         ("Missing IP address in the output.", FailureCode.Template),
         ("Parameter validation failed: Invalid type for parameter", FailureCode.Template),
+        # A Marketplace offer restricts the instance types it may run on. The message
+        # names no AZ and does not start with "Unsupported", so it used to fall through
+        # to UNKNOWN; it is a template problem, fixed by changing the parameter.
+        (
+            "The instance configuration for this AWS Marketplace product is not supported",
+            FailureCode.Template,
+        ),
+        (
+            'Resource handler returned message: "The instance configuration for this AWS '
+            "Marketplace product is not supported. Please see the AWS Marketplace site for "
+            'more information."',
+            FailureCode.Template,
+        ),
         ("Something nobody has seen before", FailureCode.Unknown),
         (None, FailureCode.Unknown),
     ],

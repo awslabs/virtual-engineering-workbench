@@ -36,10 +36,12 @@ def test_handle_decide_action_for_container_product(mock_dependencies, lambda_co
     from app.publishing.entrypoints.ami_sharing import handler
 
     shared_amis_domain_qry_svc.make_share_ami_decision.return_value = (
-        shared_amis_domain_query_service.ShareAmiDecision.NOT_REQUIRED,
-        "eu-west-3",
-        "",
-        "",
+        shared_amis_domain_query_service.ShareAmiDecisionResult(
+            decision=shared_amis_domain_query_service.ShareAmiDecision.NotRequired,
+            region="eu-west-3",
+            original_ami_id="",
+            copied_ami_id="",
+        )
     )
     shared_amis_domain_qry_svc.verify_copy.return_value = True
 
@@ -55,7 +57,7 @@ def test_handle_decide_action_for_container_product(mock_dependencies, lambda_co
     assertpy.assert_that(result).is_not_none()
     assertpy.assert_that(result).is_equal_to(
         step_function_model.DecideActionResponse(
-            decision=shared_amis_domain_query_service.ShareAmiDecision.NOT_REQUIRED,
+            decision=shared_amis_domain_query_service.ShareAmiDecision.NotRequired,
             originalAmiId="",
             copiedAmiId="",
             region="eu-west-3",

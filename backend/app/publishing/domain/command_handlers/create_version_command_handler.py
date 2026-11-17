@@ -21,6 +21,31 @@ from app.shared.api import parameter_service
 INITIAL_VERSION = version.format_version_name("1", "0", "0", version.VersionType.ReleaseCandidate, "1")
 
 
+def _build_additional_attributes(
+    command: create_version_command.CreateVersionCommand,
+    product_entity: product.Product,
+    amis_qry_srv: amis_query_service.AMIsQueryService,
+) -> dict:
+    if product_entity.productType == product.ProductType.Container:
+        return {"imageTag": command.imageTag.value, "imageDigest": command.imageDigest.value}
+    ami = amis_qry_srv.get_ami(command.amiId.value)
+    if not ami:
+        raise domain_exception.DomainException(f"AMI {command.amiId.value} not found")
+    attrs = {
+        "originalAmiId": command.amiId.value,
+        "componentVersionDetails": ami.componentVersionDetails,
+        "osVersion": ami.osVersion,
+        "platform": ami.platform,
+        "architecture": ami.architecture,
+        "integrations": ami.integrations or [],
+    }
+    if ami.imageSource:
+        attrs["imageSource"] = ami.imageSource
+        if ami.marketplaceMetadata:
+            attrs["marketplaceMetadata"] = ami.marketplaceMetadata
+    return attrs
+
+
 def _check_versions_limit(
     param_service: parameter_service.ParameterService,
     product_version_limit_param_name: str,
@@ -28,32 +53,26 @@ def _check_versions_limit(
     product_entity: product.Product,
     product_rc_version_limit_param_name: str,
 ):
-    # Fetch current version limit
     version_limit = int(param_service.get_parameter_value(parameter_name=product_version_limit_param_name))
 
-    # Fetch current number of versions
     number_of_versions = version_qry_srv.get_distinct_number_of_versions(
         product_id=product_entity.productId,
         status=version.VersionStatus.Created,
     )
 
-    # Check if there are not more versions available than allowed by the limit
     if number_of_versions >= version_limit:
         raise domain_exception.DomainException(
             "You have reached the maximum number of active versions for this product."
         )
 
-    # Fetch current RC version limit
     rc_version_limit = int(param_service.get_parameter_value(parameter_name=product_rc_version_limit_param_name))
 
-    # Fetch current number of RC versions
     number_of_rc_versions = version_qry_srv.get_distinct_number_of_versions(
         product_id=product_entity.productId,
         status=version.VersionStatus.Created,
         version_name_filter=version.VersionType.ReleaseCandidate.suffix,
     )
 
-    # Check if there are not more RC versions available than allowed by the limit
     if number_of_rc_versions >= rc_version_limit:
         raise domain_exception.DomainException(
             "You have reached the maximum number of active RC versions for this product."
@@ -132,36 +151,19 @@ def handle(
 
     new_version_name = _calculate_new_version_name(version_qry_srv, command)
 
-    # Validate the template and get parameters
     is_valid, parameters, error_message = stack_srv.validate_template(
         template_body=command.versionTemplateDefinition.value
     )
     if not is_valid:
         raise domain_exception.DomainException(f"The template is invalid: {error_message}")
 
-    # Upload template to S3
     template_file_name = template_query_service.get_default_template_file_name(
         product_type=product_type_value_object.from_str(product_entity.productType.value), is_draft=True
     )
     template_path = f"{command.productId.value}/{version_id}/{template_file_name}"
     file_service.put_template(template_path=template_path, content=command.versionTemplateDefinition.value.encode())
 
-    # Determine additional attribute based on productType
-    additional_attributes = {}
-    if product_entity.productType == product.ProductType.Container:
-        additional_attributes["imageTag"] = command.imageTag.value
-        additional_attributes["imageDigest"] = command.imageDigest.value
-    else:
-        # Get Ami
-        ami = amis_qry_srv.get_ami(command.amiId.value)
-        if not ami:
-            raise domain_exception.DomainException(f"AMI {command.amiId.value} not found")
-        additional_attributes["originalAmiId"] = command.amiId.value
-        additional_attributes["componentVersionDetails"] = ami.componentVersionDetails
-        additional_attributes["osVersion"] = ami.osVersion
-        additional_attributes["platform"] = ami.platform
-        additional_attributes["architecture"] = ami.architecture
-        additional_attributes["integrations"] = ami.integrations or []
+    additional_attributes = _build_additional_attributes(command, product_entity, amis_qry_srv)
 
     for portf in fetched_dev_portfolios:
         current_time = datetime.now(timezone.utc).isoformat()

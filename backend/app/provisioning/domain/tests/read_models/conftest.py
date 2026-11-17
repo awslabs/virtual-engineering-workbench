@@ -94,7 +94,7 @@ def get_sample_version():
             versionId=f"vers-{index}",
             versionName="1.0.0",
             versionDescription="version description",
-            awsAccountId="105249321508",
+            awsAccountId="123456789012",
             accountId="acct-12345",
             stage=stage,
             region="us-east-1",

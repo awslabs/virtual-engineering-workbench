@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Packaging API
- * API in charge of packaging workbench products
+ * AMI Factory pipeline: software components (building blocks), recipes (component build configurations), and images (built AMIs) via EC2 Image Builder. Depends on Projects BC for project scope; upstream to Publishing BC (built images become publishable products); pipelines run scheduled image builds.
  *
  * The version of the OpenAPI document: 2023-10-31T12:00:00Z
  *
@@ -23,6 +23,7 @@ import type {
   CreatePipelineRequest,
   CreateRecipeRequest,
   CreateRecipeVersionRequest,
+  DiscoverMarketplaceSubscriptionsResponse,
   GetComponentResponse,
   GetComponentVersionResponse,
   GetComponentVersionTestExecutionLogsUrlResponse,
@@ -44,6 +45,9 @@ import type {
   GetRecipeVersionsResponse,
   GetRecipesResponse,
   GetRecipesVersionsResponse,
+  ImportImageRequest,
+  ImportImageResponse,
+  ListImportableAmisResponse,
   ShareComponentRequest,
   UpdateComponentRequest,
   UpdateComponentVersionRequest,
@@ -69,6 +73,8 @@ import {
     CreateRecipeRequestToJSON,
     CreateRecipeVersionRequestFromJSON,
     CreateRecipeVersionRequestToJSON,
+    DiscoverMarketplaceSubscriptionsResponseFromJSON,
+    DiscoverMarketplaceSubscriptionsResponseToJSON,
     GetComponentResponseFromJSON,
     GetComponentResponseToJSON,
     GetComponentVersionResponseFromJSON,
@@ -111,6 +117,12 @@ import {
     GetRecipesResponseToJSON,
     GetRecipesVersionsResponseFromJSON,
     GetRecipesVersionsResponseToJSON,
+    ImportImageRequestFromJSON,
+    ImportImageRequestToJSON,
+    ImportImageResponseFromJSON,
+    ImportImageResponseToJSON,
+    ListImportableAmisResponseFromJSON,
+    ListImportableAmisResponseToJSON,
     ShareComponentRequestFromJSON,
     ShareComponentRequestToJSON,
     UpdateComponentRequestFromJSON,
@@ -131,14 +143,14 @@ export interface ArchiveComponentRequest {
     authorization: string;
     projectId: string;
     componentId: string;
-    body: object;
+    body?: object;
 }
 
 export interface ArchiveRecipeRequest {
     authorization: string;
     projectId: string;
     recipeId: string;
-    body: object;
+    body?: object;
 }
 
 export interface ComponentCorsRequest {
@@ -217,6 +229,11 @@ export interface CreateRecipeVersionOperationRequest {
     projectId: string;
     recipeId: string;
     createRecipeVersionRequest: CreateRecipeVersionRequest;
+}
+
+export interface DiscoverMarketplaceSubscriptionsRequest {
+    authorization: string;
+    projectId: string;
 }
 
 export interface GetComponentRequest {
@@ -385,8 +402,33 @@ export interface ImagesOperationsCorsRequest {
     imageId: string;
 }
 
+export interface ImportImageOperationRequest {
+    authorization: string;
+    projectId: string;
+    importImageRequest: ImportImageRequest;
+}
+
+export interface ImportImageCorsRequest {
+    projectId: string;
+}
+
+export interface ImportableAmisCorsRequest {
+    projectId: string;
+}
+
+export interface ListImportableAmisRequest {
+    authorization: string;
+    projectId: string;
+}
+
+export interface MarketplaceSubscriptionsCorsRequest {
+    projectId: string;
+}
+
 export interface PipelinesAllowedBuildTypeCorsRequest {
     projectId: string;
+    imageSource?: string;
+    status?: string;
 }
 
 export interface PipelinesCorsRequest {
@@ -436,7 +478,7 @@ export interface ReleaseComponentVersionRequest {
     projectId: string;
     componentId: string;
     versionId: string;
-    body: object;
+    body?: object;
 }
 
 export interface ReleaseRecipeVersionRequest {
@@ -444,7 +486,7 @@ export interface ReleaseRecipeVersionRequest {
     projectId: string;
     recipeId: string;
     versionId: string;
-    body: object;
+    body?: object;
 }
 
 export interface RetireComponentVersionRequest {
@@ -452,14 +494,14 @@ export interface RetireComponentVersionRequest {
     projectId: string;
     componentId: string;
     versionId: string;
-    body: object;
+    body?: object;
 }
 
 export interface RetirePipelineRequest {
     authorization: string;
     projectId: string;
     pipelineId: string;
-    body: object;
+    body?: object;
 }
 
 export interface RetireRecipeVersionRequest {
@@ -467,7 +509,7 @@ export interface RetireRecipeVersionRequest {
     projectId: string;
     recipeId: string;
     versionId: string;
-    body: object;
+    body?: object;
 }
 
 export interface ShareComponentOperationRequest {
@@ -531,7 +573,8 @@ export interface ValidateComponentVersionsCorsRequest {
 export class DefaultApi extends runtime.BaseAPI {
 
     /**
-     * Archive a specific component
+     * Archives a component, removing it from active use within the project. Archived components can no longer have new versions created. Existing released versions remain available in recipes that already reference them.
+     * Archive a component
      */
     async archiveComponentRaw(requestParameters: ArchiveComponentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -544,10 +587,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.componentId === null || requestParameters.componentId === undefined) {
             throw new runtime.RequiredError('componentId','Required parameter requestParameters.componentId was null or undefined when calling archiveComponent.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling archiveComponent.');
         }
 
         const queryParameters: any = {};
@@ -576,7 +615,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Archive a specific component
+     * Archives a component, removing it from active use within the project. Archived components can no longer have new versions created. Existing released versions remain available in recipes that already reference them.
+     * Archive a component
      */
     async archiveComponent(requestParameters: ArchiveComponentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.archiveComponentRaw(requestParameters, initOverrides);
@@ -584,7 +624,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Archive a specific recipe
+     * Archives a recipe, removing it from active use within the project. Archived recipes cannot have new versions created. Existing pipelines referencing released versions continue to function.
+     * Archive a recipe
      */
     async archiveRecipeRaw(requestParameters: ArchiveRecipeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -597,10 +638,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.recipeId === null || requestParameters.recipeId === undefined) {
             throw new runtime.RequiredError('recipeId','Required parameter requestParameters.recipeId was null or undefined when calling archiveRecipe.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling archiveRecipe.');
         }
 
         const queryParameters: any = {};
@@ -629,7 +666,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Archive a specific recipe
+     * Archives a recipe, removing it from active use within the project. Archived recipes cannot have new versions created. Existing pipelines referencing released versions continue to function.
+     * Archive a recipe
      */
     async archiveRecipe(requestParameters: ArchiveRecipeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.archiveRecipeRaw(requestParameters, initOverrides);
@@ -857,7 +895,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a component
+     * Registers a new component (software package) in the AMI Factory for a given project. Specify platform, supported architectures, and OS versions. After creation, add versions via the component versions endpoint. **`componentDescription` must be exactly one sentence** — a single short sentence stating what the component does. Do not send multiple sentences, bullet lists, changelogs, or installation details. **Possible values:** - `componentPlatform`: `Linux`, `Windows` - `componentSupportedArchitectures`: `amd64`, `arm64` - `componentSupportedOsVersions`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Create a new software component
      */
     async createComponentRaw(requestParameters: CreateComponentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CreateComponentResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -898,7 +937,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a component
+     * Registers a new component (software package) in the AMI Factory for a given project. Specify platform, supported architectures, and OS versions. After creation, add versions via the component versions endpoint. **`componentDescription` must be exactly one sentence** — a single short sentence stating what the component does. Do not send multiple sentences, bullet lists, changelogs, or installation details. **Possible values:** - `componentPlatform`: `Linux`, `Windows` - `componentSupportedArchitectures`: `amd64`, `arm64` - `componentSupportedOsVersions`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Create a new software component
      */
     async createComponent(requestParameters: CreateComponentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CreateComponentResponse> {
         const response = await this.createComponentRaw(requestParameters, initOverrides);
@@ -906,7 +946,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a component version
+     * Creates a new version of a component with a YAML definition, software metadata, and optional dependencies on other component versions. The version is deployed to EC2 Image Builder and enters a testing state. Once validated, it can be released. **`componentVersionDescription` and `notes` must each be exactly one sentence** — a single short sentence stating what changed in this version, and a single short sentence of extra context about the packaged software. Do not send multiple sentences, bullet lists, or changelogs in either field. Component definitions are NOT base64 encoded. A definition can reference files uploaded as **component assets** (see the component-asset endpoints, e.g. GetComponentAssets / InitiateComponentAssetUpload) by their `s3Uri` to download them during the build. **If validation fails:** Use PUT /projects/{projectId}/components/{componentId}/versions/{versionId} to update the existing version instead of creating a new one. The version will be re-tested automatically. **Build-time secrets** (license keys, tokens, credentials) the definition needs are not passed here — store them as SSM SecureString parameters at `/proserve/wb/packaging/{environment}/components/{component_id}`; EC2 Image Builder reads them at build time.
+     * Create a new component version
      */
     async createComponentVersionRaw(requestParameters: CreateComponentVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -951,7 +992,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a component version
+     * Creates a new version of a component with a YAML definition, software metadata, and optional dependencies on other component versions. The version is deployed to EC2 Image Builder and enters a testing state. Once validated, it can be released. **`componentVersionDescription` and `notes` must each be exactly one sentence** — a single short sentence stating what changed in this version, and a single short sentence of extra context about the packaged software. Do not send multiple sentences, bullet lists, or changelogs in either field. Component definitions are NOT base64 encoded. A definition can reference files uploaded as **component assets** (see the component-asset endpoints, e.g. GetComponentAssets / InitiateComponentAssetUpload) by their `s3Uri` to download them during the build. **If validation fails:** Use PUT /projects/{projectId}/components/{componentId}/versions/{versionId} to update the existing version instead of creating a new one. The version will be re-tested automatically. **Build-time secrets** (license keys, tokens, credentials) the definition needs are not passed here — store them as SSM SecureString parameters at `/proserve/wb/packaging/{environment}/components/{component_id}`; EC2 Image Builder reads them at build time.
+     * Create a new component version
      */
     async createComponentVersion(requestParameters: CreateComponentVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createComponentVersionRaw(requestParameters, initOverrides);
@@ -959,7 +1001,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates an image
+     * Triggers an on-demand AMI build using the specified pipeline. The pipeline\'s linked recipe version defines the image contents. Build progress events are published to EventBridge and consumed by the Publishing BC when a product is linked.
+     * Trigger an AMI build from a pipeline
      */
     async createImageRaw(requestParameters: CreateImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1000,7 +1043,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates an image
+     * Triggers an on-demand AMI build using the specified pipeline. The pipeline\'s linked recipe version defines the image contents. Build progress events are published to EventBridge and consumed by the Publishing BC when a product is linked.
+     * Trigger an AMI build from a pipeline
      */
     async createImage(requestParameters: CreateImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createImageRaw(requestParameters, initOverrides);
@@ -1008,7 +1052,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a mandatory components list given a platform, OS version, and architecture
+     * Defines a new mandatory components list for a platform, OS version, and architecture combination. Components in this list are automatically included in all recipes matching the system configuration, either prepended or appended. **Possible values:** - `mandatoryComponentsListPlatform`: `Linux`, `Windows` - `mandatoryComponentsListArchitecture`: `amd64`, `arm64` - `mandatoryComponentsListOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Create a mandatory components list
      */
     async createMandatoryComponentsListRaw(requestParameters: CreateMandatoryComponentsListOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1045,7 +1090,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a mandatory components list given a platform, OS version, and architecture
+     * Defines a new mandatory components list for a platform, OS version, and architecture combination. Components in this list are automatically included in all recipes matching the system configuration, either prepended or appended. **Possible values:** - `mandatoryComponentsListPlatform`: `Linux`, `Windows` - `mandatoryComponentsListArchitecture`: `amd64`, `arm64` - `mandatoryComponentsListOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Create a mandatory components list
      */
     async createMandatoryComponentsList(requestParameters: CreateMandatoryComponentsListOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createMandatoryComponentsListRaw(requestParameters, initOverrides);
@@ -1053,7 +1099,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a pipeline
+     * Creates a new EC2 Image Builder pipeline that builds AMIs from a released recipe version on a schedule. Requires a released recipe version and optionally links to a Publishing BC product for automated end-to-end delivery. **Build instance types:** Allowed instance types depend on the recipe architecture. Call `GET /projects/{projectId}/allowed-build-instance-types?recipeId={recipeId}` to retrieve valid options before creating a pipeline.
+     * Create an image builder pipeline
      */
     async createPipelineRaw(requestParameters: CreatePipelineOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1094,7 +1141,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a pipeline
+     * Creates a new EC2 Image Builder pipeline that builds AMIs from a released recipe version on a schedule. Requires a released recipe version and optionally links to a Publishing BC product for automated end-to-end delivery. **Build instance types:** Allowed instance types depend on the recipe architecture. Call `GET /projects/{projectId}/allowed-build-instance-types?recipeId={recipeId}` to retrieve valid options before creating a pipeline.
+     * Create an image builder pipeline
      */
     async createPipeline(requestParameters: CreatePipelineOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createPipelineRaw(requestParameters, initOverrides);
@@ -1102,7 +1150,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates a recipe
+     * Creates a new recipe (build configuration) in the AMI Factory for a given project, platform, architecture, and OS version. After creation, add versions with component selections via the recipe versions endpoint. **Possible values:** - `recipePlatform`: `Linux`, `Windows` - `recipeArchitecture`: `amd64`, `arm64` - `recipeOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Create a new recipe
      */
     async createRecipeRaw(requestParameters: CreateRecipeOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1143,7 +1192,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Creates a recipe
+     * Creates a new recipe (build configuration) in the AMI Factory for a given project, platform, architecture, and OS version. After creation, add versions with component selections via the recipe versions endpoint. **Possible values:** - `recipePlatform`: `Linux`, `Windows` - `recipeArchitecture`: `amd64`, `arm64` - `recipeOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Create a new recipe
      */
     async createRecipe(requestParameters: CreateRecipeOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createRecipeRaw(requestParameters, initOverrides);
@@ -1151,7 +1201,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a Recipe version
+     * Creates a new version of a recipe with selected component versions, volume size, and optional integrations. The version is deployed to EC2 Image Builder as an image recipe. Requires released component versions to be available first. **If validation fails:** Use PUT /projects/{projectId}/recipes/{recipeId}/versions/{versionId} to update the existing version instead of creating a new one. The version will be re-tested automatically.
+     * Create a new recipe version
      */
     async createRecipeVersionRaw(requestParameters: CreateRecipeVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1196,7 +1247,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a Recipe version
+     * Creates a new version of a recipe with selected component versions, volume size, and optional integrations. The version is deployed to EC2 Image Builder as an image recipe. Requires released component versions to be available first. **If validation fails:** Use PUT /projects/{projectId}/recipes/{recipeId}/versions/{versionId} to update the existing version instead of creating a new one. The version will be re-tested automatically.
+     * Create a new recipe version
      */
     async createRecipeVersion(requestParameters: CreateRecipeVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createRecipeVersionRaw(requestParameters, initOverrides);
@@ -1204,7 +1256,50 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific component
+     * Discovers active Marketplace subscriptions in the hub account
+     */
+    async discoverMarketplaceSubscriptionsRaw(requestParameters: DiscoverMarketplaceSubscriptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<DiscoverMarketplaceSubscriptionsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling discoverMarketplaceSubscriptions.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling discoverMarketplaceSubscriptions.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/subscriptions`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => DiscoverMarketplaceSubscriptionsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Discovers active Marketplace subscriptions in the hub account
+     */
+    async discoverMarketplaceSubscriptions(requestParameters: DiscoverMarketplaceSubscriptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<DiscoverMarketplaceSubscriptionsResponse> {
+        const response = await this.discoverMarketplaceSubscriptionsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Retrieves a component\'s configuration and its project association metadata, including which projects it is shared with.
+     * Get component details
      */
     async getComponentRaw(requestParameters: GetComponentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1242,7 +1337,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific component
+     * Retrieves a component\'s configuration and its project association metadata, including which projects it is shared with.
+     * Get component details
      */
     async getComponent(requestParameters: GetComponentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentResponse> {
         const response = await this.getComponentRaw(requestParameters, initOverrides);
@@ -1250,7 +1346,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific component version
+     * Retrieves a specific component version including its YAML definition (raw and base64-encoded). Use this to inspect the build steps before adding the version to a recipe.
+     * Get component version details
      */
     async getComponentVersionRaw(requestParameters: GetComponentVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentVersionResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1292,7 +1389,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific component version
+     * Retrieves a specific component version including its YAML definition (raw and base64-encoded). Use this to inspect the build steps before adding the version to a recipe.
+     * Get component version details
      */
     async getComponentVersion(requestParameters: GetComponentVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentVersionResponse> {
         const response = await this.getComponentVersionRaw(requestParameters, initOverrides);
@@ -1300,7 +1398,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get log url of a specific component version test execution
+     * Returns a pre-signed S3 URL to download the logs for a specific component version test execution instance. The URL is time-limited.
+     * Get component test execution logs URL
      */
     async getComponentVersionTestExecutionLogsUrlRaw(requestParameters: GetComponentVersionTestExecutionLogsUrlRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentVersionTestExecutionLogsUrlResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1350,7 +1449,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get log url of a specific component version test execution
+     * Returns a pre-signed S3 URL to download the logs for a specific component version test execution instance. The URL is time-limited.
+     * Get component test execution logs URL
      */
     async getComponentVersionTestExecutionLogsUrl(requestParameters: GetComponentVersionTestExecutionLogsUrlRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentVersionTestExecutionLogsUrlResponse> {
         const response = await this.getComponentVersionTestExecutionLogsUrlRaw(requestParameters, initOverrides);
@@ -1358,7 +1458,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all test executions from a specific component version
+     * Retrieves all test execution summaries for a component version. Tests are run automatically after a version is published to verify the component installs correctly on a target EC2 instance.
+     * List test executions for a component version
      */
     async getComponentVersionTestExecutionsRaw(requestParameters: GetComponentVersionTestExecutionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentVersionTestExecutionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1400,7 +1501,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all test executions from a specific component version
+     * Retrieves all test execution summaries for a component version. Tests are run automatically after a version is published to verify the component installs correctly on a target EC2 instance.
+     * List test executions for a component version
      */
     async getComponentVersionTestExecutions(requestParameters: GetComponentVersionTestExecutionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentVersionTestExecutionsResponse> {
         const response = await this.getComponentVersionTestExecutionsRaw(requestParameters, initOverrides);
@@ -1408,7 +1510,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all versions from a specific component
+     * Retrieves all versions for a specific component. Each version contains a YAML definition that defines the installation steps deployed to EC2 Image Builder.
+     * List versions of a component
      */
     async getComponentVersionsRaw(requestParameters: GetComponentVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1446,7 +1549,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all versions from a specific component
+     * Retrieves all versions for a specific component. Each version contains a YAML definition that defines the installation steps deployed to EC2 Image Builder.
+     * List versions of a component
      */
     async getComponentVersions(requestParameters: GetComponentVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentVersionsResponse> {
         const response = await this.getComponentVersionsRaw(requestParameters, initOverrides);
@@ -1454,7 +1558,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all components from a specific project
+     * Retrieves all software components (building blocks for AMI recipes) within a project scope. Components are reusable packages that can be shared across projects and combined into recipes for image building.
+     * List all components in a project
      */
     async getComponentsRaw(requestParameters: GetComponentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1488,7 +1593,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all components from a specific project
+     * Retrieves all software components (building blocks for AMI recipes) within a project scope. Components are reusable packages that can be shared across projects and combined into recipes for image building.
+     * List all components in a project
      */
     async getComponents(requestParameters: GetComponentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentsResponse> {
         const response = await this.getComponentsRaw(requestParameters, initOverrides);
@@ -1496,7 +1602,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all components versions given a status, platform, OS version, and architecture
+     * Retrieves component versions across all components in a project, with optional filters for status, platform, OS version, and architecture. Admins can query globally across all projects. Useful for selecting components when composing a recipe. **Filter values:** - `platform`: `Linux`, `Windows` - `arch`: `amd64`, `arm64` - `os`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * List component versions across all components
      */
     async getComponentsVersionsRaw(requestParameters: GetComponentsVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetComponentsVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1566,7 +1673,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all components versions given a status, platform, OS version, and architecture
+     * Retrieves component versions across all components in a project, with optional filters for status, platform, OS version, and architecture. Admins can query globally across all projects. Useful for selecting components when composing a recipe. **Filter values:** - `platform`: `Linux`, `Windows` - `arch`: `amd64`, `arm64` - `os`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * List component versions across all components
      */
     async getComponentsVersions(requestParameters: GetComponentsVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetComponentsVersionsResponse> {
         const response = await this.getComponentsVersionsRaw(requestParameters, initOverrides);
@@ -1604,7 +1712,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific Image
+     * Retrieves a specific image including its AMI ID, build version, source pipeline, and current status.
+     * Get image details
      */
     async getImageRaw(requestParameters: GetImageRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetImageResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1642,7 +1751,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific Image
+     * Retrieves a specific image including its AMI ID, build version, source pipeline, and current status.
+     * Get image details
      */
     async getImage(requestParameters: GetImageRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetImageResponse> {
         const response = await this.getImageRaw(requestParameters, initOverrides);
@@ -1650,7 +1760,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all images from a specific project
+     * Retrieves every AMI built from the project\'s pipelines, each with its build status, the pipeline and recipe version it came from, and its EC2 Image Builder build version. This endpoint takes no filter parameters; filter the returned list client-side.
+     * List all images in a project
      */
     async getImagesRaw(requestParameters: GetImagesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetImagesResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1684,7 +1795,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all images from a specific project
+     * Retrieves every AMI built from the project\'s pipelines, each with its build status, the pipeline and recipe version it came from, and its EC2 Image Builder build version. This endpoint takes no filter parameters; filter the returned list client-side.
+     * List all images in a project
      */
     async getImages(requestParameters: GetImagesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetImagesResponse> {
         const response = await this.getImagesRaw(requestParameters, initOverrides);
@@ -1692,7 +1804,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a mandatory components list given a platform, OS version, and architecture
+     * Retrieves the mandatory components list for a given platform, OS version, and architecture combination. Mandatory components are automatically prepended or appended to every recipe matching the system configuration. **Filter values:** - `mandatoryComponentsListPlatform`: `Linux`, `Windows` - `mandatoryComponentsListArchitecture`: `amd64`, `arm64` - `mandatoryComponentsListOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Get mandatory components list for a system configuration
      */
     async getMandatoryComponentsListRaw(requestParameters: GetMandatoryComponentsListRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetMandatoryComponentsListResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1750,7 +1863,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a mandatory components list given a platform, OS version, and architecture
+     * Retrieves the mandatory components list for a given platform, OS version, and architecture combination. Mandatory components are automatically prepended or appended to every recipe matching the system configuration. **Filter values:** - `mandatoryComponentsListPlatform`: `Linux`, `Windows` - `mandatoryComponentsListArchitecture`: `amd64`, `arm64` - `mandatoryComponentsListOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Get mandatory components list for a system configuration
      */
     async getMandatoryComponentsList(requestParameters: GetMandatoryComponentsListRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetMandatoryComponentsListResponse> {
         const response = await this.getMandatoryComponentsListRaw(requestParameters, initOverrides);
@@ -1788,7 +1902,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all the available mandatory components lists
+     * Retrieves all defined mandatory components lists across all platform, OS version, and architecture combinations.
+     * List all mandatory components lists
      */
     async getMandatoryComponentsListsRaw(requestParameters: GetMandatoryComponentsListsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetMandatoryComponentsListsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1822,7 +1937,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all the available mandatory components lists
+     * Retrieves all defined mandatory components lists across all platform, OS version, and architecture combinations.
+     * List all mandatory components lists
      */
     async getMandatoryComponentsLists(requestParameters: GetMandatoryComponentsListsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetMandatoryComponentsListsResponse> {
         const response = await this.getMandatoryComponentsListsRaw(requestParameters, initOverrides);
@@ -1860,7 +1976,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific pipeline
+     * Retrieves a specific pipeline including its schedule, build instance types, linked recipe version, and optional product association.
+     * Get pipeline details
      */
     async getPipelineRaw(requestParameters: GetPipelineRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetPipelineResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1898,7 +2015,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific pipeline
+     * Retrieves a specific pipeline including its schedule, build instance types, linked recipe version, and optional product association.
+     * Get pipeline details
      */
     async getPipeline(requestParameters: GetPipelineRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetPipelineResponse> {
         const response = await this.getPipelineRaw(requestParameters, initOverrides);
@@ -1906,7 +2024,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all pipelines from a specific project
+     * Retrieves all EC2 Image Builder pipelines within a project. Pipelines automate AMI creation from recipes on a defined schedule.
+     * List all pipelines in a project
      */
     async getPipelinesRaw(requestParameters: GetPipelinesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetPipelinesResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1940,7 +2059,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all pipelines from a specific project
+     * Retrieves all EC2 Image Builder pipelines within a project. Pipelines automate AMI creation from recipes on a defined schedule.
+     * List all pipelines in a project
      */
     async getPipelines(requestParameters: GetPipelinesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetPipelinesResponse> {
         const response = await this.getPipelinesRaw(requestParameters, initOverrides);
@@ -1948,7 +2068,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all Allowed build types for an architecture
+     * Retrieves the EC2 instance types allowed for pipeline builds based on the architecture of the specified recipe. Use this when creating or updating a pipeline to select valid build instance types.
+     * List allowed build instance types for a recipe
      */
     async getPipelinesAllowedBuildTypesRaw(requestParameters: GetPipelinesAllowedBuildTypesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetPipelinesAllowedBuildTypesResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1990,7 +2111,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all Allowed build types for an architecture
+     * Retrieves the EC2 instance types allowed for pipeline builds based on the architecture of the specified recipe. Use this when creating or updating a pipeline to select valid build instance types.
+     * List allowed build instance types for a recipe
      */
     async getPipelinesAllowedBuildTypes(requestParameters: GetPipelinesAllowedBuildTypesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetPipelinesAllowedBuildTypesResponse> {
         const response = await this.getPipelinesAllowedBuildTypesRaw(requestParameters, initOverrides);
@@ -1998,7 +2120,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific recipe
+     * Retrieves a specific recipe including its platform, architecture, and OS version configuration.
+     * Get recipe details
      */
     async getRecipeRaw(requestParameters: GetRecipeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipeResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2036,7 +2159,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific recipe
+     * Retrieves a specific recipe including its platform, architecture, and OS version configuration.
+     * Get recipe details
      */
     async getRecipe(requestParameters: GetRecipeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipeResponse> {
         const response = await this.getRecipeRaw(requestParameters, initOverrides);
@@ -2044,7 +2168,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific recipe version
+     * Retrieves a specific recipe version including its component versions list, volume size, and current status.
+     * Get recipe version details
      */
     async getRecipeVersionRaw(requestParameters: GetRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipeVersionResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2086,7 +2211,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a specific recipe version
+     * Retrieves a specific recipe version including its component versions list, volume size, and current status.
+     * Get recipe version details
      */
     async getRecipeVersion(requestParameters: GetRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipeVersionResponse> {
         const response = await this.getRecipeVersionRaw(requestParameters, initOverrides);
@@ -2094,7 +2220,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get logs url of a specific recipe version test execution
+     * Returns a pre-signed S3 URL to download the logs for a specific recipe version test execution. The URL is time-limited.
+     * Get recipe test execution logs URL
      */
     async getRecipeVersionTestExecutionLogsUrlRaw(requestParameters: GetRecipeVersionTestExecutionLogsUrlRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipeVersionTestExecutionLogsUrlResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2140,7 +2267,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get logs url of a specific recipe version test execution
+     * Returns a pre-signed S3 URL to download the logs for a specific recipe version test execution. The URL is time-limited.
+     * Get recipe test execution logs URL
      */
     async getRecipeVersionTestExecutionLogsUrl(requestParameters: GetRecipeVersionTestExecutionLogsUrlRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipeVersionTestExecutionLogsUrlResponse> {
         const response = await this.getRecipeVersionTestExecutionLogsUrlRaw(requestParameters, initOverrides);
@@ -2148,7 +2276,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all test executions from a specific recipe version
+     * Retrieves all test execution summaries for a recipe version. Tests are run automatically after a version is published to verify the full recipe builds correctly on a target EC2 instance.
+     * List test executions for a recipe version
      */
     async getRecipeVersionTestExecutionsRaw(requestParameters: GetRecipeVersionTestExecutionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipeVersionTestExecutionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2190,7 +2319,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all test executions from a specific recipe version
+     * Retrieves all test execution summaries for a recipe version. Tests are run automatically after a version is published to verify the full recipe builds correctly on a target EC2 instance.
+     * List test executions for a recipe version
      */
     async getRecipeVersionTestExecutions(requestParameters: GetRecipeVersionTestExecutionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipeVersionTestExecutionsResponse> {
         const response = await this.getRecipeVersionTestExecutionsRaw(requestParameters, initOverrides);
@@ -2198,7 +2328,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all versions from a specific recipe
+     * Retrieves all versions for a specific recipe. Each version defines a set of component versions and volume configuration used to build AMIs.
+     * List versions of a recipe
      */
     async getRecipeVersionsRaw(requestParameters: GetRecipeVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipeVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2236,7 +2367,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all versions from a specific recipe
+     * Retrieves all versions for a specific recipe. Each version defines a set of component versions and volume configuration used to build AMIs.
+     * List versions of a recipe
      */
     async getRecipeVersions(requestParameters: GetRecipeVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipeVersionsResponse> {
         const response = await this.getRecipeVersionsRaw(requestParameters, initOverrides);
@@ -2244,7 +2376,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all recipes from a specific project
+     * Retrieves all recipes (AMI build configurations) within a project. Recipes combine components into a build specification used by pipelines to produce images.
+     * List all recipes in a project
      */
     async getRecipesRaw(requestParameters: GetRecipesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipesResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2278,7 +2411,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all recipes from a specific project
+     * Retrieves all recipes (AMI build configurations) within a project. Recipes combine components into a build specification used by pipelines to produce images.
+     * List all recipes in a project
      */
     async getRecipes(requestParameters: GetRecipesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipesResponse> {
         const response = await this.getRecipesRaw(requestParameters, initOverrides);
@@ -2286,7 +2420,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all recipes versions given a status
+     * Retrieves recipe versions across all recipes in a project, filtered by status. Useful for finding released recipe versions when creating or updating a pipeline.
+     * List recipe versions across all recipes by status
      */
     async getRecipesVersionsRaw(requestParameters: GetRecipesVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetRecipesVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2328,7 +2463,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all recipes versions given a status
+     * Retrieves recipe versions across all recipes in a project, filtered by status. Useful for finding released recipe versions when creating or updating a pipeline.
+     * List recipe versions across all recipes by status
      */
     async getRecipesVersions(requestParameters: GetRecipesVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetRecipesVersionsResponse> {
         const response = await this.getRecipesVersionsRaw(requestParameters, initOverrides);
@@ -2498,6 +2634,187 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Imports an existing or marketplace AMI into VEW
+     */
+    async importImageRaw(requestParameters: ImportImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ImportImageResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling importImage.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling importImage.');
+        }
+
+        if (requestParameters.importImageRequest === null || requestParameters.importImageRequest === undefined) {
+            throw new runtime.RequiredError('importImageRequest','Required parameter requestParameters.importImageRequest was null or undefined when calling importImage.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/import`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ImportImageRequestToJSON(requestParameters.importImageRequest),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ImportImageResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Imports an existing or marketplace AMI into VEW
+     */
+    async importImage(requestParameters: ImportImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ImportImageResponse> {
+        const response = await this.importImageRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async importImageCorsRaw(requestParameters: ImportImageCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling importImageCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/import`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async importImageCors(requestParameters: ImportImageCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.importImageCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async importableAmisCorsRaw(requestParameters: ImportableAmisCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling importableAmisCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/importable-amis`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async importableAmisCors(requestParameters: ImportableAmisCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.importableAmisCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Lists AMIs from the Image Service account that can be imported
+     */
+    async listImportableAmisRaw(requestParameters: ListImportableAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ListImportableAmisResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling listImportableAmis.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling listImportableAmis.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/importable-amis`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ListImportableAmisResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Lists AMIs from the Image Service account that can be imported
+     */
+    async listImportableAmis(requestParameters: ListImportableAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ListImportableAmisResponse> {
+        const response = await this.listImportableAmisRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceSubscriptionsCorsRaw(requestParameters: MarketplaceSubscriptionsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceSubscriptionsCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/subscriptions`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceSubscriptionsCors(requestParameters: MarketplaceSubscriptionsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceSubscriptionsCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * CORS
      */
     async pipelinesAllowedBuildTypeCorsRaw(requestParameters: PipelinesAllowedBuildTypeCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -2506,6 +2823,14 @@ export class DefaultApi extends runtime.BaseAPI {
         }
 
         const queryParameters: any = {};
+
+        if (requestParameters.imageSource !== undefined) {
+            queryParameters['imageSource'] = requestParameters.imageSource;
+        }
+
+        if (requestParameters.status !== undefined) {
+            queryParameters['status'] = requestParameters.status;
+        }
 
         const headerParameters: runtime.HTTPHeaders = {};
 
@@ -2808,6 +3133,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Promotes a component version to released status, deploying it to EC2 Image Builder. Optionally triggers an automated build product workflow that creates a new recipe version, builds an image, and publishes it. Downstream recipes referencing this component may be updated. **Prerequisite:** The version must be in VALIDATED status. After creation, the system automatically runs a test execution. Wait for the status to transition from TESTING to VALIDATED before calling this endpoint.
      * Release a component version
      */
     async releaseComponentVersionRaw(requestParameters: ReleaseComponentVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -2825,10 +3151,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.versionId === null || requestParameters.versionId === undefined) {
             throw new runtime.RequiredError('versionId','Required parameter requestParameters.versionId was null or undefined when calling releaseComponentVersion.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling releaseComponentVersion.');
         }
 
         const queryParameters: any = {};
@@ -2857,6 +3179,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Promotes a component version to released status, deploying it to EC2 Image Builder. Optionally triggers an automated build product workflow that creates a new recipe version, builds an image, and publishes it. Downstream recipes referencing this component may be updated. **Prerequisite:** The version must be in VALIDATED status. After creation, the system automatically runs a test execution. Wait for the status to transition from TESTING to VALIDATED before calling this endpoint.
      * Release a component version
      */
     async releaseComponentVersion(requestParameters: ReleaseComponentVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
@@ -2865,6 +3188,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Promotes a recipe version to released status, making it available for use in pipelines. Optionally triggers an automated build product workflow that builds an image and publishes it to the Publishing BC. **Prerequisite:** The version must be in VALIDATED status. After creation, the system automatically runs a test execution. Wait for the status to transition from TESTING to VALIDATED before calling this endpoint.
      * Release a recipe version
      */
     async releaseRecipeVersionRaw(requestParameters: ReleaseRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -2882,10 +3206,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.versionId === null || requestParameters.versionId === undefined) {
             throw new runtime.RequiredError('versionId','Required parameter requestParameters.versionId was null or undefined when calling releaseRecipeVersion.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling releaseRecipeVersion.');
         }
 
         const queryParameters: any = {};
@@ -2914,6 +3234,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Promotes a recipe version to released status, making it available for use in pipelines. Optionally triggers an automated build product workflow that builds an image and publishes it to the Publishing BC. **Prerequisite:** The version must be in VALIDATED status. After creation, the system automatically runs a test execution. Wait for the status to transition from TESTING to VALIDATED before calling this endpoint.
      * Release a recipe version
      */
     async releaseRecipeVersion(requestParameters: ReleaseRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
@@ -2922,7 +3243,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire a specific component version
+     * Retires a component version, removing it from EC2 Image Builder and preventing its use in new recipes. Existing recipes that already include this version are not affected. **Allowed states:** Only versions in FAILED, VALIDATED, or RELEASED status can be retired.
+     * Retire a component version
      */
     async retireComponentVersionRaw(requestParameters: RetireComponentVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2939,10 +3261,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.versionId === null || requestParameters.versionId === undefined) {
             throw new runtime.RequiredError('versionId','Required parameter requestParameters.versionId was null or undefined when calling retireComponentVersion.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling retireComponentVersion.');
         }
 
         const queryParameters: any = {};
@@ -2971,7 +3289,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire a specific component version
+     * Retires a component version, removing it from EC2 Image Builder and preventing its use in new recipes. Existing recipes that already include this version are not affected. **Allowed states:** Only versions in FAILED, VALIDATED, or RELEASED status can be retired.
+     * Retire a component version
      */
     async retireComponentVersion(requestParameters: RetireComponentVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.retireComponentVersionRaw(requestParameters, initOverrides);
@@ -2979,7 +3298,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire a specific pipeline
+     * Retires a pipeline, removing it from EC2 Image Builder and stopping all scheduled AMI builds. Existing images already built by this pipeline are not affected.
+     * Retire a pipeline
      */
     async retirePipelineRaw(requestParameters: RetirePipelineRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2992,10 +3312,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.pipelineId === null || requestParameters.pipelineId === undefined) {
             throw new runtime.RequiredError('pipelineId','Required parameter requestParameters.pipelineId was null or undefined when calling retirePipeline.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling retirePipeline.');
         }
 
         const queryParameters: any = {};
@@ -3024,7 +3340,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire a specific pipeline
+     * Retires a pipeline, removing it from EC2 Image Builder and stopping all scheduled AMI builds. Existing images already built by this pipeline are not affected.
+     * Retire a pipeline
      */
     async retirePipeline(requestParameters: RetirePipelineRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.retirePipelineRaw(requestParameters, initOverrides);
@@ -3032,7 +3349,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire a specific recipe version
+     * Retires a recipe version, removing it from EC2 Image Builder and preventing its use in new pipelines. Existing images already built from this version are not affected.
+     * Retire a recipe version
      */
     async retireRecipeVersionRaw(requestParameters: RetireRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -3049,10 +3367,6 @@ export class DefaultApi extends runtime.BaseAPI {
 
         if (requestParameters.versionId === null || requestParameters.versionId === undefined) {
             throw new runtime.RequiredError('versionId','Required parameter requestParameters.versionId was null or undefined when calling retireRecipeVersion.');
-        }
-
-        if (requestParameters.body === null || requestParameters.body === undefined) {
-            throw new runtime.RequiredError('body','Required parameter requestParameters.body was null or undefined when calling retireRecipeVersion.');
         }
 
         const queryParameters: any = {};
@@ -3081,7 +3395,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Retire a specific recipe version
+     * Retires a recipe version, removing it from EC2 Image Builder and preventing its use in new pipelines. Existing images already built from this version are not affected.
+     * Retire a recipe version
      */
     async retireRecipeVersion(requestParameters: RetireRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.retireRecipeVersionRaw(requestParameters, initOverrides);
@@ -3089,7 +3404,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Share a component
+     * Grants access to an existing component for one or more target projects. Shared components and their released versions become available for use in recipes within those projects.
+     * Share a component with other projects
      */
     async shareComponentRaw(requestParameters: ShareComponentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -3134,7 +3450,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Share a component
+     * Grants access to an existing component for one or more target projects. Shared components and their released versions become available for use in recipes within those projects.
+     * Share a component with other projects
      */
     async shareComponent(requestParameters: ShareComponentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.shareComponentRaw(requestParameters, initOverrides);
@@ -3142,7 +3459,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a component name and description
+     * Modifies the description of an existing component. Does not affect existing component versions or recipes that reference them.
+     * Update a component\'s description
      */
     async updateComponentRaw(requestParameters: UpdateComponentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -3187,7 +3505,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a component name and description
+     * Modifies the description of an existing component. Does not affect existing component versions or recipes that reference them.
+     * Update a component\'s description
      */
     async updateComponent(requestParameters: UpdateComponentOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateComponentRaw(requestParameters, initOverrides);
@@ -3195,6 +3514,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Modifies the YAML definition, description, dependencies, and software metadata of a component version. Only versions in FAILED or VALIDATED status can be updated — the version cannot be updated while in TESTING status. After update, the system re-triggers test execution automatically.
      * Update a component version
      */
     async updateComponentVersionRaw(requestParameters: UpdateComponentVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -3244,6 +3564,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Modifies the YAML definition, description, dependencies, and software metadata of a component version. Only versions in FAILED or VALIDATED status can be updated — the version cannot be updated while in TESTING status. After update, the system re-triggers test execution automatically.
      * Update a component version
      */
     async updateComponentVersion(requestParameters: UpdateComponentVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
@@ -3252,7 +3573,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a mandatory components list given a platform, OS version, and architecture
+     * Replaces the prepended and appended component versions in an existing mandatory components list. Changes affect future recipe builds for the matching platform, OS version, and architecture. **Possible values:** - `mandatoryComponentsListPlatform`: `Linux`, `Windows` - `mandatoryComponentsListArchitecture`: `amd64`, `arm64` - `mandatoryComponentsListOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Update a mandatory components list
      */
     async updateMandatoryComponentsListRaw(requestParameters: UpdateMandatoryComponentsListOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -3289,7 +3611,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a mandatory components list given a platform, OS version, and architecture
+     * Replaces the prepended and appended component versions in an existing mandatory components list. Changes affect future recipe builds for the matching platform, OS version, and architecture. **Possible values:** - `mandatoryComponentsListPlatform`: `Linux`, `Windows` - `mandatoryComponentsListArchitecture`: `amd64`, `arm64` - `mandatoryComponentsListOsVersion`: `Ubuntu 20`, `Ubuntu 22`, `Ubuntu 24`, `Microsoft Windows Server 2019`, `Microsoft Windows Server 2022`, `Microsoft Windows Server 2025`
+     * Update a mandatory components list
      */
     async updateMandatoryComponentsList(requestParameters: UpdateMandatoryComponentsListOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateMandatoryComponentsListRaw(requestParameters, initOverrides);
@@ -3297,7 +3620,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update an existing pipeline
+     * Modifies the schedule, build instance types, recipe version, or linked product of an existing pipeline. Changes are deployed to EC2 Image Builder and take effect on the next scheduled build. **Required fields:** `pipelineId` must be included in the request body. **Build instance types:** Allowed instance types depend on the recipe architecture. Call `GET /projects/{projectId}/allowed-build-instance-types?recipeId={recipeId}` to retrieve valid options.
+     * Update a pipeline
      */
     async updatePipelineRaw(requestParameters: UpdatePipelineOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -3342,7 +3666,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update an existing pipeline
+     * Modifies the schedule, build instance types, recipe version, or linked product of an existing pipeline. Changes are deployed to EC2 Image Builder and take effect on the next scheduled build. **Required fields:** `pipelineId` must be included in the request body. **Build instance types:** Allowed instance types depend on the recipe architecture. Call `GET /projects/{projectId}/allowed-build-instance-types?recipeId={recipeId}` to retrieve valid options.
+     * Update a pipeline
      */
     async updatePipeline(requestParameters: UpdatePipelineOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updatePipelineRaw(requestParameters, initOverrides);
@@ -3350,6 +3675,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Modifies the component versions, description, volume size, and integrations of a draft recipe version. Only versions that have not yet been released can be updated. The updated recipe is redeployed to EC2 Image Builder.
      * Update a recipe version
      */
     async updateRecipeVersionRaw(requestParameters: UpdateRecipeVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
@@ -3399,6 +3725,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Modifies the component versions, description, volume size, and integrations of a draft recipe version. Only versions that have not yet been released can be updated. The updated recipe is redeployed to EC2 Image Builder.
      * Update a recipe version
      */
     async updateRecipeVersion(requestParameters: UpdateRecipeVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
@@ -3407,7 +3734,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Validate a component version
+     * Validates a component version YAML definition against EC2 Image Builder schema rules without persisting it. Use this before creating a version to catch syntax or structural errors early.
+     * Validate a component version YAML definition
      */
     async validateComponentVersionRaw(requestParameters: ValidateComponentVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -3452,7 +3780,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Validate a component version
+     * Validates a component version YAML definition against EC2 Image Builder schema rules without persisting it. Use this before creating a version to catch syntax or structural errors early.
+     * Validate a component version YAML definition
      */
     async validateComponentVersion(requestParameters: ValidateComponentVersionOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.validateComponentVersionRaw(requestParameters, initOverrides);

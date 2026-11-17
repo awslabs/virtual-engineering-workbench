@@ -13,10 +13,15 @@ class DecideActionRequest(BaseModel):
 
 class DecideActionResponse(BaseModel):
     event_type: str = Field("DecideActionResponse", alias="eventType")
-    decision: str = Field(..., alias="decision", description="COPY/SHARE/DONE")
+    decision: str = Field(..., alias="decision", description="COPY/SHARE/DONE/LICENSE_GRANT/VERIFY_EXTERNAL_GRANT")
     original_ami_id: Optional[str] = Field(None, alias="originalAmiId")
     copied_ami_id: Optional[str] = Field(None, alias="copiedAmiId")
     region: str = Field(..., alias="region")
+    image_id: Optional[str] = Field(None, alias="imageId")
+    project_id: Optional[str] = Field(None, alias="projectId")
+    license_arn: Optional[str] = Field(None, alias="licenseArn")
+    home_region: Optional[str] = Field(None, alias="homeRegion")
+    grant_name: Optional[str] = Field(None, alias="grantName")
 
 
 class CopyAmiRequest(BaseModel):
@@ -75,7 +80,69 @@ class FailAmiSharingRequest(BaseModel):
     product_id: str = Field(..., alias="productId")
     version_id: str = Field(..., alias="versionId")
     aws_account_id: str = Field(..., alias="awsAccountId")
+    # The state machine sets $.error on every route into FailAmiSharingLambda,
+    # either from a task catch or from the Pass on a failing Choice branch.
+    # Optional so an older in-flight execution without it still parses.
+    error: Optional[dict] = Field(None, alias="error")
 
 
 class FailAmiSharingResponse(BaseModel):
     event_type: str = Field("FailAmiSharingResponse", alias="eventType")
+
+
+class CreateLicenseGrantRequest(BaseModel):
+    event_type: str = Field("CreateLicenseGrantRequest", alias="eventType")
+    product_id: str = Field(..., alias="productId")
+    version_id: str = Field(..., alias="versionId")
+    aws_account_id: str = Field(..., alias="awsAccountId")
+    image_id: str = Field(..., alias="imageId")
+    grant_name: str = Field(..., alias="grantName")
+    project_id: str = Field(..., alias="projectId")
+
+
+class CreateLicenseGrantResponse(BaseModel):
+    event_type: str = Field("CreateLicenseGrantResponse", alias="eventType")
+    grant_id: str = Field(..., alias="grantId")
+    grant_arn: str = Field(..., alias="grantArn")
+    home_region: str = Field(..., alias="homeRegion")
+
+
+class AcceptLicenseGrantRequest(BaseModel):
+    event_type: str = Field("AcceptLicenseGrantRequest", alias="eventType")
+    grant_id: str = Field(..., alias="grantId")
+    grant_arn: str = Field(..., alias="grantArn")
+    aws_account_id: str = Field(..., alias="awsAccountId")
+    project_id: str = Field(..., alias="projectId")
+    home_region: str = Field(..., alias="homeRegion")
+
+
+class AcceptLicenseGrantResponse(BaseModel):
+    event_type: str = Field("AcceptLicenseGrantResponse", alias="eventType")
+
+
+class VerifyLicenseGrantRequest(BaseModel):
+    event_type: str = Field("VerifyLicenseGrantRequest", alias="eventType")
+    ami_id: str = Field(..., alias="amiId")
+    region: str = Field(..., alias="region")
+    aws_account_id: str = Field(..., alias="awsAccountId")
+
+
+class VerifyLicenseGrantResponse(BaseModel):
+    event_type: str = Field("VerifyLicenseGrantResponse", alias="eventType")
+    is_accessible: bool = Field(..., alias="isAccessible")
+
+
+class VerifyExternalGrantRequest(BaseModel):
+    event_type: str = Field("VerifyExternalGrantRequest", alias="eventType")
+    product_id: str = Field(..., alias="productId")
+    version_id: str = Field(..., alias="versionId")
+    aws_account_id: str = Field(..., alias="awsAccountId")
+    license_arn: str = Field(..., alias="licenseArn")
+    ami_id: str = Field(..., alias="amiId")
+    region: str = Field(..., alias="region")
+    home_region: str = Field(..., alias="homeRegion")
+
+
+class VerifyExternalGrantResponse(BaseModel):
+    event_type: str = Field("VerifyExternalGrantResponse", alias="eventType")
+    grant_verified: bool = Field(..., alias="grantVerified")

@@ -61,6 +61,9 @@ class AppConfig(config.VEWBaseConfig):
     def get_available_networks_param_name(self) -> str:
         return os.environ.get("AVAILABLE_NETWORKS_SSM_PARAMETER_NAME", "")
 
+    def get_ssh_connection_option(self) -> bool:
+        return os.environ.get("SSH_CONNECTION_OPTION", "true").lower() == "true"
+
 
 config = {
     "cors_config": {

@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 from typing import Optional
 
 from pydantic import Field
@@ -6,7 +6,7 @@ from pydantic import Field
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
 
-class ProductStatus(str, Enum):
+class ProductStatus(StrEnum):
     Creating = "CREATING"
     Created = "CREATED"
     Failed = "FAILED"
@@ -14,30 +14,21 @@ class ProductStatus(str, Enum):
     Archiving = "ARCHIVING"
     Archived = "ARCHIVED"
 
-    def __str__(self):
-        return str(self.value)
 
-
-class ProductType(str, Enum):
+class ProductType(StrEnum):
     Workbench = "WORKBENCH"
     VirtualTarget = "VIRTUAL_TARGET"
     Container = "CONTAINER"
-
-    def __str__(self):
-        return str(self.value)
 
     @staticmethod
     def list():
         return list(map(lambda p: p.value, ProductType))
 
 
-class ProductStage(str, Enum):
+class ProductStage(StrEnum):
     DEV = "DEV"
     QA = "QA"
     PROD = "PROD"
-
-    def __str__(self):
-        return str(self.value)
 
 
 class ProductPrimaryKey(unit_of_work.PrimaryKey):

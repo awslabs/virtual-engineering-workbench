@@ -1,4 +1,5 @@
 import {
+  Alert,
   Container,
   Form,
   FormField,
@@ -111,18 +112,25 @@ export const ProductVersionWizardStep1: FC<ProductVersionWizardStep1Props> = ({
 
   function renderAmi() {
     return <FormField label={i18n.amiIdLabel} errorText={getAmiIdError()}>
-      <Select
-        selectedOption={selectedAmi.amiId ? getAmiOption(selectedAmi) : null}
-        onChange={({ detail }) =>
-          setSelectedAmi(returnAmiBasedOnId(detail.selectedOption.value ?? '') ?? {} as Ami)}
-        options={amis?.map(getAmiOption)}
-        placeholder={i18n.amiIdPlaceholder}
-        filteringType="auto"
-        empty={i18n.emptyAmiIdPlaceholder}
-        statusType={isAmisLoading || isBaseMajorVersionsLoading ? 'loading' : 'finished'}
-        invalid={!isAmiSelectValid}
-        data-test='ami-id-select'
-      />
+      <SpaceBetween size="s">
+        <Select
+          selectedOption={selectedAmi.amiId ? getAmiOption(selectedAmi) : null}
+          onChange={({ detail }) =>
+            setSelectedAmi(returnAmiBasedOnId(detail.selectedOption.value ?? '') ?? {} as Ami)}
+          options={amis?.map(getAmiOption)}
+          placeholder={i18n.amiIdPlaceholder}
+          filteringType="auto"
+          empty={i18n.emptyAmiIdPlaceholder}
+          statusType={isAmisLoading || isBaseMajorVersionsLoading ? 'loading' : 'finished'}
+          invalid={!isAmiSelectValid}
+          data-test='ami-id-select'
+        />
+        {selectedAmi.marketplaceMetadata?.subscriptionOwnership === 'EXTERNALLY_MANAGED' &&
+          <Alert type="warning" data-test="externally-managed-ami-alert">
+            {i18n.externallyManagedAmiAlert}
+          </Alert>
+        }
+      </SpaceBetween>
     </FormField>;
   }
 

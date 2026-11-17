@@ -288,19 +288,24 @@ def _handle_ami_product(
     vers: version.Version,
     prod: product.Product,
 ) -> str:
-    # The image restored into this distribution's account: every account owns its own copy (store +
-    # restore), so another account's image in the same region must not end up in this template.
-    shared_amis = [
-        ami
-        for ami in shared_amis_qry_srv.get_shared_amis(original_ami_id=vers.originalAmiId)
-        if ami.awsAccountId == vers.awsAccountId
-    ]
-    if not shared_amis:
-        raise domain_exception.DomainException(
-            f"Could not find a shared ami for {vers.originalAmiId} in {vers.awsAccountId}. "
-            "Ami sharing process might have failed."
-        )
-    ami_ids_per_region = {ami.region: ami.copiedAmiId for ami in shared_amis}
+    # A marketplace product is published per region by the seller, so its AMI ids come
+    # from the subscription metadata and no sharing or copying has taken place.
+    if vers.marketplaceMetadata and vers.marketplaceMetadata.regionalAmiIds:
+        ami_ids_per_region = vers.marketplaceMetadata.regionalAmiIds
+    else:
+        # The image restored into this distribution's account: every account owns its own copy (store +
+        # restore), so another account's image in the same region must not end up in this template.
+        shared_amis = [
+            ami
+            for ami in shared_amis_qry_srv.get_shared_amis(original_ami_id=vers.originalAmiId)
+            if ami.awsAccountId == vers.awsAccountId
+        ]
+        if not shared_amis:
+            raise domain_exception.DomainException(
+                f"Could not find a shared ami for {vers.originalAmiId} in {vers.awsAccountId}. "
+                "Ami sharing process might have failed."
+            )
+        ami_ids_per_region = {ami.region: ami.copiedAmiId for ami in shared_amis}
 
     env = SandboxedEnvironment(loader=jinja2.BaseLoader())
     jinja_template = env.from_string(template.decode())

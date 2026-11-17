@@ -1163,3 +1163,68 @@ def test_handle_should_raise_exception_with_duplicate_components(
     assertpy.assert_that(str(e.value)).is_equal_to(
         f"Recipe version contains duplicate components: {sorted(duplicate_component_ids)}."
     )
+
+
+@freeze_time("2023-12-01")
+def test_handle_should_publish_the_updated_parent_image_and_volume_size(
+    recipe_version_query_service_mock,
+    update_recipe_version_command_mock,
+    component_version_query_service_mock,
+    component_query_service_mock,
+    recipe_query_service_mock,
+    parameter_service_mock,
+    mandatory_components_list_query_service_mock,
+    mock_system_configuration_mapping,
+    mock_recipe_object,
+    get_test_ami_id,
+    get_test_component_version_with_specific_status,
+    get_test_mandatory_components_list_with_specific_mandatory_components_versions,
+    get_test_recipe_version_with_specific_version_name,
+):
+    # ARRANGE
+    message_bus_mock = mock.create_autospec(spec=message_bus.MessageBus)
+    recipe_version_repo_mock = mock.create_autospec(spec=unit_of_work.GenericRepository)
+    repos_dict = {recipe_version.RecipeVersion: recipe_version_repo_mock}
+    uow_mock = mock.create_autospec(spec=unit_of_work.UnitOfWork)
+    uow_mock.get_repository.side_effect = lambda pk, x: repos_dict.get(x)
+    mandatory_components_list_query_service_mock.get_mandatory_components_list.return_value = (
+        get_test_mandatory_components_list_with_specific_mandatory_components_versions()
+    )
+    recipe_version_entity: recipe_version.RecipeVersion = get_test_recipe_version_with_specific_version_name(
+        "1.0.0-rc.1"
+    )
+    recipe_version_entity.parentImageUpstreamId = "ami-0fedcba9876543210"
+    recipe_version_entity.recipeVersionVolumeSize = "100"
+    recipe_version_query_service_mock.get_recipe_version.return_value = recipe_version_entity
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    parameter_service_mock.get_parameter_value.return_value = get_test_ami_id
+    component_version_entities = []
+    for recipe_component_version in update_recipe_version_command_mock.recipeComponentsVersions.value:
+        component_version_entity = get_test_component_version_with_specific_status(
+            status=component_version.ComponentVersionStatus.Released
+        )
+        component_version_entity.componentId = recipe_component_version.componentId
+        component_version_entity.componentVersionId = recipe_component_version.componentVersionId
+        component_version_entities.append(component_version_entity)
+    component_version_query_service_mock.get_component_version.side_effect = component_version_entities
+
+    # ACT
+    update_recipe_version_command_handler.handle(
+        command=update_recipe_version_command_mock,
+        uow=uow_mock,
+        message_bus=message_bus_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        recipe_version_query_service=recipe_version_query_service_mock,
+        recipe_qry_service=recipe_query_service_mock,
+        parameter_qry_srv=parameter_service_mock,
+        mandatory_components_list_qry_srv=mandatory_components_list_query_service_mock,
+        system_configuration_mapping=mock_system_configuration_mapping,
+        component_qry_srv=component_query_service_mock,
+    )
+
+    # ASSERT
+    published_event = message_bus_mock.publish.call_args[0][0]
+    assertpy.assert_that(published_event.parent_image_upstream_id).is_equal_to(get_test_ami_id)
+    assertpy.assert_that(published_event.recipe_version_volume_size).is_equal_to(
+        update_recipe_version_command_mock.recipeVersionVolumeSize.value
+    )

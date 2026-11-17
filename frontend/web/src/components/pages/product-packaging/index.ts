@@ -4,3 +4,4 @@ export * from './pipelines';
 export * from './images';
 export * from './shared';
 export * from './mandatory-components-lists';
+export * from './marketplace';

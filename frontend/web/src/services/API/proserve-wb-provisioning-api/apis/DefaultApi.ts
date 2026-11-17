@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Product Provisioning API
- * API in charge of provisioning VEW products
+ * Full lifecycle of provisioned products (workbenches, virtual targets, containers): launch, start, stop, update, remove. Depends on Projects and Publishing BCs.
  *
  * The version of the OpenAPI document: 2024-08-12T12:00:00Z
  *
@@ -331,7 +331,8 @@ export interface UpdateUserProfileOperationRequest {
 export class DefaultApi extends runtime.BaseAPI {
 
     /**
-     * Authorize user IP address
+     * Registers the caller\'s current IP address in the provisioned product\'s security group to allow network connectivity. Required before establishing DCV or SSH connections. The IP is derived from the request context automatically.
+     * Authorize caller IP for product access
      */
     async authorizeUserIpAddressRaw(requestParameters: AuthorizeUserIpAddressRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -369,7 +370,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Authorize user IP address
+     * Registers the caller\'s current IP address in the provisioned product\'s security group to allow network connectivity. Required before establishing DCV or SSH connections. The IP is derived from the request context automatically.
+     * Authorize caller IP for product access
      */
     async authorizeUserIpAddress(requestParameters: AuthorizeUserIpAddressRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.authorizeUserIpAddressRaw(requestParameters, initOverrides);
@@ -445,7 +447,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product versions by stage and region
+     * Returns versions of a product that are ready for provisioning, sourced from the Publishing BC catalog. Supports filtering by deployment stage and region. Use this before launching a product to select a version.
+     * List available versions for a product
      */
     async getAvailableProductVersionsRaw(requestParameters: GetAvailableProductVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAvailableProductVersionsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -499,7 +502,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available product versions by stage and region
+     * Returns versions of a product that are ready for provisioning, sourced from the Publishing BC catalog. Supports filtering by deployment stage and region. Use this before launching a product to select a version.
+     * List available versions for a product
      */
     async getAvailableProductVersions(requestParameters: GetAvailableProductVersionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAvailableProductVersionsResponse> {
         const response = await this.getAvailableProductVersionsRaw(requestParameters, initOverrides);
@@ -541,7 +545,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available products
+     * Returns products from the Publishing BC catalog that are available for provisioning within the given project. Requires a valid project_id from the Projects BC. Supports filtering by product type (Workbench, VirtualTarget, Container) and product IDs.
+     * List available products for a project
      */
     async getAvailableProductsRaw(requestParameters: GetAvailableProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAvailableProductsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -587,7 +592,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get available products
+     * Returns products from the Publishing BC catalog that are available for provisioning within the given project. Requires a valid project_id from the Projects BC. Supports filtering by product type (Workbench, VirtualTarget, Container) and product IDs.
+     * List available products for a project
      */
     async getAvailableProducts(requestParameters: GetAvailableProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAvailableProductsResponse> {
         const response = await this.getAvailableProductsRaw(requestParameters, initOverrides);
@@ -633,7 +639,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned products by project with pagination
+     * Returns a paginated list of provisioned products in the project with optional filters for product name, version, type, owner, status, stage, and experimental flag. Use pagingKey from a previous response to retrieve the next page.
+     * List provisioned products with pagination
      */
     async getProjectPaginatedProvisionedProductsRaw(requestParameters: GetProjectPaginatedProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetPaginatedProvisionedProductsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -703,7 +710,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned products by project with pagination
+     * Returns a paginated list of provisioned products in the project with optional filters for product name, version, type, owner, status, stage, and experimental flag. Use pagingKey from a previous response to retrieve the next page.
+     * List provisioned products with pagination
      */
     async getProjectPaginatedProvisionedProducts(requestParameters: GetProjectPaginatedProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetPaginatedProvisionedProductsResponse> {
         const response = await this.getProjectPaginatedProvisionedProductsRaw(requestParameters, initOverrides);
@@ -741,7 +749,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned products by project
+     * Returns all non-terminated provisioned products across all users within the specified project. Intended for project-level dashboards and administrative views. Requires a valid project_id from the Projects BC.
+     * List all provisioned products in a project
      */
     async getProjectProvisionedProductsRaw(requestParameters: GetProjectProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetAllProvisionedProductsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -775,7 +784,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned products by project
+     * Returns all non-terminated provisioned products across all users within the specified project. Intended for project-level dashboards and administrative views. Requires a valid project_id from the Projects BC.
+     * List all provisioned products in a project
      */
     async getProjectProvisionedProducts(requestParameters: GetProjectProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetAllProvisionedProductsResponse> {
         const response = await this.getProjectProvisionedProductsRaw(requestParameters, initOverrides);
@@ -813,7 +823,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned product
+     * Returns detailed information about a specific provisioned product including its current status, configuration, and version metadata from the Publishing BC. Scoped to the authenticated user within the project.
+     * Get provisioned product details
      */
     async getProvisionedProductRaw(requestParameters: GetProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisionedProductResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -851,7 +862,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned product
+     * Returns detailed information about a specific provisioned product including its current status, configuration, and version metadata from the Publishing BC. Scoped to the authenticated user within the project.
+     * Get provisioned product details
      */
     async getProvisionedProduct(requestParameters: GetProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductResponse> {
         const response = await this.getProvisionedProductRaw(requestParameters, initOverrides);
@@ -893,7 +905,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned product SSH key
+     * Returns the SSH private key associated with the provisioned product, enabling secure shell access. Only accessible by the product owner within the project.
+     * Retrieve SSH key for a provisioned product
      */
     async getProvisionedProductSSHKeyRaw(requestParameters: GetProvisionedProductSSHKeyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisionedProductSSHKeyResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -931,7 +944,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned product SSH key
+     * Returns the SSH private key associated with the provisioned product, enabling secure shell access. Only accessible by the product owner within the project.
+     * Retrieve SSH key for a provisioned product
      */
     async getProvisionedProductSSHKey(requestParameters: GetProvisionedProductSSHKeyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductSSHKeyResponse> {
         const response = await this.getProvisionedProductSSHKeyRaw(requestParameters, initOverrides);
@@ -1053,7 +1067,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned product user credentials
+     * Returns the username and password credentials for accessing the provisioned product instance. Only accessible by the product owner within the project.
+     * Retrieve user credentials for a provisioned product
      */
     async getProvisionedProductUserCredentialsRaw(requestParameters: GetProvisionedProductUserCredentialsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisionedProductUserSecretResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1091,7 +1106,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned product user credentials
+     * Returns the username and password credentials for accessing the provisioned product instance. Only accessible by the product owner within the project.
+     * Retrieve user credentials for a provisioned product
      */
     async getProvisionedProductUserCredentials(requestParameters: GetProvisionedProductUserCredentialsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductUserSecretResponse> {
         const response = await this.getProvisionedProductUserCredentialsRaw(requestParameters, initOverrides);
@@ -1133,7 +1149,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned products by user
+     * Returns all non-terminated provisioned products owned by the authenticated user within the specified project. Requires a valid project_id from the Projects BC. Supports filtering by product type.
+     * List provisioned products for the current user
      */
     async getProvisionedProductsRaw(requestParameters: GetProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisionedProductsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1175,7 +1192,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get provisioned products by user
+     * Returns all non-terminated provisioned products owned by the authenticated user within the specified project. Requires a valid project_id from the Projects BC. Supports filtering by product type.
+     * List provisioned products for the current user
      */
     async getProvisionedProducts(requestParameters: GetProvisionedProductsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductsResponse> {
         const response = await this.getProvisionedProductsRaw(requestParameters, initOverrides);
@@ -1183,7 +1201,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get how many more of a product the caller may launch in a stage
+     * Returns how many instances of this product the caller already has in the given stage, the configured per-user limit, and the difference. Use it to tell a user why a launch will be refused before they attempt one. The count includes products in an error state, which occupy a slot until they are removed, and excludes those already being removed. The remainder is advisory only: it is a snapshot, and the launch itself enforces the limit, so a launch may still be refused after a positive reading.
+     * Get the caller\'s provisioning headroom for a product
      */
     async getProvisioningLimitRaw(requestParameters: GetProvisioningLimitRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisioningLimitResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1229,7 +1248,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get how many more of a product the caller may launch in a stage
+     * Returns how many instances of this product the caller already has in the given stage, the configured per-user limit, and the difference. Use it to tell a user why a launch will be refused before they attempt one. The count includes products in an error state, which occupy a slot until they are removed, and excludes those already being removed. The remainder is advisory only: it is a snapshot, and the launch itself enforces the limit, so a launch may still be refused after a positive reading.
+     * Get the caller\'s provisioning headroom for a product
      */
     async getProvisioningLimit(requestParameters: GetProvisioningLimitRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisioningLimitResponse> {
         const response = await this.getProvisioningLimitRaw(requestParameters, initOverrides);
@@ -1339,7 +1359,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get user profile
+     * Returns the authenticated user\'s profile preferences (region, network, maintenance windows), enabled platform regions, feature flags, application version, and persistent home drives.
+     * Get current user profile and platform configuration
      */
     async getUserProfileRaw(requestParameters: GetUserProfileRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetUserProfileResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1369,7 +1390,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get user profile
+     * Returns the authenticated user\'s profile preferences (region, network, maintenance windows), enabled platform regions, feature flags, application version, and persistent home drives.
+     * Get current user profile and platform configuration
      */
     async getUserProfile(requestParameters: GetUserProfileRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetUserProfileResponse> {
         const response = await this.getUserProfileRaw(requestParameters, initOverrides);
@@ -1604,7 +1626,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Launch a specific product
+     * Provisions a new workbench, virtual target, or container instance for the authenticated user within a project. Requires a product and version selected via the Publishing BC catalog. Publishes ProductLaunchStarted event.
+     * Launch a new provisioned product
      */
     async launchProductRaw(requestParameters: LaunchProductOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1645,7 +1668,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Launch a specific product
+     * Provisions a new workbench, virtual target, or container instance for the authenticated user within a project. Requires a product and version selected via the Publishing BC catalog. Publishes ProductLaunchStarted event.
+     * Launch a new provisioned product
      */
     async launchProduct(requestParameters: LaunchProductOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.launchProductRaw(requestParameters, initOverrides);
@@ -1683,7 +1707,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove provisioned product
+     * Initiates the deprovisioning and removal of a provisioned product instance. Publishes ProvisionedProductRemovalStarted event.
+     * Terminate a provisioned product
      */
     async removeProvisionedProductRaw(requestParameters: RemoveProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1721,7 +1746,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove provisioned product
+     * Initiates the deprovisioning and removal of a provisioned product instance. Publishes ProvisionedProductRemovalStarted event.
+     * Terminate a provisioned product
      */
     async removeProvisionedProduct(requestParameters: RemoveProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.removeProvisionedProductRaw(requestParameters, initOverrides);
@@ -1763,7 +1789,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove provisioned products
+     * Initiates the deprovisioning and removal of multiple provisioned product instances in a single request. Authorized based on user roles from the Projects BC. Publishes removal events.
+     * Terminate multiple provisioned products
      */
     async removeProvisionedProductsRaw(requestParameters: RemoveProvisionedProductsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1804,7 +1831,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove provisioned products
+     * Initiates the deprovisioning and removal of multiple provisioned product instances in a single request. Authorized based on user roles from the Projects BC. Publishes removal events.
+     * Terminate multiple provisioned products
      */
     async removeProvisionedProducts(requestParameters: RemoveProvisionedProductsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.removeProvisionedProductsRaw(requestParameters, initOverrides);
@@ -1842,7 +1870,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Start provisioned product
+     * Initiates the start of a previously stopped provisioned product instance and re-authorizes the caller\'s IP address. Publishes ProvisionedProductStartInitiated event.
+     * Start a stopped provisioned product
      */
     async startProvisionedProductRaw(requestParameters: StartProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1880,7 +1909,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Start provisioned product
+     * Initiates the start of a previously stopped provisioned product instance and re-authorizes the caller\'s IP address. Publishes ProvisionedProductStartInitiated event.
+     * Start a stopped provisioned product
      */
     async startProvisionedProduct(requestParameters: StartProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.startProvisionedProductRaw(requestParameters, initOverrides);
@@ -1922,7 +1952,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Stop provisioned product
+     * Initiates the stop of a running provisioned product instance to conserve resources. Publishes ProvisionedProductStopInitiated event.
+     * Stop a running provisioned product
      */
     async stopProvisionedProductRaw(requestParameters: StopProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1960,7 +1991,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Stop provisioned product
+     * Initiates the stop of a running provisioned product instance to conserve resources. Publishes ProvisionedProductStopInitiated event.
+     * Stop a running provisioned product
      */
     async stopProvisionedProduct(requestParameters: StopProvisionedProductRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.stopProvisionedProductRaw(requestParameters, initOverrides);
@@ -2002,7 +2034,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Stop provisioned products
+     * Initiates the stop of multiple running provisioned product instances in a single request. Authorized based on user roles from the Projects BC. Publishes stop events.
+     * Stop multiple running provisioned products
      */
     async stopProvisionedProductsRaw(requestParameters: StopProvisionedProductsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2043,7 +2076,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Stop provisioned products
+     * Initiates the stop of multiple running provisioned product instances in a single request. Authorized based on user roles from the Projects BC. Publishes stop events.
+     * Stop multiple running provisioned products
      */
     async stopProvisionedProducts(requestParameters: StopProvisionedProductsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.stopProvisionedProductsRaw(requestParameters, initOverrides);
@@ -2081,7 +2115,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update provisioned product
+     * Initiates an update of the provisioned product to a new version or with changed provisioning parameters. The target version must be available in the Publishing BC catalog. Publishes ProvisionedProductUpdateInitialized event.
+     * Update a provisioned product version or parameters
      */
     async updateProvisionedProductRaw(requestParameters: UpdateProvisionedProductOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2126,7 +2161,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update provisioned product
+     * Initiates an update of the provisioned product to a new version or with changed provisioning parameters. The target version must be available in the Publishing BC catalog. Publishes ProvisionedProductUpdateInitialized event.
+     * Update a provisioned product version or parameters
      */
     async updateProvisionedProduct(requestParameters: UpdateProvisionedProductOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateProvisionedProductRaw(requestParameters, initOverrides);
@@ -2168,7 +2204,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update user profile
+     * Updates the authenticated user\'s preferred region, network, and maintenance windows. Maintenance window preferences determine when automated upgrades and maintenance operations are scheduled.
+     * Update current user profile preferences
      */
     async updateUserProfileRaw(requestParameters: UpdateUserProfileOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2205,7 +2242,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update user profile
+     * Updates the authenticated user\'s preferred region, network, and maintenance windows. Maintenance window preferences determine when automated upgrades and maintenance operations are scheduled.
+     * Update current user profile preferences
      */
     async updateUserProfile(requestParameters: UpdateUserProfileOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateUserProfileRaw(requestParameters, initOverrides);

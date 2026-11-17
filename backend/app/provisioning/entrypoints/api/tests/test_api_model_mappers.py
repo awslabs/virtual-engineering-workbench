@@ -117,3 +117,11 @@ def test_the_failure_matches_the_api_schema(api_schema):
     openapi_schema_validator.validate(response.failure.model_dump(mode="json"), schema)
     assertpy.assert_that(response.failure.operation).is_equal_to("START")
     assertpy.assert_that(response.failure.gpu).is_false()
+
+
+def test_ssh_is_off_for_a_workbench_with_a_key_when_the_deployment_turns_it_off():
+    workbench = _workbench(product_status.ProductStatus.Running)
+    workbench.sshKeyPath = "/ec2/keypair/key-123"
+
+    assertpy.assert_that(api_model_mappers.map_provisioned_product(workbench).sshEnabled).is_true()
+    assertpy.assert_that(api_model_mappers.map_provisioned_product(workbench, ssh_enabled=False).sshEnabled).is_false()

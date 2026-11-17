@@ -1,5 +1,5 @@
 import logging
-import random
+import secrets
 import time
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -11,6 +11,9 @@ from app.packaging.domain.model.recipe import recipe_version
 from app.packaging.domain.model.shared import component_version_entry, recipe_version_entry
 from app.packaging.domain.ports import component_version_query_service, recipe_version_query_service
 from app.shared.adapters.unit_of_work_v2 import repository_exception, unit_of_work
+
+# Retry-backoff jitter only; SystemRandom avoids the insecure-PRNG finding at no cost.
+_JITTER = secrets.SystemRandom()
 
 # Attempts of one optimistic association write, with a jittered exponential backoff between them.
 WRITE_ATTEMPTS = 8
@@ -132,7 +135,7 @@ def __update_associated_recipes_versions_list(
                     f"{component_version_entry_obj.componentId} changed concurrently, retrying its "
                     f"recipe associations (attempt {attempt} of {WRITE_ATTEMPTS})."
                 )
-                time.sleep(random.uniform(0, WRITE_BACKOFF_SECONDS * 2**attempt))
+                time.sleep(_JITTER.uniform(0, WRITE_BACKOFF_SECONDS * 2**attempt))
 
 
 def __update_associated_recipes_versions_of(

@@ -111,7 +111,7 @@ def make_fake_assignments(target_projects: List[project.Project], target_users: 
                 userId=user,
                 projectId=proj.projectId,
                 roles=[project_assignment.Role.PLATFORM_USER, project_assignment.Role.ADMIN],
-                userEmail="fake@email.com",
+                userEmail="fake@example.com",
             )
             assignments.append(assignment)
     return assignments
@@ -124,7 +124,7 @@ def get_mock_user():
             userId="u0",
             activeDirectoryGroups=[],
             activeDirectoryGroupStatus=user_model.UserADStatus.PENDING,
-            userEmail="fake@email.com",
+            userEmail="fake@example.com",
         )
 
     return _get_mock_user
@@ -928,7 +928,7 @@ def test_list_users_by_project_paged_should_return_assignments_page(
             userId="u0",
             projectId="p1",
             roles=[project_assignment.Role.PLATFORM_USER, project_assignment.Role.ADMIN],
-            userEmail="fake@email.com",
+            userEmail="fake@example.com",
             activeDirectoryGroups=[],
             activeDirectoryGroupStatus=user_model.UserADStatus.UNKNOWN,
             lastUpdateDate=None,
@@ -937,7 +937,7 @@ def test_list_users_by_project_paged_should_return_assignments_page(
             userId="u1",
             projectId="p1",
             roles=[project_assignment.Role.PLATFORM_USER, project_assignment.Role.ADMIN],
-            userEmail="fake@email.com",
+            userEmail="fake@example.com",
             activeDirectoryGroups=[],
             activeDirectoryGroupStatus=user_model.UserADStatus.UNKNOWN,
             lastUpdateDate=None,
@@ -948,7 +948,7 @@ def test_list_users_by_project_paged_should_return_assignments_page(
             userId="u2",
             projectId="p1",
             roles=[project_assignment.Role.PLATFORM_USER, project_assignment.Role.ADMIN],
-            userEmail="fake@email.com",
+            userEmail="fake@example.com",
             activeDirectoryGroups=[],
             activeDirectoryGroupStatus=user_model.UserADStatus.UNKNOWN,
             lastUpdateDate=None,
@@ -957,7 +957,7 @@ def test_list_users_by_project_paged_should_return_assignments_page(
             userId="u3",
             projectId="p1",
             roles=[project_assignment.Role.PLATFORM_USER, project_assignment.Role.ADMIN],
-            userEmail="fake@email.com",
+            userEmail="fake@example.com",
             activeDirectoryGroups=[],
             activeDirectoryGroupStatus=user_model.UserADStatus.UNKNOWN,
             lastUpdateDate=None,

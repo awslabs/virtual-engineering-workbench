@@ -71,7 +71,7 @@ export class AppElb extends Construct {
     appName: string,
     appEnvironment: string,
     domainName: string,
-    certificateArn: string,
+    certificate: acm.ICertificate,
     formatResourceName: (resourceName: string) => string,
   }) {
     super(scope, id);
@@ -80,7 +80,7 @@ export class AppElb extends Construct {
     this._appName = props.appName;
     this._appEnvironment = props.appEnvironment;
     this._domainName = props.domainName;
-    this._certificate = acm.Certificate.fromCertificateArn(this, 'Certificate', props.certificateArn);
+    this._certificate = props.certificate;
 
     const stack = Stack.of(this);
 

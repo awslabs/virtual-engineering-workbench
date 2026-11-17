@@ -7,6 +7,8 @@ models/AvailableVersionDistribution.ts
 models/AvailableVersionDistributionEnriched.ts
 models/AvailableVersionDistributionMetadataItem.ts
 models/ComponentVersionDetail.ts
+models/CreateLicenseGrantRequest.ts
+models/CreateLicenseGrantResponse.ts
 models/CreateProductRequest.ts
 models/CreateProductResponse.ts
 models/CreateProductVersionRequest.ts
@@ -21,6 +23,7 @@ models/GetProductVersionInternalResponse.ts
 models/GetProductVersionResponse.ts
 models/GetProductsResponse.ts
 models/GetPublishedAmisResponse.ts
+models/MarketplaceMetadata.ts
 models/ParameterConstraints.ts
 models/Product.ts
 models/ProductParameter.ts

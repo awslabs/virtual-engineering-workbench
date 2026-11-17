@@ -10,6 +10,7 @@ from aws_xray_sdk.core import patch_all
 
 from app.publishing.domain.commands import (
     archive_product_command,
+    create_license_grant_command,
     create_product_command,
     create_version_command,
     promote_version_command,
@@ -24,6 +25,7 @@ from app.publishing.domain.exceptions import domain_exception
 from app.publishing.domain.value_objects import (
     ami_id_value_object,
     aws_account_id_value_object,
+    grant_name_value_object,
     image_digest_value_object,
     image_tag_value_object,
     major_version_name_value_object,
@@ -673,6 +675,36 @@ def get_published_amis() -> api_gateway.Response[api_model.GetPublishedAmisRespo
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetPublishedAmisResponse(amis=amis),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.post("/projects/<project_id>/images/<image_id>/license-grants", tags=[TAG_AMI])
+def create_license_grant(
+    request: api_model.CreateLicenseGrantRequest,
+    project_id: str,
+    image_id: str,
+) -> api_gateway.Response[api_model.CreateLicenseGrantResponse]:
+    """Creates a License Manager grant for a spoke account to access a marketplace AMI."""
+    # Note: URL path `{imageId}` carries the AMI id (the Publishing BC's Ami read model is keyed by amiId).
+    # The Packaging BC's imageId is not used on this path.
+    command = create_license_grant_command.CreateLicenseGrantCommand(
+        projectId=project_id_value_object.from_str(project_id),
+        amiId=ami_id_value_object.from_str(image_id),
+        targetAccountId=aws_account_id_value_object.from_str(request.targetAccountId),
+        grantName=grant_name_value_object.from_str(request.grantName),
+    )
+
+    result = dependencies.command_bus.handle(command)
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.CREATED,
+        body=api_model.CreateLicenseGrantResponse(
+            grantId=result.grantId,
+            status="PENDING_ACCEPTANCE",
+            targetAccountId=request.targetAccountId,
+        ),
         content_type=content_types.APPLICATION_JSON,
     )
 

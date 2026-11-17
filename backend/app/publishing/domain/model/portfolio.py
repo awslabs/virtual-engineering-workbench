@@ -1,6 +1,6 @@
 import random
 import string
-from enum import Enum
+from enum import StrEnum
 from typing import Optional
 
 from pydantic import Field
@@ -8,22 +8,16 @@ from pydantic import Field
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
 
-class PortfolioStatus(str, Enum):
+class PortfolioStatus(StrEnum):
     Creating = "CREATING"
     Created = "CREATED"
     Failed = "FAILED"
 
-    def __str__(self):
-        return str(self.value)
 
-
-class PortfolioStage(str, Enum):
+class PortfolioStage(StrEnum):
     DEV = "DEV"
     QA = "QA"
     PROD = "PROD"
-
-    def __str__(self):
-        return str(self.value)
 
 
 def generate_portfolio_id() -> str:

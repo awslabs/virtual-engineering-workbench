@@ -1,10 +1,11 @@
 import random
 import string
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from app.publishing.domain.model import marketplace_metadata
 from app.publishing.domain.read_models import component_version_detail
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -13,20 +14,17 @@ def generate_version_id() -> str:
     return "vers-" + "".join((random.choice(string.ascii_lowercase + string.digits) for x in range(8)))
 
 
-class VersionReleaseType(str, Enum):
+class VersionReleaseType(StrEnum):
     Major = "MAJOR"
     Minor = "MINOR"
     Patch = "PATCH"
-
-    def __str__(self):
-        return str(self.value)
 
     @staticmethod
     def list():
         return list(map(lambda v: v.value, VersionReleaseType))
 
 
-class VersionStatus(str, Enum):
+class VersionStatus(StrEnum):
     Creating = "CREATING"
     Created = "CREATED"
     Failed = "FAILED"
@@ -34,9 +32,6 @@ class VersionStatus(str, Enum):
     Retired = "RETIRED"
     Restoring = "RESTORING"
     Updating = "UPDATING"
-
-    def __str__(self):
-        return str(self.value)
 
     @staticmethod
     def list():
@@ -56,13 +51,10 @@ class VersionStatus(str, Enum):
         return [VersionStatus.Created, VersionStatus.Failed, VersionStatus.Retired]
 
 
-class VersionStage(str, Enum):
+class VersionStage(StrEnum):
     DEV = "DEV"
     QA = "QA"
     PROD = "PROD"
-
-    def __str__(self):
-        return str(self.value)
 
 
 class VersionType(Enum):
@@ -150,16 +142,21 @@ class Version(unit_of_work.Entity):
     draftTemplateLocation: Optional[str] = Field(None, title="DraftTemplateLocation")
     templateLocation: Optional[str] = Field(None, title="TemplateLocation")
     retireReason: Optional[str] = Field(None, title="RetireReason")
+    # Why the last state transition failed, so a Failed version says more than
+    # "Failed". Cleared on success and on retry.
+    statusReason: Optional[str] = Field(None, title="StatusReason")
     restoredFromVersionName: Optional[str] = Field(None, title="RestoredFromVersionName")
     parameters: Optional[List[VersionParameter]] = Field(None, title="Parameters")
     metadata: Optional[Dict[str, ProductVersionMetadataItem]] = Field(None, title="Metadata")
-    componentVersionDetails: list[component_version_detail.ComponentVersionDetail] | None = Field(
+    componentVersionDetails: Optional[list[component_version_detail.ComponentVersionDetail]] = Field(
         None, title="ComponentVersionDetails"
     )
     osVersion: str | None = Field(None, title="OsVersion")
     platform: str | None = Field(None, title="platform")
     architecture: str | None = Field(None, title="architecture")
     integrations: list[str] = Field([], title="integrations")
+    imageSource: Optional[str] = Field(None, title="ImageSource")
+    marketplaceMetadata: Optional[marketplace_metadata.MarketplaceMetadata] = Field(None, title="MarketplaceMetadata")
     createDate: str = Field(..., title="createDate")
     lastUpdateDate: str = Field(..., title="lastUpdateDate")
     createdBy: str = Field(..., title="createdBy")

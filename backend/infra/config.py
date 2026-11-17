@@ -17,6 +17,11 @@ HUB_VPC_NAME = ""
 # may build in. Empty derives them from the prefixes, matching the subnets VEW
 # names when it creates the VPC itself.
 HUB_SUBNET_NAMES = ""
+
+# Whether users may connect to provisioned products over SSH. When False, VEW
+# never opens port 22 to a user's IP and hands out no SSH keys, whatever the
+# product templates provide.
+SSH_CONNECTION_OPTION = True
 SSM_PARAM_UI_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_COGNITO_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-ui-{{environment}}"
 SSM_PARAM_BE_PREFIX = f"/{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-backend-{{environment}}"
@@ -175,6 +180,19 @@ _dev_env_config = {
     "cognito-userpool-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-id",
     "cognito-userpool-client-ids-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-client-ids",
     "cognito-url-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/user-pool-domain",
+    # The vew CLI's own Cognito app client, used as the JWT audience by
+    # VewApiRouterStack because Cognito access tokens carry client_id and no aud.
+    # Register the client by adding a "vew-cli" entry to the frontend
+    # deployment's AdditionalAppClients; the frontend stack then publishes its id
+    # at this path, one parameter per client.
+    "cognito-vew-cli-client-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/app-client-id/vew-cli",
+    # The MCP gateway's Cognito app client, used as the gateway's allowed JWT
+    # client and printed in the ready-to-paste client configs. The frontend
+    # stack creates it and publishes one SSM parameter per client, so register
+    # the gateway by adding an "mcp-gateway-agentcore" entry to that
+    # deployment's AdditionalAppClients, with the callback URLs in
+    # constants.MCP_GATEWAY_OAUTH_REDIRECT_URIS.
+    "cognito-mcp-gateway-client-id-ssm-param": f"{SSM_PARAM_COGNITO_PREFIX}/app-client-id/mcp-gateway-agentcore",
     "cognito-region": "us-east-1",
     "enabled-workbench-regions": ["us-east-1"],
     "spoke-account-vpc-id-param-name": "/workbench/vpc/vpc-id",
@@ -280,6 +298,7 @@ _dev_packaging_config = {
     "image-builder-events-reserved-concurrency": 10,
     "recipe-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-defs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-test-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-tests-{{environment}}-{{image_service_account_id}}-{{region}}",
+    "build-logs-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-build-logs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-version-testing-reserved-concurrency": 10,
     "scheduled-jobs-lambda-reserved-concurrency": 10,
     "ssm-run-command-timeout": 43200,
@@ -311,6 +330,7 @@ _dev_provisioning_config = {
     "provisioning-subnet-selector": "TaggedSubnet",
     "provisioning-subnet-selector-tag": "ProvisioningEnabled:True",
     "authorize-user-ip-address-param-value": True,
+    "ssh-connection-option": SSH_CONNECTION_OPTION,
     "pp-cleanup-config": {
         "pp-cleanup-alert": 7,
         "pp-cleanup": 14,
@@ -330,6 +350,7 @@ image_sharing_app_config = {"dev": {}, "qa": {}, "prod": {}}
 
 _dev_product_packaging_config = {
     "ami-factory-vpc-name": HUB_VPC_NAME or f"vpc-{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-dev",
+    "build-logs-retention-days": 365,
 }
 
 product_packaging_app_config = {
@@ -370,3 +391,23 @@ authorization_app_config = {
 product_publishing_enablement_app_config = {"dev": {}, "qa": {}, "prod": {}}
 
 provisioning_enablement_app_config = {"dev": {}, "qa": {}, "prod": {}}
+
+
+# MCP Gateway (AgentCore-based)
+# "gateway-exception-level": DEBUG makes the AgentCore gateway return granular
+# exception messages instead of the generic "An internal error occurred. Please
+# retry later." — deliberately absent in prod to avoid leaking internals to any
+# authenticated caller (None omits the property).
+mcp_gateway_agentcore_app_config = {
+    "dev": {
+        "interceptor-reserved-concurrency": 10,
+        "gateway-exception-level": "DEBUG",
+    },
+    "qa": {
+        "interceptor-reserved-concurrency": 10,
+        "gateway-exception-level": "DEBUG",
+    },
+    "prod": {
+        "interceptor-reserved-concurrency": 10,
+    },
+}

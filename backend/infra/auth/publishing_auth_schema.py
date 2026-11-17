@@ -6,6 +6,7 @@ from infra.auth import shared_auth_schema
 
 class PublishingBCActions(enum.StrEnum):
     ArchiveProduct = "ArchiveProduct"
+    CreateLicenseGrant = "CreateLicenseGrant"
     CreateProduct = "CreateProduct"
     CreateProductVersion = "CreateProductVersion"
     GetAmis = "GetAmis"

@@ -46,6 +46,9 @@ def aws_credentials(monkeypatch):
     monkeypatch.setenv("AWS_SESSION_TOKEN", "testing")
     monkeypatch.setenv("AWS_REGION", "us-east-1")
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    # The bootstrapper now runs the Image.imageSource migration, which queries the
+    # entities GSI by name; the stack supplies this to every packaging Lambda.
+    monkeypatch.setenv("GSI_NAME_ENTITIES", "gsi_entities")
     monkeypatch.setenv("AWS_ACCOUNT", "123456789012")
     monkeypatch.setenv("POWERTOOLS_METRICS_NAMESPACE", "Test")
     monkeypatch.setenv("POWERTOOLS_SERVICE_NAME", "Recipetesting")
@@ -72,6 +75,34 @@ def ssm_mock():
             aws_secret_access_key="secret-access-key",
             aws_session_token="session-token",
         )
+
+
+@pytest.fixture(autouse=True)
+def backend_app_dynamodb_table(ssm_mock):
+    dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+    table = dynamodb.create_table(
+        TableName="TestTable",
+        KeySchema=[{"AttributeName": "PK", "KeyType": "HASH"}, {"AttributeName": "SK", "KeyType": "RANGE"}],
+        AttributeDefinitions=[
+            {"AttributeName": "PK", "AttributeType": "S"},
+            {"AttributeName": "SK", "AttributeType": "S"},
+            {"AttributeName": "entity", "AttributeType": "S"},
+        ],
+        BillingMode="PAY_PER_REQUEST",
+        # The bootstrapper runs the packaging DynamoDB migrations, which query this index (as deployed).
+        GlobalSecondaryIndexes=[
+            {
+                "IndexName": "gsi_entities",
+                "KeySchema": [
+                    {"AttributeName": "entity", "KeyType": "HASH"},
+                    {"AttributeName": "SK", "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            }
+        ],
+    )
+    table.meta.client.get_waiter("table_exists").wait(TableName="TestTable")
+    return table
 
 
 @pytest.fixture(autouse=True)

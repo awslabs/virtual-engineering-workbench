@@ -6,6 +6,8 @@ import {
   CfnOutput,
   Stack,
   StackProps,
+  aws_acmpca as acmpca,
+  aws_certificatemanager as acm,
 } from 'aws-cdk-lib';
 import { WebUserPool } from './constructs/app-user-pool';
 import { AppElb } from './constructs/app-elb';
@@ -30,8 +32,12 @@ export class PrivateAccessDeploymentStack extends Stack {
     }
 
 
-    if (!props.appConfig.certArn) {
-      throw new Error('Certificate ARN is required when making a private deployment.');
+    if (!props.appConfig.certArn && !props.appConfig.privateCaArn) {
+      throw new Error('Certificate ARN or private CA ARN is required when making a private deployment.');
+    }
+
+    if (props.appConfig.certArn && props.appConfig.privateCaArn) {
+      throw new Error('Give either a certificate ARN or a private CA ARN, not both.');
     }
 
     const webUserPool = new WebUserPool(this, 'web-user-pool', {
@@ -60,7 +66,7 @@ export class PrivateAccessDeploymentStack extends Stack {
       appName: props.appName,
       appEnvironment: props.appEnvironment,
       domainName: props.appConfig.domainName,
-      certificateArn: props.appConfig.certArn,
+      certificate: this._certificate(props.appConfig, props.appConfig.domainName),
       formatResourceName: props.formatResourceName,
     }).
       withALB(props.appConfig).
@@ -123,8 +129,22 @@ export class PrivateAccessDeploymentStack extends Stack {
     Aspects.of(this).add(new NIST80053R5Checks({ reports: true, verbose: true }));
   }
 
+  private _certificate(appConfig: AppConfig, domainName: string): acm.ICertificate {
+    if (appConfig.privateCaArn) {
+      return new acm.PrivateCertificate(this, 'web-certificate', {
+        domainName,
+        certificateAuthority: acmpca.CertificateAuthority.fromCertificateAuthorityArn(
+          this, 'private-ca', appConfig.privateCaArn
+        ),
+        // API Gateway takes RSA keys of at most 2048 bits on a custom domain.
+        keyAlgorithm: acm.KeyAlgorithm.RSA_2048,
+      });
+    }
+    return acm.Certificate.fromCertificateArn(this, 'web-certificate', appConfig.certArn!);
+  }
+
   tryOutputCognitoLoginCustomDNSOutputs(appConfig: AppConfig, webUserPool: WebUserPool) {
-    if (appConfig.customLoginDNSEnabled && !!appConfig.domainNameLogin && !!appConfig.certArn) {
+    if (appConfig.customLoginDNSEnabled && !!appConfig.domainNameLogin && !!appConfig.certArnLogin) {
       new CfnOutput(this, 'user-pool-output-custom-domain', {
         exportName: `${this.stackName}-UserPoolCustomDomain`,
         value: webUserPool.getUserPoolCustomLoginFQDN()

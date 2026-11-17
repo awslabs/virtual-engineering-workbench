@@ -46,6 +46,7 @@ class BackendAppOpenApi(constructs.Construct):
         provision_iam_api: bool = False,
         iam_role_access: typing.Optional[str] = None,
         iam_api_resource_policy: typing.Optional[aws_iam.PolicyDocument] = None,
+        enable_mcp: bool = False,
     ) -> None:
         super().__init__(scope, id)
 
@@ -92,6 +93,9 @@ class BackendAppOpenApi(constructs.Construct):
         stack = aws_cdk.Stack.of(self)
         self._create_api_outputs(app_config, stack, name, waf_acl_arn)
         self._add_suppressions(access_log_group, api_role, cache_enabled, stack)
+
+        # Read by backend_app.py to pick the bounded contexts the MCP gateway exposes.
+        self._mcp_enabled = enable_mcp
 
         self._iam_api = None
         if provision_iam_api and cedar_policy_config:
@@ -798,3 +802,7 @@ class BackendAppOpenApi(constructs.Construct):
     @property
     def iam_api(self) -> typing.Optional[aws_apigateway.SpecRestApi]:
         return self._iam_api
+
+    @property
+    def mcp_enabled(self) -> bool:
+        return self._mcp_enabled

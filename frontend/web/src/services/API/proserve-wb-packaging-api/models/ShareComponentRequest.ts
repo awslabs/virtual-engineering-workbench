@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Packaging API
- * API in charge of packaging workbench products
+ * AMI Factory pipeline: software components (building blocks), recipes (component build configurations), and images (built AMIs) via EC2 Image Builder. Depends on Projects BC for project scope; upstream to Publishing BC (built images become publishable products); pipelines run scheduled image builds.
  *
  * The version of the OpenAPI document: 2023-10-31T12:00:00Z
  *

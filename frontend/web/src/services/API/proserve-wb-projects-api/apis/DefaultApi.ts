@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Projects API
- * API in charge of processing the methods required for the use cases
+ * Manages projects (tenants), user assignments/roles, project accounts (AWS accounts), technologies, and self-service enrolments. Foundational upstream BC — others depend on it for project_id, user identity, and account scope. Publishes domain events.
  *
  * The version of the OpenAPI document: 2024-04-11T12:00:00Z
  *
@@ -24,6 +24,7 @@ import type {
   GetProjectEnrolmentsResponse,
   GetProjectResponse,
   GetProjectsResponse,
+  GetServiceClientAssignmentResponse,
   GetTechnologiesResponse,
   GetUserResponse,
   GetUserRolesResponse,
@@ -56,6 +57,8 @@ import {
     GetProjectResponseToJSON,
     GetProjectsResponseFromJSON,
     GetProjectsResponseToJSON,
+    GetServiceClientAssignmentResponseFromJSON,
+    GetServiceClientAssignmentResponseToJSON,
     GetTechnologiesResponseFromJSON,
     GetTechnologiesResponseToJSON,
     GetUserResponseFromJSON,
@@ -150,6 +153,11 @@ export interface GetInternalProjectUserAssignmentRequest {
 export interface GetInternalProjectsRequest {
     pageSize: number;
     nextToken?: object;
+}
+
+export interface GetInternalServiceClientAssignmentRequest {
+    projectId: string;
+    clientId: string;
 }
 
 export interface GetInternalUserRequest {
@@ -297,7 +305,8 @@ export interface UpdateTechnologyOperationRequest {
 export class DefaultApi extends runtime.BaseAPI {
 
     /**
-     * Associate an AWS account to a project
+     * Starts the onboarding workflow for an AWS account into a project. Requires: 1) a valid project_id from GET /projects, 2) a technologyId from GET /projects/{project_id}/technologies. Emits ProjectAccountOnBoardingStarted event triggering the account onboarding state machine. Once complete, emits ProjectAccountOnBoarded consumed by the Publishing BC.
+     * Onboard an AWS account into a project
      */
     async addProjectAccountRaw(requestParameters: AddProjectAccountRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -338,7 +347,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Associate an AWS account to a project
+     * Starts the onboarding workflow for an AWS account into a project. Requires: 1) a valid project_id from GET /projects, 2) a technologyId from GET /projects/{project_id}/technologies. Emits ProjectAccountOnBoardingStarted event triggering the account onboarding state machine. Once complete, emits ProjectAccountOnBoarded consumed by the Publishing BC.
+     * Onboard an AWS account into a project
      */
     async addProjectAccount(requestParameters: AddProjectAccountRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.addProjectAccountRaw(requestParameters, initOverrides);
@@ -346,7 +356,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Add a new user to a program/project
+     * Assigns a user to a project with specified roles (Admin, Platform User, Power User, etc.). Requires a valid project_id from GET /projects and a userId (UPN). Emits UserAssigned event consumed by Authorization BC (permission sync).
+     * Assign a user with roles to a project
      */
     async addProjectUserRaw(requestParameters: AddProjectUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -387,7 +398,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Add a new user to a program/project
+     * Assigns a user to a project with specified roles (Admin, Platform User, Power User, etc.). Requires a valid project_id from GET /projects and a userId (UPN). Emits UserAssigned event consumed by Authorization BC (permission sync).
+     * Assign a user with roles to a project
      */
     async addProjectUser(requestParameters: AddProjectUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.addProjectUserRaw(requestParameters, initOverrides);
@@ -395,7 +407,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Add a technology to a given project
+     * Creates a new technology entry and associates it with a project. Requires a valid project_id from GET /projects. Provide a name and optional description. Emits TechnologyAdded event. The resulting technology ID can be used when onboarding accounts.
+     * Add a new technology to a project
      */
     async addTechnologyRaw(requestParameters: AddTechnologyOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -436,7 +449,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Add a technology to a given project
+     * Creates a new technology entry and associates it with a project. Requires a valid project_id from GET /projects. Provide a name and optional description. Emits TechnologyAdded event. The resulting technology ID can be used when onboarding accounts.
+     * Add a new technology to a project
      */
     async addTechnology(requestParameters: AddTechnologyOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.addTechnologyRaw(requestParameters, initOverrides);
@@ -444,7 +458,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a project
+     * Creates a new project (tenant) and automatically assigns the calling user as its Admin. Emits ProjectCreated and UserAssigned events; UserAssigned is consumed by the Authorization BC. Requires name and isActive flag in the request body. The returned project_id is needed by all other BCs.
+     * Create a new project and assign the caller as Admin
      */
     async createProjectRaw(requestParameters: CreateProjectOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -481,7 +496,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Create a project
+     * Creates a new project (tenant) and automatically assigns the calling user as its Admin. Emits ProjectCreated and UserAssigned events; UserAssigned is consumed by the Authorization BC. Requires name and isActive flag in the request body. The returned project_id is needed by all other BCs.
+     * Create a new project and assign the caller as Admin
      */
     async createProject(requestParameters: CreateProjectOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createProjectRaw(requestParameters, initOverrides);
@@ -489,7 +505,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Delete a technology
+     * Removes a technology from a project. Requires a valid project_id from GET /projects and tech_id from GET /projects/{project_id}/technologies. Emits TechnologyDeleted event. Ensure no accounts reference this technology before deleting.
+     * Delete a technology from a project
      */
     async deleteTechnologyRaw(requestParameters: DeleteTechnologyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -527,7 +544,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Delete a technology
+     * Removes a technology from a project. Requires a valid project_id from GET /projects and tech_id from GET /projects/{project_id}/technologies. Emits TechnologyDeleted event. Ensure no accounts reference this technology before deleting.
+     * Delete a technology from a project
      */
     async deleteTechnology(requestParameters: DeleteTechnologyRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.deleteTechnologyRaw(requestParameters, initOverrides);
@@ -535,7 +553,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Request to be enrolled to a program
+     * Submits a self-service enrolment request for the calling user to join a project. Requires a valid project_id from GET /projects. Emits ProgramAccessRequested event. The enrolment remains in Pending status until approved or rejected by an admin.
+     * Request to join a project (self-service enrolment)
      */
     async enrolUserRaw(requestParameters: EnrolUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -576,7 +595,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Request to be enrolled to a program
+     * Submits a self-service enrolment request for the calling user to join a project. Requires a valid project_id from GET /projects. Emits ProgramAccessRequested event. The enrolment remains in Pending status until approved or rejected by an admin.
+     * Request to join a project (self-service enrolment)
      */
     async enrolUser(requestParameters: EnrolUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.enrolUserRaw(requestParameters, initOverrides);
@@ -615,6 +635,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all user assignments via internal API
+     * List user assignments internally
      */
     async getInternalAssignmentsRaw(requestParameters: GetInternalAssignmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectsResponse>> {
         if (requestParameters.userId === null || requestParameters.userId === undefined) {
@@ -657,6 +678,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all user assignments via internal API
+     * List user assignments internally
      */
     async getInternalAssignments(requestParameters: GetInternalAssignmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectsResponse> {
         const response = await this.getInternalAssignmentsRaw(requestParameters, initOverrides);
@@ -665,6 +687,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all accounts associated to a project
+     * List accounts internally
      */
     async getInternalProjectAccountsRaw(requestParameters: GetInternalProjectAccountsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.pageSize === null || requestParameters.pageSize === undefined) {
@@ -715,6 +738,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all accounts associated to a project
+     * List accounts internally
      */
     async getInternalProjectAccounts(requestParameters: GetInternalProjectAccountsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.getInternalProjectAccountsRaw(requestParameters, initOverrides);
@@ -723,6 +747,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all project assignments via internal API
+     * List project assignments internally
      */
     async getInternalProjectAssignmentsRaw(requestParameters: GetInternalProjectAssignmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectAssignmentsResponse>> {
         if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
@@ -757,6 +782,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all project assignments via internal API
+     * List project assignments internally
      */
     async getInternalProjectAssignments(requestParameters: GetInternalProjectAssignmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectAssignmentsResponse> {
         const response = await this.getInternalProjectAssignmentsRaw(requestParameters, initOverrides);
@@ -765,6 +791,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all user assignment in a project via internal API
+     * Get user assignment internally
      */
     async getInternalProjectUserAssignmentRaw(requestParameters: GetInternalProjectUserAssignmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectAssignmentResponse>> {
         if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
@@ -795,6 +822,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all user assignment in a project via internal API
+     * Get user assignment internally
      */
     async getInternalProjectUserAssignment(requestParameters: GetInternalProjectUserAssignmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectAssignmentResponse> {
         const response = await this.getInternalProjectUserAssignmentRaw(requestParameters, initOverrides);
@@ -803,6 +831,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all projects via internal API
+     * List projects internally
      */
     async getInternalProjectsRaw(requestParameters: GetInternalProjectsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectsResponse>> {
         if (requestParameters.pageSize === null || requestParameters.pageSize === undefined) {
@@ -837,6 +866,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all projects via internal API
+     * List projects internally
      */
     async getInternalProjects(requestParameters: GetInternalProjectsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectsResponse> {
         const response = await this.getInternalProjectsRaw(requestParameters, initOverrides);
@@ -844,7 +874,46 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Get a service-client project assignment via internal API
+     */
+    async getInternalServiceClientAssignmentRaw(requestParameters: GetInternalServiceClientAssignmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetServiceClientAssignmentResponse>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getInternalServiceClientAssignment.');
+        }
+
+        if (requestParameters.clientId === null || requestParameters.clientId === undefined) {
+            throw new runtime.RequiredError('clientId','Required parameter requestParameters.clientId was null or undefined when calling getInternalServiceClientAssignment.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["Authorization"] = this.configuration.apiKey("Authorization"); // sigv4 authentication
+        }
+
+        const response = await this.request({
+            path: `/internal/projects/{projectId}/clients/{clientId}`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"clientId"}}`, encodeURIComponent(String(requestParameters.clientId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetServiceClientAssignmentResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Get a service-client project assignment via internal API
+     */
+    async getInternalServiceClientAssignment(requestParameters: GetInternalServiceClientAssignmentRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetServiceClientAssignmentResponse> {
+        const response = await this.getInternalServiceClientAssignmentRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Get user
+     * Get a user internally
      */
     async getInternalUserRaw(requestParameters: GetInternalUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetUserResponse>> {
         if (requestParameters.userId === null || requestParameters.userId === undefined) {
@@ -875,6 +944,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get user
+     * Get a user internally
      */
     async getInternalUser(requestParameters: GetInternalUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetUserResponse> {
         const response = await this.getInternalUserRaw(requestParameters, initOverrides);
@@ -883,6 +953,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all users
+     * List all users internally
      */
     async getInternalUsersRaw(requestParameters: GetInternalUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetUsersResponse>> {
         if (requestParameters.pageSize === null || requestParameters.pageSize === undefined) {
@@ -917,6 +988,7 @@ export class DefaultApi extends runtime.BaseAPI {
 
     /**
      * Get all users
+     * List all users internally
      */
     async getInternalUsers(requestParameters: GetInternalUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetUsersResponse> {
         const response = await this.getInternalUsersRaw(requestParameters, initOverrides);
@@ -924,7 +996,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a project
+     * Returns the details of a single project identified by its project_id. Use this to retrieve project metadata (name, description, active status) before performing operations in downstream BCs. No prerequisites beyond a valid project_id from GET /projects.
+     * Get project details by ID
      */
     async getProjectRaw(requestParameters: GetProjectRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -958,7 +1031,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get a project
+     * Returns the details of a single project identified by its project_id. Use this to retrieve project metadata (name, description, active status) before performing operations in downstream BCs. No prerequisites beyond a valid project_id from GET /projects.
+     * Get project details by ID
      */
     async getProject(requestParameters: GetProjectRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectResponse> {
         const response = await this.getProjectRaw(requestParameters, initOverrides);
@@ -966,7 +1040,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all accounts associated to a program/project
+     * Returns all AWS accounts associated with a project, optionally filtered by accountType (Workbench/Pipeline) and stage (dev/qa/prod). Requires a valid project_id from GET /projects. Account IDs from this endpoint are needed by Provisioning and Publishing BCs to deploy workbenches and products.
+     * List AWS accounts onboarded to a project
      */
     async getProjectAccountsRaw(requestParameters: GetProjectAccountsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectAccountsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1008,7 +1083,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all accounts associated to a program/project
+     * Returns all AWS accounts associated with a project, optionally filtered by accountType (Workbench/Pipeline) and stage (dev/qa/prod). Requires a valid project_id from GET /projects. Account IDs from this endpoint are needed by Provisioning and Publishing BCs to deploy workbenches and products.
+     * List AWS accounts onboarded to a project
      */
     async getProjectAccounts(requestParameters: GetProjectAccountsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectAccountsResponse> {
         const response = await this.getProjectAccountsRaw(requestParameters, initOverrides);
@@ -1016,7 +1092,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all enrolments associated to a project
+     * Returns a paginated list of enrolment requests for a project, optionally filtered by status (Pending, Approved, Rejected). Requires a valid project_id from GET /projects. Use this to retrieve enrolmentIds needed for approving or rejecting enrolments (PUT /projects/{project_id}/enrolments).
+     * List enrolment requests for a project
      */
     async getProjectEnrolmentsRaw(requestParameters: GetProjectEnrolmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectEnrolmentsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1066,7 +1143,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all enrolments associated to a project
+     * Returns a paginated list of enrolment requests for a project, optionally filtered by status (Pending, Approved, Rejected). Requires a valid project_id from GET /projects. Use this to retrieve enrolmentIds needed for approving or rejecting enrolments (PUT /projects/{project_id}/enrolments).
+     * List enrolment requests for a project
      */
     async getProjectEnrolments(requestParameters: GetProjectEnrolmentsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectEnrolmentsResponse> {
         const response = await this.getProjectEnrolmentsRaw(requestParameters, initOverrides);
@@ -1074,7 +1152,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all users associated to a project
+     * Returns all users assigned to a project with their roles and AD group status. Requires a valid project_id from GET /projects. Use this to discover user IDs and roles before reassigning or removing users.
+     * List all user assignments for a project
      */
     async getProjectUsersRaw(requestParameters: GetProjectUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectAssignmentsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1108,7 +1187,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all users associated to a project
+     * Returns all users assigned to a project with their roles and AD group status. Requires a valid project_id from GET /projects. Use this to discover user IDs and roles before reassigning or removing users.
+     * List all user assignments for a project
      */
     async getProjectUsers(requestParameters: GetProjectUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectAssignmentsResponse> {
         const response = await this.getProjectUsersRaw(requestParameters, initOverrides);
@@ -1116,7 +1196,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all projects
+     * Returns a paginated list of all projects visible to the calling user, including their role assignments and any pending enrolment requests. This is the foundational entry point for all VEW operations — other BCs require a valid project_id from this endpoint. No prerequisites. Supports pageSize and nextToken query parameters for pagination.
+     * List all projects with user assignments and pending enrolments
      */
     async getProjectsRaw(requestParameters: GetProjectsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProjectsResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1158,7 +1239,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all projects
+     * Returns a paginated list of all projects visible to the calling user, including their role assignments and any pending enrolment requests. This is the foundational entry point for all VEW operations — other BCs require a valid project_id from this endpoint. No prerequisites. Supports pageSize and nextToken query parameters for pagination.
+     * List all projects with user assignments and pending enrolments
      */
     async getProjects(requestParameters: GetProjectsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProjectsResponse> {
         const response = await this.getProjectsRaw(requestParameters, initOverrides);
@@ -1234,7 +1316,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all technologies for a given project
+     * Returns all technologies associated with a project, with optional pagination. Requires a valid project_id from GET /projects. Technology IDs from this endpoint are required when onboarding accounts (POST /projects/{project_id}/accounts) to classify the account\'s technology stack.
+     * List technologies defined for a project
      */
     async getTechnologiesRaw(requestParameters: GetTechnologiesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetTechnologiesResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1280,7 +1363,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all technologies for a given project
+     * Returns all technologies associated with a project, with optional pagination. Requires a valid project_id from GET /projects. Technology IDs from this endpoint are required when onboarding accounts (POST /projects/{project_id}/accounts) to classify the account\'s technology stack.
+     * List technologies defined for a project
      */
     async getTechnologies(requestParameters: GetTechnologiesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetTechnologiesResponse> {
         const response = await this.getTechnologiesRaw(requestParameters, initOverrides);
@@ -1288,7 +1372,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all roles associated to a user in a project
+     * Returns the list of roles (Admin, Platform User, Power User, etc.) assigned to a specific user within a project. Requires a valid project_id from GET /projects and user_id from GET /projects/{project_id}/users. Used by other BCs and UI to determine user permissions.
+     * Get roles assigned to a user in a project
      */
     async getUserRolesRaw(requestParameters: GetUserRolesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetUserRolesResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1326,7 +1411,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Get all roles associated to a user in a project
+     * Returns the list of roles (Admin, Platform User, Power User, etc.) assigned to a specific user within a project. Requires a valid project_id from GET /projects and user_id from GET /projects/{project_id}/users. Used by other BCs and UI to determine user permissions.
+     * Get roles assigned to a user in a project
      */
     async getUserRoles(requestParameters: GetUserRolesRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetUserRolesResponse> {
         const response = await this.getUserRolesRaw(requestParameters, initOverrides);
@@ -1548,7 +1634,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Reassign users to different roles for a specific project
+     * Changes the roles of one or more users within a project. Requires a valid project_id from GET /projects and userIds from GET /projects/{project_id}/users. Emits UserReAssigned event consumed by Authorization BC (permission sync). The calling user is recorded as the initiator.
+     * Reassign users to new roles within a project
      */
     async reAssignProjectUsersRaw(requestParameters: ReAssignProjectUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1589,7 +1676,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Reassign users to different roles for a specific project
+     * Changes the roles of one or more users within a project. Requires a valid project_id from GET /projects and userIds from GET /projects/{project_id}/users. Emits UserReAssigned event consumed by Authorization BC (permission sync). The calling user is recorded as the initiator.
+     * Reassign users to new roles within a project
      */
     async reAssignProjectUsers(requestParameters: ReAssignProjectUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.reAssignProjectUsersRaw(requestParameters, initOverrides);
@@ -1597,7 +1685,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove an user from a specific project
+     * Unassigns a user from a project, revoking all their roles. Requires a valid project_id from GET /projects and user_id from GET /projects/{project_id}/users. Emits UserUnAssigned event consumed by Authorization BC (permission revocation) and Provisioning BC (workbench cleanup).
+     * Remove a single user from a project
      */
     async removeProjectUserRaw(requestParameters: RemoveProjectUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1635,7 +1724,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove an user from a specific project
+     * Unassigns a user from a project, revoking all their roles. Requires a valid project_id from GET /projects and user_id from GET /projects/{project_id}/users. Emits UserUnAssigned event consumed by Authorization BC (permission revocation) and Provisioning BC (workbench cleanup).
+     * Remove a single user from a project
      */
     async removeProjectUser(requestParameters: RemoveProjectUserRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.removeProjectUserRaw(requestParameters, initOverrides);
@@ -1643,7 +1733,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove multiple users from a specific project
+     * Unassigns multiple users from a project in a single request. Requires a valid project_id from GET /projects and userIds from GET /projects/{project_id}/users. Emits UserUnAssigned event for each user, consumed by Authorization BC (permission revocation) and Provisioning BC (workbench cleanup).
+     * Remove multiple users from a project in bulk
      */
     async removeProjectUsersRaw(requestParameters: RemoveProjectUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1680,7 +1771,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Remove multiple users from a specific project
+     * Unassigns multiple users from a project in a single request. Requires a valid project_id from GET /projects and userIds from GET /projects/{project_id}/users. Emits UserUnAssigned event for each user, consumed by Authorization BC (permission revocation) and Provisioning BC (workbench cleanup).
+     * Remove multiple users from a project in bulk
      */
     async removeProjectUsers(requestParameters: RemoveProjectUsersRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.removeProjectUsersRaw(requestParameters, initOverrides);
@@ -1688,7 +1780,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Re-onboard project account
+     * Restarts the onboarding workflow for one or more previously onboarded accounts. Requires a valid project_id from GET /projects and accountIds from GET /projects/{project_id}/accounts. Emits ProjectAccountOnBoardingRestarted event triggering the account onboarding state machine for each account.
+     * Re-onboard one or more project accounts
      */
     async reonboardProjectAccountRaw(requestParameters: ReonboardProjectAccountOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1729,7 +1822,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Re-onboard project account
+     * Restarts the onboarding workflow for one or more previously onboarded accounts. Requires a valid project_id from GET /projects and accountIds from GET /projects/{project_id}/accounts. Emits ProjectAccountOnBoardingRestarted event triggering the account onboarding state machine for each account.
+     * Re-onboard one or more project accounts
      */
     async reonboardProjectAccount(requestParameters: ReonboardProjectAccountOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.reonboardProjectAccountRaw(requestParameters, initOverrides);
@@ -1737,7 +1831,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Approve or Reject pending enrolments for a specific project
+     * Approves or rejects one or more pending enrolment requests for a project. Requires a valid project_id and enrolmentIds from GET /projects/{project_id}/enrolments. Approval emits EnrolmentApproved event consumed by Authorization BC. Rejection emits EnrolmentRejected event.
+     * Approve or reject pending enrolment requests
      */
     async updateEnrolmentsRaw(requestParameters: UpdateEnrolmentsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1778,7 +1873,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Approve or Reject pending enrolments for a specific project
+     * Approves or rejects one or more pending enrolment requests for a project. Requires a valid project_id and enrolmentIds from GET /projects/{project_id}/enrolments. Approval emits EnrolmentApproved event consumed by Authorization BC. Rejection emits EnrolmentRejected event.
+     * Approve or reject pending enrolment requests
      */
     async updateEnrolments(requestParameters: UpdateEnrolmentsOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateEnrolmentsRaw(requestParameters, initOverrides);
@@ -1786,7 +1882,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a project
+     * Updates the name, description, or isActive flag of an existing project. Requires a valid project_id from GET /projects. Emits ProjectUpdated event. Deactivating a project may affect all downstream BCs that depend on this project context.
+     * Update project name, description, or active status
      */
     async updateProjectRaw(requestParameters: UpdateProjectOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1827,7 +1924,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a project
+     * Updates the name, description, or isActive flag of an existing project. Requires a valid project_id from GET /projects. Emits ProjectUpdated event. Deactivating a project may affect all downstream BCs that depend on this project context.
+     * Update project name, description, or active status
      */
     async updateProject(requestParameters: UpdateProjectOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateProjectRaw(requestParameters, initOverrides);
@@ -1835,7 +1933,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Change account entity
+     * Changes the status of a project account to Active or Inactive. Requires a valid project_id from GET /projects and account_id from GET /projects/{project_id}/accounts. Deactivating an account prevents workbench provisioning and product deployments in downstream BCs.
+     * Activate or deactivate a project account
      */
     async updateProjectAccountRaw(requestParameters: UpdateProjectAccountOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1880,7 +1979,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Change account entity
+     * Changes the status of a project account to Active or Inactive. Requires a valid project_id from GET /projects and account_id from GET /projects/{project_id}/accounts. Deactivating an account prevents workbench provisioning and product deployments in downstream BCs.
+     * Activate or deactivate a project account
      */
     async updateProjectAccount(requestParameters: UpdateProjectAccountOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateProjectAccountRaw(requestParameters, initOverrides);
@@ -1922,7 +2022,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a technology
+     * Updates the name or description of an existing technology within a project. Requires a valid project_id from GET /projects and tech_id from GET /projects/{project_id}/technologies. Emits TechnologyUpdated event.
+     * Update a technology\'s name or description
      */
     async updateTechnologyRaw(requestParameters: UpdateTechnologyOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -1967,7 +2068,8 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Update a technology
+     * Updates the name or description of an existing technology within a project. Requires a valid project_id from GET /projects and tech_id from GET /projects/{project_id}/technologies. Emits TechnologyUpdated event.
+     * Update a technology\'s name or description
      */
     async updateTechnology(requestParameters: UpdateTechnologyOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.updateTechnologyRaw(requestParameters, initOverrides);

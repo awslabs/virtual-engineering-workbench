@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import aws_cdk
 import constructs
-from aws_cdk import aws_apigateway, aws_certificatemanager, aws_cognito, aws_secretsmanager, aws_ssm
+from aws_cdk import aws_acmpca, aws_apigateway, aws_certificatemanager, aws_cognito, aws_secretsmanager, aws_ssm
 
 from infra import config
 from infra.constructs import private_api_gw_alb
@@ -17,8 +17,9 @@ class ApiToPathMapping:
 @dataclass
 class ApiIntegrationMapping:
     domain_name: str
-    cert_arn: str
+    cert_arn: str | None
     mappings: list[ApiToPathMapping]
+    private_ca_arn: str | None = None
 
 
 class ApiIntegrationStack(aws_cdk.Stack):
@@ -37,10 +38,7 @@ class ApiIntegrationStack(aws_cdk.Stack):
 
         self._handle_input_validation_errors(api_integration_mapping)
 
-        # Load certificate for the custom domain
-        certificate = aws_certificatemanager.Certificate.from_certificate_arn(
-            scope=self, id="Certificate", certificate_arn=api_integration_mapping.cert_arn
-        )
+        certificate = self._certificate(api_integration_mapping)
 
         # Register the custom domain
         domain = aws_apigateway.DomainName(
@@ -161,9 +159,28 @@ class ApiIntegrationStack(aws_cdk.Stack):
                 },
             )
 
+    def _certificate(self, api_integration_mapping: ApiIntegrationMapping) -> aws_certificatemanager.ICertificate:
+        if api_integration_mapping.private_ca_arn:
+            return aws_certificatemanager.PrivateCertificate(
+                scope=self,
+                id="PrivateCertificate",
+                domain_name=api_integration_mapping.domain_name,
+                certificate_authority=aws_acmpca.CertificateAuthority.from_certificate_authority_arn(
+                    self, "PrivateCa", api_integration_mapping.private_ca_arn
+                ),
+                # API Gateway takes RSA keys of at most 2048 bits on a custom domain.
+                key_algorithm=aws_certificatemanager.KeyAlgorithm.RSA_2048,
+            )
+        return aws_certificatemanager.Certificate.from_certificate_arn(
+            scope=self, id="Certificate", certificate_arn=api_integration_mapping.cert_arn
+        )
+
     def _handle_input_validation_errors(self, api_integration_mapping: ApiIntegrationMapping):
-        if not api_integration_mapping.cert_arn:
-            raise ValueError("ARN for certificate is empty string")
+        if not api_integration_mapping.cert_arn and not api_integration_mapping.private_ca_arn:
+            raise ValueError("Neither a certificate ARN nor a private CA ARN is given")
+
+        if api_integration_mapping.cert_arn and api_integration_mapping.private_ca_arn:
+            raise ValueError("Give either a certificate ARN or a private CA ARN, not both")
 
         if not api_integration_mapping.domain_name:
             raise ValueError("Domain name is empty")

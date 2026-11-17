@@ -104,13 +104,29 @@ class ProvisioningEnablementStack(Stack):
 
         # Provisioned product instance profile managed policy
         instance_profile_statements = [
+            # EC2's Describe actions take no resource or condition, so this can't be narrowed.
             aws_iam.PolicyStatement(
+                sid="DescribeInstances",
                 effect=aws_iam.Effect.ALLOW,
-                actions=[
-                    "ec2:ModifyInstanceMetadataOptions",
-                    "ec2:DescribeInstances",
-                ],
+                actions=["ec2:DescribeInstances"],
                 resources=["*"],
+            ),
+            # Users have root on their instances, and this policy is on every instance in the account.
+            # Unscoped, one user could turn off another instance's metadata service (cutting off its role
+            # credentials and SSM Agent), bring back IMDSv1, or raise its hop limit. An instance may change
+            # only its own metadata options: the one it is calling from.
+            aws_iam.PolicyStatement(
+                sid="ModifyOwnInstanceMetadataOptions",
+                effect=aws_iam.Effect.ALLOW,
+                actions=["ec2:ModifyInstanceMetadataOptions"],
+                resources=[f"arn:{self.partition}:ec2:{self.region}:{self.account}:instance/*"],
+                conditions={
+                    "StringEquals": {
+                        "ec2:SourceInstanceARN": (
+                            f"arn:{self.partition}:ec2:{self.region}:{self.account}:instance/${{ec2:InstanceID}}"
+                        )
+                    }
+                },
             ),
         ]
 

@@ -22,6 +22,7 @@ export class AppConfig {
     public readonly logoutUrl?: string,
     public readonly certArn?: string,
     public readonly certArnLogin?: string,
+    public readonly privateCaArn?: string,
     public readonly domainName?: string,
     public readonly domainNameLogin?: string,
     public readonly oidcSecretName?: string,
@@ -42,6 +43,7 @@ export class AppConfig {
 
     const certArn = app.node.tryGetContext('cert-arn');
     const certArnLogin = app.node.tryGetContext('cert-arn-login');
+    const privateCaArn = app.node.tryGetContext('private-ca-arn');
     const domainName = app.node.tryGetContext('use-custom-domain');
     const domainNameLogin = app.node.tryGetContext('use-custom-domain-login');
 
@@ -50,6 +52,7 @@ export class AppConfig {
       environmentConfig.LogoutUrl,
       certArn,
       certArnLogin,
+      privateCaArn,
       domainName,
       domainNameLogin,
       environmentConfig.OIDCSecretName,

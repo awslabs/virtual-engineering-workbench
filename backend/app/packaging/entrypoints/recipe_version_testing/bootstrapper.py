@@ -12,6 +12,7 @@ from app.packaging.adapters.query_services import (
     dynamodb_recipe_version_test_execution_query_service,
 )
 from app.packaging.adapters.repository import dynamo_entity_config
+from app.packaging.adapters.repository.dynamo_entity_migrations import migrations_config
 from app.packaging.adapters.services import aws_recipe_version_testing_service
 from app.packaging.domain.command_handlers.recipe import (
     check_recipe_version_testing_environment_launch_status_command_handler,
@@ -37,7 +38,7 @@ from app.shared.adapters.message_bus import (
     command_bus_metrics,
     in_memory_command_bus,
 )
-from app.shared.adapters.unit_of_work_v2 import dynamodb_unit_of_work
+from app.shared.adapters.unit_of_work_v2 import dynamodb_migrations, dynamodb_unit_of_work
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
 
@@ -53,6 +54,12 @@ def bootstrap(  # noqa: C901
 ) -> Dependencies:
     session = boto_logger.loggable_session(boto3.session.Session(), logger)
     dynamodb = session.resource("dynamodb", region_name=app_config.get_default_region())
+
+    dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=dynamodb,
+        table_name=app_config.get_table_name(),
+        logger=logger,
+    ).register_migrations(migrations_config(gsi_entities=app_config.get_gsi_name_entities())).migrate()
 
     shared_uow = dynamodb_unit_of_work.DynamoDBUnitOfWork(
         table_name=app_config.get_table_name(),

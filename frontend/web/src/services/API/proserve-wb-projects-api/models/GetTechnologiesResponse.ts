@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Workbench Projects API
- * API in charge of processing the methods required for the use cases
+ * Manages projects (tenants), user assignments/roles, project accounts (AWS accounts), technologies, and self-service enrolments. Foundational upstream BC — others depend on it for project_id, user identity, and account scope. Publishes domain events.
  *
  * The version of the OpenAPI document: 2024-04-11T12:00:00Z
  *

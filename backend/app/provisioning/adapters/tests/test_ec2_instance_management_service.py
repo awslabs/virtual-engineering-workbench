@@ -268,6 +268,36 @@ def test_authorize_user_ip_address_should_authorize_security_group_ingress(mock_
     assertpy.assert_that(response).is_none()
 
 
+@pytest.mark.parametrize("connection_option,port,authorized", [("SSH", 22, False), ("RDP", 3389, True)])
+def test_authorize_user_ip_address_with_ssh_off_authorizes_all_but_ssh(
+    mock_security_group, connection_option, port, authorized
+):
+    # ARRANGE
+    ec2_client = boto3.client("ec2", region_name="us-east-1")
+    service = ec2_instance_management_service.EC2InstanceManagementService(
+        ec2_boto_client_provider=mock.MagicMock(return_value=ec2_client),
+        ssh_enabled=False,
+    )
+
+    # ACT
+    service.authorize_user_ip_address(
+        user_id="T0011AA",
+        aws_account_id="001234567890",
+        region="us-east-1",
+        connection_option=connection_option,
+        ip_address="127.0.0.1/32",
+        port=port,
+        to_port=port,
+        protocol="tcp",
+        user_sg_id=mock_security_group,
+    )
+
+    # ASSERT
+    response = ec2_client.describe_security_group_rules(Filters=[{"Name": "group-id", "Values": [mock_security_group]}])
+    ingress_ports = [rule["FromPort"] for rule in response["SecurityGroupRules"] if not rule["IsEgress"]]
+    assertpy.assert_that(port in ingress_ports).is_equal_to(authorized)
+
+
 def test_get_user_ip_address_rule_id_should_return_none_id_if_not_exists(mock_security_group):
     # ARRANGE
     client_provider = mock.MagicMock(return_value=boto3.client("ec2", region_name="us-east-1"))

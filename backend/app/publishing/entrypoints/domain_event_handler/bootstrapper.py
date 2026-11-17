@@ -190,6 +190,7 @@ def bootstrap(  # noqa: C901
                 uow=shared_uow,
                 catalog_srv=sc_service,
                 catalog_qry_srv=sc_qry_service,
+                versions_qry_srv=versions_qry_srv,
                 logger=logger,
                 msg_bus=message_bus,
             )

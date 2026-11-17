@@ -319,7 +319,9 @@ def get_user_provisioned_products(
         status_code=HTTPStatus.OK,
         body=api_model.GetProvisionedProductsResponse(
             provisionedProducts=[
-                api_model_mappers.map_provisioned_product(pp, include_status_reason=include_status_reason)
+                api_model_mappers.map_provisioned_product(
+                    pp, include_status_reason=include_status_reason, ssh_enabled=app_config.get_ssh_connection_option()
+                )
                 for pp in provisioned_products
             ]
         ),
@@ -344,7 +346,9 @@ def get_project_provisioned_products(
         status_code=HTTPStatus.OK,
         body=api_model.GetAllProvisionedProductsResponse(
             provisionedProducts=[
-                api_model_mappers.map_provisioned_product(pp, include_status_reason=include_status_reason)
+                api_model_mappers.map_provisioned_product(
+                    pp, include_status_reason=include_status_reason, ssh_enabled=app_config.get_ssh_connection_option()
+                )
                 for pp in provisioned_products
             ]
         ),
@@ -395,7 +399,9 @@ def get_project_provisioned_products_paginated(
         status_code=HTTPStatus.OK,
         body=api_model.GetPaginatedProvisionedProductsResponse(
             provisionedProducts=[
-                api_model_mappers.map_provisioned_product(pp, include_status_reason=include_status_reason)
+                api_model_mappers.map_provisioned_product(
+                    pp, include_status_reason=include_status_reason, ssh_enabled=app_config.get_ssh_connection_option()
+                )
                 for pp in provisioned_products
             ],
             pagingKey=paging_key,
@@ -424,7 +430,9 @@ def get_provisioned_product(
     )
     provisioned_product_parsed = api_model.ProvisionedProduct.model_validate(
         api_model_mappers.map_provisioned_product(
-            provisioned_product_entity, include_status_reason=_can_see_status_reason()
+            provisioned_product_entity,
+            include_status_reason=_can_see_status_reason(),
+            ssh_enabled=app_config.get_ssh_connection_option(),
         ).model_dump()
     )
     return api_gateway.Response(
@@ -459,7 +467,7 @@ def internal_get_provisioned_product(
         status_code=HTTPStatus.OK,
         body=api_model.InternalGetProvisionedProductResponse(
             provisionedProduct=api_model_mappers.map_provisioned_product(
-                provisioned_product_entity, include_sensitive=True
+                provisioned_product_entity, include_sensitive=True, ssh_enabled=app_config.get_ssh_connection_option()
             ),
         ),
         content_type=content_types.APPLICATION_JSON,
@@ -483,7 +491,10 @@ def get_project_provisioned_products_internal(
     return api_gateway.Response(
         status_code=HTTPStatus.OK,
         body=api_model.GetAllProvisionedProductsResponse(
-            provisionedProducts=[api_model_mappers.map_provisioned_product(pp) for pp in provisioned_products],
+            provisionedProducts=[
+                api_model_mappers.map_provisioned_product(pp, ssh_enabled=app_config.get_ssh_connection_option())
+                for pp in provisioned_products
+            ],
             pagingKey=paging_key,
         ),
         content_type=content_types.APPLICATION_JSON,
@@ -499,6 +510,9 @@ def get_provisioned_product_ssh_key(
     project_id: str,
     provisioned_product_id: str,
 ) -> api_gateway.Response[api_model.GetProvisionedProductSSHKeyResponse]:
+    if not app_config.get_ssh_connection_option():
+        raise domain_exception.DomainException("SSH is turned off for this deployment.")
+
     ssh_key = dependencies.virtual_targets_domain_qry_srv.get_provisioned_product_ssh_key(
         project_id=project_id_value_object.from_str(project_id),
         provisioned_product_id=provisioned_product_id_value_object.from_str(provisioned_product_id),

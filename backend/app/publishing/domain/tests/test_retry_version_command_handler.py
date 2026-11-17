@@ -121,6 +121,7 @@ def test_retry_version_updates_versions_and_publishes_events(
                 lastUpdateDate="2023-07-24T00:00:00+00:00",
                 lastUpdatedBy="T000002",
                 status=version.VersionStatus.Updating,
+                statusReason=None,
             ),
             mock.call(
                 pk=version.VersionPrimaryKey(
@@ -131,6 +132,7 @@ def test_retry_version_updates_versions_and_publishes_events(
                 lastUpdateDate="2023-07-24T00:00:00+00:00",
                 lastUpdatedBy="T000002",
                 status=version.VersionStatus.Updating,
+                statusReason=None,
             ),
         ]
     )

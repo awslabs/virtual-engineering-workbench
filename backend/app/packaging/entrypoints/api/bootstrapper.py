@@ -17,12 +17,16 @@ from app.packaging.adapters.query_services import (
     dynamodb_recipe_version_test_execution_query_service,
 )
 from app.packaging.adapters.repository import dynamo_entity_config
+from app.packaging.adapters.repository.dynamo_entity_migrations import migrations_config
 from app.packaging.adapters.services import (
     aws_component_definition_service,
     ec2_image_builder_component_service,
     ec2_image_builder_pipeline_service,
     parameter_service,
 )
+from app.packaging.adapters.services.aws_marketplace_discovery_service import AwsMarketplaceDiscoveryService
+from app.packaging.adapters.services.aws_org_integration_service import AwsOrgIntegrationService
+from app.packaging.adapters.services.ec2_ami_validation_service import Ec2AmiValidationService
 from app.packaging.domain.command_handlers.component import (
     archive_component_command_handler,
     create_component_command_handler,
@@ -36,7 +40,7 @@ from app.packaging.domain.command_handlers.component import (
     update_mandatory_components_list_command_handler,
     validate_component_version_command_handler,
 )
-from app.packaging.domain.command_handlers.image import create_image_command_handler
+from app.packaging.domain.command_handlers.image import create_image_command_handler, import_image_command_handler
 from app.packaging.domain.command_handlers.pipeline import (
     create_pipeline_command_handler,
     retire_pipeline_command_handler,
@@ -63,7 +67,7 @@ from app.packaging.domain.commands.component import (
     update_mandatory_components_list_command,
     validate_component_version_command,
 )
-from app.packaging.domain.commands.image import create_image_command
+from app.packaging.domain.commands.image import create_image_command, import_image_command
 from app.packaging.domain.commands.pipeline import (
     create_pipeline_command,
     retire_pipeline_command,
@@ -77,6 +81,7 @@ from app.packaging.domain.commands.recipe import (
     retire_recipe_version_command,
     update_recipe_version_command,
 )
+from app.packaging.domain.ports.marketplace_agreement_service import MarketplaceAgreementService
 from app.packaging.domain.query_services import (
     component_domain_query_service,
     component_version_domain_query_service,
@@ -88,6 +93,9 @@ from app.packaging.domain.query_services import (
     recipe_version_domain_query_service,
     recipe_version_test_execution_domain_query_service,
 )
+from app.packaging.domain.query_services.marketplace_subscription_domain_query_service import (
+    MarketplaceSubscriptionDomainQueryService,
+)
 from app.packaging.entrypoints.api import config
 from app.shared.adapters.message_bus import (
     command_bus,
@@ -96,7 +104,7 @@ from app.shared.adapters.message_bus import (
     in_memory_command_bus,
     message_bus_metrics,
 )
-from app.shared.adapters.unit_of_work_v2 import dynamodb_unit_of_work
+from app.shared.adapters.unit_of_work_v2 import dynamodb_migrations, dynamodb_unit_of_work
 from app.shared.api import aws_events_api
 from app.shared.instrumentation import power_tools_metrics
 from app.shared.logging import boto_logger
@@ -121,6 +129,11 @@ class Dependencies(BaseModel):
     )
     pipeline_srv: ec2_image_builder_pipeline_service.Ec2ImageBuilderPipelineService
     component_definition_service: aws_component_definition_service.AWSComponentDefinitionService
+    marketplace_discovery_svc: MarketplaceAgreementService | None = None
+    marketplace_subscription_qry_svc: MarketplaceSubscriptionDomainQueryService | None = None
+    ami_validation_svc: Ec2AmiValidationService | None = None
+    image_service_account_id: str = ""
+    available_regions: list[str] = []
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
@@ -130,6 +143,12 @@ def bootstrap(  # noqa: C901
 ) -> Dependencies:
     session = boto_logger.loggable_session(boto3.session.Session(), logger)
     dynamodb = session.resource("dynamodb", region_name=app_config.get_default_region())
+
+    dynamodb_migrations.DynamoDBMigrator(
+        ddb_resource=dynamodb,
+        table_name=app_config.get_table_name(),
+        logger=logger,
+    ).register_migrations(migrations_config(gsi_entities=app_config.get_gsi_name_entities())).migrate()
 
     shared_uow = dynamodb_unit_of_work.DynamoDBUnitOfWork(
         table_name=app_config.get_table_name(),
@@ -247,6 +266,23 @@ def bootstrap(  # noqa: C901
         pipelines_configuration_mapping=pipelines_configuration_mapping,
         region=app_config.get_default_region(),
         topic_arn=f"arn:aws:sns:{app_config.get_default_region()}:{app_config.get_ami_factory_account_id()}:{app_config.get_topic_name()}",
+    )
+
+    ami_validation_svc = Ec2AmiValidationService(
+        admin_role=app_config.get_admin_role(),
+        ami_factory_account_id=app_config.get_ami_factory_account_id(),
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+
+    marketplace_discovery_svc = AwsMarketplaceDiscoveryService(
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+
+    org_integration_svc = AwsOrgIntegrationService(
+        region=app_config.get_default_region(),
+        boto_session=session,
     )
 
     component_domain_qry_srv = component_domain_query_service.ComponentDomainQueryService(
@@ -586,6 +622,18 @@ def bootstrap(  # noqa: C901
 
         return _handle_command
 
+    def _import_image_cmd_handler_factory():
+        def _handle_command(command: import_image_command.ImportImageCommand):
+            return import_image_command_handler.handle(
+                command=command,
+                uow=shared_uow,
+                ami_validation_svc=ami_validation_svc,
+                image_qry_srv=image_qry_srv,
+                msg_bus=message_bus,
+            )
+
+        return _handle_command
+
     cmd_bus = (
         command_bus_metrics.CommandBusMetrics(
             inner=in_memory_command_bus.InMemoryCommandBus(logger=logger),
@@ -672,9 +720,23 @@ def bootstrap(  # noqa: C901
             _create_image_command_handler_factory(),
         )
         .register_handler(
+            import_image_command.ImportImageCommand,
+            _import_image_cmd_handler_factory(),
+        )
+        .register_handler(
             validate_component_version_command.ValidateComponentVersionCommand,
             _validate_component_version_command_handler_factory(),
         )
+    )
+
+    marketplace_subscription_qry_svc = MarketplaceSubscriptionDomainQueryService(
+        agreement_service=marketplace_discovery_svc,
+        ami_service=marketplace_discovery_svc,
+        license_service=marketplace_discovery_svc,
+        org_integration_service=org_integration_svc,
+        image_qry_svc=image_qry_srv,
+        available_regions=app_config.get_available_regions(),
+        logger=logger,
     )
 
     return Dependencies(
@@ -691,4 +753,9 @@ def bootstrap(  # noqa: C901
         pipeline_domain_qry_srv=pipeline_domain_qry_srv,
         pipeline_srv=pipeline_srv,
         component_definition_service=component_version_definition_srv,
+        marketplace_discovery_svc=marketplace_discovery_svc,
+        marketplace_subscription_qry_svc=marketplace_subscription_qry_svc,
+        ami_validation_svc=ami_validation_svc,
+        image_service_account_id=app_config.get_ami_factory_account_id(),
+        available_regions=app_config.get_available_regions(),
     )

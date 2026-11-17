@@ -33,6 +33,19 @@ class ProductsService(ABC):
         region: str,
     ) -> str: ...
 
+    def get_provisioning_artifact_id(
+        self,
+        user_id: str,
+        aws_account_id: str,
+        sc_product_id: str,
+        version_name: str,
+        region: str,
+    ) -> str | None:
+        """The active artifact named version_name in the workbench's own SC product, if any. An update must
+        stay in that product: Service Catalog refuses another product's artifact .
+        None also when it can't be read, so callers fall back to the distribution's artifact."""
+        return None
+
     @abstractmethod
     def deprovision_product(
         self,

@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 import assertpy
@@ -10,7 +11,7 @@ from app.packaging.domain.commands.component import (
     update_component_command,
     update_component_version_command,
 )
-from app.packaging.domain.commands.image import create_image_command
+from app.packaging.domain.commands.image import create_image_command, import_image_command
 from app.packaging.domain.commands.pipeline import (
     create_pipeline_command,
     update_pipeline_command,
@@ -22,10 +23,14 @@ from app.packaging.domain.commands.recipe import (
 )
 from app.packaging.domain.model.component import component, component_version
 from app.packaging.domain.model.image import image
+from app.packaging.domain.model.image.image_constants import SubscriptionOwnership
 from app.packaging.domain.model.pipeline import pipeline
 from app.packaging.domain.model.recipe import recipe_version
 from app.packaging.domain.model.recipe.recipe import RecipeArchitecture
 from app.packaging.domain.model.shared import component_version_entry
+from app.packaging.domain.read_models.discovered_marketplace_subscription import (
+    DiscoveredMarketplaceSubscription,
+)
 from app.packaging.domain.value_objects.component import (
     component_description_value_object,
     component_id_value_object,
@@ -1616,6 +1621,7 @@ def test_get_all_images_for_project(lambda_context, authenticated_event, mocked_
             recipeVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
             status=image.ImageStatus.Created,
             imageUpstreamId=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value,
+            imageSource="PIPELINE",
             createDate=GlobalVariables.TEST_CREATE_DATE.value,
             lastUpdateDate=GlobalVariables.TEST_LAST_UPDATE_DATE.value,
         )
@@ -1653,6 +1659,7 @@ def test_get_image_for_project(lambda_context, authenticated_event, mocked_depen
             recipeVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
             status=image.ImageStatus.Created,
             imageUpstreamId=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value,
+            imageSource="PIPELINE",
             createDate=GlobalVariables.TEST_CREATE_DATE.value,
             lastUpdateDate=GlobalVariables.TEST_LAST_UPDATE_DATE.value,
         )
@@ -1799,3 +1806,202 @@ def test_create_component_version_should_succeed_if_license_or_notes_is_empty_an
             createdBy=user_id_value_object.from_str(GlobalVariables.TEST_CREATED_BY.value),
         )
     )
+
+
+def _marketplace_import_body() -> dict:
+    return {
+        "imageSource": "MARKETPLACE_PRODUCT",
+        "amiId": "ami-discovered",
+        "imageName": "Marketplace Image",
+        "platform": "Linux",
+        "architecture": "x86_64",
+        "osVersion": "Ubuntu 20",
+        "componentVersionDetails": [{"softwareName": "test", "softwareVersion": "1.0"}],
+        "marketplaceMetadata": {"productCode": "prodcode1234567"},
+    }
+
+
+def _discovered_subscription(
+    *,
+    ami_id: str = "ami-discovered",
+    product_code: str = "prodcode1234567",
+) -> DiscoveredMarketplaceSubscription:
+    return DiscoveredMarketplaceSubscription(
+        productName="Marketplace Product",
+        productCode=product_code,
+        hubRegionAmiId=ami_id,
+        regionalAmiIds={
+            "us-east-1": ami_id,
+            "eu-west-1": "ami-authoritative-eu",
+        },
+        licenseConfigurationArn="arn:aws:license-manager::license:authoritative",
+        homeRegion="us-east-1",
+        subscriptionOwnership="EXTERNALLY_MANAGED",
+        licenseGrantAllowed=False,
+        alreadyImported=False,
+    )
+
+
+def test_import_image_should_return_201(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_import_image_cmd_handler,
+):
+    # ARRANGE
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_import_image_cmd_handler.return_value = "image-abc123"
+
+    body = {
+        "imageSource": "EXISTING_AMI",
+        "amiId": "ami-01234567890abcdef",
+        "imageName": "Test Image",
+        "platform": "Linux",
+        "architecture": "x86_64",
+        "osVersion": "Ubuntu 20",
+        "componentVersionDetails": [{"softwareName": "test", "softwareVersion": "1.0"}],
+    }
+
+    event = authenticated_event(
+        json.dumps(body),
+        "/projects/proj-123/images/import",
+        "POST",
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    mocked_dependencies.marketplace_subscription_qry_svc.discover.assert_not_called()
+
+
+def test_import_marketplace_image_uses_only_server_discovered_metadata(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_import_image_cmd_handler,
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_import_image_cmd_handler.return_value = "image-abc123"
+    subscription_query = mocked_dependencies.marketplace_subscription_qry_svc
+    subscription_query.discover.return_value = [_discovered_subscription()]
+    body = _marketplace_import_body()
+    body["marketplaceMetadata"].update(
+        {
+            "subscriptionOwnership": "VEW_MANAGED",
+            "licenseGrantAllowed": True,
+            "regionalAmiIds": {
+                "us-east-1": "ami-forged",
+                "ap-southeast-2": "ami-forged-ap",
+            },
+            "licenseConfigurationArn": "arn:aws:license-manager::license:forged",
+            "homeRegion": "ap-southeast-2",
+        }
+    )
+    event = authenticated_event(json.dumps(body), "/projects/proj-123/images/import", "POST")
+
+    result = handler.handler(event, lambda_context)
+
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    subscription_query.discover.assert_called_once_with(project_id=project_id_value_object.from_str("proj-123"))
+    mocked_import_image_cmd_handler.assert_called_once()
+    command = mocked_import_image_cmd_handler.call_args.args[0]
+    assertpy.assert_that(command).is_instance_of(import_image_command.ImportImageCommand)
+    assertpy.assert_that(command.licenseGrantAllowed).is_false()
+    assertpy.assert_that(command.licenseConfigurationArn).is_equal_to("arn:aws:license-manager::license:authoritative")
+    assertpy.assert_that(command.subscriptionOwnership).is_equal_to(SubscriptionOwnership.EXTERNALLY_MANAGED)
+    assertpy.assert_that(command.regionalAmiIds).is_equal_to(
+        {
+            "us-east-1": "ami-discovered",
+            "eu-west-1": "ami-authoritative-eu",
+        }
+    )
+    assertpy.assert_that(command.homeRegion).is_equal_to("us-east-1")
+
+
+@pytest.mark.parametrize(
+    ("discovered_ami_id", "discovered_product_code"),
+    [
+        pytest.param(None, None, id="absent"),
+        pytest.param("ami-current", "prodcode1234567", id="stale-ami"),
+        pytest.param("ami-discovered", "otherprod123456", id="mismatched-product"),
+    ],
+)
+def test_import_marketplace_image_rejects_non_matching_subscription_before_dispatch(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_import_image_cmd_handler,
+    discovered_ami_id,
+    discovered_product_code,
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    subscription_query = mocked_dependencies.marketplace_subscription_qry_svc
+    subscription_query.discover.return_value = (
+        []
+        if discovered_ami_id is None
+        else [
+            _discovered_subscription(
+                ami_id=discovered_ami_id,
+                product_code=discovered_product_code,
+            )
+        ]
+    )
+    event = authenticated_event(
+        json.dumps(_marketplace_import_body()),
+        "/projects/proj-123/images/import",
+        "POST",
+    )
+
+    result = handler.handler(event, lambda_context)
+
+    assertpy.assert_that(result["statusCode"]).is_equal_to(400)
+    subscription_query.discover.assert_called_once_with(project_id=project_id_value_object.from_str("proj-123"))
+    mocked_import_image_cmd_handler.assert_not_called()
+
+
+def test_import_marketplace_image_requires_subscription_selector_before_dispatch(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_import_image_cmd_handler,
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    body = _marketplace_import_body()
+    del body["marketplaceMetadata"]
+    event = authenticated_event(json.dumps(body), "/projects/proj-123/images/import", "POST")
+
+    result = handler.handler(event, lambda_context)
+
+    assertpy.assert_that(result["statusCode"]).is_equal_to(400)
+    mocked_dependencies.marketplace_subscription_qry_svc.discover.assert_not_called()
+    mocked_import_image_cmd_handler.assert_not_called()
+
+
+def test_discover_marketplace_subscriptions_should_return_200(lambda_context, authenticated_event, mocked_dependencies):
+    # ARRANGE
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_dependencies.marketplace_subscription_qry_svc.discover.return_value = []
+
+    event = authenticated_event(
+        None,
+        "/projects/proj-123/marketplace/subscriptions",
+        "GET",
+    )
+
+    # ACT
+    result = handler.handler(event, lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)

@@ -245,6 +245,23 @@ class GlobalVariables(Enum):
     TEST_COMPONENT_LICENSE_DASHBOARD_URL = "https://proserve.license.com/index.php?action=dashboard.view&dashboardid=1"
     TEST_COMPONENT_SOFTWARE_VERSION_NOTES = "This is a test component version note."
     TEST_COMPONENT_VERSION_YAML_DEFINITION = "Name: Test component"
+    TEST_MARKETPLACE_AGREEMENT_ID = "agr-123"
+    TEST_MARKETPLACE_PRODUCT_ID = "prod-456"
+    TEST_MARKETPLACE_OFFER_ID = "offer-789"
+    TEST_MARKETPLACE_PRODUCT_CODE = "abc123def456ghi"
+    TEST_MARKETPLACE_PRODUCT_NAME = "My Product"
+    TEST_MARKETPLACE_PUBLISHER = "Acme Corp"
+    TEST_MARKETPLACE_SHORT_DESCRIPTION = "A great product"
+    TEST_LICENSE_ARN = "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123"
+    TEST_LICENSE_NAME = "My License"
+    TEST_LICENSE_PRODUCT_NAME = "My Product"
+    TEST_LICENSE_PRODUCT_SKU = "sku-123"
+    TEST_LICENSE_ISSUER = "Acme Corp"
+    TEST_IMAGE_SERVICE_ROLE = "arn:aws:iam::123456789012:role/PackagingImageServiceRole"
+    TEST_IMAGE_OWNER_ID = "123456789012"
+    TEST_ORG_MANAGEMENT_ACCOUNT_ID = "555555555555"
+    TEST_ORG_ID = "o-testorgid01"
+    TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:555555555555:resource-share/abcd-1234"
 
 
 orig = botocore.client.BaseClient._make_api_call
@@ -372,6 +389,14 @@ def mock_moto_calls(
     mock_update_distribution_config_response,
     mock_update_infrastructure_config_response,
     mock_update_pipeline_response,
+    mock_search_agreements_response,
+    mock_describe_entity_response,
+    mock_describe_images_response,
+    mock_list_received_licenses_response,
+    mock_assume_role_response,
+    mock_get_caller_identity_response,
+    mock_describe_organization_response,
+    mock_get_resource_shares_response,
 ):
     create_component = "CreateComponent"
     delete_component = "DeleteComponent"
@@ -413,6 +438,20 @@ def mock_moto_calls(
         update_distribution_config: mock.MagicMock(return_value=mock_update_distribution_config_response),
         update_infrastructure_config: mock.MagicMock(return_value=mock_update_infrastructure_config_response),
         update_pipeline: mock.MagicMock(return_value=mock_update_pipeline_response),
+        "SearchAgreements": mock.MagicMock(return_value=mock_search_agreements_response),
+        "DescribeEntity": mock.MagicMock(return_value=mock_describe_entity_response),
+        "DescribeImages": mock.MagicMock(return_value=mock_describe_images_response),
+        "ListReceivedLicenses": mock.MagicMock(return_value=mock_list_received_licenses_response),
+        "GetServiceSettings": mock.MagicMock(
+            return_value={
+                "OrganizationConfiguration": {"EnableIntegration": True},
+                "LicenseManagerResourceShareArn": GlobalVariables.TEST_LM_RESOURCE_SHARE_ARN.value,
+            }
+        ),
+        "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
+        "GetCallerIdentity": mock.MagicMock(return_value=mock_get_caller_identity_response),
+        "DescribeOrganization": mock.MagicMock(return_value=mock_describe_organization_response),
+        "GetResourceShares": mock.MagicMock(return_value=mock_get_resource_shares_response),
     }
 
     def _interceptor(self, operation_name, kwarg):
@@ -1560,3 +1599,150 @@ def get_mock_parameter(mock_ssm_client):
         )
 
     return _get_mock_parameter
+
+
+# --- Marketplace Discovery Service fixtures ---
+
+
+@pytest.fixture()
+def mock_search_agreements_response():
+    return {
+        "agreementViewSummaries": [
+            {
+                "agreementId": GlobalVariables.TEST_MARKETPLACE_AGREEMENT_ID.value,
+                "proposalSummary": {
+                    "resources": [{"id": GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value, "type": "AmiProduct"}],
+                    "offerId": GlobalVariables.TEST_MARKETPLACE_OFFER_ID.value,
+                },
+                "status": "ACTIVE",
+                "acceptanceTime": datetime(2024, 1, 1),
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def mock_describe_entity_response():
+    return {
+        "DetailsDocument": {
+            "ProductTitle": GlobalVariables.TEST_MARKETPLACE_PRODUCT_NAME.value,
+            "Description": {"ShortDescription": GlobalVariables.TEST_MARKETPLACE_SHORT_DESCRIPTION.value},
+            "Manufacturer": {"Name": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value},
+        }
+    }
+
+
+@pytest.fixture()
+def mock_describe_images_response():
+    return {
+        "Images": [
+            {
+                "ImageId": GlobalVariables.TEST_AMI_ID.value,
+                "State": "available",
+                "OwnerId": GlobalVariables.TEST_IMAGE_OWNER_ID.value,
+                "Architecture": "x86_64",
+                "PlatformDetails": "Linux/UNIX",
+                "Name": "test-ami",
+                "Description": "Test AMI",
+                "BlockDeviceMappings": [],
+                "ProductCodes": [
+                    {
+                        "ProductCodeId": GlobalVariables.TEST_MARKETPLACE_PRODUCT_CODE.value,
+                        "ProductCodeType": "marketplace",
+                    }
+                ],
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def mock_list_received_licenses_response():
+    return {
+        "Licenses": [
+            {
+                "LicenseArn": GlobalVariables.TEST_LICENSE_ARN.value,
+                "LicenseName": GlobalVariables.TEST_LICENSE_NAME.value,
+                "ProductName": GlobalVariables.TEST_LICENSE_PRODUCT_NAME.value,
+                "ProductSKU": GlobalVariables.TEST_LICENSE_PRODUCT_SKU.value,
+                "Issuer": {"Name": GlobalVariables.TEST_LICENSE_ISSUER.value},
+                "Status": "AVAILABLE",
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def mock_assume_role_response():
+    return {
+        "Credentials": {
+            "AccessKeyId": GlobalVariables.AWS_AWS_ACCESS_KEY_ID.value,
+            "SecretAccessKey": GlobalVariables.AWS_SECRET_ACCESS_KEY.value,
+            "SessionToken": GlobalVariables.AWS_SESSION_TOKEN.value,
+            "Expiration": "2099-01-01T00:00:00Z",
+        },
+        "AssumedRoleUser": {
+            "AssumedRoleId": "AROA1234567890:session",
+            "Arn": "arn:aws:sts::123456789012:assumed-role/role/session",
+        },
+    }
+
+
+@pytest.fixture()
+def get_marketplace_discovery_srv():
+    from app.packaging.adapters.services.aws_marketplace_discovery_service import AwsMarketplaceDiscoveryService
+
+    return AwsMarketplaceDiscoveryService(region=GlobalVariables.TEST_REGION.value)
+
+
+@pytest.fixture()
+def get_ami_validation_srv():
+    from app.packaging.adapters.services.ec2_ami_validation_service import Ec2AmiValidationService
+
+    return Ec2AmiValidationService(
+        admin_role=GlobalVariables.TEST_IMAGE_SERVICE_ROLE.value,
+        ami_factory_account_id=GlobalVariables.AWS_ACCOUNT_ID.value,
+        region=GlobalVariables.TEST_REGION.value,
+    )
+
+
+@pytest.fixture()
+def mock_get_caller_identity_response():
+    return {"Account": GlobalVariables.AWS_ACCOUNT_ID.value}
+
+
+@pytest.fixture()
+def mock_describe_organization_response():
+    return {
+        "Organization": {
+            "Id": GlobalVariables.TEST_ORG_ID.value,
+            "MasterAccountId": GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value,
+            "FeatureSet": "ALL",
+            "MasterAccountEmail": "master@example.com",
+            "Arn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}:"
+            f"organization/{GlobalVariables.TEST_ORG_ID.value}",
+            "MasterAccountArn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}:"
+            f"account/{GlobalVariables.TEST_ORG_ID.value}/{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}",
+        }
+    }
+
+
+@pytest.fixture()
+def mock_get_resource_shares_response():
+    return {
+        "resourceShares": [
+            {
+                "resourceShareArn": GlobalVariables.TEST_LM_RESOURCE_SHARE_ARN.value,
+                "name": "licenseManagerResourceShare-1776697720243",
+                "owningAccountId": GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value,
+                "status": "ACTIVE",
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def get_org_integration_srv():
+    from app.packaging.adapters.services.aws_org_integration_service import AwsOrgIntegrationService
+
+    return AwsOrgIntegrationService(region=GlobalVariables.TEST_REGION.value)

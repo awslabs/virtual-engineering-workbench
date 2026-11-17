@@ -20,3 +20,6 @@ class ImageQueryService(ABC):
 
     @abstractmethod
     def get_image_by_image_upstream_id(self, image_upstream_id: str) -> image.Image | None: ...
+
+    @abstractmethod
+    def get_images_by_image_upstream_id(self, image_upstream_id: str) -> list[image.Image]: ...

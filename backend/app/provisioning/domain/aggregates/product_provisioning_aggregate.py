@@ -336,10 +336,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         if self._provisioned_product.region != command.region.value:
             return
 
-        current_version = semver.Version.parse(self._provisioned_product.versionName)
-        target_version = semver.Version.parse(command.product_version_name.value)
-
-        if current_version > target_version:
+        if self.__is_older_than_current(command.product_version_name.value):
             return
 
         self._provisioned_product.newVersionId = command.product_version_id.value
@@ -387,6 +384,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
             stage=self._provisioned_product.stage,
         )
 
+        self.__raise_if_downgrade(version_distribution.versionName)
         self._provisioned_product.newProvisioningParameters = self.__validate_and_map_input_parameters(
             provisioning_parameters=command.provisioning_parameters.value,
             current_provisioned_parameters=self._provisioned_product.provisioningParameters,
@@ -845,7 +843,7 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 aws_account_id=self._provisioned_product.awsAccountId,
                 sc_provisioned_product_id=self._provisioned_product.scProvisionedProductId,
                 sc_product_id=self._provisioned_product.scProductId,
-                sc_provisioning_artifact_id=new_version_distribution.scProvisioningArtifactId,
+                sc_provisioning_artifact_id=self.__artifact_in_own_product(products_srv, new_version_distribution),
                 provisioning_parameters=self._provisioned_product.newProvisioningParameters,
                 region=self._provisioned_product.region,
             )
@@ -866,7 +864,9 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
                 instance_mgmt_srv=instance_mgmt_srv,
                 container_mgmt_srv=container_mgmt_srv,
             )
-            self._provisioned_product.statusReason = str(e)
+            # Without failedOperation the UI never shows the reason, and the next start clears it.
+            self._provisioned_product.statusReason = f"Update failed: {e}"
+            self._provisioned_product.failedOperation = workbench_failure.FailedOperation.Update.value
             self._publish(
                 provisioned_product_upgrade_failed.ProvisionedProductUpgradeFailed(
                     provisionedProductId=self._provisioned_product.provisionedProductId,
@@ -1559,6 +1559,17 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
         if provisioned_product_id and self._provisioned_product.provisionedProductId != provisioned_product_id.value:
             raise domain_exception.DomainException(
                 f"Trying to change entity with ID {provisioned_product_id.value} but aggregate is loaded for {self._provisioned_product.provisionedProductId}"
+            )
+
+    def __is_older_than_current(self, version_name: str) -> bool:
+        return semver.Version.parse(version_name) < semver.Version.parse(self._provisioned_product.versionName)
+
+    def __raise_if_downgrade(self, target_version_name: str) -> None:
+        """An update goes to a newer version, or the same one for an instance type change."""
+        if self.__is_older_than_current(target_version_name):
+            raise domain_exception.DomainException(
+                f"Version {target_version_name} is older than the provisioned product's version "
+                f"{self._provisioned_product.versionName}: an update goes to a newer version."
             )
 
     def __is_user_owner(self, user_id: user_id_value_object.UserIdValueObject | None = None) -> bool:
@@ -2493,6 +2504,29 @@ class ProductProvisioningAggregate(aggregate.Aggregate):
             )
 
         return self._route_tables
+
+    def __artifact_in_own_product(
+        self, products_srv: products_service.ProductsService, distribution: version.Version
+    ) -> str:
+        """The target version's artifact in the workbench's own SC product. Concurrent first publishes can
+        leave several same-named products in an account and stage, so a version can sit in a sibling
+        product, and Service Catalog refuses another product's artifact for an update. The version is
+        found by name in the workbench's product; a distribution in that product is used as is."""
+        if distribution.scProductId == self._provisioned_product.scProductId:
+            return distribution.scProvisioningArtifactId
+        artifact_id = products_srv.get_provisioning_artifact_id(
+            user_id=self._provisioned_product.createdBy,
+            aws_account_id=self._provisioned_product.awsAccountId,
+            sc_product_id=self._provisioned_product.scProductId,
+            version_name=distribution.versionName,
+            region=self._provisioned_product.region,
+        )
+        if not artifact_id:
+            raise domain_exception.DomainException(
+                f"Version {distribution.versionName} isn't available to this workbench yet "
+                "(it was published to another Service Catalog product). Nothing changed: try again later."
+            )
+        return artifact_id
 
     def __get_version_distribution(
         self,

@@ -49,6 +49,8 @@ import {
   i18nVirtualTarget,
   i18nProvisionVirtualTarget,
   i18nVirtualTargetSteps,
+  ImportImageWizard,
+  MarketplaceSubscriptions,
 } from '../../pages';
 
 import { NotFound } from '../../error-pages';
@@ -200,7 +202,13 @@ export const ROUTES: { [key in RouteNames]: RouteConfig } = {
     component: <ViewRecipeVersion />
   },
   Images: {
-    component: <Images />
+    component: <Images serviceApi={packagingAPI} />
+  },
+  ImportImage: {
+    component: <ImportImageWizard serviceApi={packagingAPI} />
+  },
+  MarketplaceSubscriptions: {
+    component: <MarketplaceSubscriptions serviceApi={packagingAPI} />
   },
   MandatoryComponentsLists: {
     component: <MandatoryComponentsLists />,

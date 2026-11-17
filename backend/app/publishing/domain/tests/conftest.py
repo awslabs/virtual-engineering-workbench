@@ -4,9 +4,10 @@ from unittest import mock
 import pytest
 from freezegun import freeze_time
 
-from app.publishing.domain.model import portfolio, product, shared_ami, version
+from app.publishing.domain.model import license_grant, portfolio, product, shared_ami, version
 from app.publishing.domain.ports import (
     amis_query_service,
+    license_manager_service,
     products_query_service,
     projects_query_service,
 )
@@ -23,6 +24,7 @@ def mock_unit_of_work(
     mock_products_repo,
     mock_portfolio_repo,
     mock_amis_repo,
+    mock_license_grant_repo,
 ):
     repo_dict = {
         shared_ami.SharedAmi: mock_shared_ami_repo,
@@ -30,6 +32,7 @@ def mock_unit_of_work(
         version.Version: mock_version_repo,
         product.Product: mock_products_repo,
         ami.Ami: mock_amis_repo,
+        license_grant.LicenseGrant: mock_license_grant_repo,
     }
 
     uow_mock = mock.create_autospec(spec=unit_of_work.UnitOfWork)
@@ -60,6 +63,16 @@ def mock_products_repo():
 @pytest.fixture
 def mock_amis_repo():
     return mock.create_autospec(spec=unit_of_work.GenericRepository, instance=True)
+
+
+@pytest.fixture()
+def mock_license_grant_repo():
+    return mock.create_autospec(spec=unit_of_work.GenericRepository, instance=True)
+
+
+@pytest.fixture()
+def license_manager_service_mock():
+    return mock.create_autospec(spec=license_manager_service.LicenseManagerService)
 
 
 @pytest.fixture
@@ -311,3 +324,77 @@ def mock_logger():
 def frozen_time():
     with freeze_time("2025-01-01 12:00:00"):
         yield
+
+
+# --- License Grant Fixtures ---
+
+
+@pytest.fixture()
+def get_test_license_grant_entity():
+    def _get_test_license_grant_entity(**kwargs):
+        defaults = dict(
+            grantId="lg-abc123",
+            projectId="proj-123",
+            imageId="image-abc123",
+            licenseArn="arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+            grantArn="arn:aws:license-manager:us-east-1:123456789012:grant:g-abc123",
+            homeRegion="us-east-1",
+            targetAccountId="999888777666",
+            status="PENDING_ACCEPTANCE",
+            createDate="2024-01-01T00:00:00Z",
+            lastUpdateDate="2024-01-01T00:00:00Z",
+        )
+        defaults.update(kwargs)
+        return license_grant.LicenseGrant(**defaults)
+
+    return _get_test_license_grant_entity
+
+
+@pytest.fixture()
+def get_test_accept_license_grant_command():
+    from app.publishing.domain.commands.accept_license_grant_command import AcceptLicenseGrantCommand
+    from app.publishing.domain.value_objects import (
+        aws_account_id_value_object,
+        grant_arn_value_object,
+        grant_id_value_object,
+        project_id_value_object,
+        region_value_object,
+    )
+
+    def _get_test_accept_license_grant_command(
+        grant_id="lg-abc123",
+        grant_arn="arn:aws:license-manager:us-east-1:123456789012:grant:g-abc123",
+        project_id="proj-123",
+        home_region="us-east-1",
+        target_account_id="999888777666",
+    ):
+        return AcceptLicenseGrantCommand(
+            grantId=grant_id_value_object.from_str(grant_id),
+            grantArn=grant_arn_value_object.from_str(grant_arn),
+            projectId=project_id_value_object.from_str(project_id),
+            homeRegion=region_value_object.from_str(home_region),
+            targetAccountId=aws_account_id_value_object.from_str(target_account_id),
+        )
+
+    return _get_test_accept_license_grant_command
+
+
+@pytest.fixture()
+def get_test_create_license_grant_command():
+    from app.publishing.domain.commands.create_license_grant_command import CreateLicenseGrantCommand
+    from app.publishing.domain.value_objects import (
+        ami_id_value_object,
+        aws_account_id_value_object,
+        grant_name_value_object,
+        project_id_value_object,
+    )
+
+    def _get_test_create_license_grant_command():
+        return CreateLicenseGrantCommand(
+            projectId=project_id_value_object.from_str("proj-123"),
+            amiId=ami_id_value_object.from_str("ami-abc12345"),
+            targetAccountId=aws_account_id_value_object.from_str("999888777666"),
+            grantName=grant_name_value_object.from_str("test-grant"),
+        )
+
+    return _get_test_create_license_grant_command

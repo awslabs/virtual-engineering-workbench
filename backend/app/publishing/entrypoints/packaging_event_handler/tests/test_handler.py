@@ -131,3 +131,52 @@ def test_automated_image_registration_completed_event_with_exception(
 
     # ASSERT
     mock_create_automated_version_event_handler.assert_called_once()
+
+
+@freeze_time("2024-03-06")
+def test_image_imported_event(
+    mock_dependencies,
+    generate_event,
+    lambda_context,
+    image_imported_event_payload,
+    mock_update_ami_read_model_event_handler,
+):
+    # ARRANGE
+    from app.publishing.entrypoints.packaging_event_handler import handler
+
+    handler.dependencies = mock_dependencies
+    event_bridge_event = generate_event(
+        detail_type="ImageImported",
+        detail=image_imported_event_payload,
+    )
+    new_ami = ami.Ami(
+        projectId="proj-12345",
+        amiId=image_imported_event_payload["amiId"],
+        amiName=image_imported_event_payload["imageName"],
+        amiDescription=image_imported_event_payload["imageDescription"],
+        createDate=image_imported_event_payload["createDate"],
+        lastUpdateDate="2024-03-06T00:00:00+00:00",
+        componentVersionDetails=[
+            component_version_detail.ComponentVersionDetail(
+                componentName=cmp["componentName"],
+                componentVersionType=cmp["componentVersionType"],
+                softwareVendor=cmp["softwareVendor"],
+                softwareVersion=cmp["softwareVersion"],
+                licenseDashboard=cmp.get("licenseDashboard"),
+                notes=cmp.get("notes"),
+            )
+            for cmp in image_imported_event_payload["componentVersionDetails"]
+        ],
+        osVersion="Ubuntu 22.04",
+        platform="Linux/UNIX",
+        architecture="x86_64",
+        integrations=[],
+        imageSource="MARKETPLACE_PRODUCT",
+        marketplaceMetadata=image_imported_event_payload["marketplaceMetadata"],
+    )
+
+    # ACT
+    handler.handler(event_bridge_event, lambda_context)
+
+    # ASSERT
+    mock_update_ami_read_model_event_handler.assert_called_once_with(new_ami, [])

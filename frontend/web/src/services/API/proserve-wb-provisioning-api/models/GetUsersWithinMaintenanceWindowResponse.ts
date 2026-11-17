@@ -2,7 +2,7 @@
 /* eslint-disable */
 /**
  * Product Provisioning API
- * API in charge of provisioning VEW products
+ * Full lifecycle of provisioned products (workbenches, virtual targets, containers): launch, start, stop, update, remove. Depends on Projects and Publishing BCs.
  *
  * The version of the OpenAPI document: 2024-08-12T12:00:00Z
  *

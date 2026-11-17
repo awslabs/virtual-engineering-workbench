@@ -111,7 +111,7 @@ def get_sample_version():
             versionId=f"vers-{index}",
             versionName="1.0.0",
             versionDescription="version description",
-            awsAccountId="105249321508",
+            awsAccountId="123456789012",
             accountId="acct-12345",
             stage=stage,
             region="us-east-1",
@@ -193,7 +193,7 @@ def test_updates_versions_when_version_id_is_in_event_and_repo(
     # ASSERT
     calls = [
         mock.call(
-            version.VersionPrimaryKey(productId="prod-123", versionId=f"vers-{i}", awsAccountId="105249321508"),
+            version.VersionPrimaryKey(productId="prod-123", versionId=f"vers-{i}", awsAccountId="123456789012"),
             **{
                 "projectId": "proj-123",
                 "productId": "prod-123",
@@ -201,7 +201,7 @@ def test_updates_versions_when_version_id_is_in_event_and_repo(
                 "versionId": f"vers-{i}",
                 "versionName": "1.0.0",
                 "versionDescription": "version description",
-                "awsAccountId": "105249321508",
+                "awsAccountId": "123456789012",
                 "accountId": "acct-12345",
                 "stage": version.VersionStage.PROD,
                 "region": "us-east-1",
@@ -266,7 +266,7 @@ def test_removes_version_when_only_in_db(
     )
     # ASSERT
     calls = [
-        mock.call(version.VersionPrimaryKey(productId="prod-123", versionId=f"vers-{i}", awsAccountId="105249321508"))
+        mock.call(version.VersionPrimaryKey(productId="prod-123", versionId=f"vers-{i}", awsAccountId="123456789012"))
         for i in range(2)
     ]
     versions_repo_mock.remove.assert_has_calls(calls=calls, any_order=True)
@@ -333,7 +333,7 @@ def test_removes_product_if_no_versions(
                 **{
                     "productId": "prod-123",
                     "versionId": f"vers-{i}",
-                    "awsAccountId": "105249321508",
+                    "awsAccountId": "123456789012",
                 }
             )
         )
@@ -457,7 +457,7 @@ def test_do_not_set_product_available_tools_if_component_version_details_is_none
     # ASSERT
     calls = [
         mock.call(
-            version.VersionPrimaryKey(productId="prod-123", versionId=f"vers-{i}", awsAccountId="105249321508"),
+            version.VersionPrimaryKey(productId="prod-123", versionId=f"vers-{i}", awsAccountId="123456789012"),
             **{
                 "projectId": "proj-123",
                 "productId": "prod-123",
@@ -465,7 +465,7 @@ def test_do_not_set_product_available_tools_if_component_version_details_is_none
                 "versionId": f"vers-{i}",
                 "versionName": "1.0.0",
                 "versionDescription": "version description",
-                "awsAccountId": "105249321508",
+                "awsAccountId": "123456789012",
                 "accountId": "acct-12345",
                 "stage": version.VersionStage.PROD,
                 "region": "us-east-1",

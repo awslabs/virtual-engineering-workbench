@@ -48,6 +48,17 @@ USED_AMI_LIST_FILE_PATH = "amis/used-ami-list.json"
 
 TECHNICAL_PARAMETERS_NAMES = ["CpuArchitecture", "LaunchType", "OwnerTID"]
 
+API_LICENSE_MANAGER_ACTIONS = [
+    "license-manager:CreateGrant",
+    "license-manager:ListDistributedGrants",
+]
+AMI_SHARING_LICENSE_MANAGER_ACTIONS = [
+    *API_LICENSE_MANAGER_ACTIONS,
+    "license-manager:GetServiceSettings",
+    "organizations:DescribeOrganization",
+    "ram:GetResourceShares",
+]
+
 GSI_ATTRIBUTE_NAME_ENTITY = "entity"
 GSI_NAME_ENTITIES = "gsi_entities"
 GSI_NAME_CUSTOM_QUERY_BY_STATUS = "gsi_custom_query_by_status"
@@ -173,6 +184,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "GSI_NAME_CUSTOM_QUERY_BY_STATUS": GSI_NAME_CUSTOM_QUERY_BY_STATUS,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "AUDIT_LOGGING_KEY_NAME": audit_logging_key_name,
                         "API_BASE_PATH": constants.CUSTOM_DNS_API_PATH_PUBLISHING,
                         "STRIP_PREFIXES": constants.CUSTOM_DNS_API_PATH_PUBLISHING,
@@ -221,11 +233,25 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                 ],
                             )
                         ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                # The hub creates grants and recovers idempotent retries.
+                                actions=API_LICENSE_MANAGER_ACTIONS,
+                                resources=["*"],
+                            )
+                        ),
                     ],
                     reserved_concurrency=app_config.component_specific["api-lambda-reserved-concurrency"],
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
                     timeout=aws_cdk.Duration.seconds(5),
                     memory_size=1792,
+                    # The licence-grant authorization check reads projects'
+                    # active accounts to confirm the target account belongs to
+                    # the project before the hub distributes a licence.
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [("GET", "/internal/accounts")],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=domain_event_handler_name,
@@ -236,6 +262,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         # Only string values allowed - Converting to comma-separeted list
                         "TECHNICAL_PARAMETERS_NAMES": ",".join(TECHNICAL_PARAMETERS_NAMES),
                         "TOOLS_AWS_ACCOUNT_ID": self.get_tools_account_id(app_config),
@@ -294,6 +321,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "ADMIN_ROLE": PRODUCT_PUBLISHING_ADMIN_ROLE,
                         "USE_CASE_ROLE": PRODUCT_PUBLISHING_USE_CASE_ROLE,
@@ -346,9 +374,11 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "IMAGE_SERVICE_ROLE": PRODUCT_PUBLISHING_IMAGE_SERVICE_ROLE,
                         "IMAGE_SERVICE_AWS_ACCOUNT_ID": self.get_image_service_account_id(app_config),
+                        "SPOKE_ACCOUNT_ROLE": constants.PRODUCT_PUBLISHING_USE_CASE_ROLE,
                         "IMAGE_SERVICE_KEY_NAME": "-".join(
                             [
                                 app_config.get_organization_prefix(),
@@ -368,7 +398,18 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                                 effect=aws_iam.Effect.ALLOW,
                                 resources=[
                                     f"arn:aws:iam::*:role/{PRODUCT_PUBLISHING_IMAGE_SERVICE_ROLE}",
+                                    f"arn:aws:iam::*:role/{PRODUCT_PUBLISHING_USE_CASE_ROLE}",
                                 ],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                # AMI sharing also proves the License Manager RAM
+                                # resource share is active and owned by the management
+                                # account before it tries to distribute a grant.
+                                actions=AMI_SHARING_LICENSE_MANAGER_ACTIONS,
+                                resources=["*"],
                             )
                         ),
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
@@ -377,6 +418,12 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     provisioned_concurrency=None,
                     timeout=aws_cdk.Duration.seconds(30),
                     memory_size=1792,
+                    # The licence-grant authorization check reads projects'
+                    # active accounts to confirm the target account belongs to
+                    # the project before the hub distributes a licence.
+                    cross_bc_api_access={
+                        bounded_contexts.BoundedContext.PROJECTS: [("GET", "/internal/accounts")],
+                    },
                 ),
                 backend_app_entrypoints.AppEntryPoint(
                     name=packaging_event_handler_name,
@@ -386,6 +433,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
                         "GSI_NAME_ENTITIES": GSI_NAME_ENTITIES,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                         "TOOLS_AWS_ACCOUNT_ID": self.get_tools_account_id(app_config),
                         "ADMIN_ROLE": PRODUCT_PUBLISHING_ADMIN_ROLE,
@@ -431,6 +479,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     entry="app/publishing/entrypoints/product_sync_event_handler",
                     environment={
                         "TABLE_NAME": self._storage.table.table_name,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
                     },
                     permissions=[
@@ -497,6 +546,7 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 cedar_schema=publishing_auth_schema.publishing_schema,
                 cedar_policies=publishing_auth.publishing_bc_auth_policies,
             ),
+            enable_mcp=True,
         )
 
         # Ami sharing step function
@@ -569,6 +619,13 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             lambda_function=self._backend_app.app_entries_functions[packaging_event_handler_name],
             events=["AutomatedImageRegistrationCompleted"],
             event_detail_match={"productId": aws_events.Match.exists()},
+        )
+
+        # Subscribe to ImageImported events from Packaging BC
+        packaging_event_bus.subscribe_to_events(
+            name="packaging-image-imported-rule",
+            lambda_function=self._backend_app.app_entries_functions[packaging_event_handler_name],
+            events=["ImageImported"],
         )
 
         # Stack based suppressions

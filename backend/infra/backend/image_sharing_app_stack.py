@@ -116,37 +116,19 @@ class ImageSharingAppStack(aws_cdk.Stack):
                         resources=[key.key_arn for key in keys],
                     ),
                 ),
-                lambda lambda_f: lambda_f.add_to_policy(
-                    statement=aws_iam.PolicyStatement(
-                        actions=["ec2:DeregisterImage"],
-                        effect=aws_iam.Effect.ALLOW,
-                        resources=["*"],
-                    ),
-                ),
-                lambda lambda_f: lambda_f.add_to_policy(
-                    statement=aws_iam.PolicyStatement(
-                        actions=["ec2:DeleteSnapshot"],
-                        effect=aws_iam.Effect.ALLOW,
-                        resources=["*"],
-                    ),
-                ),
+                # ec2:DeregisterImage, ec2:DeleteSnapshot and imagebuilder:DeleteImage are
+                # deliberately absent: no code path in `backend/app/` calls them through
+                # PackagingImageServiceRole. Add tightly scoped statements here if a future
+                # cleanup workflow needs them.
                 lambda lambda_f: lambda_f.add_to_policy(
                     statement=aws_iam.PolicyStatement(
                         actions=[
                             "ec2:DescribeImages",
+                            "ec2:DescribeImageAttribute",
                         ],
                         effect=aws_iam.Effect.ALLOW,
                         resources=["*"],
                     )
-                ),
-                lambda lambda_f: lambda_f.add_to_policy(
-                    statement=aws_iam.PolicyStatement(
-                        actions=[
-                            "imagebuilder:DeleteImage",
-                        ],
-                        effect=aws_iam.Effect.ALLOW,
-                        resources=["*"],
-                    ),
                 ),
             ],
             role_name=constants.PACKAGING_IMAGE_SERVICE_ROLE,

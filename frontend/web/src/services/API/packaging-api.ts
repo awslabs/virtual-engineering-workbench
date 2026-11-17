@@ -38,6 +38,10 @@ import {
   CreateMandatoryComponentsListRequest,
   ValidateComponentVersionRequest,
   CreateComponentResponse,
+  ImportImageRequest,
+  ImportImageResponse,
+  DiscoverMarketplaceSubscriptionsResponse,
+  ListImportableAmisResponse,
 } from './proserve-wb-packaging-api';
 import { getAccessToken } from '..';
 
@@ -593,6 +597,38 @@ export const packagingAPI = {
       projectId,
       componentId,
       validateComponentVersionRequest,
+    });
+  },
+
+  importImage: async (projectId: string, body: ImportImageRequest): Promise<ImportImageResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.importImage({
+      authorization: `Bearer ${access}`,
+      projectId,
+      importImageRequest: body,
+    });
+  },
+
+  discoverMarketplaceSubscriptions: async (
+    projectId: string,
+  ): Promise<DiscoverMarketplaceSubscriptionsResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.discoverMarketplaceSubscriptions({
+      authorization: `Bearer ${access}`,
+      projectId,
+    });
+  },
+
+  listImportableAmis: async (
+    projectId: string,
+  ): Promise<ListImportableAmisResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.listImportableAmis({
+      authorization: `Bearer ${access}`,
+      projectId,
     });
   },
 };

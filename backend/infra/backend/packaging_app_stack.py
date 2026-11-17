@@ -35,6 +35,10 @@ GSI_NAME_ENTITIES = "gsi_entities"
 GSI_NAME_INVERTED_PK = "gsi_inverted_primary_key"
 GSI_NAME_IMAGE_UPSTREAM_ID = "gsi_image_upstream_id"
 IMAGE_KEY_NAME = constants.IMAGE_SHARING_KEY_NAME
+PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS = [
+    "license-manager:ListReceivedLicenses",
+    "license-manager:GetServiceSettings",
+]
 PRODUCT_PACKAGING_ADMIN_ROLE = constants.PRODUCT_PACKAGING_ADMIN_ROLE
 PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME = constants.PRODUCT_PACKAGING_INSTANCE_PROFILE
 PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME = constants.PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP
@@ -90,10 +94,10 @@ VEW_SERVICE = "Packaging"
 
 class Entrypoint(enum.StrEnum):
     API = "api"
-    DOMAIN_EVENTS = "domain-events"
-    IMAGE_BUILDER_EVENTS = "image-builder-events"
     COMPONENT_VERSION_TESTING = "component-version-testing"
     RECIPE_VERSION_TESTING = "recipe-version-testing"
+    DOMAIN_EVENTS = "domain-events"
+    IMAGE_BUILDER_EVENTS = "image-builder-events"
     S2S_API = "s2s-api"
 
 
@@ -254,6 +258,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         ),
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -289,10 +294,44 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
                         lambda lambda_f: system_configuration_mapping.grant_read(lambda_f),
                         lambda lambda_f: pipelines_configuration_mapping.grant_read(lambda_f),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=[
+                                    "ec2:DescribeImages",
+                                    "ec2:DescribeImageAttribute",
+                                ],
+                                resources=["*"],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=["aws-marketplace:SearchAgreements"],
+                                resources=["*"],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS,
+                                resources=["*"],
+                            )
+                        ),
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=[
+                                    "organizations:DescribeOrganization",
+                                    "ram:GetResourceShares",
+                                ],
+                                resources=["*"],
+                            )
+                        ),
                     ],
                     reserved_concurrency=app_config.component_specific["api-lambda-reserved-concurrency"],
                     provisioned_concurrency=app_config.component_specific["api-lambda-provisioned-concurrency"],
-                    timeout=aws_cdk.Duration.seconds(5),
+                    timeout=aws_cdk.Duration.seconds(29),
                     memory_size=1792,
                 ),
                 backend_app_entrypoints.AppEntryPoint(
@@ -380,6 +419,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -434,6 +474,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_INVERTED_PK": GSI_NAME_INVERTED_PK,
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "SYSTEM_CONFIGURATION_MAPPING_PARAM_NAME": system_configuration_mapping.parameter_name,
                         "PIPELINES_CONFIGURATION_MAPPING_PARAM_NAME": pipelines_configuration_mapping.parameter_name,
                         "TABLE_NAME": self._storage.table.table_name,
@@ -476,8 +517,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     entry="app/packaging/entrypoints/domain_event_handler",
                     environment={
                         "RESOURCE_TAGS": self._resource_tags,
-                        # The build instance role can already write to the recipe test bucket.
-                        "BUILD_LOGS_S3_BUCKET_NAME": app_config.component_specific["recipe-test-s3-bucket-name"].format(
+                        "BUILD_LOGS_S3_BUCKET_NAME": app_config.component_specific["build-logs-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
                             region=app_config.region,
@@ -504,6 +544,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         ),
                         "INSTANCE_PROFILE_NAME": PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME,
                         "INSTANCE_SECURITY_GROUP_NAME": PRODUCT_PACKAGING_INSTANCE_SECURITY_GROUP_NAME,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "RECIPE_S3_BUCKET_NAME": app_config.component_specific["recipe-s3-bucket-name"].format(
                             environment=app_config.environment,
                             image_service_account_id=self.get_image_service_account_id(app_config),
@@ -552,6 +593,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         "GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION": GSI_NAME_CUSTOM_QUERY_BY_RECIPE_ID_AND_VERSION,
                         "GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY": GSI_NAME_CUSTOM_QUERY_BY_STATUS_KEY,
                         "GSI_NAME_IMAGE_UPSTREAM_ID": GSI_NAME_IMAGE_UPSTREAM_ID,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
                         "TABLE_NAME": self._storage.table.table_name,
                         "TOPIC_NAME": PRODUCT_PACKAGING_TOPIC_NAME,
                     },
@@ -598,7 +640,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             self,
             "PackagingAppOpenApi",
             app_config,
-            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name("api")],
+            handler=self._backend_app.app_entries_function_aliases[app_config.format_resource_name(Entrypoint.API)],
             schema_directory="app/packaging/entrypoints/api/schema/",
             schema="proserve-workbench-packaging-api-schema.yaml",
             api_version="v1",
@@ -617,6 +659,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                 cedar_schema=packaging_auth_schema.packaging_schema,
                 cedar_policies=packaging_auth.packaging_bc_auth_policies,
             ),
+            enable_mcp=True,
         )
 
         cognito_user_pool_id = aws_ssm.StringParameter.value_for_string_parameter(
@@ -747,7 +790,7 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(
             stack=aws_cdk.Stack.of(self),
-            path=f"/PackagingAppStack/PackagingApp/{app_config.format_resource_name("api")}/BackendAppFunction/ServiceRole/DefaultPolicy/Resource",
+            path=f"/PackagingAppStack/PackagingApp/{app_config.format_resource_name(Entrypoint.API)}/BackendAppFunction/ServiceRole/DefaultPolicy/Resource",
             suppressions=[
                 cdk_nag.NagPackSuppression(
                     id="AwsSolutions-IAM5",
