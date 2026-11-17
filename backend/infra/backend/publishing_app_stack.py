@@ -52,11 +52,10 @@ API_LICENSE_MANAGER_ACTIONS = [
     "license-manager:CreateGrant",
     "license-manager:ListDistributedGrants",
 ]
+# ListReceivedLicenses: does the hub's licence allow CreateGrant (no organization checks).
 AMI_SHARING_LICENSE_MANAGER_ACTIONS = [
     *API_LICENSE_MANAGER_ACTIONS,
-    "license-manager:GetServiceSettings",
-    "organizations:DescribeOrganization",
-    "ram:GetResourceShares",
+    "license-manager:ListReceivedLicenses",
 ]
 
 GSI_ATTRIBUTE_NAME_ENTITY = "entity"
@@ -405,9 +404,8 @@ class PublishingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
-                                # AMI sharing also proves the License Manager RAM
-                                # resource share is active and owned by the management
-                                # account before it tries to distribute a grant.
+                                # Creates the grant, and before that re-checks at publish time
+                                # whether the hub's licence allows CreateGrant.
                                 actions=AMI_SHARING_LICENSE_MANAGER_ACTIONS,
                                 resources=["*"],
                             )

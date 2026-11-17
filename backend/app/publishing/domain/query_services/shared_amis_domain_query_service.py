@@ -103,9 +103,11 @@ class SharedAMIsDomainQueryService:
         """Turn a verify-only decision into a real grant when the hub can make one.
 
         An externally-managed subscription means VEW normally only verifies that
-        the spoke already has a grant. A grant can be created only when the exact
-        persisted license allowed CreateGrant at discovery time and the account-level
-        Organizations integration is ready.
+        the spoke already has a grant. The label is recorded at import, and older
+        builds labelled a licence that allows CreateGrant as externally managed
+        unless the hub was the management account. A grant is created when the exact
+        persisted license allowed CreateGrant at discovery time, it still does, and
+        the spoke has no grant of its own.
         """
         if decision != ShareAmiDecision.VerifyExternalGrant or self._license_manager_svc is None:
             return decision
@@ -126,7 +128,7 @@ class SharedAMIsDomainQueryService:
             # Already granted; there is nothing to distribute, only to verify.
             return decision
 
-        if self._license_manager_svc.can_distribute_license():
+        if self._license_manager_svc.can_distribute_license(license_arn, home_region):
             return ShareAmiDecision.LicenseGrant
         return decision
 

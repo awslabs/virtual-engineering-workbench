@@ -37,7 +37,6 @@ GSI_NAME_IMAGE_UPSTREAM_ID = "gsi_image_upstream_id"
 IMAGE_KEY_NAME = constants.IMAGE_SHARING_KEY_NAME
 PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS = [
     "license-manager:ListReceivedLicenses",
-    "license-manager:GetServiceSettings",
 ]
 PRODUCT_PACKAGING_ADMIN_ROLE = constants.PRODUCT_PACKAGING_ADMIN_ROLE
 PRODUCT_PACKAGING_INSTANCE_PROFILE_NAME = constants.PRODUCT_PACKAGING_INSTANCE_PROFILE
@@ -315,16 +314,6 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
                                 actions=PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS,
-                                resources=["*"],
-                            )
-                        ),
-                        lambda lambda_f: lambda_f.add_to_role_policy(
-                            statement=aws_iam.PolicyStatement(
-                                effect=aws_iam.Effect.ALLOW,
-                                actions=[
-                                    "organizations:DescribeOrganization",
-                                    "ram:GetResourceShares",
-                                ],
                                 resources=["*"],
                             )
                         ),

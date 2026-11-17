@@ -1,12 +1,12 @@
 from unittest import mock
 
 import assertpy
+import pytest
 
+from app.publishing.adapters.exceptions import adapter_exception
 from app.publishing.adapters.tests.conftest import (
     TEST_GRANT_ARN,
     TEST_LICENSE_ARN,
-    TEST_LM_RESOURCE_SHARE_ARN,
-    TEST_ORG_MANAGEMENT_ACCOUNT_ID,
     TEST_SPOKE_ACCOUNT_ID,
 )
 
@@ -152,122 +152,131 @@ def test_should_skip_accept_when_grant_already_active(mock_moto_calls, get_licen
     mock_moto_calls["ListReceivedGrants"].assert_called_once_with(GrantArns=[grant_arn])
 
 
-def test_can_distribute_license_requires_both_the_flag_and_the_resource_share(mock_moto_calls, get_license_manager_srv):
-    """EnableIntegration reads back true the moment the setting is saved, but the RAM
-    resource share that actually permits a cross-account grant takes around half an
-    hour to propagate. Trusting the flag alone would upgrade an externally-managed
-    subscription to a grant inside that window, where CreateGrant still fails."""
-    # ARRANGE — integration on, share already propagated (the conftest default)
+def _client_error(code, operation):
+    from botocore.exceptions import ClientError
 
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_true()
-    mock_moto_calls["DescribeOrganization"].assert_called_once_with()
-    mock_moto_calls["GetResourceShares"].assert_called_once_with(
-        resourceOwner="SELF",
-        resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN],
-    )
-
-    # ARRANGE — integration on, share not there yet
-    mock_moto_calls["GetServiceSettings"].return_value = {"OrganizationConfiguration": {"EnableIntegration": True}}
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
+    return ClientError({"Error": {"Code": code, "Message": code}}, operation)
 
 
-def test_can_distribute_license_is_false_when_the_integration_is_off(mock_moto_calls, get_license_manager_srv):
-    # ARRANGE
-    mock_moto_calls["GetServiceSettings"].return_value = {
-        "OrganizationConfiguration": {"EnableIntegration": False},
-        "LicenseManagerResourceShareArn": "arn:aws:ram:us-east-1:111111111111:resource-share/lm-abc123",
-    }
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
-
-
-def test_can_distribute_license_is_false_without_any_organization_configuration(
-    mock_moto_calls, get_license_manager_srv
-):
-    # ARRANGE
-    mock_moto_calls["GetServiceSettings"].return_value = {}
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
-
-
-def test_can_distribute_license_requires_an_active_share_owned_by_the_management_account(
-    mock_moto_calls, get_license_manager_srv
-):
-    # ARRANGE — the configured share exists, but it is still propagating
-    share = {
-        "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
-        "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
-        "status": "PENDING",
-    }
-    mock_moto_calls["GetResourceShares"].return_value = {"resourceShares": [share]}
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
-
-    # ARRANGE — an active share owned by another account is not the management
-    # account's License Manager integration share
-    share["status"] = "ACTIVE"
-    share["owningAccountId"] = "222222222222"
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
-
-    # ARRANGE — an active management-account share is still irrelevant unless it
-    # is the exact share reported by License Manager
-    share["owningAccountId"] = TEST_ORG_MANAGEMENT_ACCOUNT_ID
-    share["resourceShareArn"] = "arn:aws:ram:us-east-1:111111111111:resource-share/unrelated"
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_false()
-
-
-def test_can_distribute_license_follows_ram_resource_share_pages(mock_moto_calls, get_license_manager_srv):
-    # ARRANGE — the matching active share appears only on the second page
-    mock_moto_calls["GetResourceShares"].side_effect = [
-        {"resourceShares": [], "nextToken": "page-2"},
-        {
-            "resourceShares": [
-                {
-                    "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
-                    "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
-                    "status": "ACTIVE",
-                }
-            ]
-        },
-    ]
-
-    # ACT / ASSERT
-    assertpy.assert_that(get_license_manager_srv.can_distribute_license()).is_true()
-    assertpy.assert_that(mock_moto_calls["GetResourceShares"].call_count).is_equal_to(2)
-    mock_moto_calls["GetResourceShares"].assert_has_calls(
-        [
-            mock.call(resourceOwner="SELF", resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN]),
-            mock.call(
-                resourceOwner="SELF",
-                resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN],
-                nextToken="page-2",
-            ),
-        ]
+def _create(get_license_manager_srv):
+    return get_license_manager_srv.create_grant(
+        license_arn=TEST_LICENSE_ARN,
+        principal_arn=f"arn:aws:iam::{TEST_SPOKE_ACCOUNT_ID}:root",
+        grant_name="test-grant",
+        home_region="us-east-1",
     )
 
 
-def test_can_distribute_license_checks_other_accounts_but_rejects_a_member_hub(
+def test_a_refused_create_grant_raises_license_grant_rejected(mock_moto_calls, get_license_manager_srv):
+    # The state machine catches this error name and falls back to the external-grant check.
+    mock_moto_calls["CreateGrant"].side_effect = _client_error("AccessDeniedException", "CreateGrant")
+
+    with pytest.raises(adapter_exception.LicenseGrantRejectedException):
+        _create(get_license_manager_srv)
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "ThrottlingException",
+        "RateLimitExceededException",
+        "TooManyRequestsException",
+        "ServerInternalException",
+        "InternalServerException",
+        "ServiceUnavailableException",
+    ],
+)
+def test_a_transient_create_grant_error_is_not_reported_as_rejected(mock_moto_calls, get_license_manager_srv, code):
+    # Retrying later can succeed, so it must not trigger the fallback.
+    mock_moto_calls["CreateGrant"].side_effect = _client_error(code, "CreateGrant")
+
+    with pytest.raises(adapter_exception.AdapterException) as error:
+        _create(get_license_manager_srv)
+    assertpy.assert_that(isinstance(error.value, adapter_exception.LicenseGrantRejectedException)).is_false()
+
+
+def test_a_grant_the_spoke_never_received_raises_license_grant_rejected(mock_moto_calls, get_license_manager_srv):
+    mock_moto_calls["ListReceivedGrants"] = mock.MagicMock(return_value={"Grants": []})
+
+    with pytest.raises(adapter_exception.LicenseGrantRejectedException):
+        get_license_manager_srv.accept_grant(
+            TEST_GRANT_ARN, home_region="us-east-1", spoke_account_id=TEST_SPOKE_ACCOUNT_ID
+        )
+    mock_moto_calls["AcceptGrant"].assert_not_called()
+
+
+def test_a_refused_accept_grant_raises_license_grant_rejected(mock_moto_calls, get_license_manager_srv):
+    mock_moto_calls["ListReceivedGrants"] = mock.MagicMock(
+        return_value={"Grants": [{"GrantArn": TEST_GRANT_ARN, "GrantStatus": "PENDING_ACCEPT"}]}
+    )
+    mock_moto_calls["AcceptGrant"].side_effect = _client_error("AccessDeniedException", "AcceptGrant")
+
+    with pytest.raises(adapter_exception.LicenseGrantRejectedException):
+        get_license_manager_srv.accept_grant(
+            TEST_GRANT_ARN, home_region="us-east-1", spoke_account_id=TEST_SPOKE_ACCOUNT_ID
+        )
+
+
+def test_a_refused_grant_activation_raises_license_grant_rejected(mock_moto_calls, get_license_manager_srv):
+    mock_moto_calls["ListReceivedGrants"] = mock.MagicMock(
+        return_value={"Grants": [{"GrantArn": TEST_GRANT_ARN, "GrantStatus": "PENDING_ACCEPT"}]}
+    )
+    mock_moto_calls["CreateGrantVersion"].side_effect = _client_error("ValidationException", "CreateGrantVersion")
+
+    with pytest.raises(adapter_exception.LicenseGrantRejectedException):
+        get_license_manager_srv.accept_grant(
+            TEST_GRANT_ARN, home_region="us-east-1", spoke_account_id=TEST_SPOKE_ACCOUNT_ID
+        )
+
+
+def test_a_throttled_accept_grant_is_not_reported_as_rejected(mock_moto_calls, get_license_manager_srv):
+    mock_moto_calls["ListReceivedGrants"] = mock.MagicMock(
+        return_value={"Grants": [{"GrantArn": TEST_GRANT_ARN, "GrantStatus": "PENDING_ACCEPT"}]}
+    )
+    mock_moto_calls["AcceptGrant"].side_effect = _client_error("ThrottlingException", "AcceptGrant")
+
+    with pytest.raises(adapter_exception.AdapterException) as error:
+        get_license_manager_srv.accept_grant(
+            TEST_GRANT_ARN, home_region="us-east-1", spoke_account_id=TEST_SPOKE_ACCOUNT_ID
+        )
+    assertpy.assert_that(isinstance(error.value, adapter_exception.LicenseGrantRejectedException)).is_false()
+
+
+# --- can_distribute_license ---------------------------------------------------------------
+# The only condition is the licence's AllowedOperations. AWS accepted and activated grants
+# from a plain member hub, without a delegated administrator and with the Organizations
+# integration off (live test, Nov 2026), so no organization, RAM or settings call is made.
+
+
+def test_can_distribute_license_is_true_when_the_license_allows_create_grant(mock_moto_calls, get_license_manager_srv):
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license(TEST_LICENSE_ARN, "us-east-1")).is_true()
+    mock_moto_calls["ListReceivedLicenses"].assert_called_once_with(LicenseArns=[TEST_LICENSE_ARN])
+
+
+def test_can_distribute_license_is_false_when_the_license_forbids_create_grant(
+    mock_moto_calls, get_license_manager_srv, mock_list_received_licenses_response
+):
+    # ARRANGE
+    mock_list_received_licenses_response["Licenses"][0]["ReceivedMetadata"]["AllowedOperations"] = ["CheckoutLicense"]
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license(TEST_LICENSE_ARN, "us-east-1")).is_false()
+
+
+def test_can_distribute_license_is_false_when_the_hub_has_not_received_the_license(
     mock_moto_calls, get_license_manager_srv
 ):
     # ARRANGE
-    mock_moto_calls["GetCallerIdentity"].return_value = {"Account": "222222222222"}
+    mock_moto_calls["ListReceivedLicenses"].return_value = {"Licenses": []}
 
-    # ACT
-    result = get_license_manager_srv.can_distribute_license()
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license(TEST_LICENSE_ARN, "us-east-1")).is_false()
 
-    # ASSERT
-    assertpy.assert_that(result).is_false()
-    mock_moto_calls["GetResourceShares"].assert_called_once_with(
-        resourceOwner="OTHER-ACCOUNTS",
-        resourceShareArns=[TEST_LM_RESOURCE_SHARE_ARN],
-    )
+
+def test_can_distribute_license_is_false_instead_of_raising_on_access_denied(mock_moto_calls, get_license_manager_srv):
+    # ARRANGE
+    mock_moto_calls["ListReceivedLicenses"].side_effect = _client_error("AccessDeniedException", "ListReceivedLicenses")
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_license_manager_srv.can_distribute_license(TEST_LICENSE_ARN, "us-east-1")).is_false()
