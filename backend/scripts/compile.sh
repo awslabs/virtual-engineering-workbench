@@ -4,8 +4,9 @@
 #
 # Usage: bash scripts/compile.sh [--upgrade]
 #
-# Each requirements.txt (human-edited, ~= specifiers) produces a
-# requirements.lock (fully pinned with hashes) consumed by CDK bundling.
+# Each requirements.in (human-edited, ~= specifiers) produces a
+# requirements.txt (fully pinned with hashes) consumed by CDK bundling.
+# Dependabot's uv ecosystem pairs the two files by this naming.
 # =============================================================================
 set -euo pipefail
 
@@ -17,15 +18,15 @@ fi
 PYTHON_VERSION="3.13"
 
 REQUIREMENTS_FILES=(
-    app/shared/requirements.txt
-    app/authorization/libraries/requirements.txt
-    app/packaging/libraries/requirements.txt
-    app/projects/libraries/requirements.txt
-    app/provisioning/libraries/requirements.txt
-    app/publishing/libraries/requirements.txt
-    app/usecase/libraries/requirements.txt
-    infra/constructs/eventbridge/eb_upsert_handler/requirements.txt
-    infra/constructs/ssm/handler/requirements.txt
+    app/shared/requirements.in
+    app/authorization/libraries/requirements.in
+    app/packaging/libraries/requirements.in
+    app/projects/libraries/requirements.in
+    app/provisioning/libraries/requirements.in
+    app/publishing/libraries/requirements.in
+    app/usecase/libraries/requirements.in
+    infra/constructs/eventbridge/eb_upsert_handler/requirements.in
+    infra/constructs/ssm/handler/requirements.in
 )
 
 UPGRADE_FLAG=""
@@ -40,7 +41,7 @@ for req in "${REQUIREMENTS_FILES[@]}"; do
         echo "Skipping empty: $req"
         continue
     fi
-    lockfile="${req%.txt}.lock"
+    lockfile="${req%.in}.txt"
     echo "Compiling $req → $lockfile"
     uv pip compile "$req" \
         --python-version "$PYTHON_VERSION" \

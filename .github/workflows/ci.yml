@@ -49,6 +49,10 @@ jobs:
         working-directory: backend
         run: uv run bandit -r app --ini bandit.ini -ll -q
 
+      - name: Lambda lockfiles match compile.sh
+        working-directory: backend
+        run: bash scripts/compile.sh && git diff --exit-code -- app infra
+
       - name: Dependency vulnerability audit (pip-audit)
         working-directory: backend
         run: uvx pip-audit -r requirements.txt --no-deps
