@@ -43,6 +43,10 @@ class AuthorizationRequest(BaseModel):
     resource: str = Field(...)
 
 
+class TokenExpiredError(Exception):
+    """The bearer token has expired. Clients can recover by refreshing it, so it maps to a 401, not a deny."""
+
+
 class AuthorizerStep(ABC):
 
     @abstractmethod
@@ -86,6 +90,9 @@ class Authorizer:
             try:
                 if not authorization_step.invoke(request=auth_req, context=auth_context):
                     return self.__generate_iam_policy(principalId="me", effect=AuthorizationDecision.DENY, resource="*")
+            except TokenExpiredError:
+                self.__metrics.add_metric(name="UserUnauthenticated", unit=MetricUnit.Count, value=1)
+                raise
             except Exception:
                 self.__logger.exception("Authorization step failed")
                 return self.__generate_iam_policy(principalId="me", effect=AuthorizationDecision.DENY, resource="*")

@@ -71,9 +71,10 @@ class JWTAuthorizer(authorizer.AuthorizerStep):
         except jwt.exceptions.InvalidSignatureError:
             self.__logger.exception("The JWT token has an invalid signature")
             self.__metrics.add_metric(name="CognitoInvalidToken", unit=MetricUnit.Count, value=1)
-        except jwt.exceptions.ExpiredSignatureError:
+        except jwt.exceptions.ExpiredSignatureError as e:
             self.__logger.exception("The JWT token has expired")
             self.__metrics.add_metric(name="CognitoInvalidToken", unit=MetricUnit.Count, value=1)
+            raise authorizer.TokenExpiredError() from e
         except jwt.exceptions.DecodeError:
             self.__logger.exception("The JWT token could not be decoded")
             self.__metrics.add_metric(name="TokenDecodeError", unit=MetricUnit.Count, value=1)

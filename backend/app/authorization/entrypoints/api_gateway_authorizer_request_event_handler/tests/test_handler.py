@@ -1,6 +1,7 @@
 from unittest import mock
 
 import assertpy
+import pytest
 from freezegun import freeze_time
 
 
@@ -95,6 +96,36 @@ def test_authorizer_lambda_handler_invalid_token(
             "principalId": "me",
         }
     )
+
+
+@mock.patch("urllib.request.build_opener")
+@freeze_time("2025-05-02 11:00:00+00:00")
+def test_authorizer_lambda_handler_expired_token_returns_401(
+    mock_build_opener,
+    lambda_context,
+    mock_user_info_endpoint,
+    mocked_assignments_data,
+    mock_auth_event,
+    mocked_jwks_response,
+    backend_app_dynamodb_table,
+):
+    # ARRANGE
+    mocked_assignments_data()
+
+    mm = mock.MagicMock()
+    mm.__enter__.return_value = mocked_jwks_response
+    mock_build_opener.return_value.open.return_value = mm
+
+    from app.authorization.entrypoints.api_gateway_authorizer_request_event_handler import (
+        handler,
+    )
+
+    handler.dependencies.jwk_client.fetch_data()
+
+    # ACT & ASSERT
+    # API Gateway maps an authorizer that raises exactly "Unauthorized" to a 401
+    with pytest.raises(Exception, match="^Unauthorized$"):
+        handler.handler(mock_auth_event(), lambda_context)
 
 
 @mock.patch("urllib.request.build_opener")
