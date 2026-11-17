@@ -1130,7 +1130,11 @@ paths:
         passthroughBehavior: "when_no_match"
   /projects/{projectId}/products/provisioned/{provisionedProductId}/session-credentials:
     get:
-      description: "Get credentials for a Session Manager session on a provisioned product"
+      summary: "Get credentials for a Session Manager session on a provisioned product"
+      description: >-
+        Returns short-lived AWS credentials that can only start a Session Manager session on the
+        provisioned product's instance, with the instance ID and region. Only accessible by the
+        product owner within the project, and only while the instance's SSM Agent is connected.
       operationId: "GetProvisionedProductSessionCredentials"
       parameters:
         - name: Authorization
@@ -1140,11 +1144,13 @@ paths:
             type: string
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string
@@ -1172,11 +1178,13 @@ paths:
       parameters:
         - name: projectId
           in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
         - name: provisionedProductId
           in: path
+          description: Unique identifier of the provisioned product instance.
           required: true
           schema:
             type: string

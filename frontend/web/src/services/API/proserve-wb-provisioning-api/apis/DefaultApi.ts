@@ -987,6 +987,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Returns short-lived AWS credentials that can only start a Session Manager session on the provisioned product\'s instance, with the instance ID and region. Only accessible by the product owner within the project, and only while the instance\'s SSM Agent is connected.
      * Get credentials for a Session Manager session on a provisioned product
      */
     async getProvisionedProductSessionCredentialsRaw(requestParameters: GetProvisionedProductSessionCredentialsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetProvisionedProductSessionCredentialsResponse>> {
@@ -1025,6 +1026,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Returns short-lived AWS credentials that can only start a Session Manager session on the provisioned product\'s instance, with the instance ID and region. Only accessible by the product owner within the project, and only while the instance\'s SSM Agent is connected.
      * Get credentials for a Session Manager session on a provisioned product
      */
     async getProvisionedProductSessionCredentials(requestParameters: GetProvisionedProductSessionCredentialsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetProvisionedProductSessionCredentialsResponse> {
