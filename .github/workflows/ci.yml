@@ -104,6 +104,44 @@ jobs:
         working-directory: frontend/web
         run: yarn build
 
+  frontend-infrastructure:
+    name: Frontend infrastructure (lint, test, build)
+    runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Enable Yarn 4 (corepack)
+        run: corepack enable
+
+      - name: Install
+        working-directory: frontend/infrastructure
+        run: yarn install --immutable
+
+      - name: Dependency vulnerability audit (high+)
+        working-directory: frontend/infrastructure
+        run: yarn npm audit --severity high
+
+      - name: Lint
+        working-directory: frontend/infrastructure
+        run: yarn lint
+
+      - name: Unit tests
+        working-directory: frontend/infrastructure
+        run: yarn test:ci
+
+      - name: Build
+        working-directory: frontend/infrastructure
+        run: yarn build
+
   iac-scan:
     name: IaC scan (checkov)
     runs-on: ubuntu-latest
