@@ -223,10 +223,10 @@ app/{context_name}/
 │   │   └── schema/         # OpenAPI schema (YAML)
 │   └── domain_event_handler/
 └── libraries/
-    └── requirements.txt
+    └── requirements.in
 ```
 
-> **Important**: remember to append `app/{context_name}/libraries/requirements.txt` to the `REQUIREMENTS_FILES` variable in `scripts/compile.sh`
+> **Important**: remember to append `app/{context_name}/libraries/requirements.in` to the `REQUIREMENTS_FILES` variable in `scripts/compile.sh`, and its directory to the `uv` entry in `.github/dependabot.yml`
 
 Then implement the three layers:
 
