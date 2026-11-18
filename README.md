@@ -52,7 +52,7 @@ VEW supports two deployment modes:
 | Layer | Technology |
 | --- | --- |
 | Backend | Python 3.13, AWS Lambda, Lambda Powertools |
-| API | Amazon API Gateway (REST) with both Lambda and IAM authorization |
+| API | Amazon API Gateway (REST); Lambda request authorizer on user APIs, Cognito scopes on S2S APIs, IAM on internal operations (see [Authorization model](docs/authorization-model.md)) |
 | Database | Amazon DynamoDB |
 | Frontend | React 18, TypeScript, Vite, Cloudscape Design System |
 | Authentication | Amazon Cognito with OIDC/SAML federation |
@@ -68,7 +68,7 @@ Each bounded context is an independent service with its own API, data store, and
 
 | Context | Purpose |
 | --- | --- |
-| **Authorization** | API authorization and permission validation using Cedar policies |
+| **Authorization** | API authorization for user APIs using Cedar policies (S2S APIs use OAuth scopes; see [Authorization model](docs/authorization-model.md)) |
 | **Projects** | Project lifecycle, membership, enrollment, and resource allocation |
 | **Packaging** | AMI components, recipes, EC2 Image Builder pipelines and images |
 | **Publishing** | Service Catalog products, versions, and portfolio management |

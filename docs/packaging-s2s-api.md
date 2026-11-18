@@ -14,6 +14,8 @@ The OAuth client needs these scopes:
 - `clients/packaging/component.write`
 - `clients/packaging/component.release` to release a validated version
 
+The S2S authorization model, scopes plus project assignment and no Cedar, is described in [Authorization model](authorization-model.md).
+
 An administrator must also assign the client to every project it may access. OAuth scopes grant an action; a project assignment grants access to a particular project. Requests need both.
 
 The examples use these placeholders:
