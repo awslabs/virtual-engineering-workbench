@@ -51,7 +51,8 @@ jobs:
 
       - name: Lambda lockfiles match compile.sh
         working-directory: backend
-        run: bash scripts/compile.sh && git diff --exit-code -- app infra
+        # Dependabot compiles inside each directory, so its "# via" lines differ.
+        run: bash scripts/compile.sh && git diff --exit-code -I '^[[:space:]]*#' -- app infra
 
       - name: Dependency vulnerability audit (pip-audit)
         working-directory: backend
