@@ -54,6 +54,16 @@ jobs:
         # Dependabot compiles inside each directory, so its "# via" lines differ.
         run: bash scripts/compile.sh && git diff --exit-code -I '^[[:space:]]*#' -- app infra
 
+      - name: Lambda lockfiles install for the Lambda runtime
+        working-directory: backend
+        # A real install, as CDK bundling does, so hashes and platform wheels are checked.
+        run: |
+          target_args=$(uv run python -c 'from aws_cdk import aws_lambda; from infra import constants; from infra.constructs.bundling import uv_target_args; print(" ".join(uv_target_args(aws_lambda.Runtime.PYTHON_3_13.name, constants.LAMBDA_ARCHITECTURE.name)))')
+          for req in $(find app infra -name requirements.in | sort); do
+            echo "Installing ${req%.in}.txt"
+            uv pip install -q --no-compile $target_args --target "$(mktemp -d)" -r "${req%.in}.txt"
+          done
+
       - name: Dependency vulnerability audit (pip-audit)
         working-directory: backend
         run: uvx pip-audit -r requirements.txt --no-deps
