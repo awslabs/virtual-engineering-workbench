@@ -55,7 +55,7 @@ VEW supports two deployment modes:
 | API | Amazon API Gateway (REST) with both Lambda and IAM authorization |
 | Database | Amazon DynamoDB |
 | Frontend | React 18, TypeScript, Vite, Cloudscape Design System |
-| Authentication | Amazon Cognito with OIDC/SAML federation |
+| Authentication | Amazon Cognito with OIDC federation |
 | CDN and protection | CloudFront, Lambda@Edge, WAF |
 | Events | Amazon EventBridge (bus, pipes, scheduler) |
 | Orchestration | AWS Step Functions, AWS Service Catalog |
@@ -430,9 +430,9 @@ See [frontend/README.md — Extending the frontend](frontend/README.md#extending
 
 ## Security
 
-- JWT and IAM authorization on API Gateway
+- JWT and Verified Permissions authorization on user APIs, Cognito OAuth scopes on S2S APIs, IAM on `/internal/*` operations
 - JWT validation via Lambda@Edge on every request
-- Corporate identity federation through Cognito OIDC/SAML
+- Corporate identity federation through Cognito OIDC
 - WAF on CloudFront, Cognito, and API Gateway with AWS managed rule groups (anonymous IP, IP reputation, known bad inputs, common exploits)
 - KMS encryption for AMI artifacts and SNS alarm topics
 - Cedar-based fine-grained authorization (Amazon Verified Permissions)
