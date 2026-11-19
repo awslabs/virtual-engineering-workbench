@@ -1161,9 +1161,8 @@ def test_handle_ami_product_maps_the_region_the_ami_was_shared_to(get_version, g
 
 @pytest.mark.parametrize("template_file", AMI_TEMPLATES, ids=lambda p: f"{p.parent.name}/{p.name}")
 def test_handle_ami_product_maps_every_region_the_map_carries(get_version, get_product, template_file):
-    """The templates emit one mapping per ami_ids entry. SharedAmi is keyed by
-    (originalAmiId, awsAccountId) with no region, so the repository cannot supply more
-    than one entry today; this pins the templates' behaviour if it ever does."""
+    """The templates emit one mapping per ami_ids entry, and SharedAmi is keyed by
+    region, so a version shared to one account in two regions maps both."""
     # ARRANGE
     version_entity = get_version()
     product_entity = get_product()
