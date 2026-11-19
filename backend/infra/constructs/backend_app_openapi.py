@@ -177,7 +177,6 @@ class BackendAppOpenApi(constructs.Construct):
                 "/resolveSession",
                 "/vs-code/authenticate",
                 "/vs-code/resolve",
-                "/webhooks/github",
             ],
         )
         return rendered_schema_dict

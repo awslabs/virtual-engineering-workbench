@@ -52,10 +52,10 @@ VEW supports two deployment modes:
 | Layer | Technology |
 | --- | --- |
 | Backend | Python 3.13, AWS Lambda, Lambda Powertools |
-| API | Amazon API Gateway (REST) with both Lambda and IAM authorization |
+| API | Amazon API Gateway (REST); Lambda request authorizer on user APIs, Cognito scopes on S2S APIs, IAM on internal operations (see [Authorization model](docs/authorization-model.md)) |
 | Database | Amazon DynamoDB |
 | Frontend | React 18, TypeScript, Vite, Cloudscape Design System |
-| Authentication | Amazon Cognito with OIDC/SAML federation |
+| Authentication | Amazon Cognito with OIDC federation |
 | CDN and protection | CloudFront, Lambda@Edge, WAF |
 | Events | Amazon EventBridge (bus, pipes, scheduler) |
 | Orchestration | AWS Step Functions, AWS Service Catalog |
@@ -68,7 +68,7 @@ Each bounded context is an independent service with its own API, data store, and
 
 | Context | Purpose |
 | --- | --- |
-| **Authorization** | API authorization and permission validation using Cedar policies |
+| **Authorization** | API authorization for user APIs using Cedar policies (S2S APIs use OAuth scopes; see [Authorization model](docs/authorization-model.md)) |
 | **Projects** | Project lifecycle, membership, enrollment, and resource allocation |
 | **Packaging** | AMI components, recipes, EC2 Image Builder pipelines and images |
 | **Publishing** | Service Catalog products, versions, and portfolio management |
@@ -209,7 +209,7 @@ The script prompts for all required parameters interactively, then executes 10 p
 1. Deploys backend infrastructure (Lambda, API Gateway, DynamoDB, EventBridge)
 1. Builds and uploads the frontend web application to S3
 1. Seeds DynamoDB with an admin user and default program
-1. Optionally bootstraps a spoke account for workbench provisioning
+1. Bootstraps the spoke account when `SPOKE_ACCOUNT_ID` is set (requires spoke credentials); otherwise onboard one yourself, because workbenches are provisioned only in spoke accounts
 
 ### Using a config file
 
@@ -250,7 +250,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `PRIVATE_DNS_AUTOMATE` | `true` | When private, create a Route 53 private hosted zone (associated with the hub VPC) with alias records to both ALBs |
 | `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
 | `PRIVATE_CA_ARN` | — | When private and `CERT_ARN` is empty, an AWS Private CA in `AWS_REGION` that each stack requests the certificate for its own domain from, through ACM, which renews it. A CA in this account must allow ACM to renew (see [Private deployment](#private-deployment)) |
-| `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning |
+| `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning. Needs `AWS_PROFILE_SPOKE` or `AWS_SPOKE_ACCESS_KEY_ID` and `AWS_SPOKE_SECRET_ACCESS_KEY`. If empty, onboard a spoke account manually (see [Spoke account onboarding](#spoke-account-onboarding)) |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
 | `HUB_VPC_NAME` | — | Name tag of an existing VPC in the hub account to deploy into. Empty derives the name from the prefixes and creates the VPC if absent |
 | `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |
@@ -430,9 +430,9 @@ See [frontend/README.md — Extending the frontend](frontend/README.md#extending
 
 ## Security
 
-- JWT and IAM authorization on API Gateway
+- JWT and Verified Permissions authorization on user APIs, Cognito OAuth scopes on S2S APIs, IAM on `/internal/*` operations
 - JWT validation via Lambda@Edge on every request
-- Corporate identity federation through Cognito OIDC/SAML
+- Corporate identity federation through Cognito OIDC
 - WAF on CloudFront, Cognito, and API Gateway with AWS managed rule groups (anonymous IP, IP reputation, known bad inputs, common exploits)
 - KMS encryption for AMI artifacts and SNS alarm topics
 - Cedar-based fine-grained authorization (Amazon Verified Permissions)
