@@ -1,6 +1,6 @@
 # Connect to a product
 
-Once your product is in **Running** state, there are three ways to connect: DCV in the browser, the DCV desktop client, or SSH. DCV gives you a full graphical desktop; SSH gives you a terminal.
+Once your product is in **Running** state, there are three ways to connect: DCV in the browser, the DCV desktop client, or SSH. DCV gives you a full graphical desktop; SSH gives you a terminal. If your administrator has turned it on, [Session Manager](#session-manager) also gives you a terminal, without an SSH key.
 
 ## DCV browser
 
@@ -43,3 +43,17 @@ For terminal-only access — useful for virtual targets and headless workloads.
    ```
 
    Replace `ubuntu` with the appropriate user if your product runs a different OS (e.g., `ec2-user` for Amazon Linux, `Administrator` for Windows via SSH).
+
+## Session Manager
+
+A terminal through AWS Systems Manager. It needs no SSH key and no open port, and you don't need an AWS account.
+
+1. Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and its [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
+2. Go to **My workbenches** or **My virtual targets**.
+3. Select your product and choose **Log in**.
+4. Choose **Session Manager**, choose **Continue**, then choose **Copy command**.
+5. Paste the command into a terminal on macOS, Linux, or WSL. Its credentials expire after an hour; get a new command after that.
+
+The shell starts as `ssm-user`. Run `sudo -iu ubuntu`, or the product's own user, to switch.
+
+Administrators turn the option on in the provisioning API's feature toggles parameter, `/<prefix>-provisioning-api-<environment>/feature-toggles`, with an entry for `SessionManagerConnectionOption`. Set `enabled` to `true` for everyone, or list upper-case user IDs in `userOverrides` to try it with a few users first.

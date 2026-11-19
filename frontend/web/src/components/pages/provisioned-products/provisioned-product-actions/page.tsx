@@ -59,6 +59,8 @@ function provisionedProductLogin({
         isGlobalFeatureEnabled(Feature.DCVConnectionOptions)) && !headlessLogin ?
         [WORKBENCH_CONNECTION_TYPE.DcvFile, WORKBENCH_CONNECTION_TYPE.DcvBrowser] : [],
       ...provisionedProduct.sshEnabled ? [WORKBENCH_CONNECTION_TYPE.SSH] : [],
+      ...isGlobalFeatureEnabled(Feature.SessionManagerConnectionOption) && provisionedProduct.instanceId ?
+        [WORKBENCH_CONNECTION_TYPE.SessionManager] : [],
     ];
   }, [isFeatureEnabled, isGlobalFeatureEnabled, provisionedProduct, headlessLogin]);
 
@@ -66,7 +68,9 @@ function provisionedProductLogin({
     provisionedProduct.publicIp || provisionedProduct.privateIp || undefined
   );
 
-  const [selectedConnectionOption, setSelectedConnectionOption] = useState(getDefaultLoginOption());
+  const [chosenConnectionOption, setChosenConnectionOption] = useState<string | null>(null);
+  // Until the user picks one, the first option is selected, even one that appears once feature toggles load.
+  const selectedConnectionOption = chosenConnectionOption ?? enabledLoginOptions[0] ?? null;
   const [confirmInProgress, setConfirmInProgress] = useState(false);
   const [connectDirectly, setConnectDirectly] = useState(true);
 
@@ -84,6 +88,7 @@ function provisionedProductLogin({
     userCredentials,
     setUserCredentials
   ] = useState<GetProvisionedProductUserSecretResponse | undefined>();
+  const [sessionCommand, setSessionCommand] = useState<string>();
   const loginTypes = useMemo(() => LoginConfig.initLoginConfig(), []);
   const isMultipleDomain = adDomains.length > EMPTY_COUNT;
   const [selectedAllMonitors, setselectedAllMonitors] = useLocalStorage(
@@ -101,7 +106,10 @@ function provisionedProductLogin({
         onConfirm={() => {
           handleConfirm();
         }}
-        onCancel={() => setLoginPromptVisible(false)}
+        onCancel={() => {
+          setSessionCommand(undefined);
+          setLoginPromptVisible(false);
+        }}
         headerText={i18n.loginPromptHeader}
         content={
           <>
@@ -117,7 +125,8 @@ function provisionedProductLogin({
         confirmText={i18n.loginPromptConfirm}
         confirmButtonLoading={confirmInProgress}
         visible={loginPromptVisible}
-        confirmButtonDisabled={!selectedIPForLogon || !selectedConnectionOption}
+        confirmButtonDisabled={!selectedConnectionOption ||
+          !selectedIPForLogon && selectedConnectionOption !== WORKBENCH_CONNECTION_TYPE.SessionManager}
         data-test="login-modal"
       />
     </>
@@ -128,13 +137,6 @@ function provisionedProductLogin({
     return filteredADGroups ? filteredADGroups : [];
   }
 
-  function getDefaultLoginOption() {
-    if (enabledLoginOptions.length) {
-      return enabledLoginOptions[0];
-    }
-    return null;
-  }
-
   /* eslint complexity: "off" */
   async function handleConfirm() {
     try {
@@ -142,10 +144,13 @@ function provisionedProductLogin({
       if (!loggedInUser?.user) { throw Error(i18n.errorNoUserData); }
 
       setConfirmInProgress(true);
+      setSessionCommand(undefined);
 
       const loginType = loginTypes.getLoginType(selectedConnectionOption);
 
-      await authorizeUserIpAddress();
+      if (selectedConnectionOption !== WORKBENCH_CONNECTION_TYPE.SessionManager) {
+        await authorizeUserIpAddress();
+      }
 
       const loginResult = await loginType?.doLogin({
         user: loggedInUser.user,
@@ -169,6 +174,10 @@ function provisionedProductLogin({
         case 'browser': {
           window.open(loginResult.loginUrl, '_blank');
           hideLoginPrompt();
+          break;
+        }
+        case 'command': {
+          setSessionCommand(loginResult.command);
           break;
         }
         default: {
@@ -230,7 +239,7 @@ function provisionedProductLogin({
       <FormField description={i18n.loginConnectionChoiceDescription}>
         <RadioGroup
           onChange={({ detail }) => {
-            setSelectedConnectionOption(detail.value);
+            setChosenConnectionOption(detail.value);
             setConnectDirectly(true);
           }}
           value={selectedConnectionOption}
@@ -282,7 +291,28 @@ function provisionedProductLogin({
           label: i18n.loginConnectionChoiceSSHLabel,
           description: i18n.loginConnectionChoiceSSHDescription,
         }] : [],
+      ...enabledLoginOptions.includes(WORKBENCH_CONNECTION_TYPE.SessionManager) ?
+        [{
+          value: WORKBENCH_CONNECTION_TYPE.SessionManager,
+          label: i18n.loginConnectionChoiceSessionManagerLabel,
+          description: i18n.loginConnectionChoiceSessionManagerDescription,
+        }] : [],
     ];
+  }
+
+  function renderSessionCommand() {
+    if (!sessionCommand || selectedConnectionOption !== WORKBENCH_CONNECTION_TYPE.SessionManager) {
+      return <></>;
+    }
+    return (
+      <FormField description={i18n.loginSessionManagerCommandDescription}>
+        <CopyText
+          copyText={sessionCommand}
+          variant="button"
+          copyButtonLabel={i18n.loginSessionManagerCopyCommand}
+        />
+      </FormField>
+    );
   }
 
   function renderRevealPassword() {
@@ -383,6 +413,7 @@ function provisionedProductLogin({
     return <>
       { renderDomainChoice() }
       { renderConnectionChoice() }
+      { renderSessionCommand() }
       { renderRevealPassword() }
       { renderMultipleMonitorChoice() }
     </>;

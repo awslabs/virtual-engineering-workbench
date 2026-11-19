@@ -3,6 +3,7 @@ export const WORKBENCH_CONNECTION_TYPE = {
   DcvFile: 'DCVFileConnect',
   DcvBrowser: 'DCVBrowserConnect',
   SSH: 'SSH',
+  SessionManager: 'SessionManager',
   VSCode: 'VSCode',
 };
 

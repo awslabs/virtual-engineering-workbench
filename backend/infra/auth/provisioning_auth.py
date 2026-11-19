@@ -48,6 +48,7 @@ provisioning_bc_auth_policies: list[backend_app_api_auth.CedarPolicy] = [
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProduct,
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProductActivities,
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProducts,
+                    provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProductSessionCredentials,
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProductSSHKey,
                     provisioning_auth_schema.ProvisioningBCActions.GetProvisionedProductUserCredentials,
                     provisioning_auth_schema.ProvisioningBCActions.LaunchProduct,
