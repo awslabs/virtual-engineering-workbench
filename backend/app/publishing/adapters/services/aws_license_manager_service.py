@@ -2,12 +2,10 @@ import hashlib
 from typing import Any, Literal, Optional
 
 import boto3
+from aws_lambda_powertools import logging
 from botocore.exceptions import ClientError
 from mypy_boto3_ec2.client import EC2Client
 from mypy_boto3_license_manager.client import LicenseManagerClient
-from mypy_boto3_organizations.client import OrganizationsClient
-from mypy_boto3_ram.client import RAMClient
-from mypy_boto3_sts.client import STSClient
 
 from app.publishing.adapters.exceptions import adapter_exception
 from app.publishing.domain.ports.license_manager_service import LicenseManagerService
@@ -17,14 +15,30 @@ from app.shared.api import sts_api
 
 EC2 = "ec2"
 LICENSE_MANAGER = "license-manager"
-ORGANIZATIONS = "organizations"
-RAM = "ram"
-STS = "sts"
+CREATE_GRANT_OPERATION = "CreateGrant"
 SESSION_USER = "LicenseGrantManagement"
 GRANT_ACTIVE_STATUS = "ACTIVE"
 GRANT_DISABLED_STATUS = "DISABLED"
 ACTIVATION_OVERRIDE: Literal["ALL_GRANTS_PERMITTED_BY_ISSUER"] = "ALL_GRANTS_PERMITTED_BY_ISSUER"
 ALLOWED_OPERATIONS = ["CheckoutLicense", "ListPurchasedLicenses"]
+# Errors that say "try again later", not "AWS will not allow this grant".
+TRANSIENT_ERROR_CODES = {
+    "ThrottlingException",
+    "RateLimitExceededException",
+    "TooManyRequestsException",
+    "ServerInternalException",
+    "InternalServerException",
+    "ServiceUnavailableException",
+}
+
+logger = logging.Logger()
+
+
+def _grant_error(message: str, error: ClientError) -> adapter_exception.AdapterException:
+    code = error.response.get("Error", {}).get("Code", "")
+    if code in TRANSIENT_ERROR_CODES:
+        return adapter_exception.AdapterException(f"{message}: {error}")
+    return adapter_exception.LicenseGrantRejectedException(f"{message}: {error}")
 
 
 class AwsLicenseManagerService(LicenseManagerService):
@@ -32,7 +46,6 @@ class AwsLicenseManagerService(LicenseManagerService):
         self._spoke_account_role = spoke_account_role
         self._region = region
         self._boto_session = boto_session
-        self._account_id: str | None = None
 
     def __get_lm_client(self, region: str | None = None) -> LicenseManagerClient:
         _region = region or self._region
@@ -40,27 +53,6 @@ class AwsLicenseManagerService(LicenseManagerService):
             self._boto_session.client(LICENSE_MANAGER, region_name=_region)
             if self._boto_session
             else boto3.client(LICENSE_MANAGER, region_name=_region)
-        )
-
-    def __get_organizations_client(self) -> OrganizationsClient:
-        return (
-            self._boto_session.client(ORGANIZATIONS, region_name=self._region)
-            if self._boto_session
-            else boto3.client(ORGANIZATIONS, region_name=self._region)
-        )
-
-    def __get_ram_client(self) -> RAMClient:
-        return (
-            self._boto_session.client(RAM, region_name=self._region)
-            if self._boto_session
-            else boto3.client(RAM, region_name=self._region)
-        )
-
-    def __get_sts_client(self) -> STSClient:
-        return (
-            self._boto_session.client(STS, region_name=self._region)
-            if self._boto_session
-            else boto3.client(STS, region_name=self._region)
         )
 
     def __get_spoke_lm_client(self, account_id: str, region: str) -> LicenseManagerClient:
@@ -136,7 +128,7 @@ class AwsLicenseManagerService(LicenseManagerService):
                 existing = self._find_existing_grant(client, license_arn, principal_arn)
                 if existing:
                     return existing
-            raise adapter_exception.AdapterException(f"Failed to create license grant: {e}")
+            raise _grant_error("Failed to create license grant", e)
 
         return LicenseGrantResult(grantArn=response.get("GrantArn"), status=response.get("Status"))
 
@@ -183,7 +175,9 @@ class AwsLicenseManagerService(LicenseManagerService):
             # on exactly this path, because a missing grant left current_status
             # as None, which is neither ACTIVE nor DISABLED.
             if not grants:
-                raise adapter_exception.AdapterException(
+                # The state machine retries this first, since delivery to the spoke is
+                # asynchronous; still missing afterwards means it was not delivered.
+                raise adapter_exception.LicenseGrantRejectedException(
                     f"Cannot accept license grant {grant_arn}: the spoke account has not received it"
                 )
 
@@ -202,7 +196,7 @@ class AwsLicenseManagerService(LicenseManagerService):
                 Options={"ActivationOverrideBehavior": ACTIVATION_OVERRIDE},
             )
         except ClientError as e:
-            raise adapter_exception.AdapterException(f"Failed to accept license grant {grant_arn}: {e}")
+            raise _grant_error(f"Failed to accept license grant {grant_arn}", e)
 
     def get_license(self, license_arn: str) -> LicenseDetails:
         try:
@@ -247,67 +241,24 @@ class AwsLicenseManagerService(LicenseManagerService):
                 f"Failed to list received grants for license {license_arn} in account {spoke_account_id}: {e}"
             )
 
-    def _resolve_account_id(self) -> str:
-        if self._account_id is None:
-            try:
-                self._account_id = self.__get_sts_client().get_caller_identity()["Account"]
-            except ClientError as e:
-                raise adapter_exception.AdapterException(f"Failed to resolve caller account id: {e}")
-        return self._account_id
+    def can_distribute_license(self, license_arn: str, home_region: str) -> bool:
+        """Whether the hub's licence allows it to create grants for spoke accounts.
 
-    def _get_management_account_id(self) -> str | None:
+        This is the only condition VEW checks. Live tests (Nov 2026) showed AWS accepting
+        and activating grants from a plain member hub, with no delegated administrator and
+        with the License Manager Organizations integration switched off. If AWS refuses a
+        grant anyway, the state machine falls back to the external-grant check.
+        """
         try:
-            organization = self.__get_organizations_client().describe_organization().get("Organization", {})
+            licenses = (
+                self.__get_lm_client(home_region).list_received_licenses(LicenseArns=[license_arn]).get("Licenses", [])
+            )
         except ClientError as e:
-            raise adapter_exception.AdapterException(f"Failed to describe organization: {e}")
-
-        # AWS is replacing the legacy MasterAccountId response name with
-        # ManagementAccountId. Accept either during the SDK transition.
-        return organization.get("ManagementAccountId") or organization.get("MasterAccountId")
-
-    def _list_resource_shares(self, resource_share_arn: str, resource_owner: str) -> list[dict]:
-        shares: list[dict] = []
-        next_token: str | None = None
-        try:
-            ram_client = self.__get_ram_client()
-            while True:
-                kwargs = {"nextToken": next_token} if next_token else {}
-                response = ram_client.get_resource_shares(
-                    resourceOwner=resource_owner,
-                    resourceShareArns=[resource_share_arn],
-                    **kwargs,
-                )
-                shares.extend(response.get("resourceShares", []))
-                next_token = response.get("nextToken")
-                if not next_token:
-                    return shares
-        except ClientError as e:
-            raise adapter_exception.AdapterException(f"Failed to list License Manager RAM resource share: {e}")
-
-    def can_distribute_license(self) -> bool:
-        """Whether this hub can distribute a received licence to an organization account."""
-        try:
-            settings = self.__get_lm_client().get_service_settings() or {}
-        except ClientError as e:
-            raise adapter_exception.AdapterException(f"Failed to read License Manager service settings: {e}")
-
-        org_config = settings.get("OrganizationConfiguration") or {}
-        resource_share_arn = settings.get("LicenseManagerResourceShareArn")
-        if not org_config.get("EnableIntegration") or not resource_share_arn:
+            logger.warning(f"Could not read license {license_arn}: {e}")
             return False
-
-        management_account_id = self._get_management_account_id()
-        if not management_account_id:
-            return False
-
-        caller_account_id = self._resolve_account_id()
-        resource_owner = "SELF" if caller_account_id == management_account_id else "OTHER-ACCOUNTS"
-        share_is_active = any(
-            share.get("resourceShareArn") == resource_share_arn
-            and share.get("status") == "ACTIVE"
-            and share.get("owningAccountId") == management_account_id
-            for share in self._list_resource_shares(resource_share_arn, resource_owner)
+        allowed = bool(licenses) and CREATE_GRANT_OPERATION in (
+            (licenses[0].get("ReceivedMetadata") or {}).get("AllowedOperations", [])
         )
-        # License Manager entitlement distribution is a management-account
-        # operation. A member can see the shared RAM resource, but cannot re-grant.
-        return caller_account_id == management_account_id and share_is_active
+        if not allowed:
+            logger.info(f"Hub cannot create grants for {license_arn}: CreateGrant not allowed on the license")
+        return allowed

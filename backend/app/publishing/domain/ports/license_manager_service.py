@@ -23,6 +23,9 @@ class LicenseManagerService(ABC):
     def has_active_received_grant(self, license_arn: str, spoke_account_id: str, home_region: str) -> bool: ...
 
     @abstractmethod
-    def can_distribute_license(self) -> bool:
-        """Whether this account may distribute a received licence to an org account."""
-        ...
+    def can_distribute_license(self, license_arn: str, home_region: str) -> bool:
+        """True if the hub's received license allows CreateGrant.
+
+        No organization-level condition: AWS accepted grants from a plain member hub in live
+        tests. Must not raise: return False when the license cannot be read.
+        """

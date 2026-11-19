@@ -78,6 +78,7 @@ def mock_moto_calls(
     mock_accept_grant_response,
     mock_create_grant_version_response,
     mock_get_license_response,
+    mock_list_received_licenses_response,
     mock_spoke_describe_images_response,
     mock_assume_role_response,
 ):
@@ -151,29 +152,8 @@ def mock_moto_calls(
         "GetLicense": mock.MagicMock(return_value=mock_get_license_response),
         "ListDistributedGrants": mock.MagicMock(return_value={"Grants": []}),
         "ListReceivedGrants": mock.MagicMock(return_value={"Grants": []}),
-        # Organizations integration on, and the RAM share already propagated, so
-        # can_distribute_license says yes unless a test says otherwise.
-        "GetServiceSettings": mock.MagicMock(
-            return_value={
-                "OrganizationConfiguration": {"EnableIntegration": True},
-                "LicenseManagerResourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
-            }
-        ),
-        "DescribeOrganization": mock.MagicMock(
-            return_value={"Organization": {"MasterAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID}}
-        ),
-        "GetResourceShares": mock.MagicMock(
-            return_value={
-                "resourceShares": [
-                    {
-                        "resourceShareArn": TEST_LM_RESOURCE_SHARE_ARN,
-                        "owningAccountId": TEST_ORG_MANAGEMENT_ACCOUNT_ID,
-                        "status": "ACTIVE",
-                    }
-                ]
-            }
-        ),
-        "GetCallerIdentity": mock.MagicMock(return_value={"Account": TEST_ORG_MANAGEMENT_ACCOUNT_ID}),
+        # The hub's received licence allows CreateGrant unless a test says otherwise.
+        "ListReceivedLicenses": mock.MagicMock(return_value=mock_list_received_licenses_response),
         "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
     }
 
@@ -743,8 +723,6 @@ def mocked_describe_provisioning_parameters_response():
 
 TEST_LICENSE_ARN = "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123"
 TEST_GRANT_ARN = "arn:aws:license-manager:us-east-1:999888777666:grant:g-abc123"
-TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:111111111111:resource-share/lm-abc123"
-TEST_ORG_MANAGEMENT_ACCOUNT_ID = "111111111111"
 TEST_SPOKE_ACCOUNT_ROLE = "arn:aws:iam::999888777666:role/VewSpokeRole"
 TEST_SPOKE_ACCOUNT_ID = "999888777666"
 
@@ -780,6 +758,22 @@ def mock_get_license_response():
             "Status": "AVAILABLE",
             "HomeRegion": "us-east-1",
         }
+    }
+
+
+@pytest.fixture()
+def mock_list_received_licenses_response():
+    return {
+        "Licenses": [
+            {
+                "LicenseArn": TEST_LICENSE_ARN,
+                "ProductName": "My Product",
+                "ReceivedMetadata": {
+                    "ReceivedStatus": "ACTIVE",
+                    "AllowedOperations": ["CheckoutLicense", "CreateGrant"],
+                },
+            }
+        ]
     }
 
 

@@ -46,3 +46,12 @@ def test_not_required_path_uses_a_genuine_not_required_decision():
     payload = config["MockedResponses"][response_name]["0"]["Return"]["Payload"]
 
     assert payload["decision"] == "NOT_REQUIRED"
+
+
+def test_the_grant_rejected_catch_matches_the_exception_class_name():
+    # Lambda reports the raised exception's class name as the Step Functions error name.
+    from app.publishing.adapters.exceptions import adapter_exception
+    from infra.constructs.ami_sharing.ami_sharing_state_machine import LICENSE_GRANT_REJECTED_ERROR
+
+    assert LICENSE_GRANT_REJECTED_ERROR == adapter_exception.LicenseGrantRejectedException.__name__
+    assert issubclass(adapter_exception.LicenseGrantRejectedException, adapter_exception.AdapterException)

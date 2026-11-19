@@ -26,11 +26,11 @@ def start_execution():
 
 @pytest.fixture()
 def wait_for_execution():
-    def _wait_for_execution(execution_arn: str):
+    def _wait_for_execution(execution_arn: str, max_retries: int = MAX_RETRIES):
         status = "RUNNING"
         retries = 0
         output = None
-        while status == "RUNNING" and retries < MAX_RETRIES:
+        while status == "RUNNING" and retries < max_retries:
             # Exponential backoff: 0.2s, 0.4s, 0.8s, 1.6s, 3.2s, 6.4s (max)
             backoff = min(0.2 * (2**retries), 6.4)
             time.sleep(backoff)

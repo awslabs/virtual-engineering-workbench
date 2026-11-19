@@ -259,9 +259,6 @@ class GlobalVariables(Enum):
     TEST_LICENSE_ISSUER = "Acme Corp"
     TEST_IMAGE_SERVICE_ROLE = "arn:aws:iam::123456789012:role/PackagingImageServiceRole"
     TEST_IMAGE_OWNER_ID = "123456789012"
-    TEST_ORG_MANAGEMENT_ACCOUNT_ID = "555555555555"
-    TEST_ORG_ID = "o-testorgid01"
-    TEST_LM_RESOURCE_SHARE_ARN = "arn:aws:ram:us-east-1:555555555555:resource-share/abcd-1234"
 
 
 orig = botocore.client.BaseClient._make_api_call
@@ -395,8 +392,6 @@ def mock_moto_calls(
     mock_list_received_licenses_response,
     mock_assume_role_response,
     mock_get_caller_identity_response,
-    mock_describe_organization_response,
-    mock_get_resource_shares_response,
 ):
     create_component = "CreateComponent"
     delete_component = "DeleteComponent"
@@ -442,16 +437,8 @@ def mock_moto_calls(
         "DescribeEntity": mock.MagicMock(return_value=mock_describe_entity_response),
         "DescribeImages": mock.MagicMock(return_value=mock_describe_images_response),
         "ListReceivedLicenses": mock.MagicMock(return_value=mock_list_received_licenses_response),
-        "GetServiceSettings": mock.MagicMock(
-            return_value={
-                "OrganizationConfiguration": {"EnableIntegration": True},
-                "LicenseManagerResourceShareArn": GlobalVariables.TEST_LM_RESOURCE_SHARE_ARN.value,
-            }
-        ),
         "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
         "GetCallerIdentity": mock.MagicMock(return_value=mock_get_caller_identity_response),
-        "DescribeOrganization": mock.MagicMock(return_value=mock_describe_organization_response),
-        "GetResourceShares": mock.MagicMock(return_value=mock_get_resource_shares_response),
     }
 
     def _interceptor(self, operation_name, kwarg):
@@ -1709,40 +1696,3 @@ def get_ami_validation_srv():
 @pytest.fixture()
 def mock_get_caller_identity_response():
     return {"Account": GlobalVariables.AWS_ACCOUNT_ID.value}
-
-
-@pytest.fixture()
-def mock_describe_organization_response():
-    return {
-        "Organization": {
-            "Id": GlobalVariables.TEST_ORG_ID.value,
-            "MasterAccountId": GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value,
-            "FeatureSet": "ALL",
-            "MasterAccountEmail": "master@example.com",
-            "Arn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}:"
-            f"organization/{GlobalVariables.TEST_ORG_ID.value}",
-            "MasterAccountArn": f"arn:aws:organizations::{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}:"
-            f"account/{GlobalVariables.TEST_ORG_ID.value}/{GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value}",
-        }
-    }
-
-
-@pytest.fixture()
-def mock_get_resource_shares_response():
-    return {
-        "resourceShares": [
-            {
-                "resourceShareArn": GlobalVariables.TEST_LM_RESOURCE_SHARE_ARN.value,
-                "name": "licenseManagerResourceShare-1776697720243",
-                "owningAccountId": GlobalVariables.TEST_ORG_MANAGEMENT_ACCOUNT_ID.value,
-                "status": "ACTIVE",
-            }
-        ]
-    }
-
-
-@pytest.fixture()
-def get_org_integration_srv():
-    from app.packaging.adapters.services.aws_org_integration_service import AwsOrgIntegrationService
-
-    return AwsOrgIntegrationService(region=GlobalVariables.TEST_REGION.value)
