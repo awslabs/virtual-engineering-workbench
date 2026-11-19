@@ -1,0 +1,31 @@
+name: Security alert notifications
+
+on:
+  schedule:
+    - cron: "17 6 * * 1-5" # weekdays
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  notify:
+    name: Notify Slack of open high and critical alerts
+    if: github.repository_owner == 'awslabs'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      checks: read
+      vulnerability-alerts: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Post alerts that need a person
+        run: python3 scripts/security-alerts.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          SLACK_ALERTS_WEBHOOK: ${{ secrets.SLACK_ALERTS_WEBHOOK }}
