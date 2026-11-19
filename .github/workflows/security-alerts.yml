@@ -2,7 +2,7 @@ name: Security alert notifications
 
 on:
   schedule:
-    - cron: "17 6 * * 1-5" # weekdays
+    - cron: "30 6 * * 1-5" # weekdays
   workflow_dispatch:
 
 permissions: {}
