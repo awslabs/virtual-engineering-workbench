@@ -1,4 +1,5 @@
 import assertpy
+import pytest
 
 from app.authorization.domain.services.auth import authorizer
 
@@ -172,3 +173,35 @@ def test_authorize_when_step_raises_exception_should_return_deny_policy(
             "principalId": "me",
         }
     )
+
+
+def test_authorize_when_token_expired_should_raise_instead_of_deny(
+    mock_logger,
+    mock_metrics,
+    mock_auth_step,
+    mocked_policy_store_provider,
+):
+    # ARRANGE
+    mock_auth_step.invoke.side_effect = authorizer.TokenExpiredError()
+
+    auth = authorizer.Authorizer(
+        logger=mock_logger,
+        metrics=mock_metrics,
+        authorization_steps=[mock_auth_step],
+        stage_access_config={},
+        api_config_provider=mocked_policy_store_provider,
+        project_scoped_bounded_contexts=[],
+    )
+
+    # ACT & ASSERT
+    with pytest.raises(authorizer.TokenExpiredError):
+        auth.authorize(
+            authorizer.AuthorizationRequest(
+                auth_token="token",
+                api_id="api-id",
+                operation_id="operation",
+                resource_ids={},
+                resource="test",
+                resource_path="/some/path",
+            )
+        )

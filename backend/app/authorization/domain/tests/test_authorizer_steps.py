@@ -688,7 +688,7 @@ def test_jwt_authorizer_when_invalid_signature_should_deny(
 
 
 @freeze_time("2025-05-02 11:00:00")
-def test_jwt_authorizer_when_expired_should_deny(
+def test_jwt_authorizer_when_expired_should_raise_token_expired(
     mock_logger, mock_metrics, mock_auth_service, mocked_jwks_response, user_auth_jwt, jwt_issuer
 ):
     # ARRANGE
@@ -701,24 +701,23 @@ def test_jwt_authorizer_when_expired_should_deny(
         issuer=jwt_issuer,
     )
 
-    # ACT
-    auth_result = verify_jwt.invoke(
-        request=authorizer.AuthorizationRequest(
-            auth_token=user_auth_jwt(),
-            api_id="api-id",
-            operation_id="UpdateProject",
-            resource_ids={},
-            resource="test",
-            resource_path="/path",
-        ),
-        context=authorizer.AuthorizationContext(
-            user_name="test-user",
-            api_auth_cfg={},
-        ),
-    )
+    # ACT & ASSERT
+    with pytest.raises(authorizer.TokenExpiredError):
+        verify_jwt.invoke(
+            request=authorizer.AuthorizationRequest(
+                auth_token=user_auth_jwt(),
+                api_id="api-id",
+                operation_id="UpdateProject",
+                resource_ids={},
+                resource="test",
+                resource_path="/path",
+            ),
+            context=authorizer.AuthorizationContext(
+                user_name="test-user",
+                api_auth_cfg={},
+            ),
+        )
 
-    # ASSERT
-    assertpy.assert_that(auth_result).is_false()
     mock_logger.exception.assert_called_once_with("The JWT token has expired")
 
 
