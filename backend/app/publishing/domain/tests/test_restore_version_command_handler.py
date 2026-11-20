@@ -9,7 +9,7 @@ from app.publishing.domain.command_handlers import restore_version_command_handl
 from app.publishing.domain.commands import restore_version_command
 from app.publishing.domain.events import product_version_restoration_started
 from app.publishing.domain.exceptions import domain_exception
-from app.publishing.domain.model import portfolio, product, version
+from app.publishing.domain.model import marketplace_metadata, portfolio, product, version
 from app.publishing.domain.ports import (
     portfolios_query_service,
     template_service,
@@ -582,3 +582,57 @@ def test_restore_version_command_handler_raises_exception_when_version_limit_rea
     assertpy.assert_that(str(e.value)).is_equal_to(
         "You have reached the maximum number of active versions for this product."
     )
+
+
+@freeze_time("2023-08-17")
+@pytest.mark.parametrize("image_source", (None, "MARKETPLACE_PRODUCT"))
+def test_restore_version_command_handler_carries_marketplace_attributes(
+    image_source,
+    command_mock,
+    mock_version_repo,
+    mock_unit_of_work,
+    versions_query_service_mock,
+    portfolios_query_service_mock,
+    message_bus_mock,
+    parameter_service_mock,
+    file_service_mock,
+    template_service_mock,
+    mock_products_repo,
+    get_product,
+    get_test_version,
+):
+    # ARRANGE
+    mock_products_repo.get.return_value = get_product()
+    metadata = marketplace_metadata.MarketplaceMetadata(
+        productCode="abc123def456ghi",
+        subscriptionOwnership="VEW_MANAGED",
+        licenseConfigurationArn="arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+        homeRegion="us-east-1",
+    )
+    versions_query_service_mock.get_product_version_distributions.return_value = [
+        get_test_version().model_copy(update={"imageSource": image_source, "marketplaceMetadata": metadata})
+    ]
+    temp_file = tempfile.NamedTemporaryFile(delete=False)
+    temp_file.write(b"Existing version template")
+    temp_file.close()
+    file_service_mock.get_template.return_value = temp_file.name
+
+    # ACT
+    restore_version_command_handler.handle(
+        cmd=command_mock,
+        uow=mock_unit_of_work,
+        msg_bus=message_bus_mock,
+        portfolios_qry_srv=portfolios_query_service_mock,
+        versions_qry_srv=versions_query_service_mock,
+        param_service=parameter_service_mock,
+        product_version_limit_param_name="workbench_version_limit",
+        file_service=file_service_mock,
+        template_query_service=template_service_mock,
+    )
+
+    # ASSERT
+    assertpy.assert_that(mock_version_repo.add.call_args_list).is_length(2)
+    for call in mock_version_repo.add.call_args_list:
+        restored_version: version.Version = call.args[0]
+        assertpy.assert_that(restored_version.imageSource).is_equal_to(image_source)
+        assertpy.assert_that(restored_version.marketplaceMetadata).is_equal_to(metadata)

@@ -75,6 +75,7 @@ class Ec2AmiValidationService(AmiValidationService):
             description=img.get("Description"),
             ownerId=img.get("OwnerId"),
             region=self._region,
+            rootDeviceName=img.get("RootDeviceName"),
             blockDeviceMappings=img.get("BlockDeviceMappings", []),
             productCodes=img.get("ProductCodes", []),
         )

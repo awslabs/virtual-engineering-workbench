@@ -174,6 +174,8 @@ def handle(
                 componentVersionDetails=original_version_entity.componentVersionDetails,
                 osVersion=original_version_entity.osVersion,
                 integrations=original_version_entity.integrations,
+                imageSource=original_version_entity.imageSource,
+                marketplaceMetadata=original_version_entity.marketplaceMetadata,
                 createDate=current_time,
                 lastUpdateDate=current_time,
                 createdBy=command.createdBy.value,

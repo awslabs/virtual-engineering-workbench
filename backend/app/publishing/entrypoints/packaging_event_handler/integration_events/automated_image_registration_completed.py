@@ -31,3 +31,4 @@ class AutomatedImageRegistrationCompleted(BaseModel):
     platform: str = Field(..., alias="platform")
     architecture: str = Field(..., alias="architecture")
     integrations: list[str] = Field([], title="integrations")
+    marketplace_metadata: dict | None = Field(None, alias="marketplaceMetadata")

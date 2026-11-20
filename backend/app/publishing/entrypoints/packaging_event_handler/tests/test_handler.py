@@ -1,3 +1,4 @@
+import assertpy
 from freezegun import freeze_time
 
 from app.publishing.domain.read_models import ami, component_version_detail
@@ -50,6 +51,35 @@ def test_image_registration_completed_event(
 
     # ASSERT
     mock_update_ami_read_model_event_handler.assert_called_once_with(new_ami, retired_ami_ids)
+
+
+@freeze_time("2024-03-06")
+def test_image_registration_completed_event_stores_marketplace_metadata_of_built_image(
+    mock_dependencies,
+    generate_event,
+    lambda_context,
+    image_registration_completed_event_payload,
+    built_image_marketplace_metadata,
+    mock_update_ami_read_model_event_handler,
+):
+    # ARRANGE
+    from app.publishing.entrypoints.packaging_event_handler import handler
+
+    handler.dependencies = mock_dependencies
+    event_bridge_event = generate_event(
+        detail_type="ImageRegistrationCompleted",
+        detail={**image_registration_completed_event_payload, "marketplaceMetadata": built_image_marketplace_metadata},
+    )
+
+    # ACT
+    handler.handler(event_bridge_event, lambda_context)
+
+    # ASSERT
+    stored_ami: ami.Ami = mock_update_ami_read_model_event_handler.call_args[0][0]
+    assertpy.assert_that(stored_ami.imageSource).is_none()
+    assertpy.assert_that(stored_ami.marketplaceMetadata.model_dump(exclude_none=True)).is_equal_to(
+        built_image_marketplace_metadata
+    )
 
 
 def test_image_deregistered_event(
@@ -106,6 +136,35 @@ def test_automated_image_registration_completed_event(
     assert call_kwargs["architecture"] == "amd64"
     assert call_kwargs["integrations"] == ["GitHub"]
     assert len(call_kwargs["component_version_details"]) == 1
+    assert call_kwargs["marketplace_metadata"] is None
+
+
+def test_automated_image_registration_completed_event_passes_marketplace_metadata_of_built_image(
+    mock_dependencies,
+    generate_event,
+    lambda_context,
+    automated_image_registration_completed_event_payload,
+    built_image_marketplace_metadata,
+    mock_create_automated_version_event_handler,
+):
+    # ARRANGE
+    from app.publishing.entrypoints.packaging_event_handler import handler
+
+    handler.dependencies = mock_dependencies
+    event_bridge_event = generate_event(
+        detail_type="AutomatedImageRegistrationCompleted",
+        detail={
+            **automated_image_registration_completed_event_payload,
+            "marketplaceMetadata": built_image_marketplace_metadata,
+        },
+    )
+
+    # ACT
+    handler.handler(event_bridge_event, lambda_context)
+
+    # ASSERT
+    call_kwargs = mock_create_automated_version_event_handler.call_args[1]
+    assertpy.assert_that(call_kwargs["marketplace_metadata"]).is_equal_to(built_image_marketplace_metadata)
 
 
 def test_automated_image_registration_completed_event_with_exception(

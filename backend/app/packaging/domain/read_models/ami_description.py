@@ -15,6 +15,7 @@ class EbsInfo(BaseModel):
 
     encrypted: Optional[bool] = Field(None, alias="Encrypted", title="Encrypted")
     kmsKeyId: Optional[str] = Field(None, alias="KmsKeyId", title="KmsKeyId")
+    volumeSize: Optional[int] = Field(None, alias="VolumeSize", title="VolumeSize")
 
 
 class BlockDeviceMapping(BaseModel):
@@ -33,5 +34,6 @@ class AmiDescription(BaseModel):
     description: Optional[str] = Field(None, title="Description")
     ownerId: str = Field(..., title="OwnerId")
     region: str = Field(..., title="Region")
+    rootDeviceName: Optional[str] = Field(None, title="RootDeviceName")
     blockDeviceMappings: list[BlockDeviceMapping] = Field(default_factory=list, title="BlockDeviceMappings")
     productCodes: list[ProductCode] = Field(default_factory=list, title="ProductCodes")

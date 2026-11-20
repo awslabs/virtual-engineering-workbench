@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from app.packaging.domain.command_handlers.recipe import recipe_version_parent_image
 from app.packaging.domain.commands.image import register_image_command
 from app.packaging.domain.events.image import automated_image_registration_completed, image_registration_completed
 from app.packaging.domain.exceptions import domain_exception
@@ -141,6 +142,7 @@ def handle(
             if image_build_version == latest_image_build_version
             else image.ImageStatus.Retired
         )
+    marketplace_metadata = None
     # If this is the last image to have been built
     # all previously CREATED images are now RETIRED
     if status == image.ImageStatus.Created:
@@ -154,6 +156,11 @@ def handle(
         components_versions_details = __build_components_versions_details(
             recipe_version_entity, component_version_qry_srv
         )
+        marketplace_metadata = recipe_version_parent_image.get_parent_image_marketplace_metadata(
+            image_qry_srv=image_qry_srv,
+            project_id=image_entity.projectId,
+            recipe_version_entity=recipe_version_entity,
+        )
 
     current_time = datetime.now(timezone.utc).isoformat()
 
@@ -162,6 +169,8 @@ def handle(
         update_attrs = {"status": status, "lastUpdateDate": current_time}
         if command.imageUpstreamId:
             update_attrs["imageUpstreamId"] = command.imageUpstreamId.value
+        if marketplace_metadata:
+            update_attrs["marketplaceMetadata"] = marketplace_metadata
         uow.get_repository(image.ImagePrimaryKey, image.Image).update_attributes(
             image.ImagePrimaryKey(projectId=image_entity.projectId, imageId=image_entity.imageId), **update_attrs
         )
@@ -182,6 +191,7 @@ def handle(
                 architecture=recipe_entity.recipeArchitecture,
                 createDate=current_time,
                 integrations=recipe_version_entity.recipeVersionIntegrations or [],
+                marketplaceMetadata=marketplace_metadata,
             )
         )
 
@@ -195,6 +205,7 @@ def handle(
             "platform": recipe_entity.recipePlatform,
             "architecture": recipe_entity.recipeArchitecture,
             "integrations": recipe_version_entity.recipeVersionIntegrations or [],
+            "marketplaceMetadata": marketplace_metadata,
         }
         if pipeline_entity.productId:
             automated_event_kwargs["productId"] = pipeline_entity.productId

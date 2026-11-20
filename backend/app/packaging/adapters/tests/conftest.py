@@ -1631,7 +1631,13 @@ def mock_describe_images_response():
                 "PlatformDetails": "Linux/UNIX",
                 "Name": "test-ami",
                 "Description": "Test AMI",
-                "BlockDeviceMappings": [],
+                "RootDeviceName": "/dev/sda1",
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {"Encrypted": False, "VolumeSize": 8, "VolumeType": "gp3"},
+                    }
+                ],
                 "ProductCodes": [
                     {
                         "ProductCodeId": GlobalVariables.TEST_MARKETPLACE_PRODUCT_CODE.value,

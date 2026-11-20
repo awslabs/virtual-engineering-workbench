@@ -12,6 +12,13 @@ export const i18n = {
   step1VolumeSize: 'Volume size (GB)',
   step1VolumeSizePlaceholder: '(8 - 500)',
   step1Integrations: 'Integrations',
+  step1BaseImage: 'Base image',
+  step1BaseImageDescription:
+    'The image this version builds on: the default operating system image, '
+    + 'or an AWS Marketplace image imported into the image catalog.',
+  step1BaseImageDefault: 'Default operating system image',
+  step1BaseImageLoading: 'Loading images',
+  step1BaseImageUnavailable: 'Not available for new recipe versions',
   step2Title: 'Define components and order of execution',
   step2Header: 'Version components and order of execution',
   step3Title: 'Review and create',

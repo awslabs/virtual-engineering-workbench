@@ -132,6 +132,17 @@ def automated_image_registration_completed_event_payload():
 
 
 @pytest.fixture
+def built_image_marketplace_metadata():
+    return {
+        "productCode": "abc123def456ghi",
+        "subscriptionOwnership": "VEW_MANAGED",
+        "licenseConfigurationArn": "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+        "licenseGrantAllowed": True,
+        "homeRegion": "us-east-1",
+    }
+
+
+@pytest.fixture
 def image_imported_event_payload():
     return {
         "eventName": "ImageImported",

@@ -9,7 +9,7 @@ from app.publishing.domain.command_handlers import create_version_command_handle
 from app.publishing.domain.commands import create_version_command
 from app.publishing.domain.events import product_version_creation_started
 from app.publishing.domain.exceptions import domain_exception
-from app.publishing.domain.model import portfolio, product, version
+from app.publishing.domain.model import marketplace_metadata, portfolio, product, version
 from app.publishing.domain.ports import (
     amis_query_service,
     iac_service,
@@ -622,3 +622,59 @@ def test_handle_should_raise_exception_when_rc_version_limit_reached(
     assertpy.assert_that(str(e.value)).is_equal_to(
         "You have reached the maximum number of active RC versions for this product."
     )
+
+
+@pytest.mark.parametrize("image_source", (None, "MARKETPLACE_PRODUCT"))
+@freeze_time("2023-06-20")
+def test_handle_should_carry_marketplace_metadata_whatever_the_image_source(
+    image_source,
+    portfolio_query_service_mock,
+    version_query_service_mock,
+    stack_service_mock,
+    amis_query_service_mock,
+    get_test_ami,
+    file_service_mock,
+    template_service_mock,
+    get_product,
+    message_bus_mock,
+    mock_unit_of_work,
+    mock_command,
+    mock_version_repo,
+    mock_products_repo,
+):
+    # ARRANGE
+    mock_products_repo.get.return_value = get_product()
+    param_service_mock = mock.create_autospec(spec=parameter_service.ParameterService)
+    param_service_mock.get_parameter_value.return_value = 10
+    version_query_service_mock.get_latest_version_name_and_id.return_value = (None, None)
+    version_query_service_mock.get_distinct_number_of_versions.return_value = 1
+    metadata = marketplace_metadata.MarketplaceMetadata(
+        productCode="abc123def456ghi",
+        subscriptionOwnership="VEW_MANAGED",
+        licenseConfigurationArn="arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+        homeRegion="us-east-1",
+    )
+    amis_query_service_mock.get_ami.return_value = get_test_ami().model_copy(
+        update={"imageSource": image_source, "marketplaceMetadata": metadata}
+    )
+
+    # ACT
+    create_version_command_handler.handle(
+        command=mock_command(),
+        uow=mock_unit_of_work,
+        message_bus=message_bus_mock,
+        portf_qry_srv=portfolio_query_service_mock,
+        version_qry_srv=version_query_service_mock,
+        param_service=param_service_mock,
+        product_version_limit_param_name="workbench_version_limit",
+        product_rc_version_limit_param_name="workbench_rc_version_limit_param_name",
+        stack_srv=stack_service_mock,
+        amis_qry_srv=amis_query_service_mock,
+        file_service=file_service_mock,
+        template_query_service=template_service_mock,
+    )
+
+    # ASSERT
+    added_version: version.Version = mock_version_repo.add.call_args[0][0]
+    assertpy.assert_that(added_version.imageSource).is_equal_to(image_source)
+    assertpy.assert_that(added_version.marketplaceMetadata).is_equal_to(metadata)

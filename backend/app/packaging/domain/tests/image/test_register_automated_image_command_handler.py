@@ -3,8 +3,12 @@ from app.packaging.domain.command_handlers.image import (
 )
 from app.packaging.domain.tests.conftest import (
     TEST_AMI_ID,
+    TEST_MARKETPLACE_IMAGE_ID,
+    TEST_MARKETPLACE_LICENSE_ARN,
+    TEST_MARKETPLACE_PRODUCT_CODE,
     TEST_PRODUCT_ID,
     TEST_PROJECT_ID,
+    TEST_REGION,
     TEST_USER_ID,
 )
 
@@ -20,6 +24,7 @@ def test_handle_should_publish_automated_image_registration_completed_event(
     mock_recipe_object,
     mock_recipe_version_object,
     get_test_component_version,
+    image_query_service_mock,
 ):
     # ARRANGE
     pipeline_entity = get_pipeline_entity(product_id=TEST_PRODUCT_ID)
@@ -36,6 +41,7 @@ def test_handle_should_publish_automated_image_registration_completed_event(
         recipe_qry_srv=recipe_query_service_mock,
         recipe_version_qry_srv=recipe_version_query_service_mock,
         component_version_qry_srv=component_version_query_service_mock,
+        image_qry_srv=image_query_service_mock,
     )
 
     # ASSERT
@@ -50,3 +56,54 @@ def test_handle_should_publish_automated_image_registration_completed_event(
     assert published_event.platform == mock_recipe_object.recipePlatform
     assert published_event.architecture == mock_recipe_object.recipeArchitecture
     assert len(published_event.componentsVersionsDetails) == len(mock_recipe_version_object.recipeComponentsVersions)
+    assert published_event.marketplaceMetadata is None
+    image_query_service_mock.get_image.assert_not_called()
+
+
+def test_handle_should_carry_marketplace_metadata_of_the_base_image(
+    message_bus_mock,
+    register_automated_image_command_mock,
+    pipeline_query_service_mock,
+    recipe_query_service_mock,
+    recipe_version_query_service_mock,
+    component_version_query_service_mock,
+    get_pipeline_entity,
+    mock_recipe_object,
+    mock_recipe_version_object,
+    get_test_component_version,
+    get_test_marketplace_base_image,
+    image_query_service_mock,
+):
+    # ARRANGE
+    pipeline_query_service_mock.get_pipeline_by_pipeline_id.return_value = get_pipeline_entity(
+        product_id=TEST_PRODUCT_ID
+    )
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    mock_recipe_version_object.parentImageId = TEST_MARKETPLACE_IMAGE_ID
+    recipe_version_query_service_mock.get_recipe_version.return_value = mock_recipe_version_object
+    component_version_query_service_mock.get_component_version.return_value = get_test_component_version
+    image_query_service_mock.get_image.return_value = get_test_marketplace_base_image()
+
+    # ACT
+    register_automated_image_command_handler.handle(
+        command=register_automated_image_command_mock,
+        message_bus=message_bus_mock,
+        pipeline_qry_srv=pipeline_query_service_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+        recipe_version_qry_srv=recipe_version_query_service_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+    )
+
+    # ASSERT
+    image_query_service_mock.get_image.assert_called_once_with(
+        project_id=TEST_PROJECT_ID, image_id=TEST_MARKETPLACE_IMAGE_ID
+    )
+    published_event = message_bus_mock.publish.call_args[0][0]
+    assert published_event.marketplaceMetadata == {
+        "productCode": TEST_MARKETPLACE_PRODUCT_CODE,
+        "subscriptionOwnership": "VEW_MANAGED",
+        "licenseGrantAllowed": True,
+        "licenseConfigurationArn": TEST_MARKETPLACE_LICENSE_ARN,
+        "homeRegion": TEST_REGION,
+    }

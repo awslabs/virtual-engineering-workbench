@@ -1,9 +1,11 @@
+from app.packaging.domain.command_handlers.recipe import recipe_version_parent_image
 from app.packaging.domain.commands.image import register_automated_image_command
 from app.packaging.domain.events.image import automated_image_registration_completed
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version_detail
 from app.packaging.domain.ports import (
     component_version_query_service,
+    image_query_service,
     pipeline_query_service,
     recipe_query_service,
     recipe_version_query_service,
@@ -18,6 +20,7 @@ def handle(
     recipe_qry_srv: recipe_query_service.RecipeQueryService,
     recipe_version_qry_srv: recipe_version_query_service.RecipeVersionQueryService,
     component_version_qry_srv: component_version_query_service.ComponentVersionQueryService,
+    image_qry_srv: image_query_service.ImageQueryService,
 ):
     pipeline_entity = pipeline_qry_srv.get_pipeline_by_pipeline_id(pipeline_id=command.pipelineId.value)
     if not pipeline_entity:
@@ -53,6 +56,12 @@ def handle(
                 )
             )
 
+    marketplace_metadata = recipe_version_parent_image.get_parent_image_marketplace_metadata(
+        image_qry_srv=image_qry_srv,
+        project_id=pipeline_entity.projectId,
+        recipe_version_entity=recipe_version_entity,
+    )
+
     message_bus.publish(
         automated_image_registration_completed.AutomatedImageRegistrationCompleted(
             amiId=command.amiId.value,
@@ -65,5 +74,6 @@ def handle(
             platform=recipe_entity.recipePlatform,
             architecture=recipe_entity.recipeArchitecture,
             integrations=recipe_version_entity.recipeVersionIntegrations or [],
+            marketplaceMetadata=marketplace_metadata,
         )
     )
