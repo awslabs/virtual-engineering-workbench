@@ -9,26 +9,24 @@ from app.packaging.domain.query_services.marketplace_subscription_domain_query_s
 from app.packaging.domain.value_objects.shared import project_id_value_object
 
 
-def _build_service(agreement_svc, ami_svc, license_svc, org_integration_svc, image_qry_svc):
+def _build_service(agreement_svc, ami_svc, license_svc, image_qry_svc):
     return MarketplaceSubscriptionDomainQueryService(
         agreement_service=agreement_svc,
         ami_service=ami_svc,
         license_service=license_svc,
-        org_integration_service=org_integration_svc,
         image_qry_svc=image_qry_svc,
         available_regions=["us-east-1"],
         logger=logging.getLogger(__name__),
     )
 
 
-def test_discover_should_return_vew_managed_when_agreement_license_and_org_integration_active(
+def test_discover_should_return_vew_managed_when_the_hub_subscribed_and_may_grant(
     get_test_marketplace_ami,
     get_test_marketplace_agreement,
     get_test_received_license,
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE — hub AMI resolves to product_code "pc-1" for both agreement and license lookups
@@ -38,14 +36,12 @@ def test_discover_should_return_vew_managed_when_agreement_license_and_org_integ
     ]
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
     mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
-    mock_org_integration_service.is_license_manager_org_integration_active.return_value = True
     mock_image_query_service.get_images.return_value = []
 
     svc = _build_service(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -67,7 +63,6 @@ def test_discover_should_return_externally_managed_when_license_without_agreemen
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE
@@ -77,14 +72,12 @@ def test_discover_should_return_externally_managed_when_license_without_agreemen
     ]
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
     mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
-    mock_org_integration_service.is_license_manager_org_integration_active.return_value = True
     mock_image_query_service.get_images.return_value = []
 
     svc = _build_service(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -104,24 +97,21 @@ def test_discover_should_return_externally_managed_when_license_lacks_create_gra
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
-    # ARRANGE — agreement + org integration active, but license lacks CreateGrant
+    # ARRANGE — the hub has an agreement, but its license lacks CreateGrant
     mock_marketplace_agreement_service.list_active_agreements.return_value = [get_test_marketplace_agreement()]
     mock_marketplace_license_service.list_received_licenses.return_value = [
         get_test_received_license(allowed_operations=["CheckoutLicense"])
     ]
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
     mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
-    mock_org_integration_service.is_license_manager_org_integration_active.return_value = True
     mock_image_query_service.get_images.return_value = []
 
     svc = _build_service(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -134,43 +124,6 @@ def test_discover_should_return_externally_managed_when_license_lacks_create_gra
     assertpy.assert_that(result[0].licenseGrantAllowed).is_false()
 
 
-def test_discover_should_return_externally_managed_when_org_integration_inactive(
-    get_test_marketplace_ami,
-    get_test_marketplace_agreement,
-    get_test_received_license,
-    mock_marketplace_agreement_service,
-    mock_marketplace_ami_service,
-    mock_marketplace_license_service,
-    mock_org_integration_service,
-    mock_image_query_service,
-):
-    # ARRANGE — agreement + CreateGrant permitted, but org integration off
-    mock_marketplace_agreement_service.list_active_agreements.return_value = [get_test_marketplace_agreement()]
-    mock_marketplace_license_service.list_received_licenses.return_value = [
-        get_test_received_license(allowed_operations=["CreateGrant"])
-    ]
-    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
-    mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
-    mock_org_integration_service.is_license_manager_org_integration_active.return_value = False
-    mock_image_query_service.get_images.return_value = []
-
-    svc = _build_service(
-        mock_marketplace_agreement_service,
-        mock_marketplace_ami_service,
-        mock_marketplace_license_service,
-        mock_org_integration_service,
-        mock_image_query_service,
-    )
-
-    # ACT
-    result = svc.discover(project_id=project_id_value_object.from_str("proj-1"))
-
-    # ASSERT
-    assertpy.assert_that(result).is_length(1)
-    assertpy.assert_that(result[0].subscriptionOwnership).is_equal_to(SubscriptionOwnership.EXTERNALLY_MANAGED.value)
-    assertpy.assert_that(result[0].licenseGrantAllowed).is_true()
-
-
 def test_discover_should_mark_already_imported_when_ami_exists_in_project(
     get_test_marketplace_ami,
     get_test_received_license,
@@ -178,7 +131,6 @@ def test_discover_should_mark_already_imported_when_ami_exists_in_project(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE
@@ -193,7 +145,6 @@ def test_discover_should_mark_already_imported_when_ami_exists_in_project(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -209,7 +160,6 @@ def test_discover_should_return_empty_list_when_no_agreements_and_no_licenses(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE
@@ -220,7 +170,6 @@ def test_discover_should_return_empty_list_when_no_agreements_and_no_licenses(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -237,7 +186,6 @@ def test_discover_should_skip_product_when_no_hub_ami_found(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE — license exists but no AMI for this product (e.g. SaaS-only or deregistered)
@@ -250,7 +198,6 @@ def test_discover_should_skip_product_when_no_hub_ami_found(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -268,7 +215,6 @@ def test_discover_should_detect_newer_version_available_when_latest_ami_differs_
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE — imported AMI is ami-111, but EC2 now has a newer ami-222
@@ -286,7 +232,6 @@ def test_discover_should_detect_newer_version_available_when_latest_ami_differs_
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -307,7 +252,6 @@ def test_discover_should_not_flag_newer_version_when_latest_ami_is_already_impor
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE — imported AMI is ami-111, EC2 latest is also ami-111
@@ -324,7 +268,6 @@ def test_discover_should_not_flag_newer_version_when_latest_ami_is_already_impor
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -343,7 +286,6 @@ def test_discover_should_not_check_updates_for_non_imported_subscriptions(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE — no images imported, so no update check needed
@@ -357,7 +299,6 @@ def test_discover_should_not_check_updates_for_non_imported_subscriptions(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
 
@@ -376,7 +317,6 @@ def test_hub_ami_lookup_prefers_a_supported_ami_over_a_newer_deprecated_one(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     """describe_images now returns deprecated images too, so picking amis[0] - or even
@@ -386,7 +326,6 @@ def test_hub_ami_lookup_prefers_a_supported_ami_over_a_newer_deprecated_one(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
@@ -410,7 +349,6 @@ def test_hub_ami_lookup_takes_the_newest_supported_ami(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE
@@ -418,7 +356,6 @@ def test_hub_ami_lookup_takes_the_newest_supported_ami(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
@@ -438,7 +375,6 @@ def test_hub_ami_lookup_falls_back_to_the_newest_deprecated_ami(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     """When every image is deprecated, an older subscription must still resolve to
@@ -448,7 +384,6 @@ def test_hub_ami_lookup_falls_back_to_the_newest_deprecated_ami(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
@@ -476,7 +411,6 @@ def test_hub_ami_lookup_returns_none_without_any_ami(
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE
@@ -484,7 +418,6 @@ def test_hub_ami_lookup_returns_none_without_any_ami(
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
     mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = []
@@ -498,7 +431,6 @@ def test_newer_version_detection_prefers_supported_amis_over_newer_deprecated_am
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE — the imported supported AMI remains the preferred version even
@@ -507,7 +439,6 @@ def test_newer_version_detection_prefers_supported_amis_over_newer_deprecated_am
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
     mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [
@@ -536,7 +467,6 @@ def test_newer_version_detection_falls_back_to_deprecated_when_all_amis_are_depr
     mock_marketplace_agreement_service,
     mock_marketplace_ami_service,
     mock_marketplace_license_service,
-    mock_org_integration_service,
     mock_image_query_service,
 ):
     # ARRANGE
@@ -544,7 +474,6 @@ def test_newer_version_detection_falls_back_to_deprecated_when_all_amis_are_depr
         mock_marketplace_agreement_service,
         mock_marketplace_ami_service,
         mock_marketplace_license_service,
-        mock_org_integration_service,
         mock_image_query_service,
     )
     mock_marketplace_ami_service.list_marketplace_amis_by_product_code.return_value = [

@@ -7,6 +7,11 @@ from aws_cdk import aws_stepfunctions_tasks as sfn_tasks
 
 from infra import config
 
+# Lambda reports a raised exception's class name as the Step Functions error name. Must
+# match app.publishing.adapters.exceptions.adapter_exception.LicenseGrantRejectedException
+# (a test pins this).
+LICENSE_GRANT_REJECTED_ERROR = "LicenseGrantRejectedException"
+
 
 class AmiSharingStateMachine(constructs.Construct):
     def __init__(
@@ -112,7 +117,12 @@ class AmiSharingStateMachine(constructs.Construct):
             "PassGrantNotVerifiedError",
             parameters={
                 "Error": "LicenseGrantNotVerified",
-                "Cause": "The target account has no active license grant for this Marketplace product.",
+                "Cause": (
+                    "The target account has no active license grant for this Marketplace product. "
+                    "Either the hub's license does not allow CreateGrant, or AWS refused the grant "
+                    "(the execution input then has licenseGrantError). Subscribe the target account "
+                    "to the product, or grant the license to it, and retry the version."
+                ),
             },
             result_path="$.error",
         )
@@ -246,7 +256,6 @@ class AmiSharingStateMachine(constructs.Construct):
             },
             result_path="$.createLicenseGrantResponse",
         )
-        create_license_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
 
         # Accept license grant lambda
         accept_license_grant_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
@@ -274,7 +283,6 @@ class AmiSharingStateMachine(constructs.Construct):
             max_attempts=3,
             interval=aws_cdk.Duration.seconds(10),
         )
-        accept_license_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
 
         # Verify launch permission lambda (shared by the LICENSE_GRANT and VERIFY_EXTERNAL_GRANT
         # license decisions). $.copiedAmi holds the AMI the spoke launches on every path: the
@@ -328,6 +336,19 @@ class AmiSharingStateMachine(constructs.Construct):
             result_path="$.verifyExternalGrantResponse",
         )
         verify_external_grant_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Safety net for the LICENSE_GRANT path. If AWS refuses to create or deliver the
+        # grant, check whether the spoke already has its own grant or subscription, as an
+        # externally managed image would, instead of failing the version. A refused grant
+        # then ends no worse than a hub that never tried. The specific catch must come
+        # before the catch-all, because Step Functions uses the first matching catcher.
+        for grant_step in (create_license_grant_lambda, accept_license_grant_lambda):
+            grant_step.add_catch(
+                verify_external_grant_lambda,
+                errors=[LICENSE_GRANT_REJECTED_ERROR],
+                result_path="$.licenseGrantError",
+            )
+            grant_step.add_catch(fail_ami_sharing_lambda, result_path="$.error")
 
         # Verify external grant choice
         verify_external_grant_choice: sfn.Choice = sfn.Choice(self, "VerifyExternalGrantChoice")

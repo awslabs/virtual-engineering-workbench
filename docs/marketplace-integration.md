@@ -8,7 +8,7 @@ When you discover marketplace subscriptions in VEW, each one is classified into 
 
 ### VEW Managed subscription
 
-The hub account subscribed directly to the product, and the license permits re-granting. When you publish a version that uses this image, VEW automatically creates a License Manager grant from the hub to the spoke account, accepts it, and activates it. You don't need to do anything on the spoke side.
+The hub account subscribed directly to the product, and the license permits re-granting (`CreateGrant`). This does not depend on where the hub sits in the organization. When you publish a version that uses this image, VEW automatically creates a License Manager grant from the hub to the spoke account, accepts it, and activates it. You don't need to do anything on the spoke side.
 
 ### Externally Managed subscription
 
@@ -16,50 +16,26 @@ The hub received the license from outside — a vendor grant, an Organization-le
 
 ## Prerequisites
 
-These are one-time setup steps performed by an AWS administrator. License Manager
-Organizations integration and automatic entitlement distribution run from the
-organization's management account. A VEW hub in a member account can inspect the
-management-owned RAM share, but it cannot create grants; Marketplace imports in that
-hub remain externally managed and require a pre-existing spoke grant or subscription.
+VEW needs no AWS Organizations or License Manager setup for Marketplace AMIs. The hub can
+be the management account or any member account. VEW does not require a delegated
+administrator, the License Manager Organizations integration, or its RAM resource share.
 
-### Enable License Manager Organization integration
+This is based on a live test (November 2026) in an organization with two accounts. A
+plain member hub created grants for two Marketplace AMIs to the management account, and
+the grants became `ACTIVE` and launched. This also worked with no delegated administrator
+and with the Organizations integration switched off. An unsubscribed Marketplace AMI
+failed with `OptInRequired`, so the grants were what made the launches work. Grants
+between two member accounts, and to accounts outside the organization, were not tested.
+If AWS refuses a grant, VEW falls back as described in
+[If AWS refuses the grant](#if-aws-refuses-the-grant).
 
-1. Go to **AWS Marketplace → Settings → AWS License Manager integration → View setting details** and choose **Create integration**. This creates the `AWSServiceRoleForMarketplaceLicenseManagement` service-linked role.
-2. Go to **License Manager → Settings → Account details** and choose **Link AWS Organizations accounts**.
+The AWS documentation says only the management account or the License Manager delegated
+administrator can distribute licenses. If your organization relies on that, registering
+the hub as delegated administrator does no harm, but VEW does not check for it.
 
-This enables cross-account license sharing. You can verify it worked by checking **IAM → Roles** for the `AWSServiceRoleForMarketplaceLicenseManagement` role.
-
-The same two steps from the CLI, in this order, run in the organization's
-management account:
-
-```bash
-# 1. The service-linked role AWS Marketplace uses to manage licenses.
-aws iam create-service-linked-role \
-  --aws-service-name license-management.marketplace.amazonaws.com
-
-# 2. Link AWS Organizations accounts.
-aws license-manager update-service-settings \
-  --organization-configuration EnableIntegration=true
-
-# Confirm, and see the resource share it creates.
-aws license-manager get-service-settings \
-  --query '{integration:OrganizationConfiguration.EnableIntegration,share:LicenseManagerResourceShareArn}'
-```
-
-The order matters: linking Organizations before the service-linked role exists
-fails. `deploy.sh` reports the current state in Phase 7c, read-only — it never
-changes the setting, because this is an account-wide decision for an
-administrator rather than something a deployment should switch on.
-
-**Allow about 30 minutes.** `EnableIntegration` reads back as `true` almost at
-once, but the RAM resource share that actually permits cross-account grants
-takes a while to propagate. Until it does, importing works and distributing a
-grant fails.
-
-You do not have to enable it before importing. The decision of whether to
-distribute a grant is taken again every time a product version is published, so
-a subscription imported while the integration was off starts getting grants once
-it is on — no re-import needed.
+The first grant a spoke account accepts can fail for about a minute with *"Marketplace
+Service Linked Role creation is in-progress"* while AWS creates that role. The state
+machine's retries cover this.
 
 ### Subscribe to a Marketplace product
 
@@ -73,9 +49,9 @@ For Externally Managed subscriptions, skip this step. The licenses already exist
 
 ### Distribute grants to spoke accounts (Externally Managed only)
 
-If you're working with Externally Managed subscriptions, an Organization admin must distribute grants to each spoke account that will run workbenches:
+If you're working with Externally Managed subscriptions, the account that holds the license must distribute grants to each spoke account that will run workbenches:
 
-1. In the hub account, go to **License Manager → Granted licenses**, select the license, and choose **Create grant**.
+1. In that account, go to **License Manager → Granted licenses**, select the license, and choose **Create grant**.
 2. Enter the spoke account ID.
 3. In the spoke account, accept and activate the grant.
 
@@ -122,27 +98,17 @@ Create a product, then create a version selecting the marketplace-imported image
 
 VEW creates a License Manager grant from the hub to the spoke, accepts it in the spoke account, and waits for the launch permission to propagate. This is fully automatic. The version status progresses to **Created** once complete.
 
+#### If AWS refuses the grant
+
+If AWS refuses to create the grant, or the grant never reaches the spoke, VEW does not fail the version straight away. It checks whether the spoke already has its own active grant or subscription for the product, the same check it runs for an Externally Managed image. If the spoke has one, the version proceeds. If not, the version fails with `LicenseGrantNotVerified`, and the state machine execution input records AWS's error under `licenseGrantError`. Throttling and AWS service errors are not treated as a refusal: they fail the version, and retrying it can succeed.
+
 ### Externally Managed license
 
 VEW first checks whether the spoke account already has an active grant or its own subscription for the product. If it does, the version proceeds normally — no new grant is created.
 
-If the spoke has neither, VEW checks whether it can distribute a grant itself. The
-specific persisted license must permit `CreateGrant`, the VEW hub must be the
-organization's management account, the License Manager Organizations integration must
-be enabled, and its exact RAM resource share must be active and owned by that account.
-The hub checks the share as `SELF`; a member hub checks `OTHER-ACCOUNTS` so it can report
-the real integration state, but it does not claim that it can distribute. If all grant
-conditions pass, VEW creates and accepts the grant exactly as for a VEW Managed licence.
+If the spoke has neither, VEW checks whether the hub can distribute the license after all. The label is recorded when you import the image, and earlier VEW versions labelled a hub-owned license Externally Managed unless the hub was the organization's management account with the License Manager integration active. At publish time, if the persisted license permits `CreateGrant` and the hub's license still allows it, VEW takes the VEW Managed route and creates the grant itself. You don't need to re-import such an image. Historical imports that do not contain the capability flag are treated as not grant-capable; rediscover and re-import to record the current license capability.
 
-Publishing fails when the spoke has no grant and VEW cannot create one because the hub
-is a member account, the persisted license does not permit `CreateGrant`, or the
-integration is not ready. Historical imports
-that do not contain the capability flag are treated as not grant-capable; rediscover and
-re-import to record the current license capability. Otherwise, enable the integration
-(see [above](#enable-license-manager-organization-integration)) and wait for its resource
-share to become active before retrying, or distribute the grant by hand (see
-[Distribute grants to spoke accounts](#distribute-grants-to-spoke-accounts-externally-managed-only))
-and then retry.
+Publishing fails when the spoke has no grant and the license does not permit `CreateGrant`. Subscribe the spoke account to the product, or distribute the grant by hand (see [Distribute grants to spoke accounts](#distribute-grants-to-spoke-accounts-externally-managed-only)), and then retry.
 
 ## When a version fails
 
@@ -152,7 +118,7 @@ The reasons specific to Marketplace images are:
 
 | `statusReason` begins with | What it means |
 |---|---|
-| `LicenseGrantNotVerified` | The spoke has no active grant for the product and the hub could not distribute one. |
+| `LicenseGrantNotVerified` | The spoke has no active grant for the product and the hub could not distribute one, either because the license does not allow `CreateGrant` or because AWS refused the grant (see [If AWS refuses the grant](#if-aws-refuses-the-grant)). |
 | `LaunchPermissionDenied` | The grant exists but the spoke still cannot launch the regional AMI. Launch permission can lag a grant by a few minutes; retry before investigating. |
 | `UnexpectedDecision` | An internal error: the sharing decision was one the state machine does not handle. |
 

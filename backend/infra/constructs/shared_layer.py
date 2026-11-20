@@ -16,9 +16,7 @@ def _validate_path(path: str) -> None:
 
 
 def _resolve_requirements(entry: str) -> str:
-    """Return the lockfile path if it exists, otherwise the requirements.txt path."""
-    lockfile = f"{entry}/requirements.lock"
-    return lockfile if Path(lockfile).is_file() else f"{entry}/requirements.txt"
+    return f"{entry}/requirements.txt"
 
 
 @implements(aws_cdk.ILocalBundling)

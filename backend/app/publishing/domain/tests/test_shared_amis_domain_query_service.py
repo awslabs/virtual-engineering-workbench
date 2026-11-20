@@ -523,9 +523,9 @@ def _external_decision(lm_service, image_svc_mock, shared_amis_qry_svc_mock, moc
 def test_external_subscription_is_upgraded_to_a_grant_when_the_hub_can_distribute(
     image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
 ):
-    """The spoke has no grant and License Manager's organization integration is on, so
-    the hub can distribute one itself. Without this the decision was always verify-only
-    and the launch could never succeed."""
+    """The spoke has no grant and the licence still allows CreateGrant, so the hub can
+    distribute one itself. Without this the decision was always verify-only and the
+    launch could never succeed."""
     # ARRANGE
     lm = _lm_service(has_grant=False, can_distribute=True)
 
@@ -534,6 +534,9 @@ def test_external_subscription_is_upgraded_to_a_grant_when_the_hub_can_distribut
 
     # ASSERT
     assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant)
+    lm.can_distribute_license.assert_called_once_with(
+        "arn:aws:license-manager:us-east-1:111111111111:license:l-1", "us-east-1"
+    )
 
 
 def test_external_subscription_stays_verify_only_when_the_spoke_already_has_a_grant(
@@ -555,7 +558,7 @@ def test_external_subscription_stays_verify_only_when_the_spoke_already_has_a_gr
 def test_external_subscription_stays_verify_only_when_the_hub_cannot_distribute(
     image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
 ):
-    # ARRANGE — integration off, so VEW holds nothing it may grant
+    # ARRANGE — the licence no longer allows CreateGrant, so VEW holds nothing it may grant
     lm = _lm_service(has_grant=False, can_distribute=False)
 
     # ACT
@@ -596,10 +599,10 @@ def test_vew_managed_subscription_is_not_affected_by_the_upgrade(
     lm.has_active_received_grant.assert_not_called()
 
 
-def test_external_subscription_without_create_grant_stays_verify_only_when_account_is_ready(
+def test_external_subscription_without_persisted_create_grant_stays_verify_only(
     image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
 ):
-    """Account-level readiness cannot override this license's AllowedOperations."""
+    """A live CreateGrant allowance cannot override the persisted AllowedOperations fact."""
     # ARRANGE
     lm = _lm_service(has_grant=False, can_distribute=True)
     mock_version_repo.get.return_value = _marketplace_version(

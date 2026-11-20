@@ -55,9 +55,9 @@ def _actions_for_lambda(template: dict, function_name: str) -> set[str]:
 
 
 def test_packaging_discovery_license_manager_permissions_are_minimal():
+    # Discovery lists received licences; classification needs nothing from the organization.
     assert set(PACKAGING_MARKETPLACE_LICENSE_MANAGER_ACTIONS) == {
         "license-manager:ListReceivedLicenses",
-        "license-manager:GetServiceSettings",
     }
 
 
@@ -68,13 +68,11 @@ def test_publishing_api_license_manager_permissions_are_minimal():
     }
 
 
-def test_ami_sharing_has_license_distribution_readiness_permissions():
+def test_ami_sharing_license_manager_permissions_are_minimal():
     assert set(AMI_SHARING_LICENSE_MANAGER_ACTIONS) == {
         "license-manager:CreateGrant",
         "license-manager:ListDistributedGrants",
-        "license-manager:GetServiceSettings",
-        "organizations:DescribeOrganization",
-        "ram:GetResourceShares",
+        "license-manager:ListReceivedLicenses",
     }
 
 

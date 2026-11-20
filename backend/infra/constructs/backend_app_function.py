@@ -32,9 +32,7 @@ class LocalBundler:
         self.__app_root = app_root
         self.__lambda_root = lambda_root
         self.__target_args = uv_target_args(runtime.name, architecture.name)
-        lockfile = Path(f"{self.__lambda_root}/requirements.lock")
-        txtfile = Path(f"{self.__lambda_root}/requirements.txt")
-        self.__requirements_file = str(lockfile if lockfile.is_file() else txtfile)
+        self.__requirements_file = f"{self.__lambda_root}/requirements.txt"
 
     @member(jsii_name="tryBundle")
     def try_bundle(self, output_dir: str, options: aws_cdk.BundlingOptions) -> bool:
@@ -135,11 +133,7 @@ class BackendAppFunction(constructs.Construct):
 
         current_dir = "."
         if install_requirements:
-            reqfile = (
-                f"{lambda_root}/requirements.lock"
-                if Path(f"{lambda_root}/requirements.lock").is_file()
-                else f"{lambda_root}/requirements.txt"
-            )
+            reqfile = f"{lambda_root}/requirements.txt"
             docker_command = (
                 "curl -LsSf https://astral.sh/uv/0.11.3/install.sh | sh"
                 f" && /root/.local/bin/uv pip install --no-compile -r {reqfile} -t /asset-output/"

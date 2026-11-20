@@ -75,6 +75,41 @@
                     "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaSuccess",
                     "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
                     "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "LicenseGrantRejectedFallbackPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaLicenseGrant",
+                    "CreateLicenseGrantLambda": "MockedCreateLicenseGrantLambdaRejected",
+                    "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaSuccess"
+                },
+                "LicenseGrantRejectedNoSpokeGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaLicenseGrant",
+                    "CreateLicenseGrantLambda": "MockedCreateLicenseGrantLambdaRejected",
+                    "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaNotFound"
+                },
+                "LicenseGrantNotDeliveredFallbackPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaLicenseGrant",
+                    "CreateLicenseGrantLambda": "MockedCreateLicenseGrantLambda",
+                    "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambdaNotDelivered",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "VerifyExternalGrantLambda": "MockedVerifyExternalGrantLambdaSuccess"
+                },
+                "LicenseGrantTransientErrorPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaLicenseGrant",
+                    "CreateLicenseGrantLambda": "MockedCreateLicenseGrantLambdaThrottled",
+                    "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
                 }
             }
         }
@@ -338,6 +373,30 @@
                         "eventType": "VerifyLicenseGrantResponse",
                         "isAccessible": false
                     }
+                }
+            }
+        },
+        "MockedCreateLicenseGrantLambdaRejected": {
+            "0": {
+                "Throw": {
+                    "Error": "LicenseGrantRejectedException",
+                    "Cause": "Failed to create license grant: An error occurred (AccessDeniedException) when calling the CreateGrant operation"
+                }
+            }
+        },
+        "MockedCreateLicenseGrantLambdaThrottled": {
+            "0": {
+                "Throw": {
+                    "Error": "AdapterException",
+                    "Cause": "Failed to create license grant: An error occurred (ThrottlingException) when calling the CreateGrant operation"
+                }
+            }
+        },
+        "MockedAcceptLicenseGrantLambdaNotDelivered": {
+            "0-3": {
+                "Throw": {
+                    "Error": "LicenseGrantRejectedException",
+                    "Cause": "Cannot accept license grant: the spoke account has not received it"
                 }
             }
         }
