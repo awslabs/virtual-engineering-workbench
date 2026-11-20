@@ -49,6 +49,9 @@ jobs:
         working-directory: backend
         run: uv run bandit -r app --ini bandit.ini -ll -q
 
+      - name: Dependency update coverage
+        run: uv run --no-project --python 3.13 python scripts/check-dependency-coverage.py
+
       - name: Lambda lockfiles match compile.sh
         working-directory: backend
         # Dependabot compiles inside each directory, so its "# via" lines differ.
