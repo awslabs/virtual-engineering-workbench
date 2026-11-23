@@ -16,8 +16,8 @@ import re
 import pytest
 
 APP = pathlib.Path(__file__).resolve().parents[2]
-SHARED_LOCK = APP / "shared" / "requirements.lock"
-CONTEXTS = sorted(p.parent.parent.name for p in APP.glob("*/libraries/requirements.lock"))
+SHARED_LOCK = APP / "shared" / "requirements.txt"
+CONTEXTS = sorted(p.parent.parent.name for p in APP.glob("*/libraries/requirements.txt"))
 
 
 def _pinned_stub_modules(lockfile: pathlib.Path) -> set[str]:
@@ -67,7 +67,7 @@ def _source_files(root: pathlib.Path):
 
 @pytest.mark.parametrize("context", CONTEXTS)
 def test_every_runtime_stub_import_is_pinned_in_a_layer(context):
-    available = _pinned_stub_modules(APP / context / "libraries" / "requirements.lock") | _pinned_stub_modules(
+    available = _pinned_stub_modules(APP / context / "libraries" / "requirements.txt") | _pinned_stub_modules(
         SHARED_LOCK
     )
     missing = {}
@@ -77,7 +77,7 @@ def test_every_runtime_stub_import_is_pinned_in_a_layer(context):
                 missing.setdefault(module, []).append(str(path.relative_to(APP)))
     assert not missing, (
         f"{context}: stub modules imported at runtime but not pinned in "
-        f"app/{context}/libraries/requirements.lock or app/shared/requirements.lock: {missing}"
+        f"app/{context}/libraries/requirements.txt or app/shared/requirements.txt: {missing}"
     )
 
 

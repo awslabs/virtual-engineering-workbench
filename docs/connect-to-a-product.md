@@ -1,6 +1,13 @@
 # Connect to a product
 
-Once your product is in **Running** state, there are three ways to connect: DCV in the browser, the DCV desktop client, or SSH. DCV gives you a full graphical desktop; SSH gives you a terminal. If your administrator has turned it on, [Session Manager](#session-manager) also gives you a terminal, without an SSH key.
+Once your product is in **Running** state, there are up to three ways to connect: DCV in the browser, the DCV desktop client, or SSH. DCV gives you a full graphical desktop; SSH gives you a terminal. The portal shows only the options that are enabled:
+
+- **DCV** appears only when the product's `DCVConnectionOptions` feature toggle is on (set in the product template's `FeatureToggles` output, or globally). The product also needs the Amazon DCV component in its image. Example products such as [`examples/freertos`](../examples/freertos/product.yaml) do not enable it.
+- **SSH** appears only when the deployment allows it. The `SSH_CONNECTION_OPTION` setting in `config.env` controls this and defaults to `"true"`.
+- **[Session Manager](#session-manager)** appears only when the `SessionManagerConnectionOption` feature toggle is on. It gives you a terminal without an SSH key.
+- **RDP** appears only when the `RDPConnectionOption` feature toggle is on.
+
+If you see no connection option, ask your administrator which of these is set.
 
 ## DCV browser
 

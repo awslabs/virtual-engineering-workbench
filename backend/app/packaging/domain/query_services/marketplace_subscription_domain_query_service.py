@@ -6,7 +6,6 @@ from app.packaging.domain.ports.marketplace_agreement_service import Marketplace
 from app.packaging.domain.ports.marketplace_ami_service import MarketplaceAmiService
 from app.packaging.domain.ports.marketplace_license_service import MarketplaceLicenseService
 from app.packaging.domain.ports.marketplace_subscription_query_service import MarketplaceSubscriptionQueryService
-from app.packaging.domain.ports.org_integration_service import OrgIntegrationService
 from app.packaging.domain.read_models.discovered_marketplace_subscription import DiscoveredMarketplaceSubscription
 from app.packaging.domain.read_models.marketplace_agreement import MarketplaceAgreement
 from app.packaging.domain.read_models.marketplace_ami import MarketplaceAmi
@@ -23,7 +22,6 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         agreement_service: MarketplaceAgreementService,
         ami_service: MarketplaceAmiService,
         license_service: MarketplaceLicenseService,
-        org_integration_service: OrgIntegrationService,
         image_qry_svc: ImageQueryService,
         available_regions: list[str],
         logger: logging.Logger,
@@ -31,7 +29,6 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         self._agreement_service = agreement_service
         self._ami_service = ami_service
         self._license_service = license_service
-        self._org_integration_service = org_integration_service
         self._image_qry_svc = image_qry_svc
         self._available_regions = available_regions
         self._logger = logger
@@ -62,7 +59,6 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
 
         imported_product_codes = self._get_imported_product_codes(project_id)
         imported_ami_ids = self._get_imported_ami_ids(project_id)
-        org_integration_active = self._org_integration_service.is_license_manager_org_integration_active()
 
         result: list[DiscoveredMarketplaceSubscription] = []
         for product_code, (hub_ami, lic) in license_by_product_code.items():
@@ -82,7 +78,6 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
                     hub_ami=hub_ami,
                     license=lic,
                     agreement=agreement,
-                    org_integration_active=org_integration_active,
                     regional_ami_ids=regional_ami_ids,
                     imported_product_codes=imported_product_codes,
                     newer_version_available=newer_version_available,
@@ -163,10 +158,12 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         }
 
     @staticmethod
-    def _classify(
-        license: ReceivedLicense, agreement: MarketplaceAgreement | None, org_integration_active: bool
-    ) -> SubscriptionOwnership:
-        if CREATE_GRANT in license.allowedOperations and agreement is not None and org_integration_active:
+    def _classify(license: ReceivedLicense, agreement: MarketplaceAgreement | None) -> SubscriptionOwnership:
+        # The hub subscribed itself (agreement) and its licence allows re-granting. No
+        # organization-level condition: AWS accepted grants from a plain member hub, with
+        # no delegated administrator and the Organizations integration off (live, Nov 2026).
+        # If AWS refuses a grant anyway, publishing falls back to the external-grant check.
+        if CREATE_GRANT in license.allowedOperations and agreement is not None:
             return SubscriptionOwnership.VEW_MANAGED
         return SubscriptionOwnership.EXTERNALLY_MANAGED
 
@@ -175,14 +172,13 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         hub_ami: MarketplaceAmi,
         license: ReceivedLicense,
         agreement: MarketplaceAgreement | None,
-        org_integration_active: bool,
         regional_ami_ids: dict[str, str],
         imported_product_codes: set,
         newer_version_available: bool = False,
         latest_ami_id: str | None = None,
         latest_ami_creation_date: str | None = None,
     ) -> DiscoveredMarketplaceSubscription:
-        ownership = MarketplaceSubscriptionDomainQueryService._classify(license, agreement, org_integration_active)
+        ownership = MarketplaceSubscriptionDomainQueryService._classify(license, agreement)
         return DiscoveredMarketplaceSubscription(
             productName=license.productName or hub_ami.name or "",
             productCode=hub_ami.productCode,

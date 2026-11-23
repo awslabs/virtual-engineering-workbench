@@ -24,7 +24,7 @@ A component is a single piece of software — in this case, the ARM GCC toolchai
    | Description | `FreeRTOS is a market-leading embedded system RTOS.` |
    | Platform | **Linux** |
    | Supported architectures | **amd64** |
-   | Supported OS version | **Ubuntu 2024** |
+   | Supported OS version | **Ubuntu 24** |
 
 4. Choose **Create version**.
 5. Fill in the version details:
@@ -42,7 +42,9 @@ A component is a single piece of software — in this case, the ARM GCC toolchai
 9. Skip the dependencies page (this component has none) — choose **Next**.
 10. Review everything, then choose **Next** to kick off validation.
 
-The status shows **Validating** while VEW checks the YAML. Wait for it to change to **Released** before moving on.
+The status shows **Validating** while VEW checks the YAML. Wait for it to change to **Validated**.
+
+A validated version is a release candidate (`1.0.0-rc.1`). Open it and choose **Release version**. Wait for the status to change to **Released** before moving on. Step 2 can only use a released component version.
 
 ## Step 2: Create the recipe
 
@@ -58,7 +60,7 @@ A recipe bundles one or more components into a buildable image spec. VEW maps re
    | Description | `Virtual target for FreeRTOS` |
    | Platform | **Linux** |
    | Supported architectures | **amd64** |
-   | Supported OS version | **Ubuntu 2024** |
+   | Supported OS version | **Ubuntu 24** |
 
 4. From the recipes list, choose **FreeRTOS virtual target**, then choose **Create version**.
 5. For **Description**, enter `Initial FreeRTOS virtual target recipe`.

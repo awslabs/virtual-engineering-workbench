@@ -24,7 +24,7 @@ If you discover a security vulnerability, please report it by emailing <aws-secu
 
 ### Operational Security
 
-- CloudWatch Logs retain data for 2 months by default
+- CloudWatch Logs retain data for 2 months by default; the AgentCore MCP gateway application logs retain data for 1 month
 - WAF anomaly detection alarms are configured for blocked request monitoring
 - API Gateway throttling is set to 1000 req/s with 500 burst
 - `data_trace_enabled` is automatically disabled for non-dev environments
@@ -37,17 +37,17 @@ If you discover a security vulnerability, please report it by emailing <aws-secu
 
 ### Authentication & Authorization
 
-- Cognito User Pool with OIDC/SAML federation (self-signup disabled)
-- Amazon Verified Permissions with Cedar policies for fine-grained authorization
+- Cognito User Pool with OIDC federation (self-signup disabled); SAML is not configured
+- User APIs: a Lambda request authorizer validates the Cognito JWT and checks Amazon Verified Permissions with Cedar policies
+- Service-to-service (S2S) APIs: Cognito user pool authorizer with OAuth client credentials and per-operation scopes; Cedar is not used on this path
+- `/internal/*` operations between bounded contexts: API Gateway IAM (SigV4) authorization
 - Lambda@Edge JWT validation on CloudFront viewer requests
-- API Gateway IAM authentication
 
 ## Known Security Considerations
 
 ### Accepted Design Decisions
 
 - Lambda@Edge allows unauthenticated access to landing and documentation pages; backend API has independent auth
-- `/webhooks/github` endpoint is unauthenticated by design; implement HMAC-SHA256 signature validation in handler
 - cdk_nag suppressions are documented in source code for EC2 workbench launch template configurations
 - Client IP header is included in CloudFront error responses for debugging
 
@@ -55,7 +55,6 @@ If you discover a security vulnerability, please report it by emailing <aws-secu
 
 - Enable KMS customer-managed keys for CloudWatch log groups containing sensitive data
 - Configure S3 server access logging for audit requirements
-- Add GitHub webhook signature validation
 - Review cdk_nag suppressions periodically
 
 ## Compliance Considerations

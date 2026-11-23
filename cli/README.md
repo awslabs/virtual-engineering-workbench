@@ -6,7 +6,7 @@ Written in Rust as a single self-contained binary. Cross-platform: macOS (Intel/
 
 ## Highlights
 
-- **Any OIDC provider** — auto-discovers endpoints via OpenID Connect Discovery 1.0 (RFC 8414). Tested with AWS Cognito, Keycloak, Auth0, Azure AD, and Okta. No provider-specific code or configuration.
+- **Any OIDC provider** — auto-discovers endpoints via OpenID Connect Discovery 1.0 (RFC 8414). Tested with AWS Cognito, Keycloak, Auth0, Azure AD, and Okta. No provider-specific code or configuration. A VEW deployment accepts only tokens from its own Cognito user pool, so against VEW the `issuer_url` is that pool. See [Using an external identity provider](#using-an-external-identity-provider).
 - **Headless-friendly** — `--no-browser` (or `VEW_NO_BROWSER=1`) prints the login URL to stdout so you can authenticate from SSH sessions, containers, or CI runners.
 - **Scriptable** — `vew auth token` writes a raw access or ID token to stdout, ready to pipe into `curl` or any HTTP client.
 - **Discovers commands dynamically** — subcommands per bounded context are resolved from each service's OpenAPI spec at runtime; no CLI update needed when the backend adds an endpoint.
@@ -51,7 +51,7 @@ oidc_client_id = "your-client-id"
 
 [profiles.prod]
 api_endpoint = "https://api.prod.example.com"
-issuer_url = "https://keycloak.example.com/realms/vew"
+issuer_url = "https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_YYYYYYY"
 oidc_client_id = "vew-cli-prod"
 scopes = ["openid", "profile", "email", "vew:read"]
 ```
@@ -59,7 +59,11 @@ scopes = ["openid", "profile", "email", "vew:read"]
 **Required per profile:** `api_endpoint`, `issuer_url`, `oidc_client_id`.
 **Optional:** `scopes` — defaults to `["openid", "profile", "email"]` when omitted.
 
-The `issuer_url` is the OIDC issuer, matching the `iss` claim in ID tokens. For Cognito that's `https://cognito-idp.<region>.amazonaws.com/<user-pool-id>`; for Keycloak that's `https://<host>/realms/<realm>`; and so on for any OIDC provider.
+The `issuer_url` is the OIDC issuer, matching the `iss` claim in ID tokens. For Cognito that's `https://cognito-idp.<region>.amazonaws.com/<user-pool-id>`; for Keycloak that's `https://<host>/realms/<realm>`; and so on for any OIDC provider. Against a VEW deployment, use the Cognito form (see below).
+
+### Using an external identity provider
+
+The CLI itself works with any OIDC provider. A VEW deployment does not: the API router validates tokens against VEW's own Cognito user pool and the `vew-cli` app client, both read from SSM (`backend/infra/backend/vew_api_router_stack.py:188-195`). A token from Keycloak, Auth0, Azure AD or Okta is rejected. To sign in with an external provider, federate it into the Cognito user pool, and keep `issuer_url` pointing at the pool. Pointing `issuer_url` directly at an external provider applies only to non-VEW APIs.
 
 ### Finding these values in a VEW deployment
 
@@ -126,14 +130,14 @@ The token is written to stdout without a trailing newline so it composes cleanly
 
 ### Bounded-context commands
 
-Commands follow the pattern `vew <bounded-context> <operation> [options]`. Operations and their parameters are discovered dynamically from each service's OpenAPI spec — the CLI fetches and caches these on first use.
+Commands follow the pattern `vew <bounded-context> <operation> [options]`. Operations and their parameters are discovered dynamically from each service's OpenAPI spec — the CLI fetches and caches these on first use. A VEW deployment serves four contexts: `projects`, `packaging`, `publishing` and `provisioning` (`backend/infra/constants.py:101-106`). Pipelines are operations of `packaging`.
 
 ```bash
 vew init                                          # fetch and cache API specs for all enabled contexts
-vew pipelines                                     # list operations for the pipelines context
-vew pipelines get-items --help                    # show parameters for a specific operation
-vew pipelines get-items --project-id abc123       # run an operation
-vew publishing list-products -p prod              # target a specific profile
+vew packaging                                     # list operations for the packaging context
+vew packaging get-pipelines --help                # show parameters for a specific operation
+vew packaging get-pipelines --project-id abc123   # run an operation
+vew publishing get-products --project-id abc123 -p prod   # target a specific profile
 ```
 
 Output is pretty-printed JSON on stdout. Errors and debug output go to stderr.
@@ -146,7 +150,7 @@ Output is pretty-printed JSON on stdout. Errors and debug output go to stderr.
 | `-v`, `--verbose` | | Enable debug output on stderr |
 | `--refresh-cache` | | Force re-fetch of the API spec for the targeted context |
 
-Global flags can appear anywhere on the command line — `vew pipelines --profile prod get-items` and `vew --profile prod pipelines get-items` behave identically.
+Global flags can appear anywhere on the command line — `vew packaging --profile prod get-pipelines --project-id abc123` and `vew --profile prod packaging get-pipelines --project-id abc123` behave identically.
 
 ## Build
 

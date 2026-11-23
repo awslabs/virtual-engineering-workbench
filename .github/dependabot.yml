@@ -3,8 +3,7 @@
 #
 # NOTE: Security updates for all ecosystems continue to be handled automatically
 # by GitHub's Dependabot security updates setting (enabled at the repo level).
-# This file only configures VERSION update PRs (regular bumps for outdated deps),
-# which currently we opt into only for Docker base images.
+# Version update PRs are on only for Docker base images.
 
 version: 2
 updates:
@@ -22,6 +21,29 @@ updates:
       # The image's Python must match the Lambda runtime (python3.13); bump both together.
       - dependency-name: "docker/library/python"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  # Lambda layer requirements: requirements.in compiled by backend/scripts/compile.sh
+  # into hashed requirements.txt. Listing them under uv makes security updates
+  # recompile with uv pip compile. A limit of 0 turns off version updates.
+  - package-ecosystem: "uv"
+    directories:
+      - "/backend/app/shared"
+      - "/backend/app/authorization/libraries"
+      - "/backend/app/packaging/libraries"
+      - "/backend/app/projects/libraries"
+      - "/backend/app/provisioning/libraries"
+      - "/backend/app/publishing/libraries"
+      - "/backend/app/usecase/libraries"
+      - "/backend/infra/constructs/eventbridge/eb_upsert_handler"
+      - "/backend/infra/constructs/ssm/handler"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    labels:
+      - "dependencies"
     commit-message:
       prefix: "build(deps)"
       include: "scope"

@@ -49,6 +49,21 @@ jobs:
         working-directory: backend
         run: uv run bandit -r app --ini bandit.ini -ll -q
 
+      - name: Lambda lockfiles match compile.sh
+        working-directory: backend
+        # Dependabot compiles inside each directory, so its "# via" lines differ.
+        run: bash scripts/compile.sh && git diff --exit-code -I '^[[:space:]]*#' -- app infra
+
+      - name: Lambda lockfiles install for the Lambda runtime
+        working-directory: backend
+        # A real install, as CDK bundling does, so hashes and platform wheels are checked.
+        run: |
+          target_args=$(uv run python -c 'from aws_cdk import aws_lambda; from infra import constants; from infra.constructs.bundling import uv_target_args; print(" ".join(uv_target_args(aws_lambda.Runtime.PYTHON_3_13.name, constants.LAMBDA_ARCHITECTURE.name)))')
+          for req in $(find app infra -name requirements.in | sort); do
+            echo "Installing ${req%.in}.txt"
+            uv pip install -q --no-compile $target_args --target "$(mktemp -d)" -r "${req%.in}.txt"
+          done
+
       - name: Dependency vulnerability audit (pip-audit)
         working-directory: backend
         run: uvx pip-audit -r requirements.txt --no-deps
@@ -97,6 +112,44 @@ jobs:
 
       - name: Build
         working-directory: frontend/web
+        run: yarn build
+
+  frontend-infrastructure:
+    name: Frontend infrastructure (lint, test, build)
+    runs-on: codebuild-vew-ci-${{ github.run_id }}-${{ github.run_attempt }}
+    permissions:
+      contents: read
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Enable Yarn 4 (corepack)
+        run: corepack enable
+
+      - name: Install
+        working-directory: frontend/infrastructure
+        run: yarn install --immutable
+
+      - name: Dependency vulnerability audit (high+)
+        working-directory: frontend/infrastructure
+        run: yarn npm audit --severity high
+
+      - name: Lint
+        working-directory: frontend/infrastructure
+        run: yarn lint
+
+      - name: Unit tests
+        working-directory: frontend/infrastructure
+        run: yarn test:ci
+
+      - name: Build
+        working-directory: frontend/infrastructure
         run: yarn build
 
   iac-scan:

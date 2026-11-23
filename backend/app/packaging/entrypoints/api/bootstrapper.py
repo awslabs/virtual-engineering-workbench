@@ -25,7 +25,6 @@ from app.packaging.adapters.services import (
     parameter_service,
 )
 from app.packaging.adapters.services.aws_marketplace_discovery_service import AwsMarketplaceDiscoveryService
-from app.packaging.adapters.services.aws_org_integration_service import AwsOrgIntegrationService
 from app.packaging.adapters.services.ec2_ami_validation_service import Ec2AmiValidationService
 from app.packaging.domain.command_handlers.component import (
     archive_component_command_handler,
@@ -276,11 +275,6 @@ def bootstrap(  # noqa: C901
     )
 
     marketplace_discovery_svc = AwsMarketplaceDiscoveryService(
-        region=app_config.get_default_region(),
-        boto_session=session,
-    )
-
-    org_integration_svc = AwsOrgIntegrationService(
         region=app_config.get_default_region(),
         boto_session=session,
     )
@@ -733,7 +727,6 @@ def bootstrap(  # noqa: C901
         agreement_service=marketplace_discovery_svc,
         ami_service=marketplace_discovery_svc,
         license_service=marketplace_discovery_svc,
-        org_integration_service=org_integration_svc,
         image_qry_svc=image_qry_srv,
         available_regions=app_config.get_available_regions(),
         logger=logger,

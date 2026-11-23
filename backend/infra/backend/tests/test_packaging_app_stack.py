@@ -75,8 +75,8 @@ def test_domain_event_handler_keeps_the_build_logs_bucket(template):
 
 
 def test_stack_grants_only_the_marketplace_and_license_manager_actions_packaging_calls(template):
-    """Marketplace discovery calls SearchAgreements and ListReceivedLicenses, and the import
-    check reads GetServiceSettings. Anything more is privilege the stack cannot use."""
+    """Marketplace discovery calls SearchAgreements and ListReceivedLicenses. Anything more
+    is privilege the stack cannot use."""
     policies = template.find_resources("AWS::IAM::Policy")
     actions = []
     for policy in policies.values():
@@ -87,7 +87,6 @@ def test_stack_grants_only_the_marketplace_and_license_manager_actions_packaging
     assert {a for a in granted if a.startswith("aws-marketplace:")} == {"aws-marketplace:SearchAgreements"}
     assert {a for a in granted if a.startswith("license-manager:")} == {
         "license-manager:ListReceivedLicenses",
-        "license-manager:GetServiceSettings",
     }
 
 

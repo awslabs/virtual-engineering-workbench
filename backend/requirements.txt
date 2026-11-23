@@ -1,11 +1,11 @@
--r app/projects/libraries/requirements.txt
--r app/shared/requirements.txt
--r app/packaging/libraries/requirements.txt
--r app/publishing/libraries/requirements.txt
--r app/provisioning/libraries/requirements.txt
--r infra/constructs/eventbridge/eb_upsert_handler/requirements.txt
--r app/authorization/libraries/requirements.txt
--r app/usecase/libraries/requirements.txt
+-r app/projects/libraries/requirements.in
+-r app/shared/requirements.in
+-r app/packaging/libraries/requirements.in
+-r app/publishing/libraries/requirements.in
+-r app/provisioning/libraries/requirements.in
+-r infra/constructs/eventbridge/eb_upsert_handler/requirements.in
+-r app/authorization/libraries/requirements.in
+-r app/usecase/libraries/requirements.in
 aws-cdk-lib ~= 2.260.0
 aws-cdk.aws-lambda-python-alpha ~= 2.260.0a0
 aws-cdk.aws-pipes-alpha ~= 2.260.0a0
