@@ -1,47 +1,147 @@
 # Dependabot configuration
-# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
 #
-# NOTE: Security updates for all ecosystems continue to be handled automatically
-# by GitHub's Dependabot security updates setting (enabled at the repo level).
-# Version update PRs are on only for Docker base images.
+# scripts/check-dependency-coverage.py fails CI when a tracked manifest has no
+# entry here or an entry drops one of these settings.
 
 version: 2
 updates:
-  # Root Dockerfile base image SHA maintenance.
-  # Pinned by SHA to close OpenSSF Scorecard "Pinned-Dependencies" findings;
-  # Dependabot keeps the SHA fresh so security patches to the base image
-  # continue to land automatically as review-able PRs.
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    labels:
-      - "dependencies"
-    ignore:
-      # The image's Python must match the Lambda runtime (python3.13); bump both together.
-      - dependency-name: "docker/library/python"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
-    commit-message:
-      prefix: "build(deps)"
-      include: "scope"
-
-  # Lambda layer requirements: requirements.in compiled by backend/scripts/compile.sh
-  # into hashed requirements.txt. Listing them under uv makes security updates
-  # recompile with uv pip compile. A limit of 0 turns off version updates.
   - package-ecosystem: "uv"
     directories:
+      - "/backend"
       - "/backend/app/shared"
-      - "/backend/app/authorization/libraries"
-      - "/backend/app/packaging/libraries"
-      - "/backend/app/projects/libraries"
-      - "/backend/app/provisioning/libraries"
-      - "/backend/app/publishing/libraries"
-      - "/backend/app/usecase/libraries"
+      - "/backend/app/*/libraries"
       - "/backend/infra/constructs/eventbridge/eb_upsert_handler"
       - "/backend/infra/constructs/ssm/handler"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 0
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      uv-minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+        group-by: "dependency-name"
+    versioning-strategy: "increase"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  - package-ecosystem: "npm"
+    directories:
+      - "/frontend/web"
+      - "/frontend/infrastructure"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      npm-minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+        group-by: "dependency-name"
+    versioning-strategy: "increase"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  - package-ecosystem: "cargo"
+    directory: "/cli"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+    groups:
+      cargo-minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  # Docker, GitHub Actions and pre-commit support no semver-major-days, so
+  # their majors wait only the default cooldown.
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/backend/infra/backend/resources/projects_app_stack/usecase_cdk_app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    cooldown:
+      default-days: 7
+    groups:
+      docker-minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+    ignore:
+      # Each image's Python must match the runtime it builds for; bump them by hand.
+      - dependency-name: "docker/library/python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions-minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "build(deps)"
+      include: "scope"
+
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Zurich"
+    cooldown:
+      default-days: 7
+    groups:
+      pre-commit-minor-patch:
+        applies-to: "version-updates"
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
     commit-message:
