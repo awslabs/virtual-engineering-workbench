@@ -58,12 +58,12 @@ repos:
             "120",
           ]
   - repo: https://github.com/pycqa/flake8
-    rev: 7.3.0
+    rev: 7.5.0
     hooks:
       - id: flake8
         files: ^backend/
         language_version: python3.13
-        additional_dependencies: [flake8-typing-imports==1.16.0]
+        additional_dependencies: [flake8-typing-imports==1.19.0]
         args:
           [
             "--max-line-length",
