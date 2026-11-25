@@ -133,21 +133,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aws-lambda-powertools/logger@npm:^2.31.0":
-  version: 2.33.1
-  resolution: "@aws-lambda-powertools/logger@npm:2.33.1"
+"@aws-lambda-powertools/commons@npm:2.36.0":
+  version: 2.36.0
+  resolution: "@aws-lambda-powertools/commons@npm:2.36.0"
   dependencies:
-    "@aws-lambda-powertools/commons": "npm:2.33.1"
-    "@aws/lambda-invoke-store": "npm:0.2.4"
+    "@aws/lambda-invoke-store": "npm:0.3.0"
+  checksum: 10c0/90f8624370451c53d8f1d543c94608f392da1d4a92a254f68270535f9e03d5c8f3952979eb0eb86c30af954d41539564536cffd5eeb215fabe4efe9182a6b090
+  languageName: node
+  linkType: hard
+
+"@aws-lambda-powertools/logger@npm:^2.36.0":
+  version: 2.36.0
+  resolution: "@aws-lambda-powertools/logger@npm:2.36.0"
+  dependencies:
+    "@aws-lambda-powertools/commons": "npm:2.36.0"
   peerDependencies:
-    "@aws-lambda-powertools/jmespath": 2.33.1
+    "@aws-lambda-powertools/jmespath": 2.36.0
     "@middy/core": 4.x || 5.x || 6.x || 7.x
   peerDependenciesMeta:
     "@aws-lambda-powertools/jmespath":
       optional: true
     "@middy/core":
       optional: true
-  checksum: 10c0/71b334f4cb63b3c5eb406761ed1be267224ab5f66258f19a5ed85662b7682d0ebddd13206293a4a46ad40aa1c32155e8f8cefb9439f02af4169e232d7b2ab5da
+  checksum: 10c0/609ec5d8a0c7f123b369497c346a47b008e9c6bf6fc6a1b8b000f564f69a2ac2f5bc7a6d351f03128942299da6386986253199bcf196eb1f5ae70b73189e9838
   languageName: node
   linkType: hard
 
@@ -598,6 +606,13 @@ __metadata:
   version: 0.2.4
   resolution: "@aws/lambda-invoke-store@npm:0.2.4"
   checksum: 10c0/29d874d7c1a2d971e0c02980594204f89cda718f215f2fc52b6c56eacbdad1fa5f6ce1b358e5811f5cd35d04c76299a67a8aff95318446af2bdfb4910f213e13
+  languageName: node
+  linkType: hard
+
+"@aws/lambda-invoke-store@npm:0.3.0":
+  version: 0.3.0
+  resolution: "@aws/lambda-invoke-store@npm:0.3.0"
+  checksum: 10c0/b4a2e6b3b5397bc606053e64270d26dc5c886336f88a98cad587b1592eec17058f8fb172f1827a9f0e591f3595cf8f01575c8c9b36cde38c06456f8a65204046
   languageName: node
   linkType: hard
 
@@ -6330,7 +6345,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vew-frontend-infrastructure@workspace:."
   dependencies:
-    "@aws-lambda-powertools/logger": "npm:^2.31.0"
+    "@aws-lambda-powertools/logger": "npm:^2.36.0"
     "@aws-lambda-powertools/metrics": "npm:^2.31.0"
     "@aws-lambda-powertools/parameters": "npm:^2.31.0"
     "@aws-sdk/client-cloudwatch-logs": "npm:^3.997.0"
