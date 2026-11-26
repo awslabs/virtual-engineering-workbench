@@ -51,10 +51,14 @@ import {
   i18nVirtualTargetSteps,
   ImportImageWizard,
   MarketplaceSubscriptions,
+  MarketplaceAgreements,
+  ProcurementWizard,
+  BrowseMarketplace,
+  ListingDetail,
 } from '../../pages';
 
 import { NotFound } from '../../error-pages';
-import { provisioningAPI, packagingAPI } from '../../../services';
+import { provisioningAPI, packagingAPI, awsPublishedAmiAPI } from '../../../services';
 import { MyWorkbenches } from '../../pages/workbenches/workbenches-list';
 import {
   UpgradeProvisionedProduct,
@@ -205,10 +209,25 @@ export const ROUTES: { [key in RouteNames]: RouteConfig } = {
     component: <Images serviceApi={packagingAPI} />
   },
   ImportImage: {
-    component: <ImportImageWizard serviceApi={packagingAPI} />
+    component: <ImportImageWizard
+      serviceApi={packagingAPI}
+      awsPublishedApi={awsPublishedAmiAPI}
+    />
   },
   MarketplaceSubscriptions: {
     component: <MarketplaceSubscriptions serviceApi={packagingAPI} />
+  },
+  MarketplaceBrowse: {
+    component: <BrowseMarketplace />
+  },
+  MarketplaceListingDetail: {
+    component: <ListingDetail />
+  },
+  MarketplaceAgreements: {
+    component: <MarketplaceAgreements serviceApi={packagingAPI} />
+  },
+  MarketplaceProcurementWizard: {
+    component: <ProcurementWizard />
   },
   MandatoryComponentsLists: {
     component: <MandatoryComponentsLists />,

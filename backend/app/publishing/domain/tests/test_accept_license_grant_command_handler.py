@@ -102,4 +102,9 @@ def test_handle_uses_persisted_grant_identity_instead_of_command_values(
     assertpy.assert_that(event.grant_id).is_equal_to(grant_entity.grantId)
     assertpy.assert_that(event.grant_arn).is_equal_to(grant_entity.grantArn)
     assertpy.assert_that(event.target_account_id).is_equal_to(grant_entity.targetAccountId)
-    assertpy.assert_that(grant_entity.status.value).is_equal_to("ACTIVE")
+    repo = uow_mock.get_repository.return_value
+    repo.update_entity.assert_not_called()
+    (pk,) = repo.update_attributes.call_args.args
+    assertpy.assert_that(pk.grantId).is_equal_to(cmd.grantId.value)
+    assertpy.assert_that(repo.update_attributes.call_args.kwargs.keys()).is_equal_to({"status", "lastUpdateDate"})
+    assertpy.assert_that(repo.update_attributes.call_args.kwargs["status"].value).is_equal_to("ACTIVE")

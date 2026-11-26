@@ -5,7 +5,17 @@ from typing import Optional
 import aws_cdk
 import cdk_nag
 import constructs
-from aws_cdk import aws_apigateway, aws_dynamodb, aws_ec2, aws_events, aws_iam, aws_pipes_alpha, aws_scheduler, aws_ssm
+from aws_cdk import (
+    aws_apigateway,
+    aws_dynamodb,
+    aws_ec2,
+    aws_events,
+    aws_events_targets,
+    aws_iam,
+    aws_pipes_alpha,
+    aws_scheduler,
+    aws_ssm,
+)
 
 from app.packaging import domain
 from app.shared.api import bounded_contexts
@@ -97,6 +107,7 @@ class Entrypoint(enum.StrEnum):
     RECIPE_VERSION_TESTING = "recipe-version-testing"
     DOMAIN_EVENTS = "domain-events"
     IMAGE_BUILDER_EVENTS = "image-builder-events"
+    MARKETPLACE_AGREEMENT_EVENTS = "marketplace-agreement-events"
     S2S_API = "s2s-api"
 
 
@@ -209,6 +220,9 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
 
         domain_event_handler_name = app_config.format_resource_name(Entrypoint.DOMAIN_EVENTS)
         image_builder_event_handler_name = app_config.format_resource_name(Entrypoint.IMAGE_BUILDER_EVENTS)
+        marketplace_agreement_event_handler_name = app_config.format_resource_name(
+            Entrypoint.MARKETPLACE_AGREEMENT_EVENTS
+        )
         component_version_testing_handler_name = app_config.format_resource_name(Entrypoint.COMPONENT_VERSION_TESTING)
         recipe_version_testing_handler_name = app_config.format_resource_name(Entrypoint.RECIPE_VERSION_TESTING)
         s2s_api_handler_name = app_config.format_resource_name(Entrypoint.S2S_API)
@@ -306,7 +320,24 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                         lambda lambda_f: lambda_f.add_to_role_policy(
                             statement=aws_iam.PolicyStatement(
                                 effect=aws_iam.Effect.ALLOW,
-                                actions=["aws-marketplace:SearchAgreements"],
+                                actions=[
+                                    "aws-marketplace:SearchAgreements",
+                                    # Cancel recovery reads the agreement status back.
+                                    "aws-marketplace:DescribeAgreement",
+                                    # Marketplace procurement: offer discovery and the agreement writes.
+                                    "aws-marketplace:GetProduct",
+                                    "aws-marketplace:ListPurchaseOptions",
+                                    "aws-marketplace:GetOffer",
+                                    "aws-marketplace:GetOfferTerms",
+                                    "aws-marketplace:CreateAgreementRequest",
+                                    "aws-marketplace:AcceptAgreementRequest",
+                                    "aws-marketplace:CancelAgreement",
+                                    # Public browse: read-only discovery on the public AMI catalog.
+                                    # No money moves through these; only the agreement writes above can spend.
+                                    "aws-marketplace:SearchListings",
+                                    "aws-marketplace:GetListing",
+                                    "aws-marketplace:SearchFacets",
+                                ],
                                 resources=["*"],
                             )
                         ),
@@ -609,6 +640,49 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
                     memory_size=256,
                     asynchronous=True,
                 ),
+                backend_app_entrypoints.AppEntryPoint(
+                    name=marketplace_agreement_event_handler_name,
+                    app_root="app",
+                    lambda_root="app/packaging",
+                    entry="app/packaging/entrypoints/marketplace_agreement_event_handler",
+                    environment={
+                        # AWS Marketplace emits aws.agreement-marketplace events only in
+                        # us-east-1 (default event bus). The Lambda hard-fails at cold
+                        # start if AWS_DEFAULT_REGION is anything else — see
+                        # app/packaging/entrypoints/marketplace_agreement_event_handler/config.py.
+                        # VEW's `enabled-workbench-regions` is `["us-east-1"]` today, so
+                        # stack.region resolves correctly. When VEW adds a second region,
+                        # this Lambda must remain pinned to us-east-1 (revisit the CDK
+                        # stack architecture at that point).
+                        "DOMAIN_EVENT_BUS_ARN": self._event_bus.event_bus_arn,
+                        "BOUNDED_CONTEXT": app_config.bounded_context_name,
+                        "POWERTOOLS_SERVICE_NAME": VEW_SERVICE,
+                    },
+                    permissions=[
+                        lambda lambda_f: self._event_bus.grant_put_events_to(lambda_f),
+                        # AMI-only admission gate. The buyer-side agreement
+                        # event carries no product type (detail.product is
+                        # {id, title}), so the handler must call
+                        # DescribeAgreement to establish it before
+                        # republishing onto the domain bus. Read-only, and
+                        # deliberately the only Marketplace action granted
+                        # here — this Lambda is a pure observer.
+                        lambda lambda_f: lambda_f.add_to_role_policy(
+                            statement=aws_iam.PolicyStatement(
+                                effect=aws_iam.Effect.ALLOW,
+                                actions=["aws-marketplace:DescribeAgreement"],
+                                resources=["*"],
+                            )
+                        ),
+                    ],
+                    reserved_concurrency=app_config.component_specific.get(
+                        "marketplace-agreement-events-reserved-concurrency"
+                    ),
+                    provisioned_concurrency=None,
+                    timeout=aws_cdk.Duration.seconds(30),
+                    memory_size=256,
+                    asynchronous=True,
+                ),
             ],
             app_layers=[
                 self._packaging_app_layer.layer,
@@ -870,6 +944,50 @@ class PackagingAppStack(vew_bounded_context_stack.VEWBoundedContextStack):
             ],
             max_retries=3,
             name="image-builder-event-rule",
+        )
+
+        # AWS Marketplace agreement lifecycle events.
+        #
+        # These arrive on the account's default event bus in us-east-1 (AWS
+        # does not emit them anywhere else). We can't use the
+        # BackendAppEventBus helper here because the helper assumes VEW's
+        # custom domain-events bus — the rule below sits on the default bus
+        # (`event_bus` omitted). The rule's dead-letter queue comes from the
+        # shared `get_dlq` helper on `l3_event_bus`, so it inherits the same
+        # secure-transport policy as the other rules. That queue only holds
+        # events EventBridge could not deliver to the Lambda (after the
+        # target's retry_attempts / max_event_age). An event the Lambda
+        # accepts but fails to process is retried by Lambda's asynchronous
+        # invocation and then sent to the function's own dead-letter queue
+        # (`<function-name>-dlq`, see BackendAppFunction).
+        marketplace_agreement_lambda = self._backend_app.app_entries_functions[
+            app_config.format_resource_name(Entrypoint.MARKETPLACE_AGREEMENT_EVENTS)
+        ]
+        marketplace_agreement_dlq = self._event_bus.l3_event_bus.get_dlq(name="marketplace-agreement-event-rule")
+        aws_events.Rule(
+            self,
+            "marketplace-agreement-event-rule",
+            # event_bus omitted => default bus on this account+region
+            event_pattern=aws_events.EventPattern(
+                source=aws_events.Match.exact_string("aws.agreement-marketplace"),
+                detail_type=aws_events.Match.any_of(
+                    aws_events.Match.exact_string("Purchase Agreement Created - Acceptor"),
+                    aws_events.Match.exact_string("Purchase Agreement Amended - Acceptor"),
+                    aws_events.Match.exact_string("Purchase Agreement Ended - Acceptor"),
+                    aws_events.Match.exact_string("Purchase Agreement Ending - Acceptor"),
+                    aws_events.Match.exact_string("Purchase Agreement Renewal Terms Finalized - Acceptor"),
+                    aws_events.Match.exact_string("Purchase Agreement Renewal Upcoming - Acceptor"),
+                ),
+            ),
+            rule_name=app_config.format_resource_name("marketplace-agreement-event-rule"),
+            targets=[
+                aws_events_targets.LambdaFunction(
+                    handler=marketplace_agreement_lambda,
+                    dead_letter_queue=marketplace_agreement_dlq,
+                    max_event_age=aws_cdk.Duration.minutes(720),
+                    retry_attempts=3,
+                )
+            ],
         )
 
     def get_image_service_account_id(self, app_config: config.AppConfig):

@@ -1048,3 +1048,50 @@ def test_cognito_authorizer_should_sanitize_username(
 
     # ASSERT
     assertpy.assert_that(ctx.user_name).is_equal_to("TEST.USER")
+
+
+@pytest.mark.parametrize(
+    "role",
+    [r.value for r in project_assignment.Role if r is not project_assignment.Role.ADMIN],
+)
+def test_amazon_verified_permissions_should_count_only_the_admin_role(
+    role, mock_logger, mock_authz_service, mocked_policy_store_provider
+):
+    """``totalAdminAssignments`` is the only thing standing between a user and
+    the account-scoped Marketplace agreement routes, which commit the hub
+    account to a purchase. Counting any role other than ADMIN would widen
+    those routes, so pin the rule for every other role in the enum.
+    """
+    # ARRANGE
+    step = authorizer_steps.AmazonVerifiedPermissionsAuthorizer(
+        authz_service=mock_authz_service,
+        logger=mock_logger,
+        entity_resolvers=[authorizer_steps.VEWProjectAssignmentEntityResolver()],
+    )
+
+    # ACT
+    step.invoke(
+        request=authorizer.AuthorizationRequest(
+            auth_token="token",
+            api_id="api-id",
+            operation_id="ListMarketplaceAgreements",
+            resource_ids={},
+            resource="test",
+            resource_path="/marketplace/agreements",
+        ),
+        context=authorizer.AuthorizationContext(
+            user_name="test-user",
+            project_assignments=[
+                project_assignment.Assignment(
+                    userId="", projectId="project456", roles=[role], groupMemberships=["VEW_USERS"]
+                )
+            ],
+            api_auth_cfg=mocked_policy_store_provider("api-id"),
+            project_scoped_bounded_contexts=["projects"],
+        ),
+    )
+
+    # ASSERT
+    entity_list = mock_authz_service.is_action_allowed.call_args.kwargs["entities"]["entityList"]
+    user = next(e for e in entity_list if e["identifier"]["entityType"] == "VEW::User")
+    assertpy.assert_that(user["attributes"]["totalAdminAssignments"]).is_equal_to({"long": 0})

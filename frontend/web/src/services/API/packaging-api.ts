@@ -41,6 +41,7 @@ import {
   ImportImageRequest,
   ImportImageResponse,
   DiscoverMarketplaceSubscriptionsResponse,
+  ListMarketplaceAgreementsResponse,
   ListImportableAmisResponse,
 } from './proserve-wb-packaging-api';
 import { getAccessToken } from '..';
@@ -618,6 +619,16 @@ export const packagingAPI = {
     return api.discoverMarketplaceSubscriptions({
       authorization: `Bearer ${access}`,
       projectId,
+    });
+  },
+
+  // Account-scoped: Marketplace agreements belong to the buyer account, not
+  // to a project, so this takes no projectId.
+  listMarketplaceAgreements: async (): Promise<ListMarketplaceAgreementsResponse> => {
+    const access = await getAccessToken();
+    const api = prepareClient();
+    return api.listMarketplaceAgreements({
+      authorization: `Bearer ${access}`,
     });
   },
 

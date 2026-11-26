@@ -172,3 +172,54 @@ def test_message_bus_should_delete_event_schedule():
 
     # ASSERT
     aws_scheduler_api_mock.delete_schedule.assert_called_once()
+
+
+def _bus_with_put_events_response(response: dict, raise_on_failed_entries: bool):
+    aws_events_api_mock = mock.create_autospec(spec=aws_events_api.AWSEventsApi, instance=True)
+    aws_events_api_mock.put_event.return_value = aws_events_api.PutEventsResponse(**response)
+    bus = event_bridge_message_bus.EventBridgeMessageBus(
+        events_api=aws_events_api_mock,
+        event_bus_name=EVENT_BUS_NAME,
+        bounded_context_name=BOUNDED_CONTEXT_NAME,
+        logger=mock.create_autospec(spec=logging.Logger),
+        raise_on_failed_entries=raise_on_failed_entries,
+    )
+    return bus
+
+
+FAILED_PUT_EVENTS_RESPONSE = {
+    "FailedEntryCount": 1,
+    "Entries": [{"ErrorCode": "ThrottlingException", "ErrorMessage": "Rate exceeded"}],
+}
+
+
+def test_publish_should_raise_on_failed_entries_when_enabled():
+    """PutEvents reports per-entry failures in an HTTP 200 response."""
+    # ARRANGE
+    bus = _bus_with_put_events_response(FAILED_PUT_EVENTS_RESPONSE, raise_on_failed_entries=True)
+
+    # ACT / ASSERT
+    with pytest.raises(event_bridge_message_bus.FailedEntriesException) as exc_info:
+        bus.publish(FakeEvent(some_param="Test"))
+    assertpy.assert_that(str(exc_info.value)).contains("FakeEvent", "ThrottlingException", "Rate exceeded")
+
+
+def test_publish_should_not_raise_when_no_entry_failed_and_raising_is_enabled():
+    # ARRANGE
+    bus = _bus_with_put_events_response(
+        {"FailedEntryCount": 0, "Entries": [{"EventId": "11710aed-b79e-4468-a20b-bb3c0c3b4860"}]},
+        raise_on_failed_entries=True,
+    )
+
+    # ACT / ASSERT — must not raise
+    bus.publish(FakeEvent(some_param="Test"))
+
+
+def test_publish_should_ignore_failed_entries_by_default():
+    """Default behaviour is unchanged for existing callers, which publish
+    after committing state and are not written to handle a raise."""
+    # ARRANGE
+    bus = _bus_with_put_events_response(FAILED_PUT_EVENTS_RESPONSE, raise_on_failed_entries=False)
+
+    # ACT / ASSERT — must not raise
+    bus.publish(FakeEvent(some_param="Test"))

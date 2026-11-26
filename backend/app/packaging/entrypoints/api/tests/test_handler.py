@@ -2005,3 +2005,66 @@ def test_discover_marketplace_subscriptions_should_return_200(lambda_context, au
 
     # ASSERT
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+
+
+def test_resolve_aws_published_ami_should_return_200(lambda_context, authenticated_event, mocked_dependencies):
+    from app.packaging.domain.query_services.aws_published_ami_domain_query_service import (
+        AwsPublishedAmiDomainQueryService,
+        AwsPublishedAmiResolutionResult,
+    )
+    from app.packaging.domain.read_models.aws_published_ami import AwsPublishedAmiCandidate
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    svc = mock.create_autospec(spec=AwsPublishedAmiDomainQueryService, instance=True)
+    svc.resolve_listing.return_value = AwsPublishedAmiResolutionResult(
+        listingId="listing-1",
+        productId="prod-rhel9",
+        productName="Red Hat Enterprise Linux 9",
+        region="us-east-1",
+        unambiguous=True,
+        resolved=AwsPublishedAmiCandidate(
+            amiId="ami-0b07d2bc8152a1d84", amiName="RHEL-9.6.0_HVM", ownerId="309956199498", region="us-east-1"
+        ),
+    )
+    mocked_dependencies.aws_published_ami_qry_svc = svc
+
+    event = authenticated_event(
+        json.dumps({"listingId": "listing-1"}),
+        "/projects/proj-123/images/aws-published/resolve",
+        "POST",
+    )
+
+    result = handler.handler(event, lambda_context)
+
+    assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+    body = json.loads(result["body"])
+    assertpy.assert_that(body["resolved"]["amiId"]).is_equal_to("ami-0b07d2bc8152a1d84")
+    _, kwargs = svc.resolve_listing.call_args
+    assertpy.assert_that(kwargs["listing_id"]).is_equal_to("listing-1")
+    assertpy.assert_that(kwargs["project_id"].value).is_equal_to("proj-123")
+
+
+def test_resolve_aws_published_ami_should_return_400_for_non_aws_listing(
+    lambda_context, authenticated_event, mocked_dependencies
+):
+    from app.packaging.domain.exceptions import domain_exception
+    from app.packaging.domain.query_services.aws_published_ami_domain_query_service import (
+        AwsPublishedAmiDomainQueryService,
+    )
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    svc = mock.create_autospec(spec=AwsPublishedAmiDomainQueryService, instance=True)
+    svc.resolve_listing.side_effect = domain_exception.DomainException("not published by AWS")
+    mocked_dependencies.aws_published_ami_qry_svc = svc
+
+    event = authenticated_event(
+        json.dumps({"listingId": "listing-canonical"}),
+        "/projects/proj-123/images/aws-published/resolve",
+        "POST",
+    )
+
+    result = handler.handler(event, lambda_context)
+
+    assertpy.assert_that(result["statusCode"]).is_equal_to(400)

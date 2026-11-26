@@ -8,6 +8,9 @@ from app.packaging.adapters.tests.conftest import GlobalVariables
 
 def test_should_list_active_agreements(mock_moto_calls, get_marketplace_discovery_srv):
     # ARRANGE
+    # AWS `SearchAgreements` rejects the previous four-filter combo (Party +
+    # AgreementType + Status + ResourceType) with `ValidationException:
+    # UNSUPPORTED_FILTERS`. AMI-only enforcement now happens client-side.
     expected_kwargs = {
         "catalog": "AWSMarketplace",
         "filters": [
@@ -26,6 +29,79 @@ def test_should_list_active_agreements(mock_moto_calls, get_marketplace_discover
     assertpy.assert_that(result[0].agreementId).is_equal_to(GlobalVariables.TEST_MARKETPLACE_AGREEMENT_ID.value)
     assertpy.assert_that(result[0].productId).is_equal_to(GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value)
     assertpy.assert_that(result[0].status).is_equal_to("ACTIVE")
+
+
+def test_should_not_send_resource_type_filter_to_search_agreements(mock_moto_calls, get_marketplace_discovery_srv):
+    """``SearchAgreements`` does not accept ``ResourceType`` combined with
+    ``Status``: the four-filter combo fails with
+    ``ValidationException(UNSUPPORTED_FILTERS)``. Only the base three
+    filters may be sent."""
+    # ACT
+    get_marketplace_discovery_srv.list_active_agreements()
+
+    # ASSERT
+    _, called_kwargs = mock_moto_calls["SearchAgreements"].call_args
+    filter_names = {f["name"] for f in called_kwargs["filters"]}
+    assertpy.assert_that(filter_names).is_equal_to({"PartyType", "AgreementType", "Status"})
+
+
+def test_should_drop_non_ami_agreements_client_side(mock_moto_calls, get_marketplace_discovery_srv):
+    """AMI-only enforcement happens in the adapter, after the call. Any
+    agreement whose resources include a non-AmiProduct type is filtered
+    out before it reaches the caller."""
+    # ARRANGE
+    from datetime import datetime
+
+    mock_moto_calls["SearchAgreements"].return_value = {
+        "agreementViewSummaries": [
+            {
+                "agreementId": "agmt-ami-only",
+                "proposalSummary": {
+                    "resources": [{"id": "prod-ami-1", "type": "AmiProduct"}],
+                    "offerId": "offer-1",
+                },
+                "status": "ACTIVE",
+                "acceptanceTime": datetime(2024, 1, 1),
+            },
+            {
+                "agreementId": "agmt-container",
+                "proposalSummary": {
+                    "resources": [{"id": "prod-container-1", "type": "ContainerProduct"}],
+                    "offerId": "offer-2",
+                },
+                "status": "ACTIVE",
+                "acceptanceTime": datetime(2024, 1, 1),
+            },
+            {
+                "agreementId": "agmt-mixed-bundle",
+                "proposalSummary": {
+                    "resources": [
+                        {"id": "prod-ami-2", "type": "AmiProduct"},
+                        {"id": "prod-saas", "type": "SaaSProduct"},
+                    ],
+                    "offerId": "offer-3",
+                },
+                "status": "ACTIVE",
+                "acceptanceTime": datetime(2024, 1, 1),
+            },
+            {
+                "agreementId": "agmt-empty-resources",
+                "proposalSummary": {"resources": [], "offerId": "offer-4"},
+                "status": "ACTIVE",
+                "acceptanceTime": datetime(2024, 1, 1),
+            },
+        ]
+    }
+
+    # ACT
+    result = get_marketplace_discovery_srv.list_active_agreements()
+
+    # ASSERT
+    # Only agmt-ami-only survives: the Container agreement, the mixed
+    # AMI+SaaS bundle (every resource must be an AmiProduct), and the
+    # malformed empty-resources agreement are all dropped.
+    assertpy.assert_that(result).is_length(1)
+    assertpy.assert_that(result[0].agreementId).is_equal_to("agmt-ami-only")
 
 
 def test_should_list_active_agreements_when_empty(mock_moto_calls, get_marketplace_discovery_srv):
@@ -140,6 +216,110 @@ def test_should_raise_on_unexpected_licenses_error(mock_moto_calls, get_marketpl
     # ACT / ASSERT
     with pytest.raises(adapter_exception.AdapterException):
         get_marketplace_discovery_srv.list_received_licenses()
+
+
+# ---------------------------------------------------------------------
+# is_ami_agreement — the admission gate used by the buyer-side agreement
+# event listener. DescribeAgreement is the only
+# authoritative product-type source; no event payload carries one.
+# ---------------------------------------------------------------------
+
+
+def test_is_ami_agreement_returns_true_for_ami_only_agreement(mock_moto_calls, get_marketplace_discovery_srv):
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].return_value = {
+        "proposalSummary": {"resources": [{"id": "prod-ami-1", "type": "AmiProduct"}]},
+    }
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_marketplace_discovery_srv.is_ami_agreement("agmt-1")).is_true()
+    _, called_kwargs = mock_moto_calls["DescribeAgreement"].call_args
+    assertpy.assert_that(called_kwargs["agreementId"]).is_equal_to("agmt-1")
+
+
+def test_is_ami_agreement_returns_false_for_non_ami_agreement(mock_moto_calls, get_marketplace_discovery_srv):
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].return_value = {
+        "proposalSummary": {"resources": [{"id": "prod-saas", "type": "SaaSProduct"}]},
+    }
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_marketplace_discovery_srv.is_ami_agreement("agmt-2")).is_false()
+
+
+def test_is_ami_agreement_returns_false_for_mixed_bundle(mock_moto_calls, get_marketplace_discovery_srv):
+    """Matches the invariant in list_active_agreements: EVERY resource must
+    be an AmiProduct, so a bundle carrying one non-AMI resource is out."""
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].return_value = {
+        "proposalSummary": {
+            "resources": [
+                {"id": "prod-ami-2", "type": "AmiProduct"},
+                {"id": "prod-container", "type": "ContainerProduct"},
+            ]
+        },
+    }
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_marketplace_discovery_srv.is_ami_agreement("agmt-3")).is_false()
+
+
+def test_is_ami_agreement_returns_false_for_empty_resources(mock_moto_calls, get_marketplace_discovery_srv):
+    """A malformed response is not a positive AMI identification."""
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].return_value = {"proposalSummary": {"resources": []}}
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_marketplace_discovery_srv.is_ami_agreement("agmt-4")).is_false()
+
+
+def test_is_ami_agreement_raises_rather_than_degrading_on_access_denied(mock_moto_calls, get_marketplace_discovery_srv):
+    """Unlike the discovery reads on this adapter, the gate must NOT
+    degrade gracefully. An AccessDenied means the type is unknown; letting
+    that read as False would silently drop real AMI events."""
+    # ARRANGE
+    from botocore.exceptions import ClientError
+
+    mock_moto_calls["DescribeAgreement"].side_effect = ClientError(
+        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}}, "DescribeAgreement"
+    )
+
+    # ACT / ASSERT
+    with pytest.raises(adapter_exception.AdapterException):
+        get_marketplace_discovery_srv.is_ami_agreement("agmt-5")
+
+
+def test_get_agreement_status_returns_the_described_status(mock_moto_calls, get_marketplace_discovery_srv):
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].return_value = {"agreementId": "agmt-6", "status": "CANCELLED"}
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_marketplace_discovery_srv.get_agreement_status("agmt-6")).is_equal_to("CANCELLED")
+    _, called_kwargs = mock_moto_calls["DescribeAgreement"].call_args
+    assertpy.assert_that(called_kwargs["agreementId"]).is_equal_to("agmt-6")
+
+
+def test_get_agreement_status_raises_when_the_agreement_cannot_be_described(
+    mock_moto_calls, get_marketplace_discovery_srv
+):
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].side_effect = ClientError(
+        {"Error": {"Code": "ResourceNotFoundException", "Message": "no such agreement"}}, "DescribeAgreement"
+    )
+
+    # ACT / ASSERT
+    with pytest.raises(adapter_exception.AdapterException):
+        get_marketplace_discovery_srv.get_agreement_status("agmt-7")
+
+
+def test_get_agreement_status_raises_when_aws_returns_no_status(mock_moto_calls, get_marketplace_discovery_srv):
+    """An unknown status must not be read as any particular state."""
+    # ARRANGE
+    mock_moto_calls["DescribeAgreement"].return_value = {"agreementId": "agmt-8"}
+
+    # ACT / ASSERT
+    with pytest.raises(adapter_exception.AdapterException):
+        get_marketplace_discovery_srv.get_agreement_status("agmt-8")
 
 
 def test_should_pick_the_newest_ami_when_a_region_publishes_several(mock_moto_calls, get_marketplace_discovery_srv):

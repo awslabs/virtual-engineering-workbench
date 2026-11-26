@@ -15,6 +15,10 @@
 
 import * as runtime from '../runtime';
 import type {
+  AcceptAgreementRequestResponse,
+  CancelAgreementResponse,
+  CreateAgreementRequestRequest,
+  CreateAgreementRequestResponse,
   CreateComponentRequest,
   CreateComponentResponse,
   CreateComponentVersionRequest,
@@ -35,6 +39,9 @@ import type {
   GetImagesResponse,
   GetMandatoryComponentsListResponse,
   GetMandatoryComponentsListsResponse,
+  GetMarketplaceFacetsResponse,
+  GetMarketplaceListingResponse,
+  GetMarketplaceOfferResponse,
   GetPipelineResponse,
   GetPipelinesAllowedBuildTypesResponse,
   GetPipelinesResponse,
@@ -48,6 +55,11 @@ import type {
   ImportImageRequest,
   ImportImageResponse,
   ListImportableAmisResponse,
+  ListMarketplaceAgreementsResponse,
+  ListPurchaseOptionsResponse,
+  ResolveAwsPublishedAmiRequest,
+  ResolveAwsPublishedAmiResponse,
+  SearchMarketplaceListingsResponse,
   ShareComponentRequest,
   UpdateComponentRequest,
   UpdateComponentVersionRequest,
@@ -57,6 +69,14 @@ import type {
   ValidateComponentVersionRequest,
 } from '../models';
 import {
+    AcceptAgreementRequestResponseFromJSON,
+    AcceptAgreementRequestResponseToJSON,
+    CancelAgreementResponseFromJSON,
+    CancelAgreementResponseToJSON,
+    CreateAgreementRequestRequestFromJSON,
+    CreateAgreementRequestRequestToJSON,
+    CreateAgreementRequestResponseFromJSON,
+    CreateAgreementRequestResponseToJSON,
     CreateComponentRequestFromJSON,
     CreateComponentRequestToJSON,
     CreateComponentResponseFromJSON,
@@ -97,6 +117,12 @@ import {
     GetMandatoryComponentsListResponseToJSON,
     GetMandatoryComponentsListsResponseFromJSON,
     GetMandatoryComponentsListsResponseToJSON,
+    GetMarketplaceFacetsResponseFromJSON,
+    GetMarketplaceFacetsResponseToJSON,
+    GetMarketplaceListingResponseFromJSON,
+    GetMarketplaceListingResponseToJSON,
+    GetMarketplaceOfferResponseFromJSON,
+    GetMarketplaceOfferResponseToJSON,
     GetPipelineResponseFromJSON,
     GetPipelineResponseToJSON,
     GetPipelinesAllowedBuildTypesResponseFromJSON,
@@ -123,6 +149,16 @@ import {
     ImportImageResponseToJSON,
     ListImportableAmisResponseFromJSON,
     ListImportableAmisResponseToJSON,
+    ListMarketplaceAgreementsResponseFromJSON,
+    ListMarketplaceAgreementsResponseToJSON,
+    ListPurchaseOptionsResponseFromJSON,
+    ListPurchaseOptionsResponseToJSON,
+    ResolveAwsPublishedAmiRequestFromJSON,
+    ResolveAwsPublishedAmiRequestToJSON,
+    ResolveAwsPublishedAmiResponseFromJSON,
+    ResolveAwsPublishedAmiResponseToJSON,
+    SearchMarketplaceListingsResponseFromJSON,
+    SearchMarketplaceListingsResponseToJSON,
     ShareComponentRequestFromJSON,
     ShareComponentRequestToJSON,
     UpdateComponentRequestFromJSON,
@@ -139,6 +175,11 @@ import {
     ValidateComponentVersionRequestToJSON,
 } from '../models';
 
+export interface AcceptMarketplaceQuoteRequest {
+    authorization: string;
+    agreementRequestId: string;
+}
+
 export interface ArchiveComponentRequest {
     authorization: string;
     projectId: string;
@@ -151,6 +192,11 @@ export interface ArchiveRecipeRequest {
     projectId: string;
     recipeId: string;
     body?: object;
+}
+
+export interface CancelMarketplaceAgreementRequest {
+    authorization: string;
+    agreementId: string;
 }
 
 export interface ComponentCorsRequest {
@@ -210,6 +256,13 @@ export interface CreateMandatoryComponentsListOperationRequest {
     authorization: string;
     projectId: string;
     createMandatoryComponentsListRequest?: CreateMandatoryComponentsListRequest;
+}
+
+export interface CreateMarketplaceQuoteRequest {
+    authorization: string;
+    projectId: string;
+    offerId: string;
+    createAgreementRequestRequest: CreateAgreementRequestRequest;
 }
 
 export interface CreatePipelineOperationRequest {
@@ -322,6 +375,23 @@ export interface GetMandatoryComponentsListsCorsRequest {
     projectId: string;
 }
 
+export interface GetMarketplaceFacetsRequest {
+    authorization: string;
+    projectId: string;
+}
+
+export interface GetMarketplaceListingRequest {
+    authorization: string;
+    projectId: string;
+    listingId: string;
+}
+
+export interface GetMarketplaceOfferRequest {
+    authorization: string;
+    projectId: string;
+    offerId: string;
+}
+
 export interface GetPipelineRequest {
     authorization: string;
     projectId: string;
@@ -421,6 +491,50 @@ export interface ListImportableAmisRequest {
     projectId: string;
 }
 
+export interface ListMarketplaceAgreementsRequest {
+    authorization: string;
+}
+
+export interface ListMarketplacePurchaseOptionsRequest {
+    authorization: string;
+    projectId: string;
+}
+
+export interface MarketplaceAcceptQuoteCorsRequest {
+    agreementRequestId: string;
+}
+
+export interface MarketplaceCancelAgreementCorsRequest {
+    agreementId: string;
+}
+
+export interface MarketplaceCreateQuoteCorsRequest {
+    projectId: string;
+    offerId: string;
+}
+
+export interface MarketplaceFacetsCorsRequest {
+    projectId: string;
+}
+
+export interface MarketplaceListingsGetCorsRequest {
+    projectId: string;
+    listingId: string;
+}
+
+export interface MarketplaceListingsSearchCorsRequest {
+    projectId: string;
+}
+
+export interface MarketplaceOfferCorsRequest {
+    projectId: string;
+    offerId: string;
+}
+
+export interface MarketplacePurchaseOptionsCorsRequest {
+    projectId: string;
+}
+
 export interface MarketplaceSubscriptionsCorsRequest {
     projectId: string;
 }
@@ -489,6 +603,16 @@ export interface ReleaseRecipeVersionRequest {
     body?: object;
 }
 
+export interface ResolveAwsPublishedAmiOperationRequest {
+    authorization: string;
+    projectId: string;
+    resolveAwsPublishedAmiRequest: ResolveAwsPublishedAmiRequest;
+}
+
+export interface ResolveAwsPublishedAmiCorsRequest {
+    projectId: string;
+}
+
 export interface RetireComponentVersionRequest {
     authorization: string;
     projectId: string;
@@ -510,6 +634,18 @@ export interface RetireRecipeVersionRequest {
     recipeId: string;
     versionId: string;
     body?: object;
+}
+
+export interface SearchMarketplaceListingsRequest {
+    authorization: string;
+    projectId: string;
+    searchText?: string;
+    category?: Array<string>;
+    pricingModel?: Array<string>;
+    publisher?: Array<string>;
+    rating?: Array<string>;
+    nextToken?: string;
+    maxResults?: number;
 }
 
 export interface ShareComponentOperationRequest {
@@ -571,6 +707,50 @@ export interface ValidateComponentVersionsCorsRequest {
  *
  */
 export class DefaultApi extends runtime.BaseAPI {
+
+    /**
+     * Step 2 of 2 of a Marketplace purchase, and the step that can cost money. Calls AWS Marketplace AcceptAgreementRequest for an agreementRequestId returned by CreateMarketplaceQuote, creating a binding agreement for the whole VEW hub AWS account (not one project) that may incur upfront, contract or usage charges from the seller. Returns the durable agreementId. Call it only after a person has reviewed the quote and approved the purchase. Never retry it automatically: a repeated accept is refused with HTTP 400, and the agreement from an earlier successful accept is listed by ListMarketplaceAgreements. Requires the caller to be an admin of at least one project.
+     * Accept an AWS Marketplace quote and subscribe the account
+     */
+    async acceptMarketplaceQuoteRaw(requestParameters: AcceptMarketplaceQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<AcceptAgreementRequestResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling acceptMarketplaceQuote.');
+        }
+
+        if (requestParameters.agreementRequestId === null || requestParameters.agreementRequestId === undefined) {
+            throw new runtime.RequiredError('agreementRequestId','Required parameter requestParameters.agreementRequestId was null or undefined when calling acceptMarketplaceQuote.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/marketplace/quotes/{agreementRequestId}/accept`.replace(`{${"agreementRequestId"}}`, encodeURIComponent(String(requestParameters.agreementRequestId))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => AcceptAgreementRequestResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Step 2 of 2 of a Marketplace purchase, and the step that can cost money. Calls AWS Marketplace AcceptAgreementRequest for an agreementRequestId returned by CreateMarketplaceQuote, creating a binding agreement for the whole VEW hub AWS account (not one project) that may incur upfront, contract or usage charges from the seller. Returns the durable agreementId. Call it only after a person has reviewed the quote and approved the purchase. Never retry it automatically: a repeated accept is refused with HTTP 400, and the agreement from an earlier successful accept is listed by ListMarketplaceAgreements. Requires the caller to be an admin of at least one project.
+     * Accept an AWS Marketplace quote and subscribe the account
+     */
+    async acceptMarketplaceQuote(requestParameters: AcceptMarketplaceQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<AcceptAgreementRequestResponse> {
+        const response = await this.acceptMarketplaceQuoteRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
 
     /**
      * Archives a component, removing it from active use within the project. Archived components can no longer have new versions created. Existing released versions remain available in recipes that already reference them.
@@ -671,6 +851,50 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async archiveRecipe(requestParameters: ArchiveRecipeRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.archiveRecipeRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Destructive. Calls AWS Marketplace CancelAgreement on an agreementId from ListMarketplaceAgreements, ending the subscription for the whole VEW hub AWS account and every project that relies on it. This API cannot undo the cancellation; re-subscribing needs a new quote and acceptance. AWS refuses agreements that are not eligible for cancellation. Repeating the call on an agreement that is already cancelled returns success. Call it only with explicit confirmation from a person. Requires the caller to be an admin of at least one project.
+     * Cancel an active AWS Marketplace agreement for the account
+     */
+    async cancelMarketplaceAgreementRaw(requestParameters: CancelMarketplaceAgreementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CancelAgreementResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling cancelMarketplaceAgreement.');
+        }
+
+        if (requestParameters.agreementId === null || requestParameters.agreementId === undefined) {
+            throw new runtime.RequiredError('agreementId','Required parameter requestParameters.agreementId was null or undefined when calling cancelMarketplaceAgreement.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/marketplace/agreements/{agreementId}`.replace(`{${"agreementId"}}`, encodeURIComponent(String(requestParameters.agreementId))),
+            method: 'DELETE',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CancelAgreementResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Destructive. Calls AWS Marketplace CancelAgreement on an agreementId from ListMarketplaceAgreements, ending the subscription for the whole VEW hub AWS account and every project that relies on it. This API cannot undo the cancellation; re-subscribing needs a new quote and acceptance. AWS refuses agreements that are not eligible for cancellation. Repeating the call on an agreement that is already cancelled returns success. Call it only with explicit confirmation from a person. Requires the caller to be an admin of at least one project.
+     * Cancel an active AWS Marketplace agreement for the account
+     */
+    async cancelMarketplaceAgreement(requestParameters: CancelMarketplaceAgreementRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CancelAgreementResponse> {
+        const response = await this.cancelMarketplaceAgreementRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -1095,6 +1319,61 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async createMandatoryComponentsList(requestParameters: CreateMandatoryComponentsListOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.createMandatoryComponentsListRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Step 1 of 2 of a Marketplace purchase. Calls AWS Marketplace CreateAgreementRequest for the offer with the requestedTerms (term ids from GetMarketplaceOffer) and returns a short-lived agreementRequestId plus the estimated total before and after tax (null for usage-based pricing). Creates an agreement request in AWS Marketplace for the VEW hub account but does not bill or subscribe anything; only AcceptMarketplaceQuote commits the account. Rejected when the offer is not a single-product AMI offer or the account already has an active agreement for it. clientToken (optional) makes retries safe: the same token with the same terms returns the same agreementRequestId; without one, a token is derived from project, offer and terms. Requires the project admin role.
+     * Create an AWS Marketplace quote for an AMI offer
+     */
+    async createMarketplaceQuoteRaw(requestParameters: CreateMarketplaceQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<CreateAgreementRequestResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling createMarketplaceQuote.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling createMarketplaceQuote.');
+        }
+
+        if (requestParameters.offerId === null || requestParameters.offerId === undefined) {
+            throw new runtime.RequiredError('offerId','Required parameter requestParameters.offerId was null or undefined when calling createMarketplaceQuote.');
+        }
+
+        if (requestParameters.createAgreementRequestRequest === null || requestParameters.createAgreementRequestRequest === undefined) {
+            throw new runtime.RequiredError('createAgreementRequestRequest','Required parameter requestParameters.createAgreementRequestRequest was null or undefined when calling createMarketplaceQuote.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/offers/{offerId}/quotes`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"offerId"}}`, encodeURIComponent(String(requestParameters.offerId))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: CreateAgreementRequestRequestToJSON(requestParameters.createAgreementRequestRequest),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => CreateAgreementRequestResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Step 1 of 2 of a Marketplace purchase. Calls AWS Marketplace CreateAgreementRequest for the offer with the requestedTerms (term ids from GetMarketplaceOffer) and returns a short-lived agreementRequestId plus the estimated total before and after tax (null for usage-based pricing). Creates an agreement request in AWS Marketplace for the VEW hub account but does not bill or subscribe anything; only AcceptMarketplaceQuote commits the account. Rejected when the offer is not a single-product AMI offer or the account already has an active agreement for it. clientToken (optional) makes retries safe: the same token with the same terms returns the same agreementRequestId; without one, a token is derived from project, offer and terms. Requires the project admin role.
+     * Create an AWS Marketplace quote for an AMI offer
+     */
+    async createMarketplaceQuote(requestParameters: CreateMarketplaceQuoteRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<CreateAgreementRequestResponse> {
+        const response = await this.createMarketplaceQuoteRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -1976,6 +2255,146 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Read-only. Returns the facets available for SearchMarketplaceListings over the AMI-only public catalog (category, pricing model, publisher, rating), each value with its listing count, plus the total listing count. Pass the returned values as the category, pricingModel, publisher and rating query parameters of SearchMarketplaceListings. Takes no filters. projectId is required in the path but does not affect the result.
+     * List the filter values for searching AWS Marketplace AMI listings
+     */
+    async getMarketplaceFacetsRaw(requestParameters: GetMarketplaceFacetsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetMarketplaceFacetsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling getMarketplaceFacets.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getMarketplaceFacets.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/facets`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetMarketplaceFacetsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Returns the facets available for SearchMarketplaceListings over the AMI-only public catalog (category, pricing model, publisher, rating), each value with its listing count, plus the total listing count. Pass the returned values as the category, pricingModel, publisher and rating query parameters of SearchMarketplaceListings. Takes no filters. projectId is required in the path but does not affect the result.
+     * List the filter values for searching AWS Marketplace AMI listings
+     */
+    async getMarketplaceFacets(requestParameters: GetMarketplaceFacetsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetMarketplaceFacetsResponse> {
+        const response = await this.getMarketplaceFacetsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read-only. Returns the public detail of one AWS Marketplace listing by listingId from SearchMarketplaceListings: descriptions, publisher, categories, pricing models, reviews, resources such as legal documents, and the associated products and offers. primaryOfferId is the public offer to pass to GetMarketplaceOffer and then CreateMarketplaceQuote to buy the product. Does not create a quote or a subscription. projectId is required in the path but does not affect the result.
+     * Get one public AWS Marketplace AMI listing
+     */
+    async getMarketplaceListingRaw(requestParameters: GetMarketplaceListingRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetMarketplaceListingResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling getMarketplaceListing.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getMarketplaceListing.');
+        }
+
+        if (requestParameters.listingId === null || requestParameters.listingId === undefined) {
+            throw new runtime.RequiredError('listingId','Required parameter requestParameters.listingId was null or undefined when calling getMarketplaceListing.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/listings/{listingId}`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"listingId"}}`, encodeURIComponent(String(requestParameters.listingId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetMarketplaceListingResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Returns the public detail of one AWS Marketplace listing by listingId from SearchMarketplaceListings: descriptions, publisher, categories, pricing models, reviews, resources such as legal documents, and the associated products and offers. primaryOfferId is the public offer to pass to GetMarketplaceOffer and then CreateMarketplaceQuote to buy the product. Does not create a quote or a subscription. projectId is required in the path but does not affect the result.
+     * Get one public AWS Marketplace AMI listing
+     */
+    async getMarketplaceListing(requestParameters: GetMarketplaceListingRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetMarketplaceListingResponse> {
+        const response = await this.getMarketplaceListingRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read-only. Returns one AWS Marketplace offer by offerId: seller, pricing model, availability window, associated products, agreementProposalId, and every term attached to the offer (pricing, legal, validity, renewal). Use the term ids, plus a configuration for configurable terms such as contract dimensions and duration, to build the requestedTerms of CreateMarketplaceQuote. Does not create a quote and does not check whether the account is already subscribed. The offerId comes from ListMarketplacePurchaseOptions (private offers) or from primaryOfferId in GetMarketplaceListing (public offers). Requires the project admin role.
+     * Get an AWS Marketplace offer and its terms
+     */
+    async getMarketplaceOfferRaw(requestParameters: GetMarketplaceOfferRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<GetMarketplaceOfferResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling getMarketplaceOffer.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling getMarketplaceOffer.');
+        }
+
+        if (requestParameters.offerId === null || requestParameters.offerId === undefined) {
+            throw new runtime.RequiredError('offerId','Required parameter requestParameters.offerId was null or undefined when calling getMarketplaceOffer.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/offers/{offerId}`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"offerId"}}`, encodeURIComponent(String(requestParameters.offerId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => GetMarketplaceOfferResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Returns one AWS Marketplace offer by offerId: seller, pricing model, availability window, associated products, agreementProposalId, and every term attached to the offer (pricing, legal, validity, renewal). Use the term ids, plus a configuration for configurable terms such as contract dimensions and duration, to build the requestedTerms of CreateMarketplaceQuote. Does not create a quote and does not check whether the account is already subscribed. The offerId comes from ListMarketplacePurchaseOptions (private offers) or from primaryOfferId in GetMarketplaceListing (public offers). Requires the project admin role.
+     * Get an AWS Marketplace offer and its terms
+     */
+    async getMarketplaceOffer(requestParameters: GetMarketplaceOfferRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<GetMarketplaceOfferResponse> {
+        const response = await this.getMarketplaceOfferRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Retrieves a specific pipeline including its schedule, build instance types, linked recipe version, and optional product association.
      * Get pipeline details
      */
@@ -2634,7 +3053,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Imports an existing or marketplace AMI into VEW
+     * Imports an existing AMI, or an AMI from one of the hub\'s AWS Marketplace subscriptions, into this project as an image. The AMI is validated server-side; an AMI can be imported into one project only.
      */
     async importImageRaw(requestParameters: ImportImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ImportImageResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2675,7 +3094,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Imports an existing or marketplace AMI into VEW
+     * Imports an existing AMI, or an AMI from one of the hub\'s AWS Marketplace subscriptions, into this project as an image. The AMI is validated server-side; an AMI can be imported into one project only.
      */
     async importImage(requestParameters: ImportImageOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ImportImageResponse> {
         const response = await this.importImageRaw(requestParameters, initOverrides);
@@ -2743,7 +3162,7 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Lists AMIs from the Image Service account that can be imported
+     * Lists the AMIs in the Image Service account that this project can import as images, with their platform, architecture and creation date. Use it to pick an amiId for ImportImage.
      */
     async listImportableAmisRaw(requestParameters: ListImportableAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ListImportableAmisResponse>> {
         if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
@@ -2777,10 +3196,372 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
-     * Lists AMIs from the Image Service account that can be imported
+     * Lists the AMIs in the Image Service account that this project can import as images, with their platform, architecture and creation date. Use it to pick an amiId for ImportImage.
      */
     async listImportableAmis(requestParameters: ListImportableAmisRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ListImportableAmisResponse> {
         const response = await this.listImportableAmisRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read-only. Lists the ACTIVE AWS Marketplace agreements that the VEW hub AWS account has accepted as buyer, limited to agreements whose products are all AMIs. Account-wide and not filtered by project, because agreements have no project dimension. Each row has agreementId, offerId, productId, status and acceptance date, plus product name, offer name and pricing model when they can be looked up. Pass the agreementId to CancelMarketplaceAgreement. To find the AMIs a subscription lets a project import, use DiscoverMarketplaceSubscriptions. Requires the caller to be an admin of at least one project.
+     * List the account\'s active AWS Marketplace AMI subscriptions
+     */
+    async listMarketplaceAgreementsRaw(requestParameters: ListMarketplaceAgreementsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ListMarketplaceAgreementsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling listMarketplaceAgreements.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/marketplace/agreements`,
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ListMarketplaceAgreementsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Lists the ACTIVE AWS Marketplace agreements that the VEW hub AWS account has accepted as buyer, limited to agreements whose products are all AMIs. Account-wide and not filtered by project, because agreements have no project dimension. Each row has agreementId, offerId, productId, status and acceptance date, plus product name, offer name and pricing model when they can be looked up. Pass the agreementId to CancelMarketplaceAgreement. To find the AMIs a subscription lets a project import, use DiscoverMarketplaceSubscriptions. Requires the caller to be an admin of at least one project.
+     * List the account\'s active AWS Marketplace AMI subscriptions
+     */
+    async listMarketplaceAgreements(requestParameters: ListMarketplaceAgreementsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ListMarketplaceAgreementsResponse> {
+        const response = await this.listMarketplaceAgreementsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read-only. Lists the private AWS Marketplace offers that sellers have extended to the VEW hub AWS account, limited to AMI products; Container, SaaS and other product types are excluded. The result is account-wide: projectId is required in the path but does not filter it. Each item carries the offerId to pass to GetMarketplaceOffer and CreateMarketplaceQuote; bundle offers are marked partOfOfferSet and cannot be bought. To browse the public catalog use SearchMarketplaceListings; to see subscriptions the account already holds use ListMarketplaceAgreements. Requires the project admin role.
+     * List private AWS Marketplace AMI offers extended to the account
+     */
+    async listMarketplacePurchaseOptionsRaw(requestParameters: ListMarketplacePurchaseOptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ListPurchaseOptionsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling listMarketplacePurchaseOptions.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling listMarketplacePurchaseOptions.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/purchase-options`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ListPurchaseOptionsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Lists the private AWS Marketplace offers that sellers have extended to the VEW hub AWS account, limited to AMI products; Container, SaaS and other product types are excluded. The result is account-wide: projectId is required in the path but does not filter it. Each item carries the offerId to pass to GetMarketplaceOffer and CreateMarketplaceQuote; bundle offers are marked partOfOfferSet and cannot be bought. To browse the public catalog use SearchMarketplaceListings; to see subscriptions the account already holds use ListMarketplaceAgreements. Requires the project admin role.
+     * List private AWS Marketplace AMI offers extended to the account
+     */
+    async listMarketplacePurchaseOptions(requestParameters: ListMarketplacePurchaseOptionsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ListPurchaseOptionsResponse> {
+        const response = await this.listMarketplacePurchaseOptionsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceAcceptQuoteCorsRaw(requestParameters: MarketplaceAcceptQuoteCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.agreementRequestId === null || requestParameters.agreementRequestId === undefined) {
+            throw new runtime.RequiredError('agreementRequestId','Required parameter requestParameters.agreementRequestId was null or undefined when calling marketplaceAcceptQuoteCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/marketplace/quotes/{agreementRequestId}/accept`.replace(`{${"agreementRequestId"}}`, encodeURIComponent(String(requestParameters.agreementRequestId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceAcceptQuoteCors(requestParameters: MarketplaceAcceptQuoteCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceAcceptQuoteCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceAgreementsListCorsRaw(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/marketplace/agreements`,
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceAgreementsListCors(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceAgreementsListCorsRaw(initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceCancelAgreementCorsRaw(requestParameters: MarketplaceCancelAgreementCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.agreementId === null || requestParameters.agreementId === undefined) {
+            throw new runtime.RequiredError('agreementId','Required parameter requestParameters.agreementId was null or undefined when calling marketplaceCancelAgreementCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/marketplace/agreements/{agreementId}`.replace(`{${"agreementId"}}`, encodeURIComponent(String(requestParameters.agreementId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceCancelAgreementCors(requestParameters: MarketplaceCancelAgreementCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceCancelAgreementCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceCreateQuoteCorsRaw(requestParameters: MarketplaceCreateQuoteCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceCreateQuoteCors.');
+        }
+
+        if (requestParameters.offerId === null || requestParameters.offerId === undefined) {
+            throw new runtime.RequiredError('offerId','Required parameter requestParameters.offerId was null or undefined when calling marketplaceCreateQuoteCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/offers/{offerId}/quotes`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"offerId"}}`, encodeURIComponent(String(requestParameters.offerId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceCreateQuoteCors(requestParameters: MarketplaceCreateQuoteCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceCreateQuoteCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceFacetsCorsRaw(requestParameters: MarketplaceFacetsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceFacetsCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/facets`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceFacetsCors(requestParameters: MarketplaceFacetsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceFacetsCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Imports an existing or marketplace AMI into VEW
+     */
+    async marketplaceListingsGetCorsRaw(requestParameters: MarketplaceListingsGetCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceListingsGetCors.');
+        }
+
+        if (requestParameters.listingId === null || requestParameters.listingId === undefined) {
+            throw new runtime.RequiredError('listingId','Required parameter requestParameters.listingId was null or undefined when calling marketplaceListingsGetCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/listings/{listingId}`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"listingId"}}`, encodeURIComponent(String(requestParameters.listingId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Imports an existing or marketplace AMI into VEW
+     */
+    async marketplaceListingsGetCors(requestParameters: MarketplaceListingsGetCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceListingsGetCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceListingsSearchCorsRaw(requestParameters: MarketplaceListingsSearchCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceListingsSearchCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/listings`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceListingsSearchCors(requestParameters: MarketplaceListingsSearchCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceListingsSearchCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceOfferCorsRaw(requestParameters: MarketplaceOfferCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplaceOfferCors.');
+        }
+
+        if (requestParameters.offerId === null || requestParameters.offerId === undefined) {
+            throw new runtime.RequiredError('offerId','Required parameter requestParameters.offerId was null or undefined when calling marketplaceOfferCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/offers/{offerId}`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))).replace(`{${"offerId"}}`, encodeURIComponent(String(requestParameters.offerId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async marketplaceOfferCors(requestParameters: MarketplaceOfferCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplaceOfferCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Lists AMIs from the Image Service account that can be imported
+     */
+    async marketplacePurchaseOptionsCorsRaw(requestParameters: MarketplacePurchaseOptionsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling marketplacePurchaseOptionsCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/purchase-options`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * Lists AMIs from the Image Service account that can be imported
+     */
+    async marketplacePurchaseOptionsCors(requestParameters: MarketplacePurchaseOptionsCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.marketplacePurchaseOptionsCorsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 
@@ -3243,6 +4024,87 @@ export class DefaultApi extends runtime.BaseAPI {
     }
 
     /**
+     * Read-only. Resolves one AWS Marketplace listing to the AMI it can be imported from, for the products AWS itself sells (Windows Server, RHEL, SUSE, Ubuntu Pro, Amazon Linux, ECS-optimized Amazon Linux). These products have no buyer-side subscription, so the Marketplace subscriptions list never contains them and this is the only way to find their AMI. Takes a listingId and reads the product back from the listing. Returns the resolved AMI id, name, owner account, architecture and billing code, the region it was resolved in, and which of the offered AMIs are already imported into this project. When `unambiguous` is false, `resolved` is absent and the caller must let the user choose from `candidates`, which differ by architecture. Returns 400 when the listing references more than one product, and when no AMI can be identified for the product, which is the case for listings that need a Marketplace subscription first. Imports nothing and changes nothing.
+     * Resolve an AWS-published Marketplace listing to AMI candidates
+     */
+    async resolveAwsPublishedAmiRaw(requestParameters: ResolveAwsPublishedAmiOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<ResolveAwsPublishedAmiResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling resolveAwsPublishedAmi.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling resolveAwsPublishedAmi.');
+        }
+
+        if (requestParameters.resolveAwsPublishedAmiRequest === null || requestParameters.resolveAwsPublishedAmiRequest === undefined) {
+            throw new runtime.RequiredError('resolveAwsPublishedAmiRequest','Required parameter requestParameters.resolveAwsPublishedAmiRequest was null or undefined when calling resolveAwsPublishedAmi.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        headerParameters['Content-Type'] = 'application/json';
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/aws-published/resolve`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'POST',
+            headers: headerParameters,
+            query: queryParameters,
+            body: ResolveAwsPublishedAmiRequestToJSON(requestParameters.resolveAwsPublishedAmiRequest),
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => ResolveAwsPublishedAmiResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Resolves one AWS Marketplace listing to the AMI it can be imported from, for the products AWS itself sells (Windows Server, RHEL, SUSE, Ubuntu Pro, Amazon Linux, ECS-optimized Amazon Linux). These products have no buyer-side subscription, so the Marketplace subscriptions list never contains them and this is the only way to find their AMI. Takes a listingId and reads the product back from the listing. Returns the resolved AMI id, name, owner account, architecture and billing code, the region it was resolved in, and which of the offered AMIs are already imported into this project. When `unambiguous` is false, `resolved` is absent and the caller must let the user choose from `candidates`, which differ by architecture. Returns 400 when the listing references more than one product, and when no AMI can be identified for the product, which is the case for listings that need a Marketplace subscription first. Imports nothing and changes nothing.
+     * Resolve an AWS-published Marketplace listing to AMI candidates
+     */
+    async resolveAwsPublishedAmi(requestParameters: ResolveAwsPublishedAmiOperationRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<ResolveAwsPublishedAmiResponse> {
+        const response = await this.resolveAwsPublishedAmiRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * CORS
+     */
+    async resolveAwsPublishedAmiCorsRaw(requestParameters: ResolveAwsPublishedAmiCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<object>> {
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling resolveAwsPublishedAmiCors.');
+        }
+
+        const queryParameters: any = {};
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        const response = await this.request({
+            path: `/projects/{projectId}/images/aws-published/resolve`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'OPTIONS',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse<any>(response);
+    }
+
+    /**
+     * CORS
+     */
+    async resolveAwsPublishedAmiCors(requestParameters: ResolveAwsPublishedAmiCorsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
+        const response = await this.resolveAwsPublishedAmiCorsRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
      * Retires a component version, removing it from EC2 Image Builder and preventing its use in new recipes. Existing recipes that already include this version are not affected. **Allowed states:** Only versions in FAILED, VALIDATED, or RELEASED status can be retired.
      * Retire a component version
      */
@@ -3400,6 +4262,78 @@ export class DefaultApi extends runtime.BaseAPI {
      */
     async retireRecipeVersion(requestParameters: RetireRecipeVersionRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<object> {
         const response = await this.retireRecipeVersionRaw(requestParameters, initOverrides);
+        return await response.value();
+    }
+
+    /**
+     * Read-only. Searches the public AWS Marketplace catalog, restricted server-side to single-product AMI listings. Optional filters: searchText, and category, pricingModel, publisher and rating values from GetMarketplaceFacets. Paginate with nextToken and maxResults (default 25). Returns listing summaries whose listingId is passed to GetMarketplaceListing. Does not return private offers (use ListMarketplacePurchaseOptions) or existing subscriptions (use ListMarketplaceAgreements). projectId is required in the path but does not filter results.
+     * Search the public AWS Marketplace catalog for AMI listings
+     */
+    async searchMarketplaceListingsRaw(requestParameters: SearchMarketplaceListingsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<SearchMarketplaceListingsResponse>> {
+        if (requestParameters.authorization === null || requestParameters.authorization === undefined) {
+            throw new runtime.RequiredError('authorization','Required parameter requestParameters.authorization was null or undefined when calling searchMarketplaceListings.');
+        }
+
+        if (requestParameters.projectId === null || requestParameters.projectId === undefined) {
+            throw new runtime.RequiredError('projectId','Required parameter requestParameters.projectId was null or undefined when calling searchMarketplaceListings.');
+        }
+
+        const queryParameters: any = {};
+
+        if (requestParameters.searchText !== undefined) {
+            queryParameters['searchText'] = requestParameters.searchText;
+        }
+
+        if (requestParameters.category) {
+            queryParameters['category'] = requestParameters.category;
+        }
+
+        if (requestParameters.pricingModel) {
+            queryParameters['pricingModel'] = requestParameters.pricingModel;
+        }
+
+        if (requestParameters.publisher) {
+            queryParameters['publisher'] = requestParameters.publisher;
+        }
+
+        if (requestParameters.rating) {
+            queryParameters['rating'] = requestParameters.rating;
+        }
+
+        if (requestParameters.nextToken !== undefined) {
+            queryParameters['nextToken'] = requestParameters.nextToken;
+        }
+
+        if (requestParameters.maxResults !== undefined) {
+            queryParameters['maxResults'] = requestParameters.maxResults;
+        }
+
+        const headerParameters: runtime.HTTPHeaders = {};
+
+        if (requestParameters.authorization !== undefined && requestParameters.authorization !== null) {
+            headerParameters['Authorization'] = String(requestParameters.authorization);
+        }
+
+        if (this.configuration && this.configuration.apiKey) {
+            headerParameters["AmazonVerifiedPermissions"] = this.configuration.apiKey("AmazonVerifiedPermissions"); // AVP-Request-Authorizer authentication
+        }
+
+        const response = await this.request({
+            path: `/projects/{projectId}/marketplace/listings`.replace(`{${"projectId"}}`, encodeURIComponent(String(requestParameters.projectId))),
+            method: 'GET',
+            headers: headerParameters,
+            query: queryParameters,
+        }, initOverrides);
+
+        return new runtime.JSONApiResponse(response, (jsonValue) => SearchMarketplaceListingsResponseFromJSON(jsonValue));
+    }
+
+    /**
+     * Read-only. Searches the public AWS Marketplace catalog, restricted server-side to single-product AMI listings. Optional filters: searchText, and category, pricingModel, publisher and rating values from GetMarketplaceFacets. Paginate with nextToken and maxResults (default 25). Returns listing summaries whose listingId is passed to GetMarketplaceListing. Does not return private offers (use ListMarketplacePurchaseOptions) or existing subscriptions (use ListMarketplaceAgreements). projectId is required in the path but does not filter results.
+     * Search the public AWS Marketplace catalog for AMI listings
+     */
+    async searchMarketplaceListings(requestParameters: SearchMarketplaceListingsRequest, initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<SearchMarketplaceListingsResponse> {
+        const response = await this.searchMarketplaceListingsRaw(requestParameters, initOverrides);
         return await response.value();
     }
 

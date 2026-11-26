@@ -140,6 +140,18 @@ export const ROUTES: { [key in RouteNames]: RouteConfig } = {
   MarketplaceSubscriptions: {
     path: '/projects/:projectId/marketplace'
   },
+  MarketplaceBrowse: {
+    path: '/projects/:projectId/marketplace/browse'
+  },
+  MarketplaceListingDetail: {
+    path: '/projects/:projectId/marketplace/listings/:listingId'
+  },
+  MarketplaceAgreements: {
+    path: '/projects/:projectId/marketplace/agreements'
+  },
+  MarketplaceProcurementWizard: {
+    path: '/projects/:projectId/marketplace/procure'
+  },
   Pipelines: {
     path: '/pipelines'
   },

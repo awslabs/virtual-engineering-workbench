@@ -211,7 +211,7 @@ class BackendAppOpenApi(constructs.Construct):
                             "statusCode": "200",
                             "responseTemplates": {
                                 "application/json": "#[[\n"
-                                + json.dumps(openapi_dict, default=serialize_datetime)
+                                + json.dumps(openapi_dict, default=serialize_datetime, separators=(",", ":"))
                                 + "\n]]#"
                             },
                         }

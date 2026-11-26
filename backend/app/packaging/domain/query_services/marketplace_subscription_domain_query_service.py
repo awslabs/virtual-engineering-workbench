@@ -6,6 +6,7 @@ from app.packaging.domain.ports.marketplace_agreement_service import Marketplace
 from app.packaging.domain.ports.marketplace_ami_service import MarketplaceAmiService
 from app.packaging.domain.ports.marketplace_license_service import MarketplaceLicenseService
 from app.packaging.domain.ports.marketplace_subscription_query_service import MarketplaceSubscriptionQueryService
+from app.packaging.domain.query_services.aws_published_ami_domain_query_service import IMPORTED_AMI_SOURCES
 from app.packaging.domain.read_models.discovered_marketplace_subscription import DiscoveredMarketplaceSubscription
 from app.packaging.domain.read_models.marketplace_agreement import MarketplaceAgreement
 from app.packaging.domain.read_models.marketplace_ami import MarketplaceAmi
@@ -72,6 +73,10 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             newer_version_available, latest_ami_id, latest_ami_creation_date = self._check_for_newer_version(
                 product_code, hub_region, imported_product_codes, imported_ami_ids
             )
+            if newer_version_available and latest_ami_id:
+                # The import takes hubRegionAmiId from the newer AMI, so the hub region's
+                # entry in the published template must point at the same AMI.
+                regional_ami_ids[hub_ami.region] = latest_ami_id
 
             result.append(
                 self._build_subscription(
@@ -154,7 +159,10 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         return {
             img.imageUpstreamId
             for img in self._image_qry_svc.get_images(project_id.value)
-            if img.imageSource == ImageSource.MARKETPLACE_PRODUCT and img.imageUpstreamId
+            # AWS_PUBLISHED_AMI rows are keyed on the AMI id too (they have no
+            # product code). Filtering on MARKETPLACE_PRODUCT alone meant an
+            # imported RHEL 9 never counted, and the list kept offering it.
+            if img.imageSource in IMPORTED_AMI_SOURCES and img.imageUpstreamId
         }
 
     @staticmethod
@@ -179,10 +187,17 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
         latest_ami_creation_date: str | None = None,
     ) -> DiscoveredMarketplaceSubscription:
         ownership = MarketplaceSubscriptionDomainQueryService._classify(license, agreement)
+        # When there is a newer AMI version than the currently-imported
+        # one, surface ``latest_ami_id`` as ``hubRegionAmiId`` so the
+        # Import wizard imports the update (rather than the same stale
+        # AMI the project already has). Otherwise pass through the raw
+        # hub AMI id.
+        effective_hub_ami_id = latest_ami_id if newer_version_available and latest_ami_id else hub_ami.amiId
         return DiscoveredMarketplaceSubscription(
             productName=license.productName or hub_ami.name or "",
             productCode=hub_ami.productCode,
-            hubRegionAmiId=hub_ami.amiId,
+            productId=license.productSku,
+            hubRegionAmiId=effective_hub_ami_id,
             regionalAmiIds=regional_ami_ids,
             licenseConfigurationArn=license.licenseArn,
             homeRegion=license.homeRegion,

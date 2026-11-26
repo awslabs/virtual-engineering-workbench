@@ -38,6 +38,11 @@ const i18n = {
   userNavigationHeaderVirtualTargets: 'Virtual targets',
   userNavigationMyVirtualTargets: 'My virtual targets',
   userNavigationAllVirtualTargets: 'All virtual targets',
+  marketplaceNavigationHeader: 'Marketplace',
+  marketplaceNavigationSubscriptions: 'Subscriptions',
+  marketplaceNavigationAgreements: 'Agreements',
+  marketplaceNavigationBrowse: 'Browse catalog',
+  marketplaceNavigationProcure: 'Procure offer',
 };
 
 /* eslint complexity: "off" */
@@ -132,6 +137,37 @@ export const Navigation: FC<Props> = ({ user }) => {
           },
         ],
         defaultExpanded: navigation.getItem(i18n.productNavigationHeaderProductManagement),
+      });
+    }
+
+    if (isFeatureAccessible(RoleBasedFeature.ManageProducts)) {
+      menuItems.push({
+        type: 'section',
+        text: i18n.marketplaceNavigationHeader,
+        items: [
+          {
+            type: 'link',
+            text: i18n.marketplaceNavigationSubscriptions,
+            href: getPathFor(RouteNames.MarketplaceSubscriptions),
+          },
+          {
+            type: 'link',
+            text: i18n.marketplaceNavigationBrowse,
+            href: getPathFor(RouteNames.MarketplaceBrowse),
+          },
+          // Agreements and private offers are admin-only in the API.
+          ...tryGetLink(RoleBasedFeature.ManagePlatform, {
+            type: 'link',
+            text: i18n.marketplaceNavigationAgreements,
+            href: getPathFor(RouteNames.MarketplaceAgreements),
+          }),
+          ...tryGetLink(RoleBasedFeature.ManagePlatform, {
+            type: 'link',
+            text: i18n.marketplaceNavigationProcure,
+            href: getPathFor(RouteNames.MarketplaceProcurementWizard),
+          }),
+        ],
+        defaultExpanded: navigation.getItem(i18n.marketplaceNavigationHeader),
       });
     }
 

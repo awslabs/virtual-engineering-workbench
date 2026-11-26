@@ -55,6 +55,8 @@ def test_discover_should_return_vew_managed_when_the_hub_subscribed_and_may_gran
     assertpy.assert_that(sub.licenseGrantAllowed).is_true()
     assertpy.assert_that(sub.licenseConfigurationArn).is_equal_to("arn:aws:license-manager::123:license/lic-1")
     assertpy.assert_that(sub.alreadyImported).is_false()
+    # The Marketplace product id lets a purchase hand off to the import wizard
+    assertpy.assert_that(sub.productId).is_equal_to("sku-1")
 
 
 def test_discover_should_return_externally_managed_when_license_without_agreement(
@@ -243,6 +245,12 @@ def test_discover_should_detect_newer_version_available_when_latest_ami_differs_
     assertpy.assert_that(result[0].newerVersionAvailable).is_true()
     assertpy.assert_that(result[0].latestAmiId).is_equal_to("ami-222")
     assertpy.assert_that(result[0].latestAmiCreationDate).is_equal_to("2026-05-01T00:00:00.000Z")
+    # hubRegionAmiId is overridden to latestAmiId when a newer version
+    # exists — so the Import wizard imports the update rather than the
+    # currently-imported (stale) AMI.
+    assertpy.assert_that(result[0].hubRegionAmiId).is_equal_to("ami-222")
+    # The hub region's entry goes into the published template, so it must be the same AMI.
+    assertpy.assert_that(result[0].regionalAmiIds["us-east-1"]).is_equal_to("ami-222")
 
 
 def test_discover_should_not_flag_newer_version_when_latest_ami_is_already_imported(
@@ -499,3 +507,46 @@ def test_newer_version_detection_falls_back_to_deprecated_when_all_amis_are_depr
 
     # ASSERT
     assertpy.assert_that(result).is_equal_to((True, "ami-deprecated-new", "2026-05-01T00:00:00.000Z"))
+
+
+def test_discover_should_pick_latest_hub_ami_when_multiple_variants_exist(
+    get_test_marketplace_ami,
+    get_test_received_license,
+    mock_marketplace_agreement_service,
+    mock_marketplace_ami_service,
+    mock_marketplace_license_service,
+    mock_image_query_service,
+):
+    """Fresh subscription (no prior imports): the hub AMI id surfaced
+    to the frontend must be the LATEST available variant by
+    ``creationDate``, not an arbitrary DescribeImages first entry.
+
+    ``DescribeImages`` returns images in no defined order, so taking
+    ``amis[0]`` in ``_lookup_hub_ami_by_product_id`` would pick an
+    arbitrary variant.
+    """
+    # ARRANGE — three AMI variants exist, none imported. Feed in
+    # oldest-first so amis[0] would be stale without the sort.
+    mock_marketplace_agreement_service.list_active_agreements.return_value = []
+    mock_marketplace_license_service.list_received_licenses.return_value = [get_test_received_license()]
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
+        get_test_marketplace_ami(ami_id="ami-old", creation_date="2026-01-01T00:00:00.000Z"),
+        get_test_marketplace_ami(ami_id="ami-mid", creation_date="2026-03-01T00:00:00.000Z"),
+        get_test_marketplace_ami(ami_id="ami-latest", creation_date="2026-06-01T00:00:00.000Z"),
+    ]
+    mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
+    mock_image_query_service.get_images.return_value = []
+
+    svc = _build_service(
+        mock_marketplace_agreement_service,
+        mock_marketplace_ami_service,
+        mock_marketplace_license_service,
+        mock_image_query_service,
+    )
+
+    # ACT
+    result = svc.discover(project_id=project_id_value_object.from_str("proj-1"))
+
+    # ASSERT
+    assertpy.assert_that(result).is_length(1)
+    assertpy.assert_that(result[0].hubRegionAmiId).is_equal_to("ami-latest")

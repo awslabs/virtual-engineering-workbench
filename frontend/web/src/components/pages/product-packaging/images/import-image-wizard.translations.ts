@@ -3,6 +3,7 @@ export const i18n = {
   step1Title: 'Select source',
   step2TitleAmi: 'Enter AMI details',
   step2TitleSubscription: 'Select subscription',
+  step2TitleAwsPublished: 'Confirm AMI',
   step3Title: 'Enter image details',
   step3Header: 'Image details',
   step4Title: 'Select platform and architecture',
@@ -18,6 +19,32 @@ export const i18n = {
   sourceExistingAmiDescription: 'Import an AMI from the Image Service account.',
   sourceMarketplace: 'Marketplace Product',
   sourceMarketplaceDescription: 'Import an AWS Marketplace AMI using an active subscription.',
+  sourceAwsPublished: 'AWS-published AMI',
+  sourceAwsPublishedDescription:
+    'Import an AMI that AWS sells itself. No Marketplace subscription is needed.',
+
+  // AWS-published AMI resolution
+  awsPublishedHeader: 'AWS-published AMI',
+  awsPublishedAlert:
+    'AWS sells this product itself, so there is no Marketplace subscription. '
+    + 'The AMI below was looked up from the listing you came from.',
+  awsPublishedResolving: 'Looking up the AMI for this listing...',
+  awsPublishedResolveFailedHeader: 'This listing could not be resolved to an AMI',
+  awsPublishedResolveFailed: 'The AMI for this listing could not be resolved.',
+  awsPublishedUnavailable: 'Importing AWS-published AMIs is not available in this deployment.',
+  awsPublishedProductLabel: 'Product',
+  awsPublishedRegionLabel: 'Region',
+  awsPublishedAmbiguous:
+    'This product offers more than one AMI. They differ by architecture — '
+    + 'select the one you want to import.',
+  awsPublishedColumnAmiId: 'AMI ID',
+  awsPublishedColumnAmiName: 'AMI Name',
+  awsPublishedColumnArchitecture: 'Architecture',
+  awsPublishedColumnOwner: 'Owner Account',
+  awsPublishedColumnStatus: 'Status',
+  awsPublishedStatusImported: 'Already imported',
+  awsPublishedStatusAvailable: 'Available',
+  awsPublishedEmpty: 'No AMI was found for this listing.',
 
   // AMI details
   amiDetailsHeader: 'AMI Details',
@@ -35,7 +62,20 @@ export const i18n = {
     + 'Ensure every target spoke account has its own active Marketplace subscription, '
     + 'or that an Org admin has distributed an active License Manager grant, before publishing. '
     + 'The version will fail at publish time if neither is present.',
+  handoffAlreadyImported: 'This product is already imported in this project.',
+  handoffUnavailableHeader: 'Purchased product not listed yet',
+  handoffUnavailable:
+    'The product you just purchased is not in the list of subscriptions yet. New '
+    + 'subscriptions can take a few minutes to appear. Reload the page to check again, '
+    + 'or pick another subscription.',
   availableSubscriptionsHeader: 'Available Subscriptions',
+  subscriptionsEmptyPrimary: 'No Marketplace subscriptions available yet.',
+  subscriptionsEmptyHint:
+    'Subscribe to a product from Marketplace → Browse catalog first, or switch the '
+    + 'source above to "Existing AMI" and paste an AMI ID directly. '
+    + 'Products AWS sells itself (Windows Server, RHEL, SUSE, Ubuntu Pro, Amazon Linux) '
+    + 'need no subscription and never appear here — open them from '
+    + 'Marketplace → Browse catalog and import them directly.',
   columnProductName: 'Product Name',
   columnVendor: 'Vendor',
   columnProductCode: 'Product Code',
@@ -43,6 +83,12 @@ export const i18n = {
   columnStatus: 'Status',
   statusImported: 'Imported',
   statusAvailable: 'Available',
+  statusUpdateAvailable: 'Update available',
+  updateFlowAlert:
+    'This project already has a version of this Marketplace product '
+    + 'imported. Completing this wizard will import the newer AMI as an '
+    + 'additional entry in the Images list — the existing image is not '
+    + 'modified or removed.',
 
   // Details
   imageNameLabel: 'Image Name',

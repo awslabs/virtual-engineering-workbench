@@ -18,6 +18,7 @@ from app.packaging.domain.read_models.received_license import ReceivedLicense
 logger = logging.Logger()
 
 AMI_STATE_AVAILABLE = "available"
+AMI_PRODUCT_RESOURCE_TYPE = "AmiProduct"
 EC2 = "ec2"
 GRACEFUL_DEGRADATION_ERROR_CODES = ("AccessDeniedException", "AuthorizationException")
 LICENSE_MANAGER = "license-manager"
@@ -54,7 +55,11 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
             else boto3.client(EC2, region_name=_region)
         )
 
-    def list_active_agreements(self) -> list[MarketplaceAgreement]:
+    # Complexity 9 (limit 8): pagination loop + AMI-only client-side filter +
+    # graceful-degradation error handling. Splitting the loop hurts readability
+    # more than it helps; each branch is a distinct guard against a distinct
+    # AWS API failure mode.
+    def list_active_agreements(self) -> list[MarketplaceAgreement]:  # noqa: C901
         agreements = []
         next_token: str | None = None
         try:
@@ -66,6 +71,20 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
                         {"name": "PartyType", "values": ["Acceptor"]},
                         {"name": "AgreementType", "values": ["PurchaseAgreement"]},
                         {"name": "Status", "values": ["ACTIVE"]},
+                        # ---------------------------------------------------------
+                        # SearchAgreements' filter combinations are more
+                        # restrictive than the docs' enum table suggests. AWS
+                        # rejects `PartyType + AgreementType + Status +
+                        # ResourceType` (and any two-filter combo that mixes
+                        # ResourceType with Status) with a `ValidationException`
+                        # (UNSUPPORTED_FILTERS).
+                        #
+                        # So ResourceType=AmiProduct cannot be sent here, and
+                        # the AMI-only invariant is enforced in this method
+                        # instead (the `resources[].type` filter in the loop
+                        # below), the same way ``ListPurchaseOptions`` results
+                        # are filtered in the offer discovery adapter.
+                        # ---------------------------------------------------------
                     ],
                 }
                 if next_token:
@@ -73,7 +92,15 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
                 response = client.search_agreements(**kwargs)
                 for a in response.get("agreementViewSummaries", []):
                     resources = a["proposalSummary"]["resources"]
-                    product_id = resources[0]["id"] if resources else ""
+                    # AMI-only filter, applied here because SearchAgreements
+                    # cannot filter on ResourceType with Status. Every
+                    # resource on the agreement must be an AmiProduct; any
+                    # multi-product bundle containing a Container / SaaS /
+                    # Data / ProServices resource is dropped. Empty
+                    # `resources` (malformed AWS response) is also dropped.
+                    if not resources or any(r.get("type") != AMI_PRODUCT_RESOURCE_TYPE for r in resources):
+                        continue
+                    product_id = resources[0]["id"]
                     acceptance_time = a.get("acceptanceTime")
                     agreements.append(
                         MarketplaceAgreement(
@@ -97,6 +124,47 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
                 return []
             raise adapter_exception.AdapterException(f"Failed to list marketplace agreements: {e}")
         return agreements
+
+    def is_ami_agreement(self, agreement_id: str) -> bool:
+        """Whether every resource on ``agreement_id`` is an ``AmiProduct``.
+
+        Deliberately does NOT use the graceful-degradation path that
+        ``list_active_agreements`` and ``list_received_licenses`` use. Those
+        are read-side discovery calls where returning an empty list hides
+        nothing of consequence. This method answers an admission question,
+        so an AccessDenied must not be allowed to read as ``False`` (drop
+        the event) or ``True`` (admit it) -- both would be a silent policy
+        decision made by an IAM misconfiguration. The caller is told the
+        type is unknown and decides.
+        """
+        try:
+            response = self.__get_agreement_client().describe_agreement(agreementId=agreement_id)
+        except ClientError as e:
+            raise adapter_exception.AdapterException(f"Failed to describe agreement {agreement_id}: {e}")
+
+        resources = response.get("proposalSummary", {}).get("resources", [])
+        # Mirrors the AMI-only invariant in ``list_active_agreements``: an
+        # empty ``resources`` is a malformed response, not an AMI agreement.
+        if not resources:
+            logger.warning(
+                {
+                    "Message": "Agreement has no resources; treating as non-AMI.",
+                    "AgreementId": agreement_id,
+                }
+            )
+            return False
+
+        return all(r.get("type") == AMI_PRODUCT_RESOURCE_TYPE for r in resources)
+
+    def get_agreement_status(self, agreement_id: str) -> str:
+        try:
+            response = self.__get_agreement_client().describe_agreement(agreementId=agreement_id)
+        except ClientError as e:
+            raise adapter_exception.AdapterException(f"Failed to describe agreement {agreement_id}: {e}") from e
+        status = response.get("status")
+        if not status:
+            raise adapter_exception.AdapterException(f"DescribeAgreement returned no status for {agreement_id}")
+        return status
 
     def list_marketplace_amis_by_product_code(self, product_code: str, region: str) -> list[MarketplaceAmi]:
         try:

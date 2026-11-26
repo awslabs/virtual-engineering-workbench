@@ -6,9 +6,16 @@ import { i18n } from './import-image-wizard.translations';
 interface Props {
   imageSource: ImageSource,
   setImageSource: (value: ImageSource) => void,
+  // Offered only when the wizard was opened from an AWS-published listing:
+  // without a listing there is no AMI to resolve.
+  awsPublishedAvailable?: boolean,
 }
 
-export const ImportImageStepSource: FC<Props> = ({ imageSource, setImageSource }) =>
+export const ImportImageStepSource: FC<Props> = ({
+  imageSource,
+  setImageSource,
+  awsPublishedAvailable,
+}) =>
   <Container header={<Header variant="h2">{i18n.imageSourceHeader}</Header>}>
     <Tiles
       value={imageSource}
@@ -24,6 +31,13 @@ export const ImportImageStepSource: FC<Props> = ({ imageSource, setImageSource }
           value: 'MARKETPLACE_PRODUCT',
           description: i18n.sourceMarketplaceDescription,
         },
+        ...awsPublishedAvailable
+          ? [{
+            label: i18n.sourceAwsPublished,
+            value: 'AWS_PUBLISHED_AMI',
+            description: i18n.sourceAwsPublishedDescription,
+          }]
+          : [],
       ]}
     />
   </Container>

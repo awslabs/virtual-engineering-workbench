@@ -3284,6 +3284,98 @@ paths:
         requestTemplates:
           application/json: '{"statusCode": 200}'
         passthroughBehavior: when_no_match
+  /projects/{projectId}/images/aws-published/resolve:
+    post:
+      summary: "Resolve an AWS-published Marketplace listing to AMI candidates"
+      description: >-
+        Read-only. Resolves one AWS Marketplace listing to the AMI it can be imported from, for
+        the products AWS itself sells (Windows Server, RHEL, SUSE, Ubuntu Pro, Amazon Linux,
+        ECS-optimized Amazon Linux). These products have no buyer-side subscription, so the
+        Marketplace subscriptions list never contains them and this is the only way to find their
+        AMI. Takes a listingId and reads the product back from the listing. Returns the resolved
+        AMI id, name, owner account, architecture and billing code, the region it was resolved in,
+        and which of the offered AMIs are already imported into this project. When `unambiguous`
+        is false, `resolved` is absent and the caller must let the user choose from `candidates`,
+        which differ by architecture. Returns 400 when the listing references more than one
+        product, and when no AMI can be identified for the product, which is the case for listings
+        that need a Marketplace subscription first. Imports nothing and changes nothing.
+      operationId: ResolveAwsPublishedAmi
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveAwsPublishedAmiRequest"
+        required: true
+      responses:
+        "200":
+          description: 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolveAwsPublishedAmiResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: ResolveAwsPublishedAmiCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
   /projects/{projectId}/marketplace/subscriptions:
     get:
       description: >-
@@ -3328,6 +3420,872 @@ paths:
       parameters:
         - name: projectId
           in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  # ---------------------------------------------------------------------
+  # Marketplace endpoints: browse, quote, accept, list and cancel.
+  #
+  # Every route the Lambda handler serves must be declared here, because API
+  # Gateway only registers routes from this file; an undeclared route is
+  # rejected at the gateway before it reaches the handler. Each route has an
+  # AWS_PROXY integration and a CORS OPTIONS preflight.
+  #
+  # Request and response schemas are the OpenAPI 3.0.1 rendering of the
+  # Pydantic models in api_model.py; test_request_models_enforce_the_schema_bounds
+  # compares the request bounds field by field.
+  # ---------------------------------------------------------------------
+  /projects/{projectId}/marketplace/purchase-options:
+    get:
+      summary: "List private AWS Marketplace AMI offers extended to the account"
+      description: >-
+        Read-only. Lists the private AWS Marketplace offers that sellers have extended to the VEW
+        hub AWS account, limited to AMI products; Container, SaaS and other product types are
+        excluded. The result is account-wide: projectId is required in the path but does not filter
+        it. Each item carries the offerId to pass to GetMarketplaceOffer and CreateMarketplaceQuote;
+        bundle offers are marked partOfOfferSet and cannot be bought. To browse the public catalog
+        use SearchMarketplaceListings; to see subscriptions the account already holds use
+        ListMarketplaceAgreements. Requires the project admin role.
+      operationId: ListMarketplacePurchaseOptions
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPurchaseOptionsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplacePurchaseOptionsCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace/offers/{offerId}:
+    get:
+      summary: "Get an AWS Marketplace offer and its terms"
+      description: >-
+        Read-only. Returns one AWS Marketplace offer by offerId: seller, pricing model, availability
+        window, associated products, agreementProposalId, and every term attached to the offer
+        (pricing, legal, validity, renewal). Use the term ids, plus a configuration for configurable
+        terms such as contract dimensions and duration, to build the requestedTerms of
+        CreateMarketplaceQuote. Does not create a quote and does not check whether the account is
+        already subscribed. The offerId comes from ListMarketplacePurchaseOptions (private offers)
+        or from primaryOfferId in GetMarketplaceListing (public offers). Requires the project admin
+        role.
+      operationId: GetMarketplaceOffer
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: offerId
+          in: path
+          description: AWS Marketplace offer ID, from ListMarketplacePurchaseOptions or a listing's offer.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMarketplaceOfferResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceOfferCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: offerId
+          in: path
+          description: AWS Marketplace offer ID, from ListMarketplacePurchaseOptions or a listing's offer.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace/offers/{offerId}/quotes:
+    post:
+      summary: "Create an AWS Marketplace quote for an AMI offer"
+      description: >-
+        Step 1 of 2 of a Marketplace purchase. Calls AWS Marketplace CreateAgreementRequest for the
+        offer with the requestedTerms (term ids from GetMarketplaceOffer) and returns a short-lived
+        agreementRequestId plus the estimated total before and after tax (null for usage-based
+        pricing). Creates an agreement request in AWS Marketplace for the VEW hub account but does
+        not bill or subscribe anything; only AcceptMarketplaceQuote commits the account. Rejected
+        when the offer is not a single-product AMI offer or the account already has an active
+        agreement for it. clientToken (optional) makes retries safe: the same token with the same
+        terms returns the same agreementRequestId; without one, a token is derived from project,
+        offer and terms. Requires the project admin role.
+      operationId: CreateMarketplaceQuote
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: offerId
+          in: path
+          description: AWS Marketplace offer ID, from ListMarketplacePurchaseOptions or a listing's offer.
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgreementRequestRequest"
+        required: true
+      responses:
+        "201":
+          description: 201 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateAgreementRequestResponse"
+      x-amazon-apigateway-request-validator: all
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceCreateQuoteCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: offerId
+          in: path
+          description: AWS Marketplace offer ID, from ListMarketplacePurchaseOptions or a listing's offer.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /marketplace/quotes/{agreementRequestId}/accept:
+    post:
+      summary: "Accept an AWS Marketplace quote and subscribe the account"
+      description: >-
+        Step 2 of 2 of a Marketplace purchase, and the step that can cost money. Calls AWS
+        Marketplace AcceptAgreementRequest for an agreementRequestId returned by
+        CreateMarketplaceQuote, creating a binding agreement for the whole VEW hub AWS account (not
+        one project) that may incur upfront, contract or usage charges from the seller. Returns the
+        durable agreementId. Call it only after a person has reviewed the quote and approved the
+        purchase. Never retry it automatically: a repeated accept is refused with HTTP 400, and the
+        agreement from an earlier successful accept is listed by ListMarketplaceAgreements.
+        Requires the caller to be an admin of at least one project.
+      operationId: AcceptMarketplaceQuote
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: agreementRequestId
+          in: path
+          description: Agreement request ID of the quote returned by CreateMarketplaceQuote.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AcceptAgreementRequestResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceAcceptQuoteCors
+      parameters:
+        - name: agreementRequestId
+          in: path
+          description: Agreement request ID of the quote returned by CreateMarketplaceQuote.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /marketplace/agreements:
+    get:
+      summary: "List the account's active AWS Marketplace AMI subscriptions"
+      description: >-
+        Read-only. Lists the ACTIVE AWS Marketplace agreements that the VEW hub AWS account has
+        accepted as buyer, limited to agreements whose products are all AMIs. Account-wide and not
+        filtered by project, because agreements have no project dimension. Each row has agreementId,
+        offerId, productId, status and acceptance date, plus product name, offer name and pricing
+        model when they can be looked up. Pass the agreementId to CancelMarketplaceAgreement. To
+        find the AMIs a subscription lets a project import, use DiscoverMarketplaceSubscriptions.
+        Requires the caller to be an admin of at least one project.
+      operationId: ListMarketplaceAgreements
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMarketplaceAgreementsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceAgreementsListCors
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /marketplace/agreements/{agreementId}:
+    delete:
+      summary: "Cancel an active AWS Marketplace agreement for the account"
+      description: >-
+        Destructive. Calls AWS Marketplace CancelAgreement on an agreementId from
+        ListMarketplaceAgreements, ending the subscription for the whole VEW hub AWS account and
+        every project that relies on it. This API cannot undo the cancellation; re-subscribing needs
+        a new quote and acceptance. AWS refuses agreements that are not eligible for cancellation.
+        Repeating the call on an agreement that is already cancelled returns success. Call it only
+        with explicit confirmation from a person. Requires the caller to be an admin of at least one
+        project.
+      operationId: CancelMarketplaceAgreement
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: agreementId
+          in: path
+          description: AWS Marketplace agreement ID (agmt-...) of the hub account's agreement to cancel.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelAgreementResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceCancelAgreementCors
+      parameters:
+        - name: agreementId
+          in: path
+          description: AWS Marketplace agreement ID (agmt-...) of the hub account's agreement to cancel.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace/listings:
+    get:
+      summary: "Search the public AWS Marketplace catalog for AMI listings"
+      description: >-
+        Read-only. Searches the public AWS Marketplace catalog, restricted server-side to
+        single-product AMI listings. Optional filters: searchText, and category, pricingModel,
+        publisher and rating values from GetMarketplaceFacets. Paginate with nextToken and
+        maxResults (default 25). Returns listing summaries whose listingId is passed to
+        GetMarketplaceListing. Does not return private offers (use ListMarketplacePurchaseOptions)
+        or existing subscriptions (use ListMarketplaceAgreements). projectId is required in the path
+        but does not filter results.
+      operationId: SearchMarketplaceListings
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: searchText
+          in: query
+          description: Free-text search over the names and descriptions of AMI listings.
+          required: false
+          schema:
+            type: string
+        - name: category
+          in: query
+          description: Category value from GetMarketplaceFacets; repeat the parameter to match any of several.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: pricingModel
+          in: query
+          description: Pricing model value from GetMarketplaceFacets, for example FREE or USAGE; repeatable.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: publisher
+          in: query
+          description: Publisher (seller profile ID) value from GetMarketplaceFacets; repeatable.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: rating
+          in: query
+          description: Average customer rating value from GetMarketplaceFacets, for example 4.0; repeatable.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: nextToken
+          in: query
+          description: Pagination token from the nextToken of the previous page of results.
+          required: false
+          schema:
+            type: string
+        - name: maxResults
+          in: query
+          description: Number of listings per page, from 1 to 100; defaults to 25.
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchMarketplaceListingsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceListingsSearchCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace/listings/{listingId}:
+    get:
+      summary: "Get one public AWS Marketplace AMI listing"
+      description: >-
+        Read-only. Returns the public detail of one AWS Marketplace listing by listingId from
+        SearchMarketplaceListings: descriptions, publisher, categories, pricing models, reviews,
+        resources such as legal documents, and the associated products and offers. primaryOfferId is
+        the public offer to pass to GetMarketplaceOffer and then CreateMarketplaceQuote to buy the
+        product. Does not create a quote or a subscription. projectId is required in the path but
+        does not affect the result.
+      operationId: GetMarketplaceListing
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: listingId
+          in: path
+          description: AWS Marketplace listing ID (prodview-...) as returned by SearchMarketplaceListings.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMarketplaceListingResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceListingsGetCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+        - name: listingId
+          in: path
+          description: AWS Marketplace listing ID (prodview-...) as returned by SearchMarketplaceListings.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+            Access-Control-Allow-Methods:
+              schema:
+                type: string
+            Access-Control-Allow-Headers:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Empty"
+      security: []
+      x-amazon-apigateway-integration:
+        type: mock
+        responses:
+          default:
+            statusCode: "200"
+            responseParameters:
+              method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-amz-security-token,Cache-Control'"
+              method.response.header.Access-Control-Allow-Origin: "{{cors_origin}}"
+        requestTemplates:
+          application/json: '{"statusCode": 200}'
+        passthroughBehavior: when_no_match
+  /projects/{projectId}/marketplace/facets:
+    get:
+      summary: "List the filter values for searching AWS Marketplace AMI listings"
+      description: >-
+        Read-only. Returns the facets available for SearchMarketplaceListings over the AMI-only
+        public catalog (category, pricing model, publisher, rating), each value with its listing
+        count, plus the total listing count. Pass the returned values as the category, pricingModel,
+        publisher and rating query parameters of SearchMarketplaceListings. Takes no filters.
+        projectId is required in the path but does not affect the result.
+      operationId: GetMarketplaceFacets
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 200 response
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetMarketplaceFacetsResponse"
+      x-amazon-apigateway-request-validator: params-only
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/{{handler_arn}}/invocations"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: when_no_match
+        contentHandling: CONVERT_TO_TEXT
+        credentials: "{{apigw_invocation_role_arn}}"
+    options:
+      description: CORS
+      operationId: MarketplaceFacetsCors
+      parameters:
+        - name: projectId
+          in: path
+          description: Unique identifier of the project that scopes this operation.
           required: true
           schema:
             type: string
@@ -4312,6 +5270,611 @@ components:
     Empty:
       title: Empty Schema
       type: object
+    AcceptAgreementRequestResponse:
+      properties:
+        agreementId:
+          title: AgreementId
+          type: string
+      required:
+      - agreementId
+      title: AcceptAgreementRequestResponse
+      type: object
+    CancelAgreementResponse:
+      properties:
+        agreementId:
+          title: AgreementId
+          type: string
+      required:
+      - agreementId
+      title: CancelAgreementResponse
+      type: object
+    CreateAgreementRequestRequest:
+      properties:
+        clientToken:
+          description: >-
+            Optional idempotency key, 1-64 letters, digits or hyphens (for example a UUID generated per
+            purchase attempt). Repeating a request with the same token and the same requestedTerms returns
+            the same agreementRequestId. When omitted, a token is derived from the project, offer and terms.
+          maxLength: 64
+          nullable: true
+          pattern: ^[a-zA-Z0-9-]+$
+          title: ClientToken
+          type: string
+        productType:
+          enum:
+          - AmiProduct
+          title: ProductType
+          type: string
+        requestedTerms:
+          description: Offer terms to accept, each with its term id and, for a configurable term, the buyer's configuration.
+          items:
+            type: object
+          maxItems: 50
+          title: RequestedTerms
+          type: array
+      required:
+      - requestedTerms
+      title: CreateAgreementRequestRequest
+      type: object
+    GetMarketplaceFacetsResponse:
+      properties:
+        facets:
+          title: Facets
+          type: object
+        totalResults:
+          nullable: true
+          title: TotalResults
+          type: integer
+      title: GetMarketplaceFacetsResponse
+      type: object
+    GetMarketplaceListingResponse:
+      properties:
+        associatedEntities:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingAssociatedEntityItem'
+          title: AssociatedEntities
+          type: array
+        badges:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingBadgeItem'
+          title: Badges
+          type: array
+        catalog:
+          title: Catalog
+          type: string
+        categories:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingCategoryItem'
+          title: Categories
+          type: array
+        fulfillmentOptionSummaries:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingFulfillmentOptionSummaryItem'
+          title: FulfillmentOptionSummaries
+          type: array
+        highlights:
+          items:
+            type: string
+          title: Highlights
+          type: array
+        listingId:
+          title: ListingId
+          type: string
+        listingName:
+          title: ListingName
+          type: string
+        logoThumbnailUrl:
+          nullable: true
+          title: LogoThumbnailUrl
+          type: string
+        longDescription:
+          nullable: true
+          title: LongDescription
+          type: string
+        pricingModels:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingPricingModelItem'
+          title: PricingModels
+          type: array
+        primaryOfferId:
+          nullable: true
+          title: PrimaryOfferId
+          type: string
+        primaryProductId:
+          nullable: true
+          title: PrimaryProductId
+          type: string
+        publisher:
+          $ref: '#/components/schemas/MarketplaceListingPublisherItem'
+          title: Publisher
+        resources:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingResourceItem'
+          title: Resources
+          type: array
+        shortDescription:
+          nullable: true
+          title: ShortDescription
+          type: string
+        useCases:
+          items:
+            type: string
+          title: UseCases
+          type: array
+      required:
+      - listingId
+      - listingName
+      - catalog
+      - publisher
+      title: GetMarketplaceListingResponse
+      type: object
+    GetMarketplaceOfferResponse:
+      properties:
+        agreementProposalId:
+          title: AgreementProposalId
+          type: string
+        associatedProducts:
+          items:
+            $ref: '#/components/schemas/MarketplaceOfferProductAssociationResponseItem'
+          title: AssociatedProducts
+          type: array
+        availableFromTime:
+          nullable: true
+          title: AvailableFromTime
+          type: string
+        catalog:
+          title: Catalog
+          type: string
+        expirationTime:
+          nullable: true
+          title: ExpirationTime
+          type: string
+        offerId:
+          title: OfferId
+          type: string
+        offerName:
+          nullable: true
+          title: OfferName
+          type: string
+        pricingModelDisplayName:
+          nullable: true
+          title: PricingModelDisplayName
+          type: string
+        pricingModelType:
+          nullable: true
+          title: PricingModelType
+          type: string
+        sellerOfRecordDisplayName:
+          nullable: true
+          title: SellerOfRecordDisplayName
+          type: string
+        sellerOfRecordProfileId:
+          nullable: true
+          title: SellerOfRecordProfileId
+          type: string
+        terms:
+          items:
+            $ref: '#/components/schemas/MarketplaceOfferTermResponseItem'
+          title: Terms
+          type: array
+      required:
+      - offerId
+      - catalog
+      - agreementProposalId
+      title: GetMarketplaceOfferResponse
+      type: object
+    ListMarketplaceAgreementsResponse:
+      properties:
+        agreements:
+          items:
+            $ref: '#/components/schemas/MarketplaceAgreementResponseItem'
+          title: Agreements
+          type: array
+      title: ListMarketplaceAgreementsResponse
+      type: object
+    ListPurchaseOptionsResponse:
+      properties:
+        purchaseOptions:
+          items:
+            $ref: '#/components/schemas/MarketplacePurchaseOptionResponseItem'
+          title: PurchaseOptions
+          type: array
+      title: ListPurchaseOptionsResponse
+      type: object
+    MarketplaceAgreementResponseItem:
+      description: 'One row of the buyer-side agreement list. Mirrors the
+
+        ``MarketplaceAgreement`` read model 1:1. AMI-only enforcement happens
+
+        client-side in the adapter, because SearchAgreements rejects a
+
+        ResourceType filter combined with Status --
+
+        SearchAgreements rejects a ResourceType filter combined with Status.'
+      properties:
+        acceptanceDate:
+          nullable: true
+          title: AcceptanceDate
+          type: string
+        agreementId:
+          title: AgreementId
+          type: string
+        offerId:
+          title: OfferId
+          type: string
+        offerName:
+          nullable: true
+          title: OfferName
+          type: string
+        pricingModelType:
+          nullable: true
+          title: PricingModelType
+          type: string
+        productId:
+          title: ProductId
+          type: string
+        productName:
+          nullable: true
+          title: ProductName
+          type: string
+        status:
+          title: Status
+          type: string
+      required:
+      - agreementId
+      - productId
+      - offerId
+      - status
+      title: MarketplaceAgreementResponseItem
+      type: object
+    MarketplaceFacetValueItem:
+      properties:
+        count:
+          title: Count
+          type: integer
+        displayName:
+          title: DisplayName
+          type: string
+        parent:
+          nullable: true
+          title: Parent
+          type: string
+        value:
+          title: Value
+          type: string
+      required:
+      - value
+      - displayName
+      - count
+      title: MarketplaceFacetValueItem
+      type: object
+    MarketplaceListingAssociatedEntityItem:
+      properties:
+        offerId:
+          nullable: true
+          title: OfferId
+          type: string
+        offerSellerOfRecord:
+          $ref: '#/components/schemas/MarketplaceListingPublisherItem'
+          nullable: true
+          title: OfferSellerOfRecord
+        productId:
+          title: ProductId
+          type: string
+        productManufacturer:
+          $ref: '#/components/schemas/MarketplaceListingPublisherItem'
+          nullable: true
+          title: ProductManufacturer
+        productName:
+          title: ProductName
+          type: string
+      required:
+      - productId
+      - productName
+      title: MarketplaceListingAssociatedEntityItem
+      type: object
+    MarketplaceListingBadgeItem:
+      properties:
+        badgeType:
+          title: BadgeType
+          type: string
+        displayName:
+          title: DisplayName
+          type: string
+      required:
+      - badgeType
+      - displayName
+      title: MarketplaceListingBadgeItem
+      type: object
+    MarketplaceListingCategoryItem:
+      properties:
+        categoryId:
+          title: CategoryId
+          type: string
+        displayName:
+          title: DisplayName
+          type: string
+        parent:
+          nullable: true
+          title: Parent
+          type: string
+      required:
+      - categoryId
+      - displayName
+      title: MarketplaceListingCategoryItem
+      type: object
+    MarketplaceListingFulfillmentOptionSummaryItem:
+      properties:
+        displayName:
+          title: DisplayName
+          type: string
+        fulfillmentOptionType:
+          title: FulfillmentOptionType
+          type: string
+      required:
+      - fulfillmentOptionType
+      - displayName
+      title: MarketplaceListingFulfillmentOptionSummaryItem
+      type: object
+    MarketplaceListingPricingModelItem:
+      properties:
+        displayName:
+          title: DisplayName
+          type: string
+        pricingModelType:
+          title: PricingModelType
+          type: string
+      required:
+      - pricingModelType
+      - displayName
+      title: MarketplaceListingPricingModelItem
+      type: object
+    MarketplaceListingPublisherItem:
+      properties:
+        displayName:
+          title: DisplayName
+          type: string
+        sellerProfileId:
+          title: SellerProfileId
+          type: string
+      required:
+      - sellerProfileId
+      - displayName
+      title: MarketplaceListingPublisherItem
+      type: object
+    MarketplaceListingResourceItem:
+      properties:
+        contentType:
+          nullable: true
+          title: ContentType
+          type: string
+        displayName:
+          nullable: true
+          title: DisplayName
+          type: string
+        resourceType:
+          title: ResourceType
+          type: string
+        value:
+          nullable: true
+          title: Value
+          type: string
+      required:
+      - resourceType
+      title: MarketplaceListingResourceItem
+      type: object
+    MarketplaceListingReviewSourceItem:
+      properties:
+        averageRating:
+          nullable: true
+          title: AverageRating
+          type: string
+        sourceId:
+          title: SourceId
+          type: string
+        sourceName:
+          title: SourceName
+          type: string
+        sourceUrl:
+          nullable: true
+          title: SourceUrl
+          type: string
+        totalReviews:
+          nullable: true
+          title: TotalReviews
+          type: integer
+      required:
+      - sourceId
+      - sourceName
+      title: MarketplaceListingReviewSourceItem
+      type: object
+    MarketplaceListingSummaryItem:
+      properties:
+        badges:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingBadgeItem'
+          title: Badges
+          type: array
+        catalog:
+          title: Catalog
+          type: string
+        categories:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingCategoryItem'
+          title: Categories
+          type: array
+        fulfillmentOptionSummaries:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingFulfillmentOptionSummaryItem'
+          title: FulfillmentOptionSummaries
+          type: array
+        listingId:
+          title: ListingId
+          type: string
+        listingName:
+          title: ListingName
+          type: string
+        logoThumbnailUrl:
+          nullable: true
+          title: LogoThumbnailUrl
+          type: string
+        pricingModels:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingPricingModelItem'
+          title: PricingModels
+          type: array
+        primaryOfferId:
+          nullable: true
+          title: PrimaryOfferId
+          type: string
+        primaryProductId:
+          nullable: true
+          title: PrimaryProductId
+          type: string
+        publisher:
+          $ref: '#/components/schemas/MarketplaceListingPublisherItem'
+          title: Publisher
+        reviewSummary:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingReviewSourceItem'
+          title: ReviewSummary
+          type: array
+        shortDescription:
+          nullable: true
+          title: ShortDescription
+          type: string
+      required:
+      - listingId
+      - listingName
+      - catalog
+      - publisher
+      title: MarketplaceListingSummaryItem
+      type: object
+    MarketplaceOfferProductAssociationResponseItem:
+      properties:
+        partOfOfferSet:
+          title: PartOfOfferSet
+          type: boolean
+        productId:
+          title: ProductId
+          type: string
+        productName:
+          nullable: true
+          title: ProductName
+          type: string
+      required:
+      - productId
+      title: MarketplaceOfferProductAssociationResponseItem
+      type: object
+    MarketplaceOfferTermResponseItem:
+      properties:
+        rawTerm:
+          title: RawTerm
+          type: object
+        termId:
+          title: TermId
+          type: string
+        termType:
+          title: TermType
+          type: string
+      required:
+      - termId
+      - termType
+      title: MarketplaceOfferTermResponseItem
+      type: object
+    MarketplacePurchaseOptionResponseItem:
+      properties:
+        availableFromTime:
+          nullable: true
+          title: AvailableFromTime
+          type: string
+        catalog:
+          title: Catalog
+          type: string
+        expirationTime:
+          nullable: true
+          title: ExpirationTime
+          type: string
+        offerId:
+          title: OfferId
+          type: string
+        partOfOfferSet:
+          title: PartOfOfferSet
+          type: boolean
+        productId:
+          title: ProductId
+          type: string
+        productName:
+          nullable: true
+          title: ProductName
+          type: string
+        purchaseOptionId:
+          title: PurchaseOptionId
+          type: string
+        purchaseOptionName:
+          nullable: true
+          title: PurchaseOptionName
+          type: string
+        purchaseOptionType:
+          title: PurchaseOptionType
+          type: string
+        sellerOfRecordDisplayName:
+          nullable: true
+          title: SellerOfRecordDisplayName
+          type: string
+      required:
+      - purchaseOptionId
+      - purchaseOptionType
+      - catalog
+      - offerId
+      - productId
+      title: MarketplacePurchaseOptionResponseItem
+      type: object
+    SearchMarketplaceListingsResponse:
+      properties:
+        listings:
+          items:
+            $ref: '#/components/schemas/MarketplaceListingSummaryItem'
+          title: Listings
+          type: array
+        nextToken:
+          nullable: true
+          title: NextToken
+          type: string
+        totalResults:
+          nullable: true
+          title: TotalResults
+          type: integer
+      title: SearchMarketplaceListingsResponse
+      type: object
+    CreateAgreementRequestResponse:
+      title: CreateAgreementRequestResponse
+      type: object
+      required:
+        - agreementRequestId
+      properties:
+        agreementRequestId:
+          title: AgreementRequestId
+          type: string
+          description: Short-lived handle for the quote, confirmed via the accept endpoint
+        estimatedAgreementValue:
+          title: EstimatedAgreementValue
+          type: string
+          nullable: true
+          description: >-
+            Estimated agreement total from AWS ChargeSummary. A string because AWS
+            returns BoundedString and a JSON number would risk a float round-trip on
+            money. Null for usage-based pricing, where AWS has no up-front total.
+        estimatedAgreementValueAfterTax:
+          title: EstimatedAgreementValueAfterTax
+          type: string
+          nullable: true
+          description: Estimated agreement total including tax. Null for usage-based pricing.
+        estimatedCurrencyCode:
+          title: EstimatedCurrencyCode
+          type: string
+          nullable: true
+          description: Currency of the estimates. Null for usage-based pricing.
     ValidateComponentVersionRequest:
       title: ValidateComponentVersionRequest
       type: object
@@ -4983,7 +6546,7 @@ components:
       properties:
         imageSource:
           title: ImageSource
-          description: Where the AMI comes from - EXISTING_AMI or MARKETPLACE_PRODUCT.
+          description: Where the AMI comes from - EXISTING_AMI, MARKETPLACE_PRODUCT or AWS_PUBLISHED_AMI.
           type: string
         amiId:
           title: AmiId
@@ -5034,6 +6597,86 @@ components:
         createDate:
           title: CreateDate
           type: string
+    ResolveAwsPublishedAmiRequest:
+      title: ResolveAwsPublishedAmiRequest
+      type: object
+      required:
+        - listingId
+      properties:
+        listingId:
+          title: ListingId
+          type: string
+          maxLength: 128
+    AwsPublishedAmiCandidateItem:
+      title: AwsPublishedAmiCandidateItem
+      type: object
+      required:
+        - amiId
+        - amiName
+        - ownerId
+        - region
+      properties:
+        amiId:
+          title: AmiId
+          type: string
+        amiName:
+          title: AmiName
+          type: string
+        ownerId:
+          title: OwnerId
+          type: string
+        architecture:
+          title: Architecture
+          type: string
+        platformDetails:
+          title: PlatformDetails
+          type: string
+        usageOperation:
+          title: UsageOperation
+          type: string
+        creationDate:
+          title: CreationDate
+          type: string
+        region:
+          title: Region
+          type: string
+    ResolveAwsPublishedAmiResponse:
+      title: ResolveAwsPublishedAmiResponse
+      type: object
+      required:
+        - listingId
+        - productId
+        - productName
+        - region
+        - unambiguous
+      properties:
+        listingId:
+          title: ListingId
+          type: string
+        productId:
+          title: ProductId
+          type: string
+        productName:
+          title: ProductName
+          type: string
+        region:
+          title: Region
+          type: string
+        unambiguous:
+          title: Unambiguous
+          type: boolean
+        resolved:
+          $ref: "#/components/schemas/AwsPublishedAmiCandidateItem"
+        candidates:
+          title: Candidates
+          type: array
+          items:
+            $ref: "#/components/schemas/AwsPublishedAmiCandidateItem"
+        alreadyImportedAmiIds:
+          title: AlreadyImportedAmiIds
+          type: array
+          items:
+            type: string
     DiscoverMarketplaceSubscriptionsResponse:
       title: DiscoverMarketplaceSubscriptionsResponse
       type: object
@@ -5080,6 +6723,14 @@ components:
       required:
         - productCode
       properties:
+        listingId:
+          title: ListingId
+          type: string
+          maxLength: 128
+          description: >-
+            Marketplace listing the AMI was resolved from. Required when
+            imageSource is AWS_PUBLISHED_AMI: the backend resolves the listing
+            again and accepts amiId only if that resolution offers it.
         productCode:
           title: ProductCode
           description: Marketplace product code of the subscription the AMI belongs to.
@@ -5094,6 +6745,10 @@ components:
         productCode:
           title: ProductCode
           type: string
+        productId:
+          title: ProductId
+          type: string
+          description: AWS Marketplace product id (prod-...) of the subscription.
         hubRegionAmiId:
           title: HubRegionAmiId
           type: string

@@ -1,2 +1,12 @@
 export { useImportImage } from './import-image.logic';
 export { useDiscoverMarketplaceSubscriptions } from './discover-marketplace-subscriptions.logic';
+export { useListPurchaseOptions } from './use-list-purchase-options.logic';
+export { useListMarketplaceAgreements } from './use-list-marketplace-agreements.logic';
+export { useGetMarketplaceOffer } from './use-get-marketplace-offer.logic';
+export { useCreateAgreementRequest } from './use-create-agreement-request.logic';
+export { useAcceptAgreementRequest } from './use-accept-agreement-request.logic';
+export { useCancelMarketplaceAgreement } from './use-cancel-marketplace-agreement.logic';
+export { useSearchMarketplaceListings } from './use-search-marketplace-listings.logic';
+export { useGetMarketplaceListing } from './use-get-marketplace-listing.logic';
+export { useMarketplaceFacets } from './use-marketplace-facets.logic';
+export { useResolveAwsPublishedAmi } from './resolve-aws-published-ami.logic';

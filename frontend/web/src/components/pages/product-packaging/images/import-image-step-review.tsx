@@ -42,6 +42,12 @@ export const ImportImageStepReview: FC<Props> = ({
           {i18n.externallyManagedAlert}
         </Alert>
       }
+      {imageSource === 'MARKETPLACE_PRODUCT'
+        && selectedSubscription?.newerVersionAvailable &&
+        <Alert type="info" data-test="update-flow-alert">
+          {i18n.updateFlowAlert}
+        </Alert>
+      }
       <Container header={
         <Header variant="h3" actions={editButton(STEP_SOURCE)}>
           {`Step 1: ${i18n.step1Title}`}
@@ -60,10 +66,7 @@ export const ImportImageStepReview: FC<Props> = ({
       }>
         <ColumnLayout columns={2} variant="text-grid">
           <Box variant="awsui-key-label">{i18n.reviewAmiId}</Box>
-          <Box>
-            {imageSource === 'MARKETPLACE_PRODUCT'
-              ? selectedSubscription?.hubRegionAmiId : amiId}
-          </Box>
+          <Box>{amiId}</Box>
         </ColumnLayout>
       </Container>
 
