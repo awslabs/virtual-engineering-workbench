@@ -431,6 +431,14 @@ class GetProvisionedProductUserSecretResponse(BaseModel):
     password: Optional[str] = Field(None, description="User password", title="Password")
 
 
+class GetProvisionedProductSessionCredentialsResponse(BaseModel):
+    accessKeyId: str = Field(..., description="AWS access key id", title="AccessKeyId")
+    secretAccessKey: str = Field(..., description="AWS secret access key", title="SecretAccessKey")
+    sessionToken: str = Field(..., description="AWS session token", title="SessionToken")
+    instanceId: str = Field(..., description="Instance the credentials can start a session on", title="InstanceId")
+    region: str = Field(..., description="Region of the instance", title="Region")
+
+
 class ProvisioningSubnet(BaseModel):
     subnetId: Optional[str] = Field(None, description="Subnet ID", title="SubnetID")
     cidrBlock: Optional[str] = Field(None, description="Subnet CIDR block", title="CidrBlock")

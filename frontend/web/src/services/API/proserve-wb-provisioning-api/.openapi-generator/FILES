@@ -16,6 +16,7 @@ models/GetProductVersionResponse.ts
 models/GetProductVersionResponseMetadataItem.ts
 models/GetProvisionedProductResponse.ts
 models/GetProvisionedProductSSHKeyResponse.ts
+models/GetProvisionedProductSessionCredentialsResponse.ts
 models/GetProvisionedProductUserSecretResponse.ts
 models/GetProvisionedProductsResponse.ts
 models/GetProvisioningLimitResponse.ts

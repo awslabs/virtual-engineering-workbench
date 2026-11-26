@@ -4,6 +4,7 @@ Once your product is in **Running** state, there are up to three ways to connect
 
 - **DCV** appears only when the product's `DCVConnectionOptions` feature toggle is on (set in the product template's `FeatureToggles` output, or globally). The product also needs the Amazon DCV component in its image. Example products such as [`examples/freertos`](../examples/freertos/product.yaml) do not enable it.
 - **SSH** appears only when the deployment allows it. The `SSH_CONNECTION_OPTION` setting in `config.env` controls this and defaults to `"true"`.
+- **[Session Manager](#session-manager)** appears only when the `SessionManagerConnectionOption` feature toggle is on. It gives you a terminal without an SSH key.
 - **RDP** appears only when the `RDPConnectionOption` feature toggle is on.
 
 If you see no connection option, ask your administrator which of these is set.
@@ -49,3 +50,17 @@ For terminal-only access — useful for virtual targets and headless workloads.
    ```
 
    Replace `ubuntu` with the appropriate user if your product runs a different OS (e.g., `ec2-user` for Amazon Linux, `Administrator` for Windows via SSH).
+
+## Session Manager
+
+A terminal through AWS Systems Manager. It needs no SSH key and no open port, and you don't need an AWS account.
+
+1. Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) and its [Session Manager plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
+2. Go to **My workbenches** or **My virtual targets**.
+3. Select your product and choose **Log in**.
+4. Choose **Session Manager**, choose **Continue**, then choose **Copy command**.
+5. Paste the command into a terminal on macOS, Linux, or WSL. Its credentials expire after an hour; get a new command after that.
+
+The shell starts as `ssm-user`. Run `sudo -iu ubuntu`, or the product's own user, to switch.
+
+Administrators turn the option on in the provisioning API's feature toggles parameter, `/<prefix>-provisioning-api-<environment>/feature-toggles`, with an entry for `SessionManagerConnectionOption`. Set `enabled` to `true` for everyone, or list upper-case user IDs in `userOverrides` to try it with a few users first.

@@ -37,6 +37,12 @@ It is intended to prevent users from uploading production data to the workbenche
   },
   {
     version: '1.0.0',
+    feature: 'SessionManagerConnectionOption',
+    description: 'Allows users to open a shell on a provisioned product through Session Manager.',
+    enabled: false,
+  },
+  {
+    version: '1.0.0',
     feature: 'ExperimentalWorkbench',
     description: 'Allows users to provision an experimental workbench',
     enabled: false,

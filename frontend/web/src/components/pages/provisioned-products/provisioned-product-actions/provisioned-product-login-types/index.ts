@@ -5,3 +5,4 @@ export * from './dcv-browser-login-type';
 export * from './dcv-file-login-type';
 export * from './rdp-login-type';
 export * from './ssh-login-type';
+export * from './session-manager-login-type';
