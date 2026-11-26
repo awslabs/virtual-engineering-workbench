@@ -21,10 +21,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
 
       # setup-python has no Amazon Linux 2 (arm64) build — let uv provide Python
       # via its OS-agnostic standalone builds (same approach as local dev).
@@ -32,7 +32,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Set up Java (Corretto 21, for DynamoDB Local)
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
         with:
           distribution: corretto
           java-version: "21"
@@ -48,6 +48,9 @@ jobs:
       - name: Security scan (bandit — fail on medium+ severity)
         working-directory: backend
         run: uv run bandit -r app --ini bandit.ini -ll -q
+
+      - name: Dependency update coverage
+        run: uv run --no-project --python 3.13 python scripts/check-dependency-coverage.py
 
       - name: Lambda lockfiles match compile.sh
         working-directory: backend
@@ -80,10 +83,10 @@ jobs:
     env:
       COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Node 24
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
 
@@ -122,10 +125,10 @@ jobs:
     env:
       COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Node 24
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
 
@@ -158,10 +161,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
 
       - name: Checkov (CFN templates, Dockerfiles, workflows)
         run: uvx --from 'checkov==3.3.8' checkov -d . --config-file .checkov.yaml

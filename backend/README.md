@@ -226,7 +226,7 @@ app/{context_name}/
     └── requirements.in
 ```
 
-> **Important**: remember to append `app/{context_name}/libraries/requirements.in` to the `REQUIREMENTS_FILES` variable in `scripts/compile.sh`, and its directory to the `uv` entry in `.github/dependabot.yml`
+> **Important**: remember to append `app/{context_name}/libraries/requirements.in` to the `REQUIREMENTS_FILES` variable in `scripts/compile.sh`. The `uv` entry in `.github/dependabot.yml` covers every `app/*/libraries` folder through a glob, and `scripts/check-dependency-coverage.py` fails CI when a `requirements.in` is missing from either.
 
 Then implement the three layers:
 
