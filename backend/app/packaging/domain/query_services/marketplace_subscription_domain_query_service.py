@@ -1,6 +1,7 @@
 import logging
 
 from app.packaging.domain.model.image.image_constants import ImageSource, SubscriptionOwnership
+from app.packaging.domain.model.recipe.recipe import RecipeArchitecture, RecipePlatform
 from app.packaging.domain.ports.image_query_service import ImageQueryService
 from app.packaging.domain.ports.marketplace_agreement_service import MarketplaceAgreementService
 from app.packaging.domain.ports.marketplace_ami_service import MarketplaceAmiService
@@ -15,6 +16,32 @@ from app.packaging.domain.value_objects.shared import project_id_value_object
 
 ACTIVE_LICENSE_STATUSES = ("AVAILABLE", "ACTIVE")
 CREATE_GRANT = "CreateGrant"
+EC2_ARCHITECTURES = {"x86_64": RecipeArchitecture.Amd64.value, "arm64": RecipeArchitecture.Arm64.value}
+
+
+def to_recipe_platform(ec2_platform_details: str | None) -> str:
+    """EC2 PlatformDetails ("Linux/UNIX", "Windows", "Windows BYOL", ...) in recipe terms."""
+    return (
+        RecipePlatform.Windows.value
+        if (ec2_platform_details or "").startswith("Windows")
+        else RecipePlatform.Linux.value
+    )
+
+
+def to_recipe_architecture(ec2_architecture: str | None) -> str | None:
+    return EC2_ARCHITECTURES.get(ec2_architecture or "")
+
+
+def classify_ownership(license: ReceivedLicense, agreement: MarketplaceAgreement | None) -> SubscriptionOwnership:
+    """VEW can re-grant a license it bought itself (agreement) whose license allows grants.
+
+    No organization-level condition: AWS accepted grants from a plain member hub, with no
+    delegated administrator and the Organizations integration off (live, Nov 2026). If AWS
+    refuses a grant anyway, publishing falls back to the external-grant check.
+    """
+    if CREATE_GRANT in license.allowedOperations and agreement is not None:
+        return SubscriptionOwnership.VEW_MANAGED
+    return SubscriptionOwnership.EXTERNALLY_MANAGED
 
 
 class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryService):
@@ -167,13 +194,7 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
 
     @staticmethod
     def _classify(license: ReceivedLicense, agreement: MarketplaceAgreement | None) -> SubscriptionOwnership:
-        # The hub subscribed itself (agreement) and its licence allows re-granting. No
-        # organization-level condition: AWS accepted grants from a plain member hub, with
-        # no delegated administrator and the Organizations integration off (live, Nov 2026).
-        # If AWS refuses a grant anyway, publishing falls back to the external-grant check.
-        if CREATE_GRANT in license.allowedOperations and agreement is not None:
-            return SubscriptionOwnership.VEW_MANAGED
-        return SubscriptionOwnership.EXTERNALLY_MANAGED
+        return classify_ownership(license, agreement)
 
     @staticmethod
     def _build_subscription(
@@ -197,6 +218,9 @@ class MarketplaceSubscriptionDomainQueryService(MarketplaceSubscriptionQueryServ
             productName=license.productName or hub_ami.name or "",
             productCode=hub_ami.productCode,
             productId=license.productSku,
+            platform=to_recipe_platform(hub_ami.platform),
+            architecture=to_recipe_architecture(hub_ami.architecture),
+            rootDeviceName=hub_ami.rootDeviceName,
             hubRegionAmiId=effective_hub_ami_id,
             regionalAmiIds=regional_ami_ids,
             licenseConfigurationArn=license.licenseArn,

@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import boto3
@@ -11,6 +12,7 @@ from app.packaging.adapters.exceptions import adapter_exception
 from app.packaging.domain.ports.marketplace_agreement_service import MarketplaceAgreementService
 from app.packaging.domain.ports.marketplace_ami_service import MarketplaceAmiService
 from app.packaging.domain.ports.marketplace_license_service import MarketplaceLicenseService
+from app.packaging.domain.ports.marketplace_offer_service import MarketplaceOfferService
 from app.packaging.domain.read_models.marketplace_agreement import MarketplaceAgreement
 from app.packaging.domain.read_models.marketplace_ami import MarketplaceAmi
 from app.packaging.domain.read_models.received_license import ReceivedLicense
@@ -23,12 +25,17 @@ EC2 = "ec2"
 GRACEFUL_DEGRADATION_ERROR_CODES = ("AccessDeniedException", "AuthorizationException")
 LICENSE_MANAGER = "license-manager"
 MARKETPLACE_AGREEMENT = "marketplace-agreement"
+MARKETPLACE_DISCOVERY = "marketplace-discovery"
+# Usage-based AMI pricing is priced per instance type: the dimension keys are the supported types.
+INSTANCE_TYPE_DIMENSION = re.compile(r"^[a-z][a-z0-9-]*\.[a-z0-9-]+$")
 MARKETPLACE_REGION = "us-east-1"
 MARKETPLACE_CATALOG_NAME = "AWSMarketplace"
 MARKETPLACE_OWNER = "aws-marketplace"
 
 
-class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmiService, MarketplaceLicenseService):
+class AwsMarketplaceDiscoveryService(
+    MarketplaceAgreementService, MarketplaceAmiService, MarketplaceLicenseService, MarketplaceOfferService
+):
     def __init__(self, region: str, boto_session: Any = None):
         self._region = region
         self._boto_session = boto_session
@@ -39,6 +46,43 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
             if self._boto_session
             else boto3.client(MARKETPLACE_AGREEMENT, region_name=MARKETPLACE_REGION)
         )
+
+    def __get_discovery_client(self) -> Any:
+        return (
+            self._boto_session.client(MARKETPLACE_DISCOVERY, region_name=MARKETPLACE_REGION)
+            if self._boto_session
+            else boto3.client(MARKETPLACE_DISCOVERY, region_name=MARKETPLACE_REGION)
+        )
+
+    def list_supported_instance_types(self, product_id: str) -> list[str]:
+        try:
+            client = self.__get_discovery_client()
+            offer_ids = []
+            kwargs: dict = {"filters": [{"filterType": "PRODUCT_ID", "filterValues": [product_id]}]}
+            while True:
+                response = client.list_purchase_options(**kwargs)
+                offer_ids += [
+                    o["purchaseOptionId"]
+                    for o in response.get("purchaseOptions", [])
+                    if o.get("purchaseOptionType") == "OFFER"
+                ]
+                if not response.get("nextToken"):
+                    break
+                kwargs["nextToken"] = response["nextToken"]
+            instance_types: set[str] = set()
+            for offer_id in offer_ids:
+                for term in client.get_offer_terms(offerId=offer_id).get("offerTerms", []):
+                    for rate_card in (term.get("usageBasedPricingTerm") or {}).get("rateCards", []):
+                        instance_types.update(
+                            c["dimensionKey"]
+                            for c in rate_card.get("rateCard", [])
+                            if INSTANCE_TYPE_DIMENSION.match(c.get("dimensionKey", ""))
+                        )
+        except ClientError as e:
+            # Unknown restriction: callers then let every instance type through.
+            logger.warning("Could not read the offer terms of %s, instance types are not checked: %s", product_id, e)
+            return []
+        return sorted(instance_types)
 
     def __get_lm_client(self) -> LicenseManagerClient:
         return (
@@ -282,4 +326,5 @@ class AwsMarketplaceDiscoveryService(MarketplaceAgreementService, MarketplaceAmi
             region=region,
             creationDate=img.get("CreationDate"),
             deprecationTime=img.get("DeprecationTime"),
+            rootDeviceName=img.get("RootDeviceName"),
         )

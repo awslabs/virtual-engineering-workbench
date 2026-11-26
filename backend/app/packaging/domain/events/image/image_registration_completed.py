@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import ConfigDict, Field
 
@@ -21,4 +21,6 @@ class ImageRegistrationCompleted(message_bus.Message):
     architecture: str = Field(..., title="architecture")
     integrations: list[str] = Field([], title="integrations")
     createDate: str = Field(..., title="createDate")
+    # License data when the image was built on an AWS Marketplace AMI.
+    marketplaceMetadata: Optional[dict] = Field(None, title="marketplaceMetadata")
     model_config = ConfigDict(populate_by_name=True)

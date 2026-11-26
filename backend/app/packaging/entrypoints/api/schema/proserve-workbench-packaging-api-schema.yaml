@@ -4714,6 +4714,14 @@ components:
           title: LastUpdatedBy
           type: string
           description: Last Update By
+        parentImageProductId:
+          title: ParentImageProductId
+          type: string
+          description: AWS Marketplace AMI product the recipe version builds on, if any
+        parentImageId:
+          title: ParentImageId
+          type: string
+          description: Imported AWS-published image the recipe version builds on, if any
     CreateRecipeVersionRequest:
       title: CreateRecipeVersionRequest
       type: object
@@ -4747,6 +4755,18 @@ components:
           type: array
           items:
             type: string
+        parentImageProductId:
+          title: ParentImageProductId
+          type: string
+          maxLength: 64
+          pattern: ^(prod-[a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$
+          description: AWS Marketplace AMI product to build on instead of the platform default parent image
+        parentImageId:
+          title: ParentImageId
+          type: string
+          maxLength: 64
+          pattern: ^image-[a-z0-9]+$
+          description: Imported AWS-published image (AWS_PUBLISHED_AMI) to build on, instead of a Marketplace product
     CreateRecipeVersionResponse:
       title: CreateRecipeVersionResponse
       type: object
@@ -6147,6 +6167,18 @@ components:
           type: array
           items:
             type: string
+        parentImageProductId:
+          title: ParentImageProductId
+          type: string
+          maxLength: 64
+          pattern: ^(prod-[a-z0-9]+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$
+          description: AWS Marketplace AMI product to build on; empty string for the platform default parent image; omit to keep the current parent image
+        parentImageId:
+          title: ParentImageId
+          type: string
+          maxLength: 64
+          pattern: ^(image-[a-z0-9]+)?$
+          description: Imported AWS-published image (AWS_PUBLISHED_AMI) to build on; empty string for the platform default parent image; omit to keep the current parent image
     UpdateRecipeVersionResponse:
       title: CreateRecipeVersionResponse
       type: object
@@ -6525,6 +6557,18 @@ components:
           title: UpdateAvailable
           type: boolean
           description: Whether a newer marketplace AMI version is available for this image
+        imageName:
+          title: ImageName
+          type: string
+          description: Name given to an imported image
+        platform:
+          title: Platform
+          type: string
+          description: Platform of the image (Linux/Windows)
+        architecture:
+          title: Architecture
+          type: string
+          description: Architecture of the image (amd64/arm64)
         createDate:
           title: CreateDate
           type: string
@@ -6749,6 +6793,15 @@ components:
           title: ProductId
           type: string
           description: AWS Marketplace product id (prod-...) of the subscription.
+        platform:
+          title: Platform
+          type: string
+        architecture:
+          title: Architecture
+          type: string
+        rootDeviceName:
+          title: RootDeviceName
+          type: string
         hubRegionAmiId:
           title: HubRegionAmiId
           type: string

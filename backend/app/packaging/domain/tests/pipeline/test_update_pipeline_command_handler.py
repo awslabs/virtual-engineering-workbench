@@ -655,3 +655,45 @@ def test_update_pipeline_command_should_raise_an_exception_if_pipeline_status_in
     assertpy.assert_that(str(exec_info.value)).is_equal_to(
         f"Pipeline status should be CREATED or FAILED to allow update, but is {status.value}."
     )
+
+
+def test_update_pipeline_to_a_marketplace_recipe_version_checks_the_existing_build_types(
+    get_update_pipeline_command,
+    get_pipeline_entity,
+    get_test_recipe_version_with_specific_version_name_and_status,
+    message_bus_mock,
+    recipe_version_query_service_mock,
+    pipeline_query_service_mock,
+    get_test_recipe_version_id,
+    uow_mock,
+    recipe_query_service_mock,
+    mock_recipe_object,
+    pipeline_service_mock,
+):
+    # ARRANGE: only the recipe version changes; its Marketplace parent does not run on the pipeline's types
+    update_pipeline_command = get_update_pipeline_command(recipe_version_id=get_test_recipe_version_id)
+    update_pipeline_command.pipelineSchedule = None
+    pipeline_entity = get_pipeline_entity(pipeline_id="pipe-11111111")
+    pipeline_entity.status = pipeline.PipelineStatus.Created
+    recipe_version_entity = get_test_recipe_version_with_specific_version_name_and_status(
+        status=recipe_version.RecipeVersionStatus.Released, version_name="1.1.0"
+    )
+    recipe_version_entity.parentImageProductId = "prod-ib2w5aw4ynhey"
+    recipe_version_entity.parentImageSupportedInstanceTypes = ["m7i.2xlarge"]
+    pipeline_query_service_mock.get_pipeline.side_effect = [pipeline_entity]
+    recipe_version_query_service_mock.get_recipe_version.return_value = recipe_version_entity
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    pipeline_service_mock.get_pipeline_allowed_build_instance_types.return_value = TEST_BUILD_INSTANCE_TYPES
+
+    # ACT / ASSERT
+    with pytest.raises(domain_exception.DomainException, match="prod-ib2w5aw4ynhey does not support instance"):
+        update_pipeline_command_handler.handle(
+            command=update_pipeline_command,
+            message_bus=message_bus_mock,
+            recipe_version_qry_srv=recipe_version_query_service_mock,
+            pipeline_qry_srv=pipeline_query_service_mock,
+            recipe_qry_srv=recipe_query_service_mock,
+            pipeline_srv=pipeline_service_mock,
+            uow=uow_mock,
+        )
+    message_bus_mock.publish.assert_not_called()

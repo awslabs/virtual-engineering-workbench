@@ -135,6 +135,15 @@ class AmiSharingStateMachine(constructs.Construct):
             },
             result_path="$.error",
         )
+        pass_launch_permission_denied_after_share_error: sfn.Pass = sfn.Pass(
+            self,
+            "PassLaunchPermissionDeniedAfterShareError",
+            parameters={
+                "Error": "LaunchPermissionDenied",
+                "Cause": "The target account cannot launch the shared or copied AMI built on a Marketplace AMI.",
+            },
+            result_path="$.error",
+        )
 
         # Fail ami sharing lambda
         fail_ami_sharing_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
@@ -183,6 +192,7 @@ class AmiSharingStateMachine(constructs.Construct):
                 "licenseArn.$": "$.Payload.licenseArn",
                 "homeRegion.$": "$.Payload.homeRegion",
                 "grantName.$": "$.Payload.grantName",
+                "grantDecision.$": "$.Payload.grantDecision",
             },
             result_path="$.decideActionResponse",
         )
@@ -442,6 +452,167 @@ class AmiSharingStateMachine(constructs.Construct):
         verify_copy_choice.otherwise(verify_copy_wait)
         verify_copy_wait.next(verify_copy_lambda)
 
+        # Our own AMIs built on an AWS Marketplace AMI: after SHARE/COPY/DONE the spoke also needs the
+        # Marketplace license. Separate state instances, as each state can only have one next state.
+        create_license_grant_after_share_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "CreateLicenseGrantAfterShareLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "CreateLicenseGrantRequest",
+                    "productId.$": "$.productId",
+                    "versionId.$": "$.versionId",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "imageId.$": "$.decideActionResponse.imageId",
+                    "grantName.$": "$.decideActionResponse.grantName",
+                    "projectId.$": "$.decideActionResponse.projectId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "grantId.$": "$.Payload.grantId",
+                "grantArn.$": "$.Payload.grantArn",
+                "homeRegion.$": "$.Payload.homeRegion",
+            },
+            result_path="$.createLicenseGrantResponse",
+        )
+
+        accept_license_grant_after_share_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "AcceptLicenseGrantAfterShareLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "AcceptLicenseGrantRequest",
+                    "grantId.$": "$.createLicenseGrantResponse.grantId",
+                    "grantArn.$": "$.createLicenseGrantResponse.grantArn",
+                    "homeRegion.$": "$.createLicenseGrantResponse.homeRegion",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "projectId.$": "$.decideActionResponse.projectId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+            },
+            result_path="$.acceptLicenseGrantResponse",
+        )
+        accept_license_grant_after_share_lambda.add_retry(
+            max_attempts=3,
+            interval=aws_cdk.Duration.seconds(10),
+        )
+
+        verify_external_grant_after_share_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "VerifyExternalGrantAfterShareLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "VerifyExternalGrantRequest",
+                    "productId.$": "$.productId",
+                    "versionId.$": "$.versionId",
+                    "awsAccountId.$": "$.awsAccountId",
+                    "amiId.$": "$.copiedAmi.copiedAmiId",
+                    "region.$": "$.decideActionResponse.region",
+                    "licenseArn.$": "$.decideActionResponse.licenseArn",
+                    "homeRegion.$": "$.decideActionResponse.homeRegion",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "grantVerified.$": "$.Payload.grantVerified",
+            },
+            result_path="$.verifyExternalGrantResponse",
+        )
+        verify_external_grant_after_share_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # Same safety net as the LICENSE_GRANT path: if AWS refuses to create or deliver the
+        # grant for an image built on a Marketplace AMI, check for an external grant instead
+        # of failing the version. The specific catch must come before the catch-all.
+        for grant_step in (create_license_grant_after_share_lambda, accept_license_grant_after_share_lambda):
+            grant_step.add_catch(
+                verify_external_grant_after_share_lambda,
+                errors=[LICENSE_GRANT_REJECTED_ERROR],
+                result_path="$.licenseGrantError",
+            )
+            grant_step.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # The spoke launches the shared or copied AMI, so that is the one to check. This only proves the
+        # spoke can see the AMI; the license itself is covered by the grant steps before it.
+        verify_launch_permission_after_share_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
+            self,
+            "VerifyLaunchPermissionAfterShareLambda",
+            lambda_function=ami_sharing_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "eventType": "VerifyLicenseGrantRequest",
+                    "amiId.$": "$.copiedAmi.copiedAmiId",
+                    "region.$": "$.decideActionResponse.region",
+                    "awsAccountId.$": "$.awsAccountId",
+                }
+            ),
+            result_selector={
+                "eventType.$": "$.Payload.eventType",
+                "launchPermissionVerified.$": "$.Payload.isAccessible",
+            },
+            result_path="$.verifyLaunchPermissionResponse",
+            retry_on_service_exceptions=False,
+        )
+        verify_launch_permission_after_share_lambda.add_retry(
+            max_attempts=3,
+            interval=aws_cdk.Duration.seconds(30),
+        )
+        verify_launch_permission_after_share_lambda.add_catch(fail_ami_sharing_lambda, result_path="$.error")
+
+        # The lambda reports "not accessible" as false rather than raising, so gate on the result.
+        pass_launch_permission_verified_after_share: sfn.Pass = sfn.Pass(self, "PassLaunchPermissionVerifiedAfterShare")
+        verify_launch_permission_after_share_choice: sfn.Choice = sfn.Choice(
+            self, "VerifyLaunchPermissionAfterShareChoice"
+        )
+        verify_launch_permission_after_share_choice.when(
+            sfn.Condition.boolean_equals("$.verifyLaunchPermissionResponse.launchPermissionVerified", True),
+            pass_launch_permission_verified_after_share,
+        )
+        verify_launch_permission_after_share_choice.otherwise(pass_launch_permission_denied_after_share_error)
+        chain_verify_launch_permission_after_share = sfn.Chain.start(verify_launch_permission_after_share_lambda).next(
+            verify_launch_permission_after_share_choice.afterwards(include_otherwise=False)
+        )
+
+        verify_external_grant_after_share_choice: sfn.Choice = sfn.Choice(self, "VerifyExternalGrantAfterShareChoice")
+        verify_external_grant_after_share_choice.when(
+            sfn.Condition.boolean_equals("$.verifyExternalGrantResponse.grantVerified", True),
+            chain_verify_launch_permission_after_share,
+        )
+        verify_external_grant_after_share_choice.otherwise(pass_grant_not_verified_error)
+
+        pass_no_grant_after_share: sfn.Pass = sfn.Pass(self, "PassNoGrantAfterShare")
+
+        chain_license_grant_after_share = (
+            sfn.Chain.start(create_license_grant_after_share_lambda)
+            .next(accept_license_grant_after_share_lambda)
+            .next(chain_verify_launch_permission_after_share)
+        )
+        chain_verify_external_grant_after_share = sfn.Chain.start(verify_external_grant_after_share_lambda).next(
+            verify_external_grant_after_share_choice.afterwards(include_otherwise=False)
+        )
+
+        grant_after_share_choice: sfn.Choice = sfn.Choice(self, "GrantAfterShareChoice")
+        grant_after_share_choice.when(
+            sfn.Condition.and_(
+                sfn.Condition.is_string("$.decideActionResponse.grantDecision"),
+                sfn.Condition.string_equals("$.decideActionResponse.grantDecision", "LICENSE_GRANT"),
+            ),
+            chain_license_grant_after_share,
+        )
+        grant_after_share_choice.when(
+            sfn.Condition.and_(
+                sfn.Condition.is_string("$.decideActionResponse.grantDecision"),
+                sfn.Condition.string_equals("$.decideActionResponse.grantDecision", "VERIFY_EXTERNAL_GRANT"),
+            ),
+            chain_verify_external_grant_after_share,
+        )
+        grant_after_share_choice.otherwise(pass_no_grant_after_share)
+
         # Define the 3 chains: COPY/SHARE/DONE
         chain_copy = (
             sfn.Chain.start(copy_ami_lambda)
@@ -477,6 +648,7 @@ class AmiSharingStateMachine(constructs.Construct):
 
         pass_grant_not_verified_error.next(fail_ami_sharing_lambda)
         pass_launch_permission_denied_error.next(fail_ami_sharing_lambda)
+        pass_launch_permission_denied_after_share_error.next(fail_ami_sharing_lambda)
         pass_unexpected_decision_error.next(fail_ami_sharing_lambda)
         fail_ami_sharing_lambda.next(fail_state)
 
@@ -518,6 +690,7 @@ class AmiSharingStateMachine(constructs.Construct):
                 .next(check_old_version_id_choice.afterwards())
                 .next(decide_action_lambda)
                 .next(decide_action_choice.afterwards())
+                .next(grant_after_share_choice.afterwards())
                 .next(succeed_ami_sharing_lambda)
                 .next(success_state)
             ),

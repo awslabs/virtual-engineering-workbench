@@ -22,6 +22,9 @@ class DecideActionResponse(BaseModel):
     license_arn: Optional[str] = Field(None, alias="licenseArn")
     home_region: Optional[str] = Field(None, alias="homeRegion")
     grant_name: Optional[str] = Field(None, alias="grantName")
+    # LICENSE_GRANT/VERIFY_EXTERNAL_GRANT after the share/copy, for images built on a Marketplace AMI.
+    # Always in the response (null when unused): the state machine's ResultSelector needs the key.
+    grant_decision: Optional[str] = Field(None, alias="grantDecision")
 
 
 class CopyAmiRequest(BaseModel):

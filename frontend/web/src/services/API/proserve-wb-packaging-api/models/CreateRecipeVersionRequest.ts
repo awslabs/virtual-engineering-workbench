@@ -56,6 +56,18 @@ export interface CreateRecipeVersionRequest {
      * @memberof CreateRecipeVersionRequest
      */
     recipeVersionIntegrations?: Array<string>;
+    /**
+     * AWS Marketplace AMI product to build on instead of the platform default parent image
+     * @type {string}
+     * @memberof CreateRecipeVersionRequest
+     */
+    parentImageProductId?: string;
+    /**
+     * Imported AWS-published image (AWS_PUBLISHED_AMI) to build on, instead of a Marketplace product
+     * @type {string}
+     * @memberof CreateRecipeVersionRequest
+     */
+    parentImageId?: string;
 }
 
 /**
@@ -86,6 +98,8 @@ export function CreateRecipeVersionRequestFromJSONTyped(json: any, ignoreDiscrim
         'recipeVersionReleaseType': json['recipeVersionReleaseType'],
         'recipeVersionVolumeSize': json['recipeVersionVolumeSize'],
         'recipeVersionIntegrations': !exists(json, 'recipeVersionIntegrations') ? undefined : json['recipeVersionIntegrations'],
+        'parentImageProductId': !exists(json, 'parentImageProductId') ? undefined : json['parentImageProductId'],
+        'parentImageId': !exists(json, 'parentImageId') ? undefined : json['parentImageId'],
     };
 }
 
@@ -103,5 +117,7 @@ export function CreateRecipeVersionRequestToJSON(value?: CreateRecipeVersionRequ
         'recipeVersionReleaseType': value.recipeVersionReleaseType,
         'recipeVersionVolumeSize': value.recipeVersionVolumeSize,
         'recipeVersionIntegrations': value.recipeVersionIntegrations,
+        'parentImageProductId': value.parentImageProductId,
+        'parentImageId': value.parentImageId,
     };
 }

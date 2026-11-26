@@ -450,3 +450,118 @@ def test_historical_marketplace_metadata_defaults_to_not_grant_capable():
     )
 
     assertpy.assert_that(metadata.licenseGrantAllowed).is_false()
+
+
+def _pipeline_version_on_marketplace_ami(
+    region: str, ownership: str, license_grant_allowed: bool = False
+) -> version.Version:
+    """Our own pipeline image (no imageSource) that carries its Marketplace parent's licence."""
+    from app.publishing.domain.model.marketplace_metadata import MarketplaceMetadata
+
+    entity = _version(region)
+    entity.marketplaceMetadata = MarketplaceMetadata(
+        productCode="pc-1",
+        subscriptionOwnership=ownership,
+        licenseGrantAllowed=license_grant_allowed,
+        licenseConfigurationArn="arn:aws:license-manager:us-east-1:111111111111:license:l-1",
+        homeRegion="us-east-1",
+    )
+    return entity
+
+
+def _decide_for(mock_unit_of_work, image_svc_mock, shared_amis_qry_svc_mock):
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+    )
+    return domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+
+@pytest.mark.parametrize(
+    "is_ami_shared,region,decision",
+    (
+        (False, TEST_ORIGINAL_AMI_REGION, shared_amis_domain_query_service.ShareAmiDecision.Share),
+        (False, "eu-west-3", shared_amis_domain_query_service.ShareAmiDecision.Copy),
+        (True, "eu-west-3", shared_amis_domain_query_service.ShareAmiDecision.Done),
+    ),
+)
+@pytest.mark.parametrize(
+    "ownership,grant_decision",
+    (
+        ("VEW_MANAGED", shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant),
+        ("EXTERNALLY_MANAGED", shared_amis_domain_query_service.ShareAmiDecision.VerifyExternalGrant),
+    ),
+)
+def test_pipeline_image_on_marketplace_ami_is_shared_and_then_granted(
+    is_ami_shared,
+    region,
+    decision,
+    ownership,
+    grant_decision,
+    image_svc_mock,
+    shared_amis_qry_svc_mock,
+    mock_unit_of_work,
+    mock_version_repo,
+):
+    # ARRANGE
+    mock_version_repo.get.return_value = _pipeline_version_on_marketplace_ami(region, ownership)
+    shared_amis_qry_svc_mock.get_shared_amis.return_value = [_shared_ami(region)] if is_ami_shared else []
+
+    # ACT
+    result = _decide_for(mock_unit_of_work, image_svc_mock, shared_amis_qry_svc_mock)
+
+    # ASSERT: the usual share/copy decision, plus the grant to run afterwards
+    assertpy.assert_that(result.decision).is_equal_to(decision)
+    assertpy.assert_that(result.original_ami_id).is_equal_to("ami-023c04780e65e723c")
+    assertpy.assert_that(result.copied_ami_id).is_equal_to("ami-copy" if is_ami_shared else None)
+    assertpy.assert_that(result.grant_decision).is_equal_to(grant_decision)
+    assertpy.assert_that(result.image_id).is_equal_to("ami-023c04780e65e723c")
+    assertpy.assert_that(result.license_arn).is_equal_to("arn:aws:license-manager:us-east-1:111111111111:license:l-1")
+    assertpy.assert_that(result.grant_name).is_equal_to("VEW-prod-11111111-123456789012")
+    assertpy.assert_that(result.project_id).is_equal_to("proj-12345")
+
+
+def test_pipeline_image_with_unknown_ownership_gets_no_grant(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    mock_version_repo.get.return_value = _pipeline_version_on_marketplace_ami(TEST_ORIGINAL_AMI_REGION, "SOMETHING")
+
+    result = _decide_for(mock_unit_of_work, image_svc_mock, shared_amis_qry_svc_mock)
+
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.Share)
+    assertpy.assert_that(result.grant_decision).is_none()
+
+
+def test_pipeline_image_re_checks_an_externally_managed_parent_like_an_import(
+    image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work, mock_version_repo
+):
+    """The hub's licence allows CreateGrant and the spoke has no grant, so the hub grants it."""
+    mock_version_repo.get.return_value = _pipeline_version_on_marketplace_ami(
+        TEST_ORIGINAL_AMI_REGION, "EXTERNALLY_MANAGED", license_grant_allowed=True
+    )
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+        license_manager_svc=_lm_service(has_grant=False, can_distribute=True),
+    )
+
+    result = domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str("WORKBENCH"),
+    )
+
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.Share)
+    assertpy.assert_that(result.grant_decision).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant
+    )

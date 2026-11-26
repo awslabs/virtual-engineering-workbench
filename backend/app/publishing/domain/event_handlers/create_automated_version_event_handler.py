@@ -167,6 +167,7 @@ def _get_additional_attributes(
     platform: str,
     architecture: str,
     integrations: list[str],
+    marketplace_metadata: dict | None = None,
 ) -> dict:
 
     additional_attributes = {}
@@ -180,6 +181,9 @@ def _get_additional_attributes(
         additional_attributes["platform"] = platform
         additional_attributes["architecture"] = architecture
         additional_attributes["integrations"] = integrations
+        if marketplace_metadata:
+            # Built on an AWS Marketplace AMI: publishing grants the license to spoke accounts.
+            additional_attributes["marketplaceMetadata"] = marketplace_metadata
 
     return additional_attributes
 
@@ -260,6 +264,7 @@ def handle(
     product_rc_version_limit_param_name: str,
     stack_srv: iac_service.IACService,
     file_service: template_service.TemplateService,
+    marketplace_metadata: dict | None = None,
 ) -> None:
     try:
         logger.info(f"Starting automated version creation for AMI {ami_id}, product {product_id}, project {project_id}")
@@ -301,6 +306,7 @@ def handle(
             platform,
             architecture,
             integrations,
+            marketplace_metadata,
         )
 
         for portf in fetched_dev_portfolios:
