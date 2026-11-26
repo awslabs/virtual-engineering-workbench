@@ -506,7 +506,11 @@ def test_get_provisioned_product_failure_reason_falls_back_to_the_record_errors(
         "StackEvents": [{"LogicalResourceId": "Role", "ResourceStatus": "CREATE_COMPLETE"}]
     }
     record = dict(mock_describe_record_request.return_value)
-    record["RecordErrors"] = [{"Code": "ResourceNotFound", "Description": "The launch constraint role is missing"}]
+    # DescribeRecord returns RecordErrors inside RecordDetail, not at the top level.
+    record["RecordDetail"] = {
+        **record["RecordDetail"],
+        "RecordErrors": [{"Code": "ResourceNotFound", "Description": "The launch constraint role is missing"}],
+    }
     mock_describe_record_request.return_value = record
 
     service = sc_products_service.ServiceCatalogProductsService(
