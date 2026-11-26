@@ -37,13 +37,18 @@ def handler(
     event: api_gateway_authorizer_event.APIGatewayAuthorizerRequestEvent,
     _: typing.LambdaContext,
 ):
-    return dependencies.authorizer.authorize(
-        authorizer.AuthorizationRequest(
-            auth_token=event.get_header_value("Authorization"),
-            api_id=event.request_context.api_id,
-            operation_id=event.request_context.get("operationName"),
-            resource_ids=event.path_parameters,
-            resource=event.method_arn,
-            resource_path=event.request_context.resource_path,
+    try:
+        return dependencies.authorizer.authorize(
+            authorizer.AuthorizationRequest(
+                auth_token=event.get_header_value("Authorization"),
+                api_id=event.request_context.api_id,
+                operation_id=event.request_context.get("operationName"),
+                resource_ids=event.path_parameters,
+                resource=event.method_arn,
+                resource_path=event.request_context.resource_path,
+            )
         )
-    )
+    except authorizer.TokenExpiredError:
+        # API Gateway answers 401 only when the authorizer raises exactly "Unauthorized".
+        # A Deny policy would give 403, and clients refresh their token only on 401.
+        raise Exception("Unauthorized")
