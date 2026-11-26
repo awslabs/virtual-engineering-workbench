@@ -12,7 +12,7 @@ from app.publishing.domain.events import (
     product_version_promotion_started,
 )
 from app.publishing.domain.exceptions import domain_exception
-from app.publishing.domain.model import portfolio, product, version
+from app.publishing.domain.model import marketplace_metadata, portfolio, product, version
 from app.publishing.domain.ports import portfolios_query_service, versions_query_service
 from app.publishing.domain.read_models import component_version_detail
 from app.publishing.domain.value_objects import (
@@ -517,3 +517,52 @@ def test_handle_promote_restored_version_to_prod_raises_error_if_ami_retired(
         )
     assertpy.assert_that(str(error.value)).is_equal_to(error_message)
     mock_unit_of_work.commit.assert_not_called()
+
+
+@freeze_time("2023-06-20")
+@pytest.mark.parametrize("image_source", (None, "MARKETPLACE_PRODUCT"))
+def test_handle_should_carry_marketplace_attributes_to_the_promoted_version(
+    image_source,
+    portfolio_query_service_mock_qa,
+    version_query_service_mock,
+    get_test_version,
+    get_test_product,
+    mock_unit_of_work,
+    mock_version_repo,
+    mock_products_repo,
+    mock_amis_query_service,
+):
+    # ARRANGE
+    metadata = marketplace_metadata.MarketplaceMetadata(
+        productCode="abc123def456ghi",
+        subscriptionOwnership="VEW_MANAGED",
+        licenseConfigurationArn="arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+        homeRegion="us-east-1",
+    )
+    version_query_service_mock.get_product_version_distributions.return_value = [
+        get_test_version().model_copy(update={"imageSource": image_source, "marketplaceMetadata": metadata})
+    ]
+    mock_products_repo.get.return_value = get_test_product()
+
+    # ACT
+    promote_version_command_handler.handle(
+        command=promote_version_command.PromoteVersionCommand(
+            projectId=project_id_value_object.from_str(TEST_PROJECT_ID),
+            productId=product_id_value_object.from_str(TEST_PRODUCT_ID),
+            versionId=version_id_value_object.from_str(TEST_VERSION_ID),
+            createdBy=user_id_value_object.from_str(TEST_USER_ID),
+            userRoles=[user_role_value_object.from_str(VirtualWorkbenchRoles.Admin)],
+            stage=stage_value_object.from_str("QA"),
+        ),
+        uow=mock_unit_of_work,
+        message_bus=mock.create_autospec(spec=message_bus.MessageBus),
+        portf_qry_srv=portfolio_query_service_mock_qa,
+        versions_qry_srv=version_query_service_mock,
+        amis_qry_srv=mock_amis_query_service,
+    )
+
+    # ASSERT
+    promoted_version: version.Version = mock_version_repo.add.call_args[0][0]
+    assertpy.assert_that(promoted_version.stage).is_equal_to("QA")
+    assertpy.assert_that(promoted_version.imageSource).is_equal_to(image_source)
+    assertpy.assert_that(promoted_version.marketplaceMetadata).is_equal_to(metadata)

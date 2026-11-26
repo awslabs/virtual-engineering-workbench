@@ -8,6 +8,7 @@ DECIDE_ACTION_FIELDS = {
     "originalAmiId",
     "copiedAmiId",
     "region",
+    "licenseDecision",
     "imageId",
     "projectId",
     "licenseArn",

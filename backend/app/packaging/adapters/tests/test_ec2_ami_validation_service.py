@@ -39,6 +39,10 @@ def test_should_describe_marketplace_image(mock_moto_calls, get_ami_validation_s
     # ASSERT
     mock_moto_calls["DescribeImages"].assert_called_once_with(ImageIds=[ami_id])
     assertpy.assert_that(result.amiId).is_equal_to(ami_id)
+    assertpy.assert_that(result.rootDeviceName).is_equal_to("/dev/sda1")
+    assertpy.assert_that(result.blockDeviceMappings).is_length(1)
+    assertpy.assert_that(result.blockDeviceMappings[0].deviceName).is_equal_to("/dev/sda1")
+    assertpy.assert_that(result.blockDeviceMappings[0].ebs.volumeSize).is_equal_to(8)
 
 
 def test_should_raise_when_describe_marketplace_image_not_found(mock_moto_calls, get_ami_validation_srv):

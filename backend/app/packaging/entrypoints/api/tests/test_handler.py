@@ -23,7 +23,7 @@ from app.packaging.domain.commands.recipe import (
 )
 from app.packaging.domain.model.component import component, component_version
 from app.packaging.domain.model.image import image
-from app.packaging.domain.model.image.image_constants import SubscriptionOwnership
+from app.packaging.domain.model.image.image_constants import ImageSource, SubscriptionOwnership
 from app.packaging.domain.model.pipeline import pipeline
 from app.packaging.domain.model.recipe import recipe_version
 from app.packaging.domain.model.recipe.recipe import RecipeArchitecture
@@ -66,6 +66,7 @@ from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_description_value_object,
     recipe_version_id_value_object,
     recipe_version_integration_value_object,
+    recipe_version_parent_image_id_value_object,
     recipe_version_release_type_value_object,
     recipe_version_volume_size_value_object,
 )
@@ -2005,3 +2006,159 @@ def test_discover_marketplace_subscriptions_should_return_200(lambda_context, au
 
     # ASSERT
     assertpy.assert_that(result["statusCode"]).is_equal_to(200)
+
+
+def _test_recipe_component_versions():
+    return [
+        api_model.RecipeComponentVersion(
+            componentId=GlobalVariables.TEST_COMPONENT_ID.value,
+            componentName=GlobalVariables.TEST_COMPONENT_NAME.value,
+            componentVersionId=GlobalVariables.TEST_COMPONENT_VERSION_ID.value,
+            componentVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
+            componentVersionType=GlobalVariables.TEST_COMPONENT_VERSION_TYPE.value,
+            order=1,
+        )
+    ]
+
+
+def test_create_recipe_version_should_pass_parent_image_id(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_create_recipe_version_cmd_handler,
+    create_recipe_version,
+):
+    # ARRANGE & ACT
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    status_code, body = create_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_components_versions=_test_recipe_component_versions(),
+        parent_image_id=GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value,
+    )
+
+    # ASSERT
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_create_recipe_version_cmd_handler.call_args[0][0]
+    assertpy.assert_that(command.parentImageId).is_equal_to(
+        recipe_version_parent_image_id_value_object.from_str(GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value)
+    )
+
+
+def test_create_recipe_version_should_fail_with_invalid_parent_image_id(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_create_recipe_version_cmd_handler,
+    create_recipe_version,
+):
+    # ARRANGE & ACT
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    status_code, body = create_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_components_versions=_test_recipe_component_versions(),
+        parent_image_id="ami-0123456789abcdef0",
+    )
+
+    # ASSERT
+    assertpy.assert_that(status_code).is_equal_to(400)
+    mocked_create_recipe_version_cmd_handler.assert_not_called()
+
+
+def test_update_recipe_version_should_pass_parent_image_id(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_update_recipe_version_cmd_handler,
+    update_recipe_version,
+):
+    # ARRANGE & ACT
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    status_code, body = update_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
+        recipe_version_components_versions=_test_recipe_component_versions(),
+        parent_image_id=GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value,
+    )
+
+    # ASSERT
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_update_recipe_version_cmd_handler.call_args[0][0]
+    assertpy.assert_that(command.parentImageId).is_equal_to(
+        recipe_version_parent_image_id_value_object.from_str(GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value)
+    )
+
+
+def test_get_recipe_version_should_return_parent_image_id(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_recipe_versions_domain_query_service,
+    get_recipe_version,
+):
+    # ARRANGE
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_recipe_versions_domain_query_service.get_recipe_version.return_value.parentImageId = (
+        GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value
+    )
+
+    # ACT
+    status_code, body = get_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
+    )
+
+    # ASSERT
+    assertpy.assert_that(status_code).is_equal_to(200)
+    response = api_model.GetRecipeVersionResponse.model_validate(body)
+    assertpy.assert_that(response.recipe_version.parentImageId).is_equal_to(
+        GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value
+    )
+
+
+def test_get_all_images_should_return_platform_and_architecture_of_imported_images(
+    lambda_context,
+    authenticated_event,
+    mocked_dependencies,
+    mocked_image_domain_query_service,
+    list_images,
+):
+    # ARRANGE
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+    mocked_image_domain_query_service.get_images.return_value = [
+        image.Image(
+            projectId=GlobalVariables.TEST_PROJECT_ID.value,
+            imageId=GlobalVariables.TEST_MARKETPLACE_IMAGE_ID.value,
+            status=image.ImageStatus.Created,
+            imageUpstreamId=GlobalVariables.TEST_IMAGE_UPSTREAM_ID.value,
+            imageSource=ImageSource.MARKETPLACE_PRODUCT,
+            imageName="Marketplace base image",
+            platform="Linux",
+            architecture="amd64",
+            osVersion="Ubuntu 24.04",
+            createDate=GlobalVariables.TEST_CREATE_DATE.value,
+            lastUpdateDate=GlobalVariables.TEST_LAST_UPDATE_DATE.value,
+        )
+    ]
+
+    # ACT
+    status_code, body = list_images()
+
+    # ASSERT
+    assertpy.assert_that(status_code).is_equal_to(200)
+    response = api_model.GetImagesResponse.model_validate(body)
+    assertpy.assert_that(response.images).is_length(1)
+    assertpy.assert_that(response.images[0].imageSource).is_equal_to("MARKETPLACE_PRODUCT")
+    assertpy.assert_that(response.images[0].imageName).is_equal_to("Marketplace base image")
+    assertpy.assert_that(response.images[0].platform).is_equal_to("Linux")
+    assertpy.assert_that(response.images[0].architecture).is_equal_to("amd64")
+    assertpy.assert_that(response.images[0].osVersion).is_equal_to("Ubuntu 24.04")

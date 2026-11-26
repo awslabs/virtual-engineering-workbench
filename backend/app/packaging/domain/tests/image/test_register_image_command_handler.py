@@ -13,7 +13,15 @@ from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.component import component_version_detail
 from app.packaging.domain.model.image import image
 from app.packaging.domain.model.pipeline import pipeline
-from app.packaging.domain.tests.conftest import TEST_DATE, TEST_PRODUCT_ID
+from app.packaging.domain.tests.conftest import (
+    TEST_DATE,
+    TEST_MARKETPLACE_IMAGE_ID,
+    TEST_MARKETPLACE_LICENSE_ARN,
+    TEST_MARKETPLACE_PRODUCT_CODE,
+    TEST_PRODUCT_ID,
+    TEST_PROJECT_ID,
+    TEST_REGION,
+)
 
 
 def test_register_image_command_handler_should_raise_an_exception_when_pipeline_can_not_be_found(
@@ -521,3 +529,134 @@ def test_register_image_command_handler_should_always_publish_automated_image_re
     assertpy.assert_that(second_event.osVersion).is_equal_to(mock_recipe_object.recipeOsVersion)
     assertpy.assert_that(second_event.platform).is_equal_to(mock_recipe_object.recipePlatform)
     assertpy.assert_that(second_event.architecture).is_equal_to(mock_recipe_object.recipeArchitecture)
+
+
+@freeze_time(TEST_DATE)
+@mock.patch("app.packaging.domain.model.image.image.random.choice", lambda _: "1")
+def test_register_image_command_handler_should_carry_marketplace_metadata_of_the_base_image(
+    component_version_query_service_mock,
+    generic_repo_mock,
+    get_image_entity,
+    get_pipeline_entity,
+    get_register_image_command,
+    get_test_component_version,
+    get_test_marketplace_base_image,
+    image_query_service_mock,
+    message_bus_mock,
+    mock_recipe_version_object,
+    pipeline_query_service_mock,
+    recipe_version_query_service_mock,
+    uow_mock,
+    recipe_query_service_mock,
+    mock_recipe_object,
+):
+    # ARRANGE
+    expected_marketplace_metadata = {
+        "productCode": TEST_MARKETPLACE_PRODUCT_CODE,
+        "subscriptionOwnership": "VEW_MANAGED",
+        "licenseGrantAllowed": True,
+        "licenseConfigurationArn": TEST_MARKETPLACE_LICENSE_ARN,
+        "homeRegion": TEST_REGION,
+    }
+    component_version_query_service_mock.get_component_version.return_value = get_test_component_version
+    recipe_version_entity = mock_recipe_version_object
+    recipe_version_entity.parentImageId = TEST_MARKETPLACE_IMAGE_ID
+    recipe_version_query_service_mock.get_recipe_version.return_value = recipe_version_entity
+    register_image_command_mock = get_register_image_command(image_status=image.ImageStatus.Created)
+    test_pipeline_entity = get_pipeline_entity(status=pipeline.PipelineStatus.Created, product_id=TEST_PRODUCT_ID)
+    image_entity = get_image_entity(
+        project_id=test_pipeline_entity.projectId,
+        image_build_version=1,
+        status=image.ImageStatus.Creating,
+    )
+    image_query_service_mock.get_image_by_image_build_version_arn.return_value = image_entity
+    image_query_service_mock.get_images_by_recipe_id_and_version_name.return_value = [image_entity]
+    image_query_service_mock.get_image.return_value = get_test_marketplace_base_image(status=image.ImageStatus.Retired)
+    pipeline_query_service_mock.get_pipeline_by_pipeline_id.return_value = test_pipeline_entity
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+
+    # ACT
+    register_image_command_handler.handle(
+        command=register_image_command_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        message_bus=message_bus_mock,
+        pipeline_qry_srv=pipeline_query_service_mock,
+        recipe_version_qry_srv=recipe_version_query_service_mock,
+        uow=uow_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+    )
+
+    # ASSERT
+    image_query_service_mock.get_image.assert_called_once_with(
+        project_id=TEST_PROJECT_ID, image_id=TEST_MARKETPLACE_IMAGE_ID
+    )
+    generic_repo_mock.update_attributes.assert_any_call(
+        image.ImagePrimaryKey(projectId=image_entity.projectId, imageId=image_entity.imageId),
+        status=image.ImageStatus.Created,
+        lastUpdateDate=TEST_DATE,
+        imageUpstreamId=register_image_command_mock.imageUpstreamId.value,
+        marketplaceMetadata=expected_marketplace_metadata,
+    )
+    image_registration_completed_event = message_bus_mock.publish.call_args_list[0][0][0]
+    assertpy.assert_that(image_registration_completed_event.event_name).is_equal_to("ImageRegistrationCompleted")
+    assertpy.assert_that(image_registration_completed_event.marketplaceMetadata).is_equal_to(
+        expected_marketplace_metadata
+    )
+    automated_image_registration_completed_event = message_bus_mock.publish.call_args_list[1][0][0]
+    assertpy.assert_that(automated_image_registration_completed_event.event_name).is_equal_to(
+        "AutomatedImageRegistrationCompleted"
+    )
+    assertpy.assert_that(automated_image_registration_completed_event.marketplaceMetadata).is_equal_to(
+        expected_marketplace_metadata
+    )
+
+
+@freeze_time(TEST_DATE)
+def test_register_image_command_handler_should_not_carry_marketplace_metadata_of_a_failed_image(
+    component_version_query_service_mock,
+    generic_repo_mock,
+    get_image_entity,
+    get_pipeline_entity,
+    get_register_image_command,
+    image_query_service_mock,
+    message_bus_mock,
+    mock_recipe_version_object,
+    pipeline_query_service_mock,
+    recipe_version_query_service_mock,
+    uow_mock,
+    recipe_query_service_mock,
+    mock_recipe_object,
+):
+    # ARRANGE
+    mock_recipe_version_object.parentImageId = TEST_MARKETPLACE_IMAGE_ID
+    recipe_version_query_service_mock.get_recipe_version.return_value = mock_recipe_version_object
+    register_image_command_mock = get_register_image_command(
+        image_status=image.ImageStatus.Failed, image_upstream_id=None
+    )
+    image_entity = get_image_entity(image_build_version=1, status=image.ImageStatus.Creating)
+    image_query_service_mock.get_image_by_image_build_version_arn.return_value = image_entity
+    image_query_service_mock.get_images_by_recipe_id_and_version_name.return_value = [image_entity]
+    pipeline_query_service_mock.get_pipeline_by_pipeline_id.return_value = get_pipeline_entity()
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+
+    # ACT
+    register_image_command_handler.handle(
+        command=register_image_command_mock,
+        component_version_qry_srv=component_version_query_service_mock,
+        image_qry_srv=image_query_service_mock,
+        message_bus=message_bus_mock,
+        pipeline_qry_srv=pipeline_query_service_mock,
+        recipe_version_qry_srv=recipe_version_query_service_mock,
+        uow=uow_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+    )
+
+    # ASSERT
+    image_query_service_mock.get_image.assert_not_called()
+    generic_repo_mock.update_attributes.assert_called_once_with(
+        image.ImagePrimaryKey(projectId=image_entity.projectId, imageId=image_entity.imageId),
+        status=image.ImageStatus.Failed,
+        lastUpdateDate=TEST_DATE,
+    )
+    message_bus_mock.publish.assert_not_called()

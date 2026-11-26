@@ -74,6 +74,22 @@ If you've already imported a particular product, it shows as **Already Imported*
 
 An AMI can be imported into one project only. Once a project has imported an AMI, importing the same AMI into another project fails with "already imported in another project", and that stays true after the first project retires its image. This applies to Marketplace AMIs and existing AMIs alike, because VEW records an imported AMI, and authorizes its licence grants, against a single project.
 
+## Build on a Marketplace image
+
+A recipe version can use an imported Marketplace image as its base image instead of the default operating system image, so you can add your own components on top of the vendor's AMI.
+
+1. Import the Marketplace product into the image catalog as described above.
+2. Create or update a recipe version. Under **Base image**, pick the imported image. The list shows the Marketplace images in the catalog that have the **Created** status and match the recipe's platform and architecture. Pick **Default operating system image** to build on the default image again.
+3. Build the recipe version through a pipeline as usual.
+
+Images built from the recipe version keep the Marketplace product code. VEW records the base image's product code and license details on them, including whether the hub may create grants for the license. When you publish a product version from such an image, VEW shares the image with the spoke account like any other built image, and then handles the license in the spoke account as described under [Publish a product version](#publish-a-product-version).
+
+Keep in mind:
+
+- **Only images that boot from `/dev/sda1`.** Recipes, recipe testing and the product templates map the root volume to `/dev/sda1`, so VEW rejects images with another root device. The recipe version's volume size must be at least the size of the image's root volume.
+- **The base AMI is pinned per recipe version.** When you create or update a recipe version, VEW resolves the image's AMI in the region recipes are built in and keeps building on that AMI. Importing a newer version of the product retires the old image in the catalog but doesn't change existing recipe versions, and you can keep updating a recipe version that builds on the retired image. To move a recipe to the new AMI, update a recipe version or create a new one and pick the new image.
+- **The Image Service account needs its own license.** Image Builder and recipe testing launch the Marketplace AMI in the Image Service account. When that account is separate from the hub, it needs its own subscription to the product or a License Manager grant for it. Like any base image, the AMI also needs the SSM Agent for Image Builder and recipe testing.
+
 ## Publish a product version
 
 Create a product, then create a version selecting the marketplace-imported image. From here, the process is the same as any other product version — but what happens behind the scenes depends on the ownership model.

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 /* eslint-disable complexity */
 import {
+  GetImagesResponse,
   GetRecipeResponse,
   Recipe,
   RecipeComponentVersion,
@@ -13,6 +14,8 @@ import { WizardProps } from '@cloudscape-design/components';
 import { useNotifications } from '../../../../../layout';
 import { i18n } from './recipe-version-wizard.translations';
 import useSwr from 'swr';
+import { useImages } from '../../../images/images.logic';
+import { getBaseImages } from '../recipe-version-base-image.helpers';
 type GetIntegrationsResponse = { integrations?: Array<{ integrationId: string, name: string }> };
 
 const STEP_1_INDEX = 1;
@@ -22,6 +25,7 @@ const MAX_VOLUME_SIZE = 500;
 
 interface ServiceAPI {
   getRecipe: (projectId: string, recipeId: string) => Promise<GetRecipeResponse>,
+  getImages: (projectId: string) => Promise<GetImagesResponse>,
   getIntegrations?: (projectId: string) => Promise<GetIntegrationsResponse>,
   getIntegrationComponentList?: (
     projectId: string,
@@ -92,6 +96,7 @@ export const useRecipeVersionWizard = ({
   const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(
     recipeVersion?.recipeVersionIntegrations || []
   );
+  const [parentImageId, setParentImageId] = useState(recipeVersion?.parentImageId || '');
 
   useEffect(() => {
     if (recipeVersion?.recipeVersionDescription) {
@@ -102,6 +107,9 @@ export const useRecipeVersionWizard = ({
     }
     if (recipeVersion?.recipeVersionIntegrations) {
       setSelectedIntegrations(recipeVersion.recipeVersionIntegrations);
+    }
+    if (recipeVersion?.parentImageId) {
+      setParentImageId(recipeVersion.parentImageId);
     }
   }, [recipeVersion]);
   const [integrationComponents, setIntegrationComponents] = useState<ComponentVersionEntry[]>([]);
@@ -182,6 +190,9 @@ export const useRecipeVersionWizard = ({
       }
     }
   );
+
+  const { images, isLoading: isImagesLoading } = useImages({ serviceApi });
+  const baseImages = useMemo(() => getBaseImages(images, data?.recipe), [images, data?.recipe]);
 
   const { data: integrations, isLoading: isIntegrationsLoading } = useSwr(
     FETCH_INTEGRATIONS_KEY(projectId),
@@ -329,5 +340,10 @@ export const useRecipeVersionWizard = ({
     setSelectedIntegrations,
     integrationComponents,
     isLoadingIntegrationComponents,
+    images,
+    baseImages,
+    isImagesLoading,
+    parentImageId,
+    setParentImageId,
   };
 };

@@ -4,6 +4,7 @@ from enum import StrEnum
 import boto3
 import semver
 
+from app.packaging.domain.command_handlers.recipe import recipe_version_parent_image
 from app.packaging.domain.commands.recipe import update_recipe_version_command
 from app.packaging.domain.events.recipe import recipe_version_update_started
 from app.packaging.domain.exceptions import domain_exception
@@ -11,8 +12,10 @@ from app.packaging.domain.model.component import component_version
 from app.packaging.domain.model.recipe import recipe, recipe_version
 from app.packaging.domain.model.shared import component_version_entry
 from app.packaging.domain.ports import (
+    ami_validation_service,
     component_query_service,
     component_version_query_service,
+    image_query_service,
     mandatory_components_list_query_service,
     parameter_service,
     recipe_query_service,
@@ -192,7 +195,7 @@ def __get_recipe_component_versions(
     return recipe_component_versions
 
 
-def _get_parent_image_upstream_id(
+def _get_default_parent_image_upstream_id(
     parameter_qry_srv: parameter_service.ParameterDefinitionService,
     system_configuration_mapping: dict,
     recipe_entity: recipe.Recipe,
@@ -213,6 +216,31 @@ def _get_parent_image_upstream_id(
     return parent_image_upstream_id
 
 
+def _get_parent_image_upstream_id(
+    command: update_recipe_version_command.UpdateRecipeVersionCommand,
+    recipe_version_entity: recipe_version.RecipeVersion,
+    recipe_entity: recipe.Recipe,
+    parameter_qry_srv: parameter_service.ParameterDefinitionService,
+    system_configuration_mapping: dict,
+    image_qry_srv: image_query_service.ImageQueryService,
+    ami_validation_svc: ami_validation_service.AmiValidationService,
+    region: str,
+) -> str:
+    if command.parentImageId is None:
+        return _get_default_parent_image_upstream_id(parameter_qry_srv, system_configuration_mapping, recipe_entity)
+
+    return recipe_version_parent_image.get_parent_image_upstream_id(
+        parent_image_id=command.parentImageId.value,
+        project_id=command.projectId.value,
+        recipe_entity=recipe_entity,
+        volume_size=command.recipeVersionVolumeSize.value,
+        region=region,
+        image_qry_srv=image_qry_srv,
+        ami_validation_svc=ami_validation_svc,
+        is_current_parent_image=command.parentImageId.value == recipe_version_entity.parentImageId,
+    )
+
+
 def handle(
     command: update_recipe_version_command.UpdateRecipeVersionCommand,
     uow: UnitOfWork,
@@ -224,6 +252,9 @@ def handle(
     mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     system_configuration_mapping: dict,
     component_qry_srv: component_query_service.ComponentQueryService,
+    image_qry_srv: image_query_service.ImageQueryService,
+    ami_validation_svc: ami_validation_service.AmiValidationService,
+    region: str,
 ):
 
     recipe_version_entity = __get_recipe_version_entity(command, recipe_version_query_service)
@@ -249,7 +280,14 @@ def handle(
         raise domain_exception.DomainException(f"Recipe {command.recipeId.value} not found.") from e
 
     parent_image_upstream_id = _get_parent_image_upstream_id(
-        parameter_qry_srv, system_configuration_mapping, recipe_entity
+        command=command,
+        recipe_version_entity=recipe_version_entity,
+        recipe_entity=recipe_entity,
+        parameter_qry_srv=parameter_qry_srv,
+        system_configuration_mapping=system_configuration_mapping,
+        image_qry_srv=image_qry_srv,
+        ami_validation_svc=ami_validation_svc,
+        region=region,
     )
 
     recipe_component_versions = __get_recipe_component_versions(
@@ -278,6 +316,7 @@ def handle(
                 recipeVersionId=command.recipeVersionId.value,
             ),
             parentImageUpstreamId=parent_image_upstream_id,
+            parentImageId=command.parentImageId.value if command.parentImageId else None,
             recipeComponentsVersions=[
                 component_version_entry.ComponentVersionEntry.model_validate(component_version).model_dump()
                 for component_version in recipe_component_versions

@@ -35,3 +35,4 @@ class ImageRegistrationCompleted(BaseModel):
     architecture: str = Field(..., alias="architecture")
     integrations: list[str] = Field([], title="integrations")
     create_date: str = Field(..., alias="createDate")
+    marketplace_metadata: dict | None = Field(None, alias="marketplaceMetadata")

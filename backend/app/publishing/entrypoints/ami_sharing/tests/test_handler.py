@@ -27,7 +27,69 @@ def test_handle_decide_action(mock_dependencies, lambda_context):
             originalAmiId="ami-12345",
             copiedAmiId="ami-54321",
             region="eu-west-3",
+            licenseDecision=shared_amis_domain_query_service.LicenseDecision.NotRequired,
         ).model_dump(by_alias=True)
+    )
+    # The state machine's result selector fails on a missing key, so every one is always present.
+    assertpy.assert_that(result).contains_key(
+        "eventType",
+        "decision",
+        "originalAmiId",
+        "copiedAmiId",
+        "region",
+        "imageId",
+        "projectId",
+        "licenseArn",
+        "homeRegion",
+        "grantName",
+        "licenseDecision",
+    )
+
+
+def test_handle_decide_action_for_image_built_on_marketplace_ami(
+    mock_dependencies, lambda_context, shared_amis_domain_qry_svc
+):
+    # ARRANGE
+    from app.publishing.entrypoints.ami_sharing import handler
+
+    shared_amis_domain_qry_svc.make_share_ami_decision.return_value = (
+        shared_amis_domain_query_service.ShareAmiDecisionResult(
+            decision=shared_amis_domain_query_service.ShareAmiDecision.Copy,
+            region="eu-west-3",
+            original_ami_id="ami-12345",
+            copied_ami_id=None,
+            license_decision=shared_amis_domain_query_service.LicenseDecision.LicenseGrant,
+            image_id="ami-12345",
+            project_id="proj-12345",
+            license_arn="arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+            home_region="us-east-1",
+            grant_name="VEW-prod-123-123456789012",
+        )
+    )
+
+    handler.dependencies = mock_dependencies
+    request = step_function_model.DecideActionRequest(
+        productId="prod-123", versionId="vers-123", awsAccountId="123456789012", productType="WORKBENCH"
+    )
+
+    # ACT
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to(
+        {
+            "eventType": "DecideActionResponse",
+            "decision": "COPY",
+            "originalAmiId": "ami-12345",
+            "copiedAmiId": None,
+            "region": "eu-west-3",
+            "licenseDecision": "LICENSE_GRANT",
+            "imageId": "ami-12345",
+            "projectId": "proj-12345",
+            "licenseArn": "arn:aws:license-manager:us-east-1:123456789012:license:l-abc123",
+            "homeRegion": "us-east-1",
+            "grantName": "VEW-prod-123-123456789012",
+        }
     )
 
 
@@ -61,6 +123,7 @@ def test_handle_decide_action_for_container_product(mock_dependencies, lambda_co
             originalAmiId="",
             copiedAmiId="",
             region="eu-west-3",
+            licenseDecision=shared_amis_domain_query_service.LicenseDecision.NotRequired,
         ).model_dump(by_alias=True)
     )
 

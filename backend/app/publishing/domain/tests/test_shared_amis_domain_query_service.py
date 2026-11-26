@@ -4,7 +4,7 @@ import assertpy
 import pytest
 
 from app.publishing.domain.exceptions import domain_exception
-from app.publishing.domain.model import shared_ami, version
+from app.publishing.domain.model import marketplace_metadata, shared_ami, version
 from app.publishing.domain.ports import image_service, shared_amis_query_service
 from app.publishing.domain.query_services import shared_amis_domain_query_service
 from app.publishing.domain.value_objects import (
@@ -32,7 +32,10 @@ def shared_amis_qry_svc_mock():
     return shared_amis_qry_svc_mock
 
 
-def _version(region: str) -> version.Version:
+TEST_LICENSE_ARN = "arn:aws:license-manager:us-west-2:123456789012:license:l-abc123"
+
+
+def _version(region: str, **kwargs) -> version.Version:
     return version.Version(
         versionId="vers-11111111",
         projectId="proj-12345",
@@ -52,6 +55,35 @@ def _version(region: str) -> version.Version:
         lastUpdateDate="2023-06-20T00:00:00+00:00",
         createdBy="T0037SG",
         lastUpdatedBy="T0037SG",
+        **kwargs,
+    )
+
+
+def _marketplace_metadata(subscription_ownership: str | None, **kwargs) -> marketplace_metadata.MarketplaceMetadata:
+    return marketplace_metadata.MarketplaceMetadata(
+        productCode="abc123def456ghi",
+        subscriptionOwnership=subscription_ownership,
+        licenseConfigurationArn=TEST_LICENSE_ARN,
+        **kwargs,
+    )
+
+
+@pytest.fixture()
+def domain_service(image_svc_mock, shared_amis_qry_svc_mock, mock_unit_of_work):
+    return shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+    )
+
+
+def _decide(domain_service, product_type: str = "WORKBENCH"):
+    return domain_service.make_share_ami_decision(
+        product_id=product_id_value_object.from_str("prod-11111111"),
+        version_id=version_id_value_object.from_str("vers-11111111"),
+        aws_account_id=aws_account_id_value_object.from_str("123456789012"),
+        product_type=product_type_value_object.from_str(product_type),
     )
 
 
@@ -108,6 +140,10 @@ def test_make_share_ami_decision_makes_correct_decision(
     assertpy.assert_that(result.region).is_equal_to(region)
     assertpy.assert_that(result.original_ami_id).is_equal_to("ami-023c04780e65e723c")
     assertpy.assert_that(result.copied_ami_id).is_equal_to("ami-copy" if is_ami_shared else None)
+    assertpy.assert_that(result.license_decision).is_equal_to(
+        shared_amis_domain_query_service.LicenseDecision.NotRequired
+    )
+    assertpy.assert_that(result.image_id).is_none()
 
 
 @pytest.mark.parametrize(
@@ -155,6 +191,163 @@ def test_make_share_ami_decision_matches_the_version_region(
     assertpy.assert_that(result.decision).is_equal_to(decision)
     assertpy.assert_that(result.copied_ami_id).is_equal_to(
         "ami-euwest1" if decision == shared_amis_domain_query_service.ShareAmiDecision.Done else None
+    )
+
+
+@pytest.mark.parametrize(
+    "is_ami_shared,region,decision",
+    (
+        (True, "eu-west-1", shared_amis_domain_query_service.ShareAmiDecision.Done),
+        (False, "us-east-1", shared_amis_domain_query_service.ShareAmiDecision.Share),
+        (False, "eu-west-1", shared_amis_domain_query_service.ShareAmiDecision.Copy),
+    ),
+)
+@pytest.mark.parametrize(
+    "subscription_ownership,license_decision",
+    (
+        ("VEW_MANAGED", shared_amis_domain_query_service.LicenseDecision.LicenseGrant),
+        ("EXTERNALLY_MANAGED", shared_amis_domain_query_service.LicenseDecision.VerifyExternalGrant),
+    ),
+)
+def test_make_share_ami_decision_shares_and_licenses_an_image_built_on_a_marketplace_ami(
+    is_ami_shared,
+    region,
+    decision,
+    subscription_ownership,
+    license_decision,
+    domain_service,
+    shared_amis_qry_svc_mock,
+    mock_version_repo,
+):
+    # ARRANGE
+    mock_version_repo.get.return_value = _version(
+        region, marketplaceMetadata=_marketplace_metadata(subscription_ownership, homeRegion="us-east-1")
+    )
+    shared_amis_qry_svc_mock.get_shared_amis.return_value = [_shared_ami(region)] if is_ami_shared else []
+
+    # ACT
+    result = _decide(domain_service)
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecisionResult(
+            decision=decision,
+            region=region,
+            original_ami_id="ami-023c04780e65e723c",
+            copied_ami_id="ami-copy" if is_ami_shared else None,
+            license_decision=license_decision,
+            project_id="proj-12345",
+            license_arn=TEST_LICENSE_ARN,
+            home_region="us-east-1",
+            grant_name="VEW-prod-11111111-123456789012",
+        )
+    )
+
+
+def test_make_share_ami_decision_takes_home_region_from_the_license_arn_when_missing(domain_service, mock_version_repo):
+    # ARRANGE
+    mock_version_repo.get.return_value = _version("eu-west-1", marketplaceMetadata=_marketplace_metadata("VEW_MANAGED"))
+
+    # ACT
+    result = _decide(domain_service)
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.Copy)
+    assertpy.assert_that(result.home_region).is_equal_to("us-west-2")
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    (
+        None,
+        _marketplace_metadata(None),
+        _marketplace_metadata("UNKNOWN"),
+    ),
+)
+def test_make_share_ami_decision_requires_no_license_without_a_known_subscription(
+    metadata, domain_service, mock_version_repo
+):
+    # ARRANGE
+    mock_version_repo.get.return_value = _version("eu-west-1", marketplaceMetadata=metadata)
+
+    # ACT
+    result = _decide(domain_service)
+
+    # ASSERT
+    assertpy.assert_that(result).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecisionResult(
+            decision=shared_amis_domain_query_service.ShareAmiDecision.Copy,
+            region="eu-west-1",
+            original_ami_id="ami-023c04780e65e723c",
+            copied_ami_id=None,
+            license_decision=shared_amis_domain_query_service.LicenseDecision.NotRequired,
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "subscription_ownership,decision,license_decision",
+    (
+        (
+            "VEW_MANAGED",
+            shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant,
+            shared_amis_domain_query_service.LicenseDecision.LicenseGrant,
+        ),
+        (
+            "EXTERNALLY_MANAGED",
+            shared_amis_domain_query_service.ShareAmiDecision.VerifyExternalGrant,
+            shared_amis_domain_query_service.LicenseDecision.VerifyExternalGrant,
+        ),
+    ),
+)
+def test_make_share_ami_decision_licenses_a_marketplace_product_without_sharing_it(
+    subscription_ownership, decision, license_decision, domain_service, shared_amis_qry_svc_mock, mock_version_repo
+):
+    # ARRANGE
+    mock_version_repo.get.return_value = _version(
+        "eu-west-1",
+        imageSource="MARKETPLACE_PRODUCT",
+        marketplaceMetadata=_marketplace_metadata(
+            subscription_ownership,
+            homeRegion="us-east-1",
+            regionalAmiIds={"us-east-1": "ami-023c04780e65e723c", "eu-west-1": "ami-marketplace-eu"},
+        ),
+    )
+
+    # ACT
+    result = _decide(domain_service)
+
+    # ASSERT
+    shared_amis_qry_svc_mock.get_shared_amis.assert_not_called()
+    assertpy.assert_that(result).is_equal_to(
+        shared_amis_domain_query_service.ShareAmiDecisionResult(
+            decision=decision,
+            region="eu-west-1",
+            # The licence is looked up on the imported AMI that keys the Ami read model ...
+            original_ami_id="ami-023c04780e65e723c",
+            copied_ami_id=None,
+            license_decision=license_decision,
+            # ... while the spoke launches the seller's AMI for its own region.
+            image_id="ami-marketplace-eu",
+            project_id="proj-12345",
+            license_arn=TEST_LICENSE_ARN,
+            home_region="us-east-1",
+            grant_name="VEW-prod-11111111-123456789012",
+        )
+    )
+
+
+def test_make_share_ami_decision_requires_no_license_for_a_container_product(domain_service, mock_version_repo):
+    # ARRANGE
+    mock_version_repo.get.return_value = _version("eu-west-1", marketplaceMetadata=_marketplace_metadata("VEW_MANAGED"))
+
+    # ACT
+    result = _decide(domain_service, product_type="CONTAINER")
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.NotRequired)
+    assertpy.assert_that(result.license_decision).is_equal_to(
+        shared_amis_domain_query_service.LicenseDecision.NotRequired
     )
 
 
@@ -450,3 +643,43 @@ def test_historical_marketplace_metadata_defaults_to_not_grant_capable():
     )
 
     assertpy.assert_that(metadata.licenseGrantAllowed).is_false()
+
+
+@pytest.mark.parametrize(
+    "license_grant_allowed,license_decision",
+    (
+        (True, shared_amis_domain_query_service.LicenseDecision.LicenseGrant),
+        (False, shared_amis_domain_query_service.LicenseDecision.VerifyExternalGrant),
+    ),
+)
+def test_external_subscription_of_a_built_image_is_upgraded_when_its_base_allowed_grants(
+    license_grant_allowed,
+    license_decision,
+    image_svc_mock,
+    shared_amis_qry_svc_mock,
+    mock_unit_of_work,
+    mock_version_repo,
+):
+    # ARRANGE
+    lm = _lm_service(has_grant=False, can_distribute=True)
+    mock_version_repo.get.return_value = _version(
+        "eu-west-1",
+        marketplaceMetadata=_marketplace_metadata(
+            "EXTERNALLY_MANAGED", homeRegion="us-east-1", licenseGrantAllowed=license_grant_allowed
+        ),
+    )
+    shared_amis_qry_svc_mock.get_shared_amis.return_value = []
+    domain_service = shared_amis_domain_query_service.SharedAMIsDomainQueryService(
+        unit_of_work=mock_unit_of_work,
+        image_svc=image_svc_mock,
+        shared_amis_qry_svc=shared_amis_qry_svc_mock,
+        default_original_ami_region=TEST_ORIGINAL_AMI_REGION,
+        license_manager_svc=lm,
+    )
+
+    # ACT
+    result = _decide(domain_service)
+
+    # ASSERT
+    assertpy.assert_that(result.decision).is_equal_to(shared_amis_domain_query_service.ShareAmiDecision.Copy)
+    assertpy.assert_that(result.license_decision).is_equal_to(license_decision)

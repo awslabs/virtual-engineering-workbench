@@ -1,4 +1,5 @@
 import {
+  GetImagesResponse,
   GetRecipeVersionResponse,
 } from '../../../../../services/API/proserve-wb-packaging-api';
 import useSwr, { useSWRConfig } from 'swr';
@@ -8,12 +9,15 @@ import { i18n } from './view-recipe-version.translations';
 import { extractErrorResponseMessage } from '../../../../../utils/api-helpers';
 import { useNavigationPaths } from '../../../../layout/navigation/navigation-paths.logic';
 import { RouteNames } from '../../../../layout/navigation/navigation.static';
+import { IMAGE_FETCH_KEY } from '../../images/images.logic';
+import { getBaseImageName } from '../shared/recipe-version-base-image.helpers';
 
 interface ServiceAPI {
   getRecipeVersion: (projectId: string, recipeId: string, versionId: string)
   => Promise<GetRecipeVersionResponse>,
   releaseRecipeVersion: (projectId: string, recipeId: string, versionId: string) => Promise<object>,
   retireRecipeVersion: (projectId: string, recipeId: string, versionId: string) => Promise<object>,
+  getImages: (projectId: string) => Promise<GetImagesResponse>,
 }
 
 interface Props {
@@ -74,6 +78,13 @@ export function useViewRecipeVersion({ serviceApi, projectId, recipeId, versionI
     }
   );
 
+  const parentImageId = data?.recipeVersion?.parentImageId;
+  const { data: imagesData } = useSwr(
+    parentImageId ? IMAGE_FETCH_KEY(projectId) : null,
+    ([, projectId]: [url: string, projectId: string]) => serviceApi.getImages(projectId),
+    { shouldRetryOnError: false }
+  );
+
   function loadRecipeVersion() {
     cache.delete(`recipes/${recipeId}/versions/${versionId}`);
     mutate();
@@ -95,6 +106,7 @@ export function useViewRecipeVersion({ serviceApi, projectId, recipeId, versionI
   return {
     recipeVersion: data?.recipeVersion,
     recipeVersionLoading: isLoading,
+    baseImageName: parentImageId ? getBaseImageName(imagesData?.images || [], parentImageId) : undefined,
     isReleaseRecipeVersionModalOpen,
     setIsReleaseRecipeVersionModalOpen,
     releaseRecipeVersion,

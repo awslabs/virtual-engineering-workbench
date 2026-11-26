@@ -15,7 +15,7 @@ from app.publishing.domain.ports import (
     shared_amis_query_service,
     template_service,
 )
-from app.publishing.domain.query_services import template_domain_query_service
+from app.publishing.domain.query_services import shared_amis_domain_query_service, template_domain_query_service
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
 
@@ -289,8 +289,13 @@ def _handle_ami_product(
     prod: product.Product,
 ) -> str:
     # A marketplace product is published per region by the seller, so its AMI ids come
-    # from the subscription metadata and no sharing or copying has taken place.
-    if vers.marketplaceMetadata and vers.marketplaceMetadata.regionalAmiIds:
+    # from the subscription metadata and no sharing or copying has taken place. An image
+    # built on top of one carries the metadata too, but is shared and copied like any other.
+    if (
+        vers.imageSource == shared_amis_domain_query_service.ImageSource.MARKETPLACE_PRODUCT
+        and vers.marketplaceMetadata
+        and vers.marketplaceMetadata.regionalAmiIds
+    ):
         ami_ids_per_region = vers.marketplaceMetadata.regionalAmiIds
     else:
         # The image restored into this distribution's account: every account owns its own copy (store +

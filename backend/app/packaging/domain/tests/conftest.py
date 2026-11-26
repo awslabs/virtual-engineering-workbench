@@ -170,6 +170,10 @@ TEST_USER_ID = "T123456"
 TEST_COMPONENT_TEST_S3_BUCKET_NAME = "test-bucket"
 TEST_RECIPE_TEST_S3_BUCKET_NAME = "test-bucket"
 TEST_PRODUCT_ID = "product-12345"
+TEST_MARKETPLACE_IMAGE_ID = "image-mkt12345"
+TEST_MARKETPLACE_AMI_ID = "ami-0123456789abcdef0"
+TEST_MARKETPLACE_PRODUCT_CODE = "abc123def456ghi"
+TEST_MARKETPLACE_LICENSE_ARN = "arn:aws:license-manager::123456789012:license:l-abc123"
 
 
 @pytest.fixture()
@@ -2377,3 +2381,75 @@ def get_valid_marketplace_dict():
         }
 
     return _get_valid_marketplace_dict
+
+
+# --- Marketplace Base Image Fixtures ---
+
+
+@pytest.fixture()
+def get_test_marketplace_base_image():
+    from app.packaging.domain.model.image.image_constants import ImageSource
+
+    def _get_test_marketplace_base_image(
+        status: image.ImageStatus = image.ImageStatus.Created,
+        image_source: ImageSource = ImageSource.MARKETPLACE_PRODUCT,
+        platform: str = TEST_PLATFORM,
+        architecture: str = TEST_ARCHITECTURE,
+        regional_ami_ids: dict | None = None,
+        original_ami_region: str = TEST_REGION,
+    ) -> image.Image:
+        return image.Image(
+            projectId=TEST_PROJECT_ID,
+            imageId=TEST_MARKETPLACE_IMAGE_ID,
+            status=status,
+            imageSource=image_source,
+            imageUpstreamId=TEST_MARKETPLACE_AMI_ID,
+            imageName="Marketplace base image",
+            platform=platform,
+            architecture=architecture,
+            osVersion="Ubuntu 24.04",
+            marketplaceMetadata={
+                "productCode": TEST_MARKETPLACE_PRODUCT_CODE,
+                "subscriptionOwnership": "VEW_MANAGED",
+                "licenseGrantAllowed": True,
+                "regionalAmiIds": (
+                    regional_ami_ids if regional_ami_ids is not None else {TEST_REGION: TEST_MARKETPLACE_AMI_ID}
+                ),
+                "licenseConfigurationArn": TEST_MARKETPLACE_LICENSE_ARN,
+                "homeRegion": TEST_REGION,
+            },
+            originalAmiRegion=original_ami_region,
+            createDate=TEST_DATE,
+            lastUpdateDate=TEST_DATE,
+        )
+
+    return _get_test_marketplace_base_image
+
+
+@pytest.fixture()
+def get_test_marketplace_base_ami_description():
+    from app.packaging.domain.read_models.ami_description import AmiDescription, BlockDeviceMapping, EbsInfo
+
+    def _get_test_marketplace_base_ami_description(
+        ami_id: str = TEST_MARKETPLACE_AMI_ID,
+        state: str = "available",
+        root_device_name: str = "/dev/sda1",
+        root_volume_size: int | None = 8,
+    ) -> AmiDescription:
+        return AmiDescription(
+            amiId=ami_id,
+            state=state,
+            platform="Linux/UNIX",
+            architecture="x86_64",
+            ownerId="679593333241",
+            region=TEST_REGION,
+            rootDeviceName=root_device_name,
+            blockDeviceMappings=[
+                BlockDeviceMapping(
+                    deviceName=root_device_name,
+                    ebs=EbsInfo(volumeSize=root_volume_size) if root_volume_size is not None else None,
+                )
+            ],
+        )
+
+    return _get_test_marketplace_base_ami_description

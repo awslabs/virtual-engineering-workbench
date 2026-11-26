@@ -4,9 +4,11 @@ import { i18n } from './recipe-version-wizard.translations';
 import {
   RecipeComponentVersion,
   ComponentVersionEntry,
+  Image,
 } from '../../../../../../services/API/proserve-wb-packaging-api';
 import { ValueWithLabel } from '../../../../shared/value-with-label';
 import { ComponentVersionEntriesView } from '../../../shared';
+import { getBaseImageName } from '../recipe-version-base-image.helpers';
 
 type Integration = { integrationId: string, name: string, type?: string, details?: string };
 
@@ -20,6 +22,8 @@ export interface RecipeVersionWizardStep3Props {
   integrationComponentsVersions: ComponentVersionEntry[],
   availableIntegrations: Integration[],
   selectedIntegrations: string[],
+  parentImageId: string,
+  images: Image[],
 }
 
 
@@ -37,6 +41,8 @@ export const RecipeVersionWizardStep3: FC<RecipeVersionWizardStep3Props> = ({
   integrationComponentsVersions,
   selectedIntegrations,
   availableIntegrations,
+  parentImageId,
+  images,
 }) => {
   return <SpaceBetween direction='vertical' size='l'>
     <SpaceBetween direction='vertical' size='xs'>
@@ -66,6 +72,7 @@ export const RecipeVersionWizardStep3: FC<RecipeVersionWizardStep3Props> = ({
           <ValueWithLabel label={i18n.step1InputReleaseType} data-test="recipe-release-type">
             {versionReleaseType}
           </ValueWithLabel>
+          {getBaseImageReviewColumn()}
           {getIntegrationsReviewColumn()}
         </ColumnLayout>
       </Container>
@@ -95,10 +102,19 @@ export const RecipeVersionWizardStep3: FC<RecipeVersionWizardStep3Props> = ({
   </SpaceBetween>;
 
   function getReviewColumnCount() {
-    if (selectedIntegrations.length > EMPTY) {
+    if (selectedIntegrations.length > EMPTY || parentImageId) {
       return COL_COUNT_WITH_INTEGRATIONS;
     }
     return COL_COUNT_NO_INTEGRATIONS;
+  }
+
+  function getBaseImageReviewColumn() {
+    if (!parentImageId) {
+      return <></>;
+    }
+    return <ValueWithLabel label={i18n.step1BaseImage} data-test="recipe-base-image">
+      {getBaseImageName(images, parentImageId)}
+    </ValueWithLabel>;
   }
 
   function getIntegrationsReviewColumn() {

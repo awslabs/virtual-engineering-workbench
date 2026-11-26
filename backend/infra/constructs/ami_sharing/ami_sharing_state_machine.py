@@ -131,7 +131,7 @@ class AmiSharingStateMachine(constructs.Construct):
             "PassLaunchPermissionDeniedError",
             parameters={
                 "Error": "LaunchPermissionDenied",
-                "Cause": "The target account cannot launch the regional Marketplace AMI.",
+                "Cause": "The target account cannot launch the AMI.",
             },
             result_path="$.error",
         )
@@ -178,6 +178,7 @@ class AmiSharingStateMachine(constructs.Construct):
                 "originalAmiId.$": "$.Payload.originalAmiId",
                 "copiedAmiId.$": "$.Payload.copiedAmiId",
                 "region.$": "$.Payload.region",
+                "licenseDecision.$": "$.Payload.licenseDecision",
                 "imageId.$": "$.Payload.imageId",
                 "projectId.$": "$.Payload.projectId",
                 "licenseArn.$": "$.Payload.licenseArn",
@@ -283,7 +284,9 @@ class AmiSharingStateMachine(constructs.Construct):
             interval=aws_cdk.Duration.seconds(10),
         )
 
-        # Verify launch permission lambda (shared by LICENSE_GRANT and VERIFY_EXTERNAL_GRANT paths)
+        # Verify launch permission lambda (shared by the LICENSE_GRANT and VERIFY_EXTERNAL_GRANT
+        # license decisions). $.copiedAmi holds the AMI the spoke launches on every path: the
+        # shared or copied image, or the seller's regional AMI of a Marketplace product.
         verify_launch_permission_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
             self,
             "VerifyLaunchPermissionLambda",
@@ -291,7 +294,7 @@ class AmiSharingStateMachine(constructs.Construct):
             payload=sfn.TaskInput.from_object(
                 {
                     "eventType": "VerifyLicenseGrantRequest",
-                    "amiId.$": "$.decideActionResponse.imageId",
+                    "amiId.$": "$.copiedAmi.copiedAmiId",
                     "region.$": "$.decideActionResponse.region",
                     "awsAccountId.$": "$.awsAccountId",
                 }
@@ -320,7 +323,7 @@ class AmiSharingStateMachine(constructs.Construct):
                     "productId.$": "$.productId",
                     "versionId.$": "$.versionId",
                     "awsAccountId.$": "$.awsAccountId",
-                    "amiId.$": "$.decideActionResponse.imageId",
+                    "amiId.$": "$.copiedAmi.copiedAmiId",
                     "region.$": "$.decideActionResponse.region",
                     "licenseArn.$": "$.decideActionResponse.licenseArn",
                     "homeRegion.$": "$.decideActionResponse.homeRegion",
@@ -356,15 +359,13 @@ class AmiSharingStateMachine(constructs.Construct):
         verify_external_grant_choice.otherwise(pass_grant_not_verified_error)
 
         # Launch permission choice. VerifyLaunchPermissionLambda reports whether the
-        # spoke can actually launch the regional AMI, and previously nothing read the
-        # answer: both Marketplace paths ran straight on to SucceedAmiSharing, so a
-        # spoke that could not launch the image was recorded as shared successfully.
+        # spoke can actually launch the AMI, so a spoke that cannot is not recorded
+        # as shared successfully.
         verify_launch_permission_choice: sfn.Choice = sfn.Choice(self, "VerifyLaunchPermissionChoice")
 
-        # Pass state for the Marketplace paths' copied-ami placeholder. SucceedAmiSharing
-        # reads $.copiedAmi.copiedAmiId, and on the verify-external-grant path nothing set
-        # it, so that path could never complete. Both Marketplace paths record the REGIONAL
-        # AMI, which is the image the spoke launches.
+        # Pass state for a Marketplace product's AMI. The seller publishes it to the spoke's
+        # region, so it is neither copied nor shared, and the REGIONAL AMI is the image the
+        # spoke launches. SucceedAmiSharing and the license states read it from $.copiedAmi.
         pass_marketplace_ami: sfn.Pass = sfn.Pass(
             self,
             "PassMarketplaceAmi",
@@ -372,16 +373,9 @@ class AmiSharingStateMachine(constructs.Construct):
             result_path="$.copiedAmi",
         )
 
-        # Pass state for license grant path to set copiedAmi placeholder
-        pass_license_grant: sfn.Pass = sfn.Pass(
-            self,
-            "PassLicenseGrant",
-            parameters={"copiedAmiId.$": "$.decideActionResponse.originalAmiId"},
-            result_path="$.copiedAmi",
-        )
-        # NOTE: both Marketplace paths overwrite $.copiedAmi with the regional AMI at
-        # PassMarketplaceAmi after the launch-permission check, so this placeholder only
-        # covers the states in between.
+        # License decision choice. Runs once the spoke can launch the AMI, for a Marketplace
+        # product and for an image a pipeline built on top of one alike.
+        license_decision_choice: sfn.Choice = sfn.Choice(self, "LicenseDecisionChoice")
 
         # Share ami lambda
         share_ami_lambda: sfn_tasks.LambdaInvoke = sfn_tasks.LambdaInvoke(
@@ -442,39 +436,47 @@ class AmiSharingStateMachine(constructs.Construct):
         verify_copy_choice.otherwise(verify_copy_wait)
         verify_copy_wait.next(verify_copy_lambda)
 
-        # Define the 3 chains: COPY/SHARE/DONE
-        chain_copy = (
-            sfn.Chain.start(copy_ami_lambda)
-            .next(pass_copy)
-            .next(verify_copy_lambda)
-            .next(verify_copy_choice.afterwards())
-        )
-        chain_share = sfn.Chain.start(pass_share).next(share_ami_lambda)
-        chain_done = sfn.Chain.start(pass_done)
+        # Define the 4 chains that make the AMI launchable: COPY/SHARE/DONE and the
+        # Marketplace product's own AMI. Each continues with the license decision.
+        chain_copy = sfn.Chain.start(copy_ami_lambda).next(pass_copy).next(verify_copy_lambda).next(verify_copy_choice)
+        chain_share = sfn.Chain.start(pass_share).next(share_ami_lambda).next(license_decision_choice)
+        chain_done = sfn.Chain.start(pass_done).next(license_decision_choice)
+        chain_marketplace_ami = sfn.Chain.start(pass_marketplace_ami).next(license_decision_choice)
 
         # LICENSE_GRANT chain: CreateLicenseGrant → AcceptLicenseGrant →
         # VerifyLaunchPermission → Choice(launchPermissionVerified?)
         chain_license_grant = (
-            sfn.Chain.start(pass_license_grant)
-            .next(create_license_grant_lambda)
+            sfn.Chain.start(create_license_grant_lambda)
             .next(accept_license_grant_lambda)
             .next(verify_launch_permission_lambda)
-            .next(verify_launch_permission_choice.afterwards(include_otherwise=False))
+            .next(verify_launch_permission_choice)
         )
 
         # VERIFY_EXTERNAL_GRANT chain: VerifyExternalGrant → Choice(grantVerified?) →
         # VerifyLaunchPermission → Choice(launchPermissionVerified?)
-        chain_verify_external_grant = sfn.Chain.start(verify_external_grant_lambda).next(
-            verify_external_grant_choice.afterwards(include_otherwise=False)
-        )
+        chain_verify_external_grant = sfn.Chain.start(verify_external_grant_lambda).next(verify_external_grant_choice)
 
-        # Both Marketplace paths converge here: record the regional AMI, then succeed.
         verify_launch_permission_choice.when(
             sfn.Condition.boolean_equals("$.verifyLaunchPermissionResponse.launchPermissionVerified", True),
-            pass_marketplace_ami,
+            succeed_ami_sharing_lambda,
         )
         verify_launch_permission_choice.otherwise(pass_launch_permission_denied_error)
 
+        license_decision_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.licenseDecision", "NOT_REQUIRED"),
+            succeed_ami_sharing_lambda,
+        )
+        license_decision_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.licenseDecision", "LICENSE_GRANT"),
+            chain_license_grant,
+        )
+        license_decision_choice.when(
+            sfn.Condition.string_equals("$.decideActionResponse.licenseDecision", "VERIFY_EXTERNAL_GRANT"),
+            chain_verify_external_grant,
+        )
+        license_decision_choice.otherwise(pass_unexpected_decision_error)
+
+        succeed_ami_sharing_lambda.next(success_state)
         pass_grant_not_verified_error.next(fail_ami_sharing_lambda)
         pass_launch_permission_denied_error.next(fail_ami_sharing_lambda)
         pass_unexpected_decision_error.next(fail_ami_sharing_lambda)
@@ -489,11 +491,11 @@ class AmiSharingStateMachine(constructs.Construct):
             sfn.Condition.string_equals("$.decideActionResponse.decision", "NOT_REQUIRED"), chain_done
         )
         decide_action_choice.when(
-            sfn.Condition.string_equals("$.decideActionResponse.decision", "LICENSE_GRANT"), chain_license_grant
+            sfn.Condition.string_equals("$.decideActionResponse.decision", "LICENSE_GRANT"), chain_marketplace_ami
         )
         decide_action_choice.when(
             sfn.Condition.string_equals("$.decideActionResponse.decision", "VERIFY_EXTERNAL_GRANT"),
-            chain_verify_external_grant,
+            chain_marketplace_ami,
         )
         decide_action_choice.otherwise(pass_unexpected_decision_error)
 
@@ -517,9 +519,7 @@ class AmiSharingStateMachine(constructs.Construct):
                 sfn.Chain.start(start_state)
                 .next(check_old_version_id_choice.afterwards())
                 .next(decide_action_lambda)
-                .next(decide_action_choice.afterwards())
-                .next(succeed_ami_sharing_lambda)
-                .next(success_state)
+                .next(decide_action_choice)
             ),
         )
 

@@ -52,6 +52,7 @@ def handle_decide_action(event: step_function_model.DecideActionRequest):
         originalAmiId=result.original_ami_id,
         copiedAmiId=result.copied_ami_id,
         region=result.region,
+        licenseDecision=result.license_decision.value,
         imageId=result.image_id,
         projectId=result.project_id,
         licenseArn=result.license_arn,

@@ -124,6 +124,8 @@ def handle(
                 restoredFromVersionName=original_version_entity.versionName,
                 componentVersionDetails=original_version_entity.componentVersionDetails,
                 osVersion=original_version_entity.osVersion,
+                imageSource=original_version_entity.imageSource,
+                marketplaceMetadata=original_version_entity.marketplaceMetadata,
                 createDate=current_time,
                 lastUpdateDate=current_time,
                 createdBy=cmd.restoredBy.value,

@@ -21,6 +21,7 @@ from app.packaging.adapters.services import (
     ec2_image_builder_pipeline_service,
     parameter_service,
 )
+from app.packaging.adapters.services.ec2_ami_validation_service import Ec2AmiValidationService
 from app.packaging.adapters.services.projects_api_service_client_project_access_service import (
     ProjectsApiServiceClientProjectAccessService,
 )
@@ -210,6 +211,13 @@ def bootstrap(app_config: config.AppConfig, logger: logging.Logger) -> Dependenc
         ),
     )
 
+    ami_validation_service = Ec2AmiValidationService(
+        admin_role=app_config.get_admin_role(),
+        ami_factory_account_id=app_config.get_ami_factory_account_id(),
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+
     def create_component(command):
         return create_component_command_handler.handle(command=command, uow=uow)
 
@@ -283,6 +291,9 @@ def bootstrap(app_config: config.AppConfig, logger: logging.Logger) -> Dependenc
             mandatory_components_list_qry_srv=mandatory_components_list_query_service,
             system_configuration_mapping=system_configuration_mapping,
             component_qry_srv=component_query_service,
+            image_qry_srv=image_query_service,
+            ami_validation_svc=ami_validation_service,
+            region=app_config.get_default_region(),
         )
 
     def update_recipe_version(command):
@@ -297,6 +308,9 @@ def bootstrap(app_config: config.AppConfig, logger: logging.Logger) -> Dependenc
             mandatory_components_list_qry_srv=mandatory_components_list_query_service,
             system_configuration_mapping=system_configuration_mapping,
             component_qry_srv=component_query_service,
+            image_qry_srv=image_query_service,
+            ami_validation_svc=ami_validation_service,
+            region=app_config.get_default_region(),
         )
 
     def release_recipe_version(command):

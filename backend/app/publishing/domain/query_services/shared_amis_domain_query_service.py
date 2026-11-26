@@ -37,15 +37,28 @@ class ShareAmiDecision(str, enum.Enum):
         return str(self.value)
 
 
+class LicenseDecision(str, enum.Enum):
+    NotRequired = "NOT_REQUIRED"
+    LicenseGrant = "LICENSE_GRANT"
+    VerifyExternalGrant = "VERIFY_EXTERNAL_GRANT"
+
+    def __str__(self):
+        return str(self.value)
+
+
 @dataclass(frozen=True)
 class ShareAmiDecisionResult:
     decision: ShareAmiDecision
     region: str
     original_ami_id: str
     copied_ami_id: typing.Optional[str]
-    # Only set for marketplace products: the sharing step function needs the
-    # licence identity to create or verify a License Manager grant, and a
-    # marketplace AMI is never copied, so copied_ami_id stays None.
+    # The licence step the sharing step function runs once the spoke account can
+    # launch the AMI. It and the licence identity below are set for every image
+    # that carries the licence of a Marketplace product: the product's own AMI,
+    # or an image a pipeline built on top of one.
+    license_decision: LicenseDecision = LicenseDecision.NotRequired
+    # Only set for marketplace products: the seller's AMI in the spoke's region.
+    # A marketplace AMI is never copied, so copied_ami_id stays None.
     image_id: typing.Optional[str] = None
     project_id: typing.Optional[str] = None
     license_arn: typing.Optional[str] = None
@@ -73,9 +86,14 @@ class SharedAMIsDomainQueryService:
     # A marketplace subscription VEW owns is licensed by granting the spoke
     # account a share of the hub's licence; one the customer already owns is
     # only verified, because VEW holds no licence to grant.
-    _MARKETPLACE_DECISION_BY_OWNERSHIP = {
-        SubscriptionOwnership.VEW_MANAGED: ShareAmiDecision.LicenseGrant,
-        SubscriptionOwnership.EXTERNALLY_MANAGED: ShareAmiDecision.VerifyExternalGrant,
+    _LICENSE_DECISION_BY_OWNERSHIP = {
+        SubscriptionOwnership.VEW_MANAGED: LicenseDecision.LicenseGrant,
+        SubscriptionOwnership.EXTERNALLY_MANAGED: LicenseDecision.VerifyExternalGrant,
+    }
+
+    _MARKETPLACE_DECISION_BY_LICENSE_DECISION = {
+        LicenseDecision.LicenseGrant: ShareAmiDecision.LicenseGrant,
+        LicenseDecision.VerifyExternalGrant: ShareAmiDecision.VerifyExternalGrant,
     }
 
     @staticmethod
@@ -97,9 +115,9 @@ class SharedAMIsDomainQueryService:
     def _upgrade_external_grant_decision(
         self,
         version_entity: version.Version,
-        decision: ShareAmiDecision,
+        decision: LicenseDecision,
         spoke_account_id: str,
-    ) -> ShareAmiDecision:
+    ) -> LicenseDecision:
         """Turn a verify-only decision into a real grant when the hub can make one.
 
         An externally-managed subscription means VEW normally only verifies that
@@ -109,7 +127,7 @@ class SharedAMIsDomainQueryService:
         persisted license allowed CreateGrant at discovery time, it still does, and
         the spoke has no grant of its own.
         """
-        if decision != ShareAmiDecision.VerifyExternalGrant or self._license_manager_svc is None:
+        if decision != LicenseDecision.VerifyExternalGrant or self._license_manager_svc is None:
             return decision
 
         license_arn, home_region = self._license_location(version_entity)
@@ -129,16 +147,35 @@ class SharedAMIsDomainQueryService:
             return decision
 
         if self._license_manager_svc.can_distribute_license(license_arn, home_region):
-            return ShareAmiDecision.LicenseGrant
+            return LicenseDecision.LicenseGrant
         return decision
+
+    def _license_decision(self, version_entity: version.Version, spoke_account_id: str) -> LicenseDecision:
+        metadata = version_entity.marketplaceMetadata
+        subscription_ownership = metadata.subscriptionOwnership if metadata else ""
+        decision = self._LICENSE_DECISION_BY_OWNERSHIP.get(subscription_ownership, LicenseDecision.NotRequired)
+        return self._upgrade_external_grant_decision(version_entity, decision, spoke_account_id)
+
+    def _license_fields(
+        self, version_entity: version.Version, license_decision: LicenseDecision
+    ) -> dict[str, typing.Any]:
+        if license_decision == LicenseDecision.NotRequired:
+            return {}
+
+        license_arn, home_region = self._license_location(version_entity)
+        return {
+            "license_decision": license_decision,
+            "project_id": getattr(version_entity, "projectId", None),
+            "license_arn": license_arn,
+            "home_region": home_region,
+            "grant_name": f"VEW-{version_entity.productId}-{version_entity.awsAccountId}",
+        }
 
     def _marketplace_decision(
         self,
         version_entity: version.Version,
-        decision: ShareAmiDecision,
+        license_decision: LicenseDecision,
     ) -> ShareAmiDecisionResult:
-        license_arn, home_region = self._license_location(version_entity)
-
         # A marketplace product publishes a different AMI id per region, so the
         # spoke's own region decides which one to launch. Fall back to the
         # recorded original when the product lists no AMI for that region.
@@ -152,7 +189,7 @@ class SharedAMIsDomainQueryService:
         )
 
         return ShareAmiDecisionResult(
-            decision=decision,
+            decision=self._MARKETPLACE_DECISION_BY_LICENSE_DECISION[license_decision],
             region=spoke_region,
             # The grant is recorded against the REGISTERED AMI - the image the
             # project imported, which is what the publishing AMIs table is keyed by
@@ -164,10 +201,7 @@ class SharedAMIsDomainQueryService:
             # The regional image is the one the spoke launches, so the launch
             # permission check and the recorded copiedAmiId use it.
             image_id=regional_ami_id,
-            project_id=getattr(version_entity, "projectId", None),
-            license_arn=license_arn,
-            home_region=home_region,
-            grant_name=f"VEW-{version_entity.productId}-{version_entity.awsAccountId}",
+            **self._license_fields(version_entity, license_decision),
         )
 
     def make_share_ami_decision(
@@ -192,21 +226,16 @@ class SharedAMIsDomainQueryService:
                     copied_ami_id="",
                 )
 
+            license_decision = self._license_decision(version_entity, aws_account_id.value)
+
             # A marketplace AMI is already published to the spoke's region by the
             # seller, so it is never shared or copied; the decision is about the
             # licence instead. Unknown ownership falls through to AMI sharing.
-            if version_entity.imageSource == ImageSource.MARKETPLACE_PRODUCT:
-                subscription_ownership = (
-                    version_entity.marketplaceMetadata.subscriptionOwnership
-                    if version_entity.marketplaceMetadata
-                    else ""
-                )
-                marketplace_decision = self._MARKETPLACE_DECISION_BY_OWNERSHIP.get(subscription_ownership)
-                if marketplace_decision is not None:
-                    marketplace_decision = self._upgrade_external_grant_decision(
-                        version_entity, marketplace_decision, aws_account_id.value
-                    )
-                    return self._marketplace_decision(version_entity, marketplace_decision)
+            if (
+                version_entity.imageSource == ImageSource.MARKETPLACE_PRODUCT
+                and license_decision != LicenseDecision.NotRequired
+            ):
+                return self._marketplace_decision(version_entity, license_decision)
 
         # Records written before region joined the key are still found by this query, so no migration is needed.
         shared_ami_entity = next(
@@ -230,11 +259,15 @@ class SharedAMIsDomainQueryService:
         else:
             raise domain_exception.DomainException("Unsupported logic when making the decision")
 
+        # An image a pipeline built on top of a Marketplace AMI is owned by the Image
+        # Service account, so it is shared or copied like any other, and it keeps the
+        # product code, so the spoke account also needs the licence to launch it.
         return ShareAmiDecisionResult(
             decision=decision,
             region=version_entity.region,
             original_ami_id=version_entity.originalAmiId,
             copied_ami_id=copied_ami_id,
+            **self._license_fields(version_entity, license_decision),
         )
 
     def verify_copy(
