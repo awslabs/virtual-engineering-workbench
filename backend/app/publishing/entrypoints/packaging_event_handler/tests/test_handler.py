@@ -180,3 +180,89 @@ def test_image_imported_event(
 
     # ASSERT
     mock_update_ami_read_model_event_handler.assert_called_once_with(new_ami, [])
+
+
+PARENT_MARKETPLACE_METADATA = {
+    "marketplaceProductId": "prod-ib2w5aw4ynhey",
+    "productCode": "abc123def456ghi789jkl0mno",
+    "licenseConfigurationArn": "arn:aws:license-manager::111111111111:license:l-0123456789abcdef0123456789abcdef",
+    "homeRegion": "us-east-1",
+    "subscriptionOwnership": "VEW_MANAGED",
+}
+
+
+def test_image_registration_completed_event_keeps_the_marketplace_license(
+    mock_dependencies,
+    generate_event,
+    lambda_context,
+    image_registration_completed_event_payload,
+    mock_update_ami_read_model_event_handler,
+):
+    # ARRANGE: a pipeline image built on a Marketplace AMI
+    from app.publishing.entrypoints.packaging_event_handler import handler
+
+    handler.dependencies = mock_dependencies
+    event_bridge_event = generate_event(
+        detail_type="ImageRegistrationCompleted",
+        detail={**image_registration_completed_event_payload, "marketplaceMetadata": PARENT_MARKETPLACE_METADATA},
+    )
+
+    # ACT
+    handler.handler(event_bridge_event, lambda_context)
+
+    # ASSERT
+    new_ami = mock_update_ami_read_model_event_handler.call_args.args[0]
+    assert new_ami.imageSource is None
+    assert new_ami.marketplaceMetadata.model_dump(exclude_none=True) == {
+        **PARENT_MARKETPLACE_METADATA,
+        "licenseGrantAllowed": False,
+    }
+    assert new_ami.marketplaceMetadata.parse_grant_arn_components() == (
+        PARENT_MARKETPLACE_METADATA["licenseConfigurationArn"],
+        "us-east-1",
+    )
+
+
+def test_automated_image_registration_completed_event_passes_the_marketplace_license(
+    mock_dependencies,
+    generate_event,
+    lambda_context,
+    automated_image_registration_completed_event_payload,
+    mock_create_automated_version_event_handler,
+):
+    from app.publishing.entrypoints.packaging_event_handler import handler
+
+    handler.dependencies = mock_dependencies
+    event_bridge_event = generate_event(
+        detail_type="AutomatedImageRegistrationCompleted",
+        detail={
+            **automated_image_registration_completed_event_payload,
+            "marketplaceMetadata": PARENT_MARKETPLACE_METADATA,
+        },
+    )
+
+    handler.handler(event_bridge_event, lambda_context)
+
+    assert (
+        mock_create_automated_version_event_handler.call_args[1]["marketplace_metadata"] == PARENT_MARKETPLACE_METADATA
+    )
+
+
+def test_automated_image_registration_completed_event_without_marketplace_parent(
+    mock_dependencies,
+    generate_event,
+    lambda_context,
+    automated_image_registration_completed_event_payload,
+    mock_create_automated_version_event_handler,
+):
+    from app.publishing.entrypoints.packaging_event_handler import handler
+
+    handler.dependencies = mock_dependencies
+    event_bridge_event = generate_event(
+        detail_type="AutomatedImageRegistrationCompleted",
+        detail=automated_image_registration_completed_event_payload,
+    )
+
+    handler.handler(event_bridge_event, lambda_context)
+
+    assert mock_create_automated_version_event_handler.call_args[1]["marketplace_metadata"] is None

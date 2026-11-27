@@ -22,6 +22,8 @@ class AutomatedImageRegistrationCompleted(message_bus.Message):
     platform: str = Field(..., title="platform")
     architecture: str = Field(..., title="architecture")
     integrations: list[str] = Field([], title="integrations")
+    # License data when the image was built on an AWS Marketplace AMI.
+    marketplaceMetadata: Optional[dict] = Field(None, title="marketplaceMetadata")
     model_config = ConfigDict(populate_by_name=True)
 
     def model_dump_json(self, **kwargs) -> str:

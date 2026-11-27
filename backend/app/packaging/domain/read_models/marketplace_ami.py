@@ -14,6 +14,7 @@ class MarketplaceAmi(BaseModel):
     description: Optional[str] = Field(None, title="Description")
     region: str = Field(..., title="Region")
     creationDate: Optional[str] = Field(None, title="CreationDate")
+    rootDeviceName: Optional[str] = Field(None, title="RootDeviceName")
     # EC2 reports DeprecationTime on a deprecated image. Carried so a caller can
     # prefer a supported AMI and warn when only deprecated ones remain.
     deprecationTime: Optional[str] = Field(None, title="DeprecationTime")

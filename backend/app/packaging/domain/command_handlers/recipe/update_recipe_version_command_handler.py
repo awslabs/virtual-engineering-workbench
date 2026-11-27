@@ -4,6 +4,7 @@ from enum import StrEnum
 import boto3
 import semver
 
+from app.packaging.domain.command_handlers.recipe import marketplace_parent_image
 from app.packaging.domain.commands.recipe import update_recipe_version_command
 from app.packaging.domain.events.recipe import recipe_version_update_started
 from app.packaging.domain.exceptions import domain_exception
@@ -14,6 +15,7 @@ from app.packaging.domain.ports import (
     component_query_service,
     component_version_query_service,
     mandatory_components_list_query_service,
+    marketplace_base_image_query_service,
     parameter_service,
     recipe_query_service,
     recipe_version_query_service,
@@ -213,6 +215,53 @@ def _get_parent_image_upstream_id(
     return parent_image_upstream_id
 
 
+def _get_parent_image(
+    command: update_recipe_version_command.UpdateRecipeVersionCommand,
+    recipe_version_entity: recipe_version.RecipeVersion,
+    recipe_entity: recipe.Recipe,
+    parameter_qry_srv: parameter_service.ParameterDefinitionService,
+    system_configuration_mapping: dict,
+    marketplace_base_image_qry_srv: marketplace_base_image_query_service.MarketplaceBaseImageQueryService | None,
+) -> marketplace_parent_image.ParentImage:
+    """The updated version's parent: the given base image, the platform default, or the current one."""
+    chosen = bool(command.parentImageProductId or command.parentImageId)
+    if chosen:
+        product_id = command.parentImageProductId.value if command.parentImageProductId else None
+        image_id = command.parentImageId.value if command.parentImageId else None
+    elif command.resetParentImage:
+        product_id, image_id = None, None
+    else:
+        product_id, image_id = recipe_version_entity.parentImageProductId, recipe_version_entity.parentImageId
+
+    if not product_id and not image_id:
+        return marketplace_parent_image.ParentImage(
+            upstream_id=_get_parent_image_upstream_id(parameter_qry_srv, system_configuration_mapping, recipe_entity)
+        )
+    if not chosen and marketplace_base_image_qry_srv is None:
+        # Kept by a client without Marketplace access (e.g. the s2s API): keep the resolved AMI as is.
+        metadata = recipe_version_entity.parentImageMarketplaceMetadata or {}
+        if int(command.recipeVersionVolumeSize.value) < int(metadata.get("rootVolumeSize") or 0):
+            label = f"Product {product_id}" if product_id else f"Image {image_id}"
+            raise domain_exception.DomainException(
+                f"{label} needs a volume size of at least {metadata['rootVolumeSize']} GB."
+            )
+        return marketplace_parent_image.ParentImage(
+            upstream_id=recipe_version_entity.parentImageUpstreamId,
+            product_id=product_id,
+            image_id=image_id,
+            marketplace_metadata=recipe_version_entity.parentImageMarketplaceMetadata,
+            supported_instance_types=recipe_version_entity.parentImageSupportedInstanceTypes,
+        )
+    return marketplace_parent_image.resolve_parent_image(
+        marketplace_base_image_qry_srv,
+        recipe_entity,
+        command.recipeVersionVolumeSize.value,
+        project_id=command.projectId.value,
+        product_id=product_id,
+        image_id=image_id,
+    )
+
+
 def handle(
     command: update_recipe_version_command.UpdateRecipeVersionCommand,
     uow: UnitOfWork,
@@ -224,6 +273,7 @@ def handle(
     mandatory_components_list_qry_srv: mandatory_components_list_query_service.MandatoryComponentsListQueryService,
     system_configuration_mapping: dict,
     component_qry_srv: component_query_service.ComponentQueryService,
+    marketplace_base_image_qry_srv: marketplace_base_image_query_service.MarketplaceBaseImageQueryService | None = None,
 ):
 
     recipe_version_entity = __get_recipe_version_entity(command, recipe_version_query_service)
@@ -248,8 +298,13 @@ def handle(
     except Exception as e:
         raise domain_exception.DomainException(f"Recipe {command.recipeId.value} not found.") from e
 
-    parent_image_upstream_id = _get_parent_image_upstream_id(
-        parameter_qry_srv, system_configuration_mapping, recipe_entity
+    parent = _get_parent_image(
+        command,
+        recipe_version_entity,
+        recipe_entity,
+        parameter_qry_srv,
+        system_configuration_mapping,
+        marketplace_base_image_qry_srv,
     )
 
     recipe_component_versions = __get_recipe_component_versions(
@@ -277,7 +332,11 @@ def handle(
                 recipeId=command.recipeId.value,
                 recipeVersionId=command.recipeVersionId.value,
             ),
-            parentImageUpstreamId=parent_image_upstream_id,
+            parentImageUpstreamId=parent.upstream_id,
+            parentImageProductId=parent.product_id,
+            parentImageId=parent.image_id,
+            parentImageMarketplaceMetadata=parent.marketplace_metadata,
+            parentImageSupportedInstanceTypes=parent.supported_instance_types,
             recipeComponentsVersions=[
                 component_version_entry.ComponentVersionEntry.model_validate(component_version).model_dump()
                 for component_version in recipe_component_versions
@@ -297,7 +356,7 @@ def handle(
             project_id=command.projectId.value,
             recipe_id=command.recipeId.value,
             recipe_version_id=command.recipeVersionId.value,
-            parent_image_upstream_id=parent_image_upstream_id,
+            parent_image_upstream_id=parent.upstream_id,
             previous_recipe_components_versions=recipe_version_entity.recipeComponentsVersions,
             recipe_components_versions=recipe_version_components_versions_value_object.from_list(
                 recipe_component_versions

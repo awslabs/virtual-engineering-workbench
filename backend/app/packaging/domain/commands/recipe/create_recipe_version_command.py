@@ -3,6 +3,8 @@ from app.packaging.domain.value_objects.recipe_version import (
     recipe_version_components_versions_value_object,
     recipe_version_description_value_object,
     recipe_version_integration_value_object,
+    recipe_version_parent_image_id_value_object,
+    recipe_version_parent_image_product_id_value_object,
     recipe_version_release_type_value_object,
     recipe_version_volume_size_value_object,
 )
@@ -18,4 +20,8 @@ class CreateRecipeVersionCommand(command_bus.Command):
     recipeVersionReleaseType: recipe_version_release_type_value_object.RecipeVersionReleaseTypeValueObject
     recipeVersionVolumeSize: recipe_version_volume_size_value_object.RecipeVersionVolumeSizeValueObject
     recipeVersionIntegrations: list[recipe_version_integration_value_object.RecipeVersionIntegrationValueObject]
+    parentImageProductId: (
+        recipe_version_parent_image_product_id_value_object.RecipeVersionParentImageProductIdValueObject | None
+    ) = None
+    parentImageId: recipe_version_parent_image_id_value_object.RecipeVersionParentImageIdValueObject | None = None
     createdBy: user_id_value_object.UserIdValueObject

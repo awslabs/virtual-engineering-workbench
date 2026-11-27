@@ -51,6 +51,9 @@ class ShareAmiDecisionResult:
     license_arn: typing.Optional[str] = None
     home_region: typing.Optional[str] = None
     grant_name: typing.Optional[str] = None
+    # Set for our own AMIs built on an AWS Marketplace AMI: after the usual share/copy, the spoke
+    # also needs the Marketplace license (LICENSE_GRANT or VERIFY_EXTERNAL_GRANT).
+    grant_decision: typing.Optional[ShareAmiDecision] = None
 
 
 class SharedAMIsDomainQueryService:
@@ -192,21 +195,19 @@ class SharedAMIsDomainQueryService:
                     copied_ami_id="",
                 )
 
+            subscription_ownership = (
+                version_entity.marketplaceMetadata.subscriptionOwnership if version_entity.marketplaceMetadata else ""
+            )
+            marketplace_decision = self._MARKETPLACE_DECISION_BY_OWNERSHIP.get(subscription_ownership)
+            if marketplace_decision is not None:
+                marketplace_decision = self._upgrade_external_grant_decision(
+                    version_entity, marketplace_decision, aws_account_id.value
+                )
             # A marketplace AMI is already published to the spoke's region by the
             # seller, so it is never shared or copied; the decision is about the
             # licence instead. Unknown ownership falls through to AMI sharing.
-            if version_entity.imageSource == ImageSource.MARKETPLACE_PRODUCT:
-                subscription_ownership = (
-                    version_entity.marketplaceMetadata.subscriptionOwnership
-                    if version_entity.marketplaceMetadata
-                    else ""
-                )
-                marketplace_decision = self._MARKETPLACE_DECISION_BY_OWNERSHIP.get(subscription_ownership)
-                if marketplace_decision is not None:
-                    marketplace_decision = self._upgrade_external_grant_decision(
-                        version_entity, marketplace_decision, aws_account_id.value
-                    )
-                    return self._marketplace_decision(version_entity, marketplace_decision)
+            if version_entity.imageSource == ImageSource.MARKETPLACE_PRODUCT and marketplace_decision is not None:
+                return self._marketplace_decision(version_entity, marketplace_decision)
 
         # Records written before region joined the key are still found by this query, so no migration is needed.
         shared_ami_entity = next(
@@ -229,6 +230,24 @@ class SharedAMIsDomainQueryService:
             decision = ShareAmiDecision.Copy
         else:
             raise domain_exception.DomainException("Unsupported logic when making the decision")
+
+        if marketplace_decision is not None:
+            # A pipeline image built on a Marketplace AMI: our own AMI, so it is shared or copied like
+            # any other, and the spoke gets the parent's license on top.
+            # marketplace_decision was already upgraded above.
+            grant = self._marketplace_decision(version_entity, marketplace_decision)
+            return ShareAmiDecisionResult(
+                decision=decision,
+                region=version_entity.region,
+                original_ami_id=version_entity.originalAmiId,
+                copied_ami_id=copied_ami_id,
+                image_id=version_entity.originalAmiId,
+                project_id=grant.project_id,
+                license_arn=grant.license_arn,
+                home_region=grant.home_region,
+                grant_name=grant.grant_name,
+                grant_decision=grant.decision,
+            )
 
         return ShareAmiDecisionResult(
             decision=decision,

@@ -98,6 +98,24 @@ export interface Image {
      */
     updateAvailable?: boolean;
     /**
+     * Name given to an imported image
+     * @type {string}
+     * @memberof Image
+     */
+    imageName?: string;
+    /**
+     * Platform of the image (Linux/Windows)
+     * @type {string}
+     * @memberof Image
+     */
+    platform?: string;
+    /**
+     * Architecture of the image (amd64/arm64)
+     * @type {string}
+     * @memberof Image
+     */
+    architecture?: string;
+    /**
      * Creation date of the image
      * @type {string}
      * @memberof Image
@@ -148,6 +166,9 @@ export function ImageFromJSONTyped(json: any, ignoreDiscriminator: boolean): Ima
         'imageUpstreamId': !exists(json, 'imageUpstreamId') ? undefined : json['imageUpstreamId'],
         'imageSource': !exists(json, 'imageSource') ? undefined : json['imageSource'],
         'updateAvailable': !exists(json, 'updateAvailable') ? undefined : json['updateAvailable'],
+        'imageName': !exists(json, 'imageName') ? undefined : json['imageName'],
+        'platform': !exists(json, 'platform') ? undefined : json['platform'],
+        'architecture': !exists(json, 'architecture') ? undefined : json['architecture'],
         'createDate': json['createDate'],
         'lastUpdateDate': json['lastUpdateDate'],
     };
@@ -175,6 +196,9 @@ export function ImageToJSON(value?: Image | null): any {
         'imageUpstreamId': value.imageUpstreamId,
         'imageSource': value.imageSource,
         'updateAvailable': value.updateAvailable,
+        'imageName': value.imageName,
+        'platform': value.platform,
+        'architecture': value.architecture,
         'createDate': value.createDate,
         'lastUpdateDate': value.lastUpdateDate,
     };

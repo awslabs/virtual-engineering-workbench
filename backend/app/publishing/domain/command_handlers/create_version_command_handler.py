@@ -41,8 +41,9 @@ def _build_additional_attributes(
     }
     if ami.imageSource:
         attrs["imageSource"] = ami.imageSource
-        if ami.marketplaceMetadata:
-            attrs["marketplaceMetadata"] = ami.marketplaceMetadata
+    # Imported Marketplace AMIs and pipeline images built on one both carry license data.
+    if ami.marketplaceMetadata:
+        attrs["marketplaceMetadata"] = ami.marketplaceMetadata
     return attrs
 
 

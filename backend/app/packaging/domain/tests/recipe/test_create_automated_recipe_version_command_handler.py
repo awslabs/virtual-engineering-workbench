@@ -99,6 +99,11 @@ def test_handle_should_create_new_recipe_version_with_updated_component():
         ],
         status=recipe_version.RecipeVersionStatus.Released,
         parentImageUpstreamId="ami-12345",
+        parentImageProductId="prod-ib2w5aw4ynhey",
+        parentImageMarketplaceMetadata={
+            "marketplaceProductId": "prod-ib2w5aw4ynhey",
+            "subscriptionOwnership": "VEW_MANAGED",
+        },
         recipeVersionVolumeSize="8",
         recipeVersionIntegrations=[],
         createDate="2023-09-28T00:00:00+00:00",
@@ -137,6 +142,12 @@ def test_handle_should_create_new_recipe_version_with_updated_component():
 
     assertpy.assert_that(added_recipe_version.recipeId).is_equal_to("recipe-12345")
     assertpy.assert_that(added_recipe_version.recipeVersionName).is_equal_to("1.0.1-rc.1")
+    # A Marketplace parent stays with the automated version, license data included.
+    assertpy.assert_that(added_recipe_version.parentImageUpstreamId).is_equal_to("ami-12345")
+    assertpy.assert_that(added_recipe_version.parentImageProductId).is_equal_to("prod-ib2w5aw4ynhey")
+    assertpy.assert_that(added_recipe_version.parentImageMarketplaceMetadata).is_equal_to(
+        last_released_version.parentImageMarketplaceMetadata
+    )
     assertpy.assert_that(added_recipe_version.status).is_equal_to(recipe_version.RecipeVersionStatus.Creating)
 
     component_entries = added_recipe_version.recipeComponentsVersions

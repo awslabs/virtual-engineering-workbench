@@ -4,7 +4,7 @@ from app.packaging.domain.commands.pipeline import update_pipeline_command
 from app.packaging.domain.events.pipeline import pipeline_update_started
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.pipeline import pipeline
-from app.packaging.domain.model.recipe import recipe_version
+from app.packaging.domain.model.recipe import marketplace_instance_types, recipe_version
 from app.packaging.domain.ports import (
     pipeline_query_service,
     pipeline_service,
@@ -97,6 +97,12 @@ def handle(
             f"Version {version_id} of recipe {pipeline_entity.recipeId} has not been released."
         )
     __check_allowed_buildinstance_types(command, pipeline_entity, recipe_qry_srv, pipeline_srv)
+    # Also when only the recipe version changes: its Marketplace parent may restrict the existing types.
+    marketplace_instance_types.check_supported(
+        command.buildInstanceTypes.value if command.buildInstanceTypes else pipeline_entity.buildInstanceTypes,
+        recipe_version_entity.parentImageSupportedInstanceTypes,
+        recipe_version_entity.parentImageProductId,
+    )
 
     _update_attributes(pipeline_entity, recipe_version_entity, command, uow)
 

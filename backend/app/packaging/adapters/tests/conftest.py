@@ -1665,6 +1665,7 @@ def mock_describe_images_response():
                 "PlatformDetails": "Linux/UNIX",
                 "Name": "test-ami",
                 "Description": "Test AMI",
+                "RootDeviceName": "/dev/sda1",
                 "BlockDeviceMappings": [],
                 "ProductCodes": [
                     {

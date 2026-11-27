@@ -450,9 +450,20 @@ def test_register_image_command_handler_should_register_image(
     uow_mock.commit.assert_called()
 
 
+PARENT_MARKETPLACE_METADATA = {
+    "marketplaceProductId": "prod-ib2w5aw4ynhey",
+    "productCode": "abc123def456ghi789jkl0mno",
+    "licenseConfigurationArn": "arn:aws:license-manager::111111111111:license:l-0123456789abcdef0123456789abcdef",
+    "homeRegion": "us-east-1",
+    "subscriptionOwnership": "VEW_MANAGED",
+}
+
+
+@pytest.mark.parametrize("parent_marketplace_metadata", (None, PARENT_MARKETPLACE_METADATA))
 @freeze_time(TEST_DATE)
 @mock.patch("app.packaging.domain.model.image.image.random.choice", lambda _: "1")
 def test_register_image_command_handler_should_always_publish_automated_image_registration_completed(
+    parent_marketplace_metadata,
     component_version_query_service_mock,
     generic_repo_mock,
     get_image_entity,
@@ -473,6 +484,7 @@ def test_register_image_command_handler_should_always_publish_automated_image_re
     component_version_query_service_mock.get_component_version.return_value = component_version_entity
     recipe_version_entity = mock_recipe_version_object
     recipe_version_entity.recipeVersionIntegrations = []
+    recipe_version_entity.parentImageMarketplaceMetadata = parent_marketplace_metadata
     recipe_version_query_service_mock.get_recipe_version.return_value = recipe_version_entity
     register_image_command_mock = get_register_image_command(image_status=image.ImageStatus.Created)
     test_pipeline_entity = get_pipeline_entity(status=pipeline.PipelineStatus.Created, product_id=TEST_PRODUCT_ID)
@@ -521,3 +533,14 @@ def test_register_image_command_handler_should_always_publish_automated_image_re
     assertpy.assert_that(second_event.osVersion).is_equal_to(mock_recipe_object.recipeOsVersion)
     assertpy.assert_that(second_event.platform).is_equal_to(mock_recipe_object.recipePlatform)
     assertpy.assert_that(second_event.architecture).is_equal_to(mock_recipe_object.recipeArchitecture)
+
+    # A Marketplace parent's license goes with the image (still a PIPELINE image) and both events,
+    # so publishing can grant it to spoke accounts.
+    image_update = generic_repo_mock.update_attributes.call_args_list[-1].kwargs
+    if parent_marketplace_metadata:
+        assertpy.assert_that(image_update["marketplaceMetadata"]).is_equal_to(parent_marketplace_metadata)
+    else:
+        assertpy.assert_that(image_update).does_not_contain_key("marketplaceMetadata")
+    assertpy.assert_that(image_update).does_not_contain_key("imageSource")
+    assertpy.assert_that(first_event.marketplaceMetadata).is_equal_to(parent_marketplace_metadata)
+    assertpy.assert_that(second_event.marketplaceMetadata).is_equal_to(parent_marketplace_metadata)

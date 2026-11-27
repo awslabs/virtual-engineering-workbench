@@ -171,3 +171,50 @@ def test_handle_fail_ami_sharing(mock_dependencies, lambda_context):
     # ASSERT
     assertpy.assert_that(response).is_not_none()
     assertpy.assert_that(response).is_equal_to(step_function_model.FailAmiSharingResponse().model_dump(by_alias=True))
+
+
+def test_handle_decide_action_always_returns_the_grant_decision_key(mock_dependencies, lambda_context):
+    # The state machine's ResultSelector reads $.Payload.grantDecision; a missing key fails the execution.
+    from app.publishing.entrypoints.ami_sharing import handler
+
+    handler.dependencies = mock_dependencies
+    request = step_function_model.DecideActionRequest(
+        productId="prod-123", versionId="vers-123", awsAccountId="123456789012", productType="WORKBENCH"
+    )
+
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
+
+    assertpy.assert_that(result).contains_key("grantDecision")
+    assertpy.assert_that(result["grantDecision"]).is_none()
+
+
+def test_handle_decide_action_for_pipeline_image_on_marketplace_ami(
+    mock_dependencies, lambda_context, shared_amis_domain_qry_svc
+):
+    from app.publishing.entrypoints.ami_sharing import handler
+
+    shared_amis_domain_qry_svc.make_share_ami_decision.return_value = (
+        shared_amis_domain_query_service.ShareAmiDecisionResult(
+            decision=shared_amis_domain_query_service.ShareAmiDecision.Share,
+            region="us-east-1",
+            original_ami_id="ami-12345",
+            copied_ami_id=None,
+            image_id="ami-12345",
+            project_id="proj-123",
+            license_arn="arn:aws:license-manager::111111111111:license:l-0123456789abcdef0123456789abcdef",
+            home_region="us-east-1",
+            grant_name="VEW-prod-123-123456789012",
+            grant_decision=shared_amis_domain_query_service.ShareAmiDecision.LicenseGrant,
+        )
+    )
+    handler.dependencies = mock_dependencies
+    request = step_function_model.DecideActionRequest(
+        productId="prod-123", versionId="vers-123", awsAccountId="123456789012", productType="WORKBENCH"
+    )
+
+    result = handler.handler(request.model_dump(by_alias=True), lambda_context)
+
+    assertpy.assert_that(result["decision"]).is_equal_to("SHARE")
+    assertpy.assert_that(result["grantDecision"]).is_equal_to("LICENSE_GRANT")
+    assertpy.assert_that(result["imageId"]).is_equal_to("ami-12345")
+    assertpy.assert_that(result["grantName"]).is_equal_to("VEW-prod-123-123456789012")

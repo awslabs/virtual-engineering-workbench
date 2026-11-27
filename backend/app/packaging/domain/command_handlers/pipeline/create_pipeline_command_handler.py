@@ -4,7 +4,7 @@ from app.packaging.domain.commands.pipeline import create_pipeline_command
 from app.packaging.domain.events.pipeline import pipeline_creation_started
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.pipeline import pipeline
-from app.packaging.domain.model.recipe import recipe_version
+from app.packaging.domain.model.recipe import marketplace_instance_types, recipe_version
 from app.packaging.domain.ports import pipeline_service, recipe_query_service, recipe_version_query_service
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
@@ -41,6 +41,12 @@ def handle(
             raise domain_exception.DomainException(
                 f"Build instance type {build_type} is not allowed for recipe {command.recipeId.value}."
             )
+    # Image Builder launches the build on the recipe's parent: a Marketplace parent restricts the types.
+    marketplace_instance_types.check_supported(
+        command.buildInstanceTypes.value,
+        recipe_version_entity.parentImageSupportedInstanceTypes,
+        recipe_version_entity.parentImageProductId,
+    )
 
     current_time = datetime.now(timezone.utc).isoformat()
     pipeline_entity = pipeline.Pipeline(

@@ -457,6 +457,21 @@ class UpdateRecipeVersionRequest(BaseModel):
         description="Size (in GB) of the recipe version root volume",
         title="RecipeVersionVolumeSize",
     )
+    parentImageProductId: Optional[str] = Field(
+        None,
+        max_length=64,
+        description=(
+            "AWS Marketplace AMI product to build on; empty string for the platform default parent image; "
+            "omit to keep the current parent image"
+        ),
+        title="ParentImageProductId",
+    )
+    parentImageId: Optional[str] = Field(
+        None,
+        max_length=64,
+        description="Imported AWS-published image (AWS_PUBLISHED_AMI) to build on, instead of a Marketplace product",
+        title="ParentImageId",
+    )
     recipeVersionIntegrations: Optional[List[str]] = Field(
         None,
         description="A list of enabled integrations",
@@ -701,6 +716,11 @@ class Image(BaseModel):
         description="Whether a newer marketplace AMI version is available for this image",
         title="UpdateAvailable",
     )
+    imageName: Optional[str] = Field(None, description="Name given to an imported image", title="ImageName")
+    platform: Optional[str] = Field(None, description="Platform of the image (Linux/Windows)", title="Platform")
+    architecture: Optional[str] = Field(
+        None, description="Architecture of the image (amd64/arm64)", title="Architecture"
+    )
     createDate: str = Field(..., description="Creation date of the image", title="CreateDate")
     lastUpdateDate: str = Field(..., description="Last update date of the image", title="LastUpdateDate")
 
@@ -732,6 +752,9 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     productName: Optional[str] = Field(None, title="ProductName")
     productCode: Optional[str] = Field(None, title="ProductCode")
     productId: Optional[str] = Field(None, title="ProductId")
+    platform: Optional[str] = Field(None, title="Platform")
+    architecture: Optional[str] = Field(None, title="Architecture")
+    rootDeviceName: Optional[str] = Field(None, title="RootDeviceName")
     hubRegionAmiId: Optional[str] = Field(None, title="HubRegionAmiId")
     regionalAmiIds: Optional[Dict[str, str]] = Field(None, title="RegionalAmiIds")
     licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")
@@ -795,6 +818,16 @@ class RecipeVersion(BaseModel):
         description="Size (in GB) of the recipe version root volume",
         title="RecipeVersionVolumeSize",
     )
+    parentImageProductId: Optional[str] = Field(
+        None,
+        description="AWS Marketplace AMI product the recipe version builds on, if any",
+        title="ParentImageProductId",
+    )
+    parentImageId: Optional[str] = Field(
+        None,
+        description="Imported AWS-published image (Windows Server, RHEL, ...) the recipe version builds on, if any",
+        title="ParentImageId",
+    )
     recipeVersionIntegrations: Optional[List[str]] = Field(
         None,
         description="List of the selected integrations for the recipe version",
@@ -829,6 +862,18 @@ class CreateRecipeVersionRequest(BaseModel):
         ...,
         description="Size (in GB) of the recipe version root volume",
         title="RecipeVersionVolumeSize",
+    )
+    parentImageProductId: Optional[str] = Field(
+        None,
+        max_length=64,
+        description="AWS Marketplace AMI product to build on instead of the platform default parent image",
+        title="ParentImageProductId",
+    )
+    parentImageId: Optional[str] = Field(
+        None,
+        max_length=64,
+        description="Imported AWS-published image (AWS_PUBLISHED_AMI) to build on, instead of a Marketplace product",
+        title="ParentImageId",
     )
     recipeVersionIntegrations: Optional[List[str]] = Field(
         None,
