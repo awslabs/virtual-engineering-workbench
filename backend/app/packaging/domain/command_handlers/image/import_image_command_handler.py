@@ -262,6 +262,7 @@ def handle(
 
     _reject_already_imported_ami(command, image_qry_srv)
 
+    resolution = None
     if image_source == ImageSource.AWS_PUBLISHED_AMI:
         resolution = _resolve_aws_published_import(command, aws_published_qry_svc)
 
@@ -272,7 +273,7 @@ def handle(
         marketplace_metadata = asdict(
             _validate_and_build_marketplace_metadata(command, ami_validation_svc, ami_desc.region)
         )
-    elif image_source == ImageSource.AWS_PUBLISHED_AMI:
+    elif resolution is not None:
         marketplace_metadata = _build_aws_published_metadata(command, ami_desc, agreement_svc, resolution.productId)
 
     encryption_type, kms_key_id = _detect_encryption(ami_desc)
