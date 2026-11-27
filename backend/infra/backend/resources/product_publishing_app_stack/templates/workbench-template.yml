@@ -155,8 +155,9 @@ Resources:
           PolicyName: S3ForNiceDcvLicense
     Type: AWS::IAM::Role
   # The SSH key VEW reveals to the owner in the login dialog. Removing this resource, the instance's
-  # KeyName and the SSHKeyPair output turns SSH off; SSH needs all three, with the output named exactly
-  # SSHKeyPair and holding the /ec2/keypair/<id> parameter path.
+  # KeyName and the SSHKeyPair output stops VEW offering SSH for this template; port 22 still follows the
+  # deployment's SSH setting. VEW offers SSH only with all three, the output named exactly SSHKeyPair
+  # and holding the /ec2/keypair/<id> parameter path.
   KeyPair:
     Properties:
       KeyName: !Join ["-", ["KeyPair", !Select [4, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId]]]]]]
