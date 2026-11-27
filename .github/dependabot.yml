@@ -38,6 +38,7 @@ updates:
     directories:
       - "/frontend/web"
       - "/frontend/infrastructure"
+      - "/site"
     schedule:
       interval: "weekly"
       day: "monday"
