@@ -53,7 +53,7 @@ Onboarding runs asynchronously: VEW provisions resources in the target account a
 
 ## Step 3: Confirm onboarding completed
 
-On the technology details page, wait for the account's status to leave **OnBoarding** and become active. Only after onboarding completes does the DEV portfolio exist and product versions can be created.
+On the technology details page, wait for the account's status to change from **OnBoarding** to **Active**. Only after onboarding completes does the DEV portfolio exist and product versions can be created.
 
 If onboarding fails, select the account and choose **Restart onboarding**. A common cause is an AWS account ID that doesn't exist or hasn't been bootstrapped as a spoke account.
 

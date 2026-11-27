@@ -1,0 +1,44 @@
+---
+title: Accounts, stages and access
+description: Hub and spoke accounts, DEV/QA/PROD stages, projects, roles and Cedar authorization.
+sidebar:
+  order: 3
+---
+
+VEW runs in a hub account and spoke accounts. What a user can do depends on the stage, their role in each project and Cedar policies.
+
+## Accounts
+
+| Account | Runs | How many |
+| --- | --- | --- |
+| **Hub** | The platform: portal, APIs, catalog, image pipelines | One per VEW deployment |
+| **Spoke** | The workbenches and virtual targets users launch | One or more. Each is onboarded to one project, technology, stage and Region |
+
+Hub and spoke accounts **must be in the same AWS Organization**. The image-sharing key and the cross-account event bus trust `aws:PrincipalOrgID`, so an account outside the organization cannot receive images or events.
+
+A spoke account is onboarded with a CloudFormation bootstrap template (`backend/setup/prerequisites/vew-spoke-account-bootstrap.yml`) that creates the role the hub assumes, `VEWAccountBootstrapRole`, and takes a VPC id. Leave that parameter empty and the template creates a VPC with tagged public subnets ready to provision into. Give it an existing VPC and you must tag the subnets you want used yourself, `ProvisioningEnabled=True`, because that is how VEW selects one. The deploy script can bootstrap one spoke; further spokes are bootstrapped by hand.
+
+## Technologies and stages
+
+A **technology** groups products that share an onboarded account, for example "Android" or "FreeRTOS". Onboarding an account to a technology creates the Service Catalog **portfolio** that products publish into. See [Onboard a technology account](../../platform/onboard-an-account/).
+
+Each technology account has a **stage**: `DEV`, `QA` or `PROD`. Product versions are published to a stage, and `user-role-stage-access` in `backend/infra/config.py` sets which stages each role can launch from. By default every role can use `DEV` only. Release candidates carry an `-rc` suffix so they can be tested before promotion.
+
+## Projects and roles
+
+| Level | What it holds |
+| --- | --- |
+| **Project** | The top-level grouping, and where work happens. Components, recipes, images and provisioned products belong to a project. Members join with a role. Some portal pages call a project a "program". |
+| **Role** | What a member may do. Roles are granted per project, so the same person can be a `PRODUCT_CONTRIBUTOR` in one project and a `PLATFORM_USER` in another. |
+
+## Cedar policies authorize protected calls from the portal, the CLI and the MCP gateway
+
+Protected backend operations from the portal, the `vew` CLI and the MCP gateway pass through the Authorization bounded context, which evaluates **Cedar policies** in Amazon Verified Permissions against the caller's identity, their project memberships and roles, and the resource. All three go through that same check: the UI never grants anything the policy would refuse. So an AI agent connected through MCP can do only what the user it signed in as can do.
+
+Two other paths do not use Cedar at all — service-to-service clients, and calls between bounded contexts. [Authorization model](../authorization-model/) is the reference for all three: which check each API applies, and where it lives in the code.
+
+## Related
+
+- [Getting started](../../getting-started/) for the first hub and spoke.
+- [Private deployment](../../operators/private-deployment/) when the platform must stay inside a corporate network.
+- [Architecture](../architecture/) for the diagrams.

@@ -1,0 +1,123 @@
+---
+title: Roadmap
+description: What the VEW maintainers plan to work on, and why.
+template: splash
+sidebar:
+  hidden: true
+---
+
+import Illus from '../../components/Illus.astro';
+
+export const b = import.meta.env.BASE_URL.replace(/\/$/, '');
+export const repo = 'https://github.com/awslabs/virtual-engineering-workbench';
+
+<div class="not-content landing roadmap">
+
+<section class="page-head">
+  <p class="eyebrow">Roadmap</p>
+  <h1>VEW is moving from people launching environments to agents doing engineering work.</h1>
+  <p class="lede">This page describes the project's direction without dates. It covers what we believe, the themes we are working on, and what each theme should change once it ships. Individual changes are visible as they happen, in the <a href={`${repo}/issues`}>issues</a> and <a href={`${repo}/pulls`}>pull requests</a>.</p>
+</section>
+
+<section class="belief">
+  <p class="kicker">Principle</p>
+  <h2>An engineering environment is software. Treat it like software.</h2>
+  <p>Each environment is defined once, versioned, tested, released through stages and launched by whoever needs it. The current platform follows that principle. Because every environment is versioned and has a launch API, the caller doesn't have to be a person.</p>
+</section>
+
+
+<section class="destination">
+  <p class="kicker">Where we are going</p>
+  <h2>From self-service to agent-native engineering.</h2>
+  <div class="dest-grid">
+    <div class="dest-arc">
+      <div class="arc-step done"><span class="arc-n">First</span><h3>Engineers launch their own environments</h3><p>A developer picks a product from the catalog and connects. Platform engineers publish it. Pipelines call the same APIs.</p></div>
+      <div class="arc-step done"><span class="arc-n">Now</span><h3>Agents operate the platform</h3><p>A coding assistant in an engineer's terminal, such as Kiro or Claude Code, reaches the packaging, publishing, provisioning and project APIs through the MCP gateway and acts as that engineer, under their permissions. It can build an image, publish a version and launch a target. An engineer still directs the work.</p></div>
+      <div class="arc-step next"><span class="arc-n">Next</span><h3>Agents implement and verify changes</h3><p>The next step is agent runtimes and fleets instead of assistants. A requirement or a change starts them, they run without a terminal, and they act under their own identity and policy instead of a person's. They build and launch the environments needed to implement and verify the change, run the tests on virtual targets, and report the result back to whatever triggered them. VEW is where that work runs, and it records what was done, in which environment, against which version, and by whom.</p></div>
+    </div>
+    <div class="dest-why">
+      <h3>Verification has to keep up with agent-written code</h3>
+      <p>AI reduces the cost of writing code. It does not reduce the cost of integrating and verifying it. In a V-model process, writing the code was never the slow part: the waits are for an environment, a target and a result at every level of the V. Agents will produce more changes than a team can verify by hand, so verification has to become as automated as generation, and that needs environments an agent can create, use and trust without waiting for a person.</p>
+      <p>VEW already has the parts that make this safe: everything is versioned, every protected call is authorized before it runs, and every environment is reproducible. What changes is what we optimize for: tool descriptions an agent can reason over, operations that compose into whole workflows, and results an agent can read. An agent should hold the same permissions and leave the same audit trail as a person.</p>
+    </div>
+  </div>
+</section>
+
+<section class="themes">
+  <p class="kicker">Themes</p>
+  <h2>Current workstreams</h2>
+  <p class="themes-intro">The second paragraph in each theme says what it contributes to agents doing engineering work.</p>
+
+  <div class="theme">
+    <div class="theme-head"><span class="num">01</span><h3>Agents and developer experience</h3></div>
+    <div class="theme-body">
+      <p class="where"><strong>Where we are.</strong> The portal, a CLI that derives its commands from the API specs, and an MCP gateway that hands an agent the four bounded contexts' operations under the user's own permissions.</p>
+      <p class="toward"><strong>Where we are going.</strong> The other themes support this one. An agent should do an engineer's full cycle: take a change, build and launch the environment it needs, test the change on a virtual target and report the result. It also needs an audit trail that shows what an agent did and under which identity. People keep the portal and an editor that opens on the workbench from the browser. The way the portal guides users through tools, targets and environments will be redesigned.</p>
+    </div>
+  </div>
+
+  <div class="theme">
+    <div class="theme-head"><span class="num">02</span><h3>Building and delivering products</h3></div>
+    <div class="theme-body">
+      <p class="where"><strong>Where we are.</strong> Components, recipes and pipelines produce versioned AMIs. Marketplace AMIs can be imported and used as recipe bases. Products are released through DEV, QA and PROD.</p>
+      <p class="toward"><strong>Where we are going.</strong> A product should be able to span more than one machine: a workbench and its virtual targets launch together as one environment, start in order and connect to each other automatically. Containers should use the same recipe model as AMIs, so several targets can share one instance. When a supplier updates a component, VEW should create a new product version without a manual step. For agents, this is what makes an environment something they can request by description rather than assemble by hand.</p>
+    </div>
+  </div>
+
+  <div class="theme">
+    <div class="theme-head"><span class="num">03</span><h3>Lifecycle and cost</h3></div>
+    <div class="theme-body">
+      <p class="where"><strong>Where we are.</strong> Users can start, stop, upgrade and terminate products, within per-user limits. The platform is serverless, so it costs little when idle.</p>
+      <p class="toward"><strong>Where we are going.</strong> VEW should detect an idle workbench and stop it, with an override for long unattended jobs. Users should see the estimated cost of a product before they launch it and its actual cost since then, and operators should get alarms and dashboards that they don't have to build. Old images should be archived cheaply rather than deleted or kept in full-price storage. When agents launch environments faster than a team would by hand, this is what keeps the bill and the fleet under control.</p>
+    </div>
+  </div>
+
+  <div class="theme">
+    <div class="theme-head"><span class="num">04</span><h3>Storage and shared infrastructure</h3></div>
+    <div class="theme-body">
+      <p class="where"><strong>Where we are.</strong> Storage is attached to the instance. Stopping the instance keeps the storage, and terminating it deletes the storage.</p>
+      <p class="toward"><strong>Where we are going.</strong> A home drive that follows a user from workbench to workbench. A working directory that survives a product upgrade. Simple file transfer in and out of a running product. And a way for a product to depend on shared infrastructure, such as a build cache or a GPU pool, that the platform provisions and manages rather than each team. Agents need the same thing people do: state that outlives one instance.</p>
+    </div>
+  </div>
+
+  <div class="theme">
+    <div class="theme-head"><span class="num">05</span><h3>Integrations</h3></div>
+    <div class="theme-body">
+      <p class="where"><strong>Where we are.</strong> Virtual targets run on EC2. The repository includes worked examples for FreeRTOS on QEMU, Android on Cuttlefish and nested KVM. AWS Marketplace images can be imported, with their licenses granted to the spoke account that runs them. This is the first way to bring a product that a third party owns into the catalog.</p>
+      <p class="toward"><strong>Where we are going.</strong> A partner should be able to package its own simulator, toolchain or board as a product and have it appear in the catalog without any change to VEW. That needs a documented contract for what a virtual target must provide, and a delivery method in which the partner keeps the artifact and its license. Marketplace import is the first such method and the model for the others. Physical benches should be listed in the same catalog as virtual targets, with availability and booking, so a team sees all the targets it can test on in one place. Each integration is one more thing an agent can reach through the same API.</p>
+    </div>
+  </div>
+
+  <div class="theme">
+    <div class="theme-head"><span class="num">06</span><h3>Platform and open source</h3></div>
+    <div class="theme-body">
+      <p class="where"><strong>Where we are.</strong> One script deploys VEW in public or private mode. Cedar policies authorize protected API calls. CI runs security scans, and the documentation on this site is generated from the repository.</p>
+      <p class="toward"><strong>Where we are going.</strong> Bounded contexts should be smaller and better documented, so they are easier to contribute to. A security posture a customer's review team can read in an afternoon. VEW should have fewer deployment constraints, so it can run in more of the environments teams use. The goal is a project that other organizations can run, extend and trust on their own, and that a security team will let agents operate.</p>
+    </div>
+  </div>
+</section>
+
+<section class="honest">
+  <p class="kicker">Scope</p>
+  <div class="two">
+    <div>
+      <h3>This page sets direction</h3>
+      <p>It records the direction the maintainers are working toward, so you can hold us to it and argue with it. The order of the themes roughly reflects where effort is going now.</p>
+    </div>
+    <div>
+      <h3>This page makes no commitments on features or dates</h3>
+      <p>It is also not a tracker: no theme here has an issue or a milestone of its own to follow. Work shows up in the issues and pull requests as it starts, and sometimes disappears. If you need to know whether something specific is coming, ask in an issue, because the issue tracker has the current answer.</p>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <h2>Tell us what you need.</h2>
+  <p>Open an issue with the problem you have. Problems from GitHub are triaged with everything else.</p>
+  <div class="actions">
+    <a class="btn primary" href={`${repo}/issues/new/choose`}>Open an issue</a>
+    <a class="btn ghost" href={`${repo}/pulls`}>What's in review</a>
+  </div>
+</section>
+
+</div>

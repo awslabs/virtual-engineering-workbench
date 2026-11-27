@@ -250,7 +250,7 @@ Parameters used by `deploy.sh` (prompted interactively or loaded from config fil
 | `PRIVATE_DNS_AUTOMATE` | `true` | When private, create a Route 53 private hosted zone (associated with the hub VPC) with alias records to both ALBs |
 | `PRIVATE_DNS_ZONE` | — | Private hosted zone name (empty = derived from `CUSTOM_DOMAIN`) |
 | `PRIVATE_CA_ARN` | — | When private and `CERT_ARN` is empty, an AWS Private CA in `AWS_REGION` that each stack requests the certificate for its own domain from, through ACM, which renews it. A CA in this account must allow ACM to renew (see [Private deployment](#private-deployment)) |
-| `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning. Needs `AWS_PROFILE_SPOKE` or `AWS_SPOKE_ACCESS_KEY_ID` and `AWS_SPOKE_SECRET_ACCESS_KEY`. If empty, onboard a spoke account manually (see [Spoke account onboarding](#spoke-account-onboarding)) |
+| `SPOKE_ACCOUNT_ID` | — | Spoke account ID for workbench provisioning. Set either `AWS_PROFILE_SPOKE`, or both `AWS_SPOKE_ACCESS_KEY_ID` and `AWS_SPOKE_SECRET_ACCESS_KEY`. If empty, onboard a spoke account manually (see [Spoke account onboarding](#spoke-account-onboarding)) |
 | `SPOKE_VPC_ID` | — | VPC ID in the spoke account |
 | `HUB_VPC_NAME` | — | Name tag of an existing VPC in the hub account to deploy into. Empty derives the name from the prefixes and creates the VPC if absent |
 | `HUB_SUBNET_NAMES` | — | Comma-separated Name tags of subnets in that VPC the AMI factory may build in. Empty derives names VEW only creates itself |

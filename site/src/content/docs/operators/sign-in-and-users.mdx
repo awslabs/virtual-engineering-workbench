@@ -1,0 +1,109 @@
+---
+title: Set up sign-in and add users
+description: Corporate OIDC federation or native Cognito users, and how the next person gets access.
+sidebar:
+  order: 1
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+VEW signs people in through an Amazon Cognito user pool that `deploy.sh` creates. The pool accepts either of two things, and you choose at deploy time:
+
+- **Corporate OIDC federation.** People sign in with your identity provider. Set the `OIDC_*` parameters.
+- **Native Cognito users.** You create each user in the pool yourself. This is what you get when the `OIDC_*` parameters are empty.
+
+Whichever you use, VEW identifies a person by one attribute, `custom:user_tid`. Every project membership, role and Cedar decision hangs off that value, not off the email address.
+
+<Aside type="note" title="The user id is normalized">
+The authorizer takes `custom:user_tid`, drops anything from an `@` onwards, and upper-cases the rest. A claim of `jdoe` and one of `jdoe@example.com` both become `JDOE`, which is the id to use in `ADMIN_USER_ID` and in project memberships.
+</Aside>
+
+## Without OIDC: create the admin user
+
+`deploy.sh` seeds the admin's rows in DynamoDB — the project membership and the authorization assignment, both keyed on `ADMIN_USER_ID` with the `ADMIN` role — but it **does not create a Cognito user**. Nobody can sign in until you do.
+
+<Steps>
+
+1. At the end of a deployment with no OIDC configured, the script prints a ready-to-run command. Run it:
+
+   ```bash
+   aws cognito-idp admin-create-user \
+     --user-pool-id <pool id> \
+     --username <admin email> \
+     --user-attributes Name=email,Value=<admin email> \
+                       Name=email_verified,Value=true \
+                       Name=custom:user_tid,Value=<ADMIN_USER_ID> \
+     --region <cognito region>
+   ```
+
+   `custom:user_tid` must carry the same `ADMIN_USER_ID` the deployment was given. Without it the person signs in but holds no project membership, and the portal shows nothing.
+
+2. If you need the pool id later, read it from SSM:
+
+   ```bash
+   aws ssm get-parameter --name "/<org>-<app>-ui-<env>/user-pool-id" \
+     --query 'Parameter.Value' --output text --region <cognito region>
+   ```
+
+3. Open the portal URL and sign in with the temporary password Cognito emailed. Native users are prompted to set a password, and MFA is required (`AllowCustomUserLogin` and `RequireCustomUserLogin2FA` in `frontend/infrastructure/cdk.json`, both on by default).
+
+</Steps>
+
+## With OIDC: federate your identity provider
+
+<Steps>
+
+1. Register VEW as an application in your identity provider. It needs the authorization-code flow, the scopes `openid`, `email` and `profile`, and this redirect URI:
+
+   ```
+   https://<login-domain>/oauth2/idpresponse
+   ```
+
+   `<login-domain>` is the deployment's Cognito hosted domain,
+   `<org>-<app>-<env>-login-<qualifier>.auth.<region>.amazoncognito.com`, or your own login domain if you configured one.
+
+2. Put the provider's details in your deploy configuration:
+
+   | Parameter | What it is |
+   | --- | --- |
+   | `OIDC_CLIENT_ID` | The client id your provider issued |
+   | `OIDC_CLIENT_SECRET` | The client secret. The script writes it to AWS Secrets Manager as `<org>-<app>-ui-<env>/oidc` and the user pool reads it from there; it is not stored in the saved configuration |
+   | `OIDC_ISSUER_URL` | The provider's issuer URL |
+   | `OIDC_USER_ID_CLAIM` | The claim that carries the VEW user id. Defaults to `sub` |
+   | `OIDC_LOGOUT_URL` | Optional. The provider's logout URL; `{appDns}` is substituted with the application origin |
+
+3. Set `ADMIN_USER_ID` to the admin's own id *as the claim will deliver it*, normalized: no `@`, upper case. If `OIDC_USER_ID_CLAIM` is left at `sub` and your provider's `sub` is an opaque uuid, point the claim at something a person can read and that you can predict, such as a corporate login name.
+
+4. Run `deploy.sh`. It stores the secret, and the user pool registers an OIDC provider named `CorporateLogin` with this claim mapping:
+
+   | Provider claim | Cognito attribute |
+   | --- | --- |
+   | `email` | `email` |
+   | `email_verified` | `email_verified` |
+   | `given_name` | `given_name` |
+   | `family_name` | `family_name` |
+   | `OIDC_USER_ID_CLAIM` (default `sub`) | `custom:user_tid` |
+
+5. Sign in through the provider. A federated user is created in the pool on first sign-in, so there is no `admin-create-user` step.
+
+</Steps>
+
+## Add the next person
+
+Access to VEW is access to a project. A new person needs both a sign-in and a membership.
+
+<Steps>
+
+1. **Sign-in.** With OIDC, nothing to do: anyone your provider authenticates can reach the portal. Without OIDC, create them with `admin-create-user` as above, giving each one their own `custom:user_tid`.
+
+2. **Membership.** The person asks for access to a project in the portal. The request is held as a pending enrolment until an admin approves it, and approval creates their assignment with the default role, `PLATFORM_USER`. An admin can then change the role.
+
+3. **Role and stages.** Roles are per project: `ADMIN`, `PROGRAM_OWNER`, `PRODUCT_CONTRIBUTOR`, `POWER_USER`, `PLATFORM_USER`, `BETA_USER`. Which stages a role may launch from is deployment configuration (`user-role-stage-access` in `backend/infra/config.py`); by default every role may use `DEV` only, so a new user sees nothing in QA or PROD until you change it.
+
+</Steps>
+
+## Related
+
+- [Accounts, stages and access](../../concepts/accounts-and-access/) for what a role decides.
+- [Authorization model](../../concepts/authorization-model/) for the check each API applies.
+- [Configuration reference](../configuration/) for every deploy parameter.

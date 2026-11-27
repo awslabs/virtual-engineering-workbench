@@ -1,0 +1,63 @@
+---
+title: Architecture
+description: Deployment modes, bounded contexts and design patterns.
+sidebar:
+  order: 2
+---
+
+export const b = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+VEW uses hexagonal architecture and domain-driven design. It has five bounded contexts, each an independent service with its own API, data store and deployment, plus two directories that are not services: shared code, and a reference skeleton for a new context.
+
+## Deployment modes
+
+**Public:** CloudFront, Lambda@Edge and S3 serve the frontend, with public API Gateway endpoints protected by WAF. The backend runs in the Region you choose. In this mode the frontend deploys to `us-east-1`, because a CLOUDFRONT-scoped WAF exists only there.
+
+**Private:** an internal Application Load Balancer in a VPC serves the frontend, with private API endpoints through VPC endpoints. The portal and the APIs are reachable only from your network — users come in over VPN, Direct Connect or Transit Gateway — while AWS still serves the Cognito sign-in page publicly. Any region.
+
+<img src={`${b}/assets/architecture-public.png`} alt="Public deployment architecture" />
+
+<img src={`${b}/assets/architecture-private.png`} alt="Private deployment architecture" />
+
+## Backend
+
+Each bounded-context Lambda has the same hexagonal structure: entrypoint adapters, domain logic and infrastructure adapters, connected by a bootstrapper. The MCP gateway's request interceptor is the exception — it is a single handler that forwards a token and has no domain.
+
+<img src={`${b}/assets/architecture-backend.png`} alt="Backend hexagonal architecture" />
+
+## Bounded contexts
+
+| Context | Purpose |
+| --- | --- |
+| Authorization | Authorization for the user APIs, with Cedar policies; the S2S APIs use OAuth scopes instead |
+| Projects | Project lifecycle, membership, enrollment and resource allocation |
+| Packaging | AMI components, recipes, EC2 Image Builder pipelines and images |
+| Publishing | Service Catalog products, versions and portfolio management |
+| Provisioning | Product launch and terminate, workbench lifecycle management |
+
+Two more directories sit beside them in `backend/app` without being services of their own: `shared` (common utilities, DDD helpers, middleware and instrumentation) and `usecase` (a reference skeleton, with a ping API, for plugging a new bounded context into a use-case account). A third, `mcp_gateway_agentcore`, deploys only when the [MCP gateway](../../tools/mcp/) is configured: it is the gateway's request interceptor, which forwards the caller's token to a context's own API rather than holding a domain of its own.
+
+## Design patterns
+
+- **Hexagonal architecture:** domain logic at the center, ports define contracts, adapters implement infrastructure.
+- **CQRS:** command handlers write, query services read.
+- **Repository and Unit of Work:** transactional consistency for DynamoDB.
+- **Domain events:** EventBridge carries events between contexts.
+- **Value objects:** self-validating DTOs with factory methods.
+
+## Technology stack
+
+| Layer | Technology |
+| --- | --- |
+| Backend | Python 3.13, AWS Lambda, Lambda Powertools |
+| API | Amazon API Gateway (REST); a Lambda request authorizer on the user APIs, Cognito OAuth scopes on the service-to-service APIs, IAM on `/internal/*` |
+| Database | Amazon DynamoDB |
+| Frontend | React 18, TypeScript, Vite, Cloudscape Design System |
+| Authentication | Amazon Cognito with OIDC federation |
+| CDN and protection | CloudFront, Lambda@Edge, WAF |
+| Events | Amazon EventBridge |
+| Orchestration | AWS Step Functions, AWS Service Catalog |
+| Image building | EC2 Image Builder |
+| Infrastructure | AWS CDK v2 (Python backend, TypeScript frontend) |
+
+For code-level structure, see the [backend](https://github.com/awslabs/virtual-engineering-workbench/blob/main/backend/README.md) and [frontend](https://github.com/awslabs/virtual-engineering-workbench/blob/main/frontend/README.md) READMEs.

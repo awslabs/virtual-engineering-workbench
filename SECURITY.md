@@ -50,12 +50,14 @@ If you discover a security vulnerability, please report it by emailing <aws-secu
 - Lambda@Edge allows unauthenticated access to landing and documentation pages; backend API has independent auth
 - cdk_nag suppressions are documented in source code for EC2 workbench launch template configurations
 - Client IP header is included in CloudFront error responses for debugging
+- Service-to-service clients are scoped to a deployment, not to a project. The Provisioning and Projects S2S routes authorize on the OAuth scope alone, so a client holding a scope may act on any project in the deployment; the Provisioning lifecycle routes act under a service identity (`PROVISIONING_S2S_API_USER`). The Packaging routes additionally require the client to be assigned to the project in the path. See [Authorization model](docs/authorization-model.md)
 
 ### Production Recommendations
 
 - Enable KMS customer-managed keys for CloudWatch log groups containing sensitive data
 - Configure S3 server access logging for audit requirements
 - Review cdk_nag suppressions periodically
+- Treat service-to-service credentials as deployment-wide. Where separate teams must not reach each other's projects, run separate VEW deployments; alternatively add the Packaging `require_access` check to the Provisioning and Projects routers, and expect existing clients that reach across projects to start being refused
 
 ## Compliance Considerations
 

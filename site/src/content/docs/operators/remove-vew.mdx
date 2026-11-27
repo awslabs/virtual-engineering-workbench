@@ -1,0 +1,47 @@
+---
+title: Remove VEW
+description: Tear the platform down with deploy.sh --destroy, then clean up the spoke accounts.
+sidebar:
+  order: 4
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+`deploy.sh --destroy` deletes the platform. It works on the hub account only, so the spoke accounts need a pass of their own afterwards.
+
+<Aside type="danger" title="This is not reversible">
+The destroy deletes the DynamoDB tables and the S3 buckets, emptying versioned buckets first. Components, recipes, images, products and project memberships go with them. Nothing is backed up for you.
+</Aside>
+
+## Order of work
+
+<Steps>
+
+1. **Terminate the workbenches.** Ask users to terminate their provisioned products, or terminate them from the portal as an admin. The destroy does not reach into the spoke accounts, so anything still running keeps running — and keeps billing — after the platform is gone, with no portal left to manage it from.
+
+2. **Destroy the hub.** `--destroy` needs the configuration file, because it identifies resources by the prefix and environment in it:
+
+   ```bash
+   ./deploy.sh --destroy --config .deploy-config-<env>
+   ```
+
+   It resolves every stack whose name starts with `<org>-<app>` and ends with the environment, plus any stack importing one of their CloudFormation exports, and lists them for you to approve. For a public deployment outside `us-east-1` the list covers both regions, because the frontend stacks live in `us-east-1`. You confirm by typing `destroy`; `--yes` answers for you, which is what a pipeline needs and what makes this dangerous to leave in one.
+
+   After the stacks, it sweeps the leftovers that CloudFormation does not own: CloudWatch log groups, ECR repositories and S3 buckets matching the same prefix and environment. Matching on the environment is what keeps a `dev` destroy away from a `qa` deployment in the same account.
+
+3. **Read the end of the output.** Anything it could not delete is listed and the script exits with an error. A stack that refuses to go usually has a leftover network interface; the script retries, then tells you to look.
+
+4. **Clean the spoke accounts.** Nothing in step 2 touched them. In each spoke, delete the `VEW-Spoke-Bootstrap` stack — the roles the hub assumed and, if you let VEW create it, the VPC. Then look for what onboarding and launches left behind: the Service Catalog portfolio VEW created there with its products, AMI copies distributed into the account, and the per-user security groups.
+
+   ```bash
+   aws cloudformation delete-stack --stack-name VEW-Spoke-Bootstrap --region <region>
+   ```
+
+5. **Check the bill.** The surest check is the cost explorer, filtered on the tags from `RESOURCE_TAGS` or the `<org>-<app>-*` name pattern, a day or two later.
+
+</Steps>
+
+## Related
+
+- [Update VEW](../update-vew/) if you meant to redeploy rather than remove.
+- [Accounts, stages and access](../../concepts/accounts-and-access/) for what lives in which account.

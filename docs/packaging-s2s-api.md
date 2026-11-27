@@ -1,10 +1,9 @@
 # Packaging service-to-service API
 
-The Packaging S2S API is a thin proof of concept over the existing UI commands for
-project-scoped components, recipes, pipelines, and image builds. All resources use
-the existing internal IDs and request field names. There are no external-ID
-mappings, ETags, or separate reconciliation operations. This document describes
-the local contract; it does not claim deployed AWS availability.
+The Packaging S2S API lets another application manage project-scoped components,
+recipes, pipelines and image builds without a signed-in user. It exposes the same
+operations the portal uses, with the same internal IDs and request field names.
+There are no external-ID mappings, ETags or separate reconciliation operations.
 
 ## Prerequisites
 
@@ -14,7 +13,7 @@ The OAuth client needs these scopes:
 - `clients/packaging/component.write`
 - `clients/packaging/component.release` to release a validated version
 
-The S2S authorization model, scopes plus project assignment and no Cedar, is described in [Authorization model](authorization-model.md).
+No S2S route is authorized by Cedar. The packaging routes require both an OAuth scope and a project assignment; other contexts' S2S routes check the scope only. [Authorization model](authorization-model.md) has the detail.
 
 An administrator must also assign the client to every project it may access. OAuth scopes grant an action; a project assignment grants access to a particular project. Requests need both.
 
@@ -284,10 +283,7 @@ the UI names, `componentVersionType`, and `order`:
 
 Components are sorted by `order`; existing mandatory components are added by the
 domain workflow. `recipeVersionReleaseType` is accepted only when the
-version is created; it is not an update field. The s2s API cannot choose an AWS
-Marketplace base image (that is a UI and user API option). Updating a version that
-already builds on one keeps its base image. For a Marketplace product it checks the volume size against
-the product's root volume; for an AWS-published image it does not. A successful recipe create returns
+version is created; it is not an update field. A successful recipe create returns
 `recipeId`; a version create/update/retire action returns `recipeVersionId`.
 `DELETE` archives the recipe base or retires the version; it never physically
 deletes the underlying UI resource.

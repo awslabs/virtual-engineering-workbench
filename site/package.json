@@ -1,0 +1,17 @@
+{
+  "name": "vew-site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-docs.mjs",
+    "dev": "yarn sync && astro dev",
+    "build": "yarn sync && astro build",
+    "preview": "astro preview"
+  },
+  "packageManager": "yarn@4.14.1",
+  "dependencies": {
+    "@astrojs/starlight": "^0.43.1",
+    "astro": "^7.4.12"
+  }
+}

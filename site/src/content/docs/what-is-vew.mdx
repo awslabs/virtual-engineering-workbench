@@ -1,0 +1,77 @@
+---
+title: What is VEW?
+description: What VEW is made of, the problem it solves, its vocabulary and who does what.
+sidebar:
+  order: 1
+---
+
+import Screenshot from '../../components/Screenshot.astro';
+
+export const b = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+Virtual Engineering Workbench (VEW) publishes engineering environments and virtual targets as versioned products that a developer, a pipeline or an agent launches in your own AWS accounts. The vocabulary below is the vocabulary the rest of this documentation uses, and each term maps to something on AWS.
+
+## The three things a workbench is made of
+
+| | Purpose | Examples |
+| --- | --- | --- |
+| **Tools** | What you build with | Pre-configured, use-case-specific runtimes: development tools, IDEs, compilers, license management |
+| **Targets** | What you build for | An abstracted platform, virtual or physical, that the software runs against |
+| **Environments** | What makes the test mean something | The inputs needed to validate the software on that target: test, configuration and calibration data, ECU composition, transports |
+
+A product in the catalog is a workbench, a virtual target or a container. Tools arrive baked into its image; the environment is the data and configuration it launches with.
+
+## The problem it solves
+
+Two waits sit in front of every change. Typical figures for a hand-assembled toolchain:
+
+- **6–8 weeks** to set up a development environment.
+- **50 or more tools** per developer, each with its own license and configuration.
+- **Months** waiting for target hardware to become available.
+- **Days** in the queue for a physical test bench.
+- **Inconsistent environments**, so results from one machine don't transfer to another.
+
+Some ECU combinations no rig could assemble at all.
+
+In a regulated V-model process, a developer who changes one component waits for every stage below it, and for all of those environments to match. VEW defines and versions an environment once, so a developer, a pipeline or an agent can launch the same one.
+
+## Vocabulary
+
+| VEW term | What it is | Maps to |
+| --- | --- | --- |
+| **Component** | One installable thing with install and test steps, written as YAML | EC2 Image Builder component |
+| **Recipe** | An ordered list of components on a base OS image | EC2 Image Builder recipe |
+| **Pipeline** and **image** | A pipeline builds a released recipe on a schedule or on demand; each run produces a tested AMI, called an image | EC2 Image Builder pipeline, AMI |
+| **Product template** | A CloudFormation template that defines network, instance type, storage and the AMI reference | CloudFormation |
+| **Product** and **product version** | A launchable catalog entry, and a specific image behind it published to DEV, QA or PROD | Service Catalog product and provisioning artifact |
+| **Workbench** | A product that is a desktop development environment (Windows or Linux) | EC2 instance in a spoke account |
+| **Virtual target** | A product that is simulated hardware: a board, device or ECU | EC2 instance in a spoke account |
+| **Container** | A product that is a container image rather than a machine. Its versions carry an image tag and digest, where the two rows above carry an AMI | Container image |
+| **Provisioned product** | A launched product, with start, stop, upgrade and terminate | Service Catalog provisioned product |
+| **Technology** | A grouping of products that share an onboarded AWS account. Onboarding an account to a technology creates the technology's portfolio there, and that account has one stage and one Region | Service Catalog portfolio per technology and account |
+| **Project** | Groups users and controls which products they can see and launch. Users join with a role. Some portal pages call a project a "program" | Cedar policies in Amazon Verified Permissions |
+| **Hub** and **spoke** | The account that runs VEW, and the accounts that run the workbenches | Two or more accounts in one AWS Organization |
+
+<Screenshot src={`${b}/screens/my-virtual-targets.png`} alt="The My virtual targets page in the VEW portal." caption="The My virtual targets page lists each launched product with its status, version and connection options." />
+
+## Who does what
+
+- **Platform engineers** write components and recipes, run pipelines, and publish product versions. They decide what a workbench contains and which stage it is in. In the portal this is the `PRODUCT_CONTRIBUTOR` role.
+- **Developers** browse the catalog their project allows, launch, connect over DCV, RDP or SSH as the product and the deployment allow, stop at the end of the day, and upgrade when a new version appears. In the portal this is the `PLATFORM_USER` role.
+- **Operators** deploy, update and remove the platform with `deploy.sh`, and configure identity federation. They work in the AWS account, not in the portal; onboarding an AWS account to a technology is a portal action and belongs to a project admin (`ADMIN`).
+- **Pipelines and other systems** use the [service-to-service APIs](../platform/packaging-s2s-api/) for packaging, project and provisioning work without a person. The [CLI](../tools/cli/) is for scripts someone runs: signing in needs a browser callback.
+
+## What it is not
+
+> VEW is deliberately not a VDI product. It is built around engineering products: images with toolchains, simulators and virtual devices, versioned like software and launched like software.
+
+- Not a managed service. You deploy and operate it in your own accounts.
+- Not multi-cloud. It runs only on AWS.
+- Not tied to one target. Anything that can run on EC2 can be a product.
+- Not finished. See the [roadmap](../roadmap/) and the [issues](https://github.com/awslabs/virtual-engineering-workbench/issues).
+
+## Where to go next
+
+- [Getting started](../getting-started/) to deploy it.
+- [How it works](../concepts/how-it-works/) for the workflow in detail.
+- [FreeRTOS tutorial](../examples/freertos/) to build your first product.

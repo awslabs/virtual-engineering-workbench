@@ -1,0 +1,30 @@
+---
+// The hero terminal. Commands, flags and the shape of the output must stay
+// what the CLI derives from the provisioning OpenAPI document; ids, names and
+// the elided fields are illustrative. Lines stay under ~48 columns so the
+// block is readable without horizontal scrolling on a phone.
+const P = '<span class="p">$</span>';
+const ok = (t: string) => `<span class="ok">${t}</span>`;
+const body = `${P} vew auth login
+Opening browser for sign-in... ${ok('done')}
+
+${P} vew provisioning get-available-products \\
+    --project-id ivi-platform
+{ "status_code": ${ok('200')},
+  "body": { "availableProducts": [
+    { "productId": "prod-ecu-sim",
+      "productName": "Virtual ECU (QEMU ARM)",
+      "productType": "VIRTUAL_TARGET" }, ... ] } }
+
+${P} vew provisioning launch-product \\
+    --project-id ivi-platform --body '{
+      "productId": "prod-ecu-sim",
+      "versionId": "pv-1f4a",
+      "stage": "DEV", "region": "eu-west-1",
+      "provisioningParameters": [] }'
+{ "status_code": ${ok('202')}, "body": {} }
+
+<span class="c"># A few minutes later the target is RUNNING,
+# ready to flash, debug and test.</span>`;
+---
+<pre class="term" aria-label="Terminal session"><code set:html={body} /></pre>
