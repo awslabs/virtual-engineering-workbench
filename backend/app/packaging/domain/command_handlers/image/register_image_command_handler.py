@@ -131,6 +131,8 @@ def handle(
     )
     latest_image_build_version = image_entities[0].imageBuildVersion
 
+    parent_image_marketplace_metadata = None
+
     # We start by assuming the status of the image to register is FAILED
     status = image.ImageStatus.Failed
     if command.imageStatus.value != image.ImageStatus.Failed:
@@ -154,6 +156,7 @@ def handle(
         components_versions_details = __build_components_versions_details(
             recipe_version_entity, component_version_qry_srv
         )
+        parent_image_marketplace_metadata = recipe_version_entity.parentImageMarketplaceMetadata
 
     current_time = datetime.now(timezone.utc).isoformat()
 
@@ -162,6 +165,10 @@ def handle(
         update_attrs = {"status": status, "lastUpdateDate": current_time}
         if command.imageUpstreamId:
             update_attrs["imageUpstreamId"] = command.imageUpstreamId.value
+        if parent_image_marketplace_metadata:
+            # Built on a Marketplace AMI: the image stays a PIPELINE image, but keeps the license so
+            # publishing can grant it to spoke accounts.
+            update_attrs["marketplaceMetadata"] = parent_image_marketplace_metadata
         uow.get_repository(image.ImagePrimaryKey, image.Image).update_attributes(
             image.ImagePrimaryKey(projectId=image_entity.projectId, imageId=image_entity.imageId), **update_attrs
         )
@@ -169,39 +176,68 @@ def handle(
 
     # And eventually publish an event to the domain event bus
     if status == image.ImageStatus.Created:
-        message_bus.publish(
-            image_registration_completed.ImageRegistrationCompleted(
-                projectId=image_entity.projectId,
-                amiDescription=recipe_version_entity.recipeName,
-                amiId=command.imageUpstreamId.value,
-                amiName=f"Version {recipe_version_entity.recipeVersionName} of {recipe_version_entity.recipeName}",
-                componentsVersionsDetails=components_versions_details,
-                retiredAmiIds=retired_amis_ids,
-                osVersion=recipe_entity.recipeOsVersion,
-                platform=recipe_entity.recipePlatform,
-                architecture=recipe_entity.recipeArchitecture,
-                createDate=current_time,
-                integrations=recipe_version_entity.recipeVersionIntegrations or [],
-            )
+        __publish_registration_events(
+            message_bus,
+            command,
+            image_entity,
+            pipeline_entity,
+            recipe_entity,
+            recipe_version_entity,
+            components_versions_details,
+            retired_amis_ids,
+            current_time,
+            parent_image_marketplace_metadata,
         )
 
-        automated_event_kwargs = {
-            "amiId": command.imageUpstreamId.value,
-            "projectId": image_entity.projectId,
-            "releaseType": version_release_type.VersionReleaseType.Patch.value,
-            "userId": "SYSTEM",
-            "componentsVersionsDetails": components_versions_details,
-            "osVersion": recipe_entity.recipeOsVersion,
-            "platform": recipe_entity.recipePlatform,
-            "architecture": recipe_entity.recipeArchitecture,
-            "integrations": recipe_version_entity.recipeVersionIntegrations or [],
-        }
-        if pipeline_entity.productId:
-            automated_event_kwargs["productId"] = pipeline_entity.productId
 
-        message_bus.publish(
-            automated_image_registration_completed.AutomatedImageRegistrationCompleted(**automated_event_kwargs)
+def __publish_registration_events(
+    message_bus: message_bus.MessageBus,
+    command: register_image_command.RegisterImageCommand,
+    image_entity: image.Image,
+    pipeline_entity: pipeline.Pipeline,
+    recipe_entity,
+    recipe_version_entity,
+    components_versions_details,
+    retired_amis_ids,
+    current_time: str,
+    parent_image_marketplace_metadata: dict | None,
+):
+    message_bus.publish(
+        image_registration_completed.ImageRegistrationCompleted(
+            projectId=image_entity.projectId,
+            amiDescription=recipe_version_entity.recipeName,
+            amiId=command.imageUpstreamId.value,
+            amiName=f"Version {recipe_version_entity.recipeVersionName} of {recipe_version_entity.recipeName}",
+            componentsVersionsDetails=components_versions_details,
+            retiredAmiIds=retired_amis_ids,
+            osVersion=recipe_entity.recipeOsVersion,
+            platform=recipe_entity.recipePlatform,
+            architecture=recipe_entity.recipeArchitecture,
+            createDate=current_time,
+            integrations=recipe_version_entity.recipeVersionIntegrations or [],
+            marketplaceMetadata=parent_image_marketplace_metadata,
         )
+    )
+
+    automated_event_kwargs = {
+        "amiId": command.imageUpstreamId.value,
+        "projectId": image_entity.projectId,
+        "releaseType": version_release_type.VersionReleaseType.Patch.value,
+        "userId": "SYSTEM",
+        "componentsVersionsDetails": components_versions_details,
+        "osVersion": recipe_entity.recipeOsVersion,
+        "platform": recipe_entity.recipePlatform,
+        "architecture": recipe_entity.recipeArchitecture,
+        "integrations": recipe_version_entity.recipeVersionIntegrations or [],
+    }
+    if pipeline_entity.productId:
+        automated_event_kwargs["productId"] = pipeline_entity.productId
+    if parent_image_marketplace_metadata:
+        automated_event_kwargs["marketplaceMetadata"] = parent_image_marketplace_metadata
+
+    message_bus.publish(
+        automated_image_registration_completed.AutomatedImageRegistrationCompleted(**automated_event_kwargs)
+    )
 
 
 def __get_pipeline(

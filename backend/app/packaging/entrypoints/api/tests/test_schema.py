@@ -1,3 +1,5 @@
+import re
+
 import assertpy
 from openapi_spec_validator import validate_spec
 
@@ -68,3 +70,20 @@ def test_client_token_pattern_matches_between_schema_and_model(api_schema):
     model_prop = api_model.CreateAgreementRequestRequest.model_json_schema()["properties"]["clientToken"]["anyOf"][0]
 
     assert schema_prop["pattern"] == model_prop["pattern"] == api_model.CLIENT_TOKEN_PATTERN
+
+
+def test_api_schema_should_accept_both_marketplace_product_id_formats_as_parent_image(api_schema):
+    """API Gateway validates the body against these patterns before the Lambda runs."""
+    # ARRANGE
+    schemas = api_schema["components"]["schemas"]
+    patterns = {
+        name: schemas[name]["properties"]["parentImageProductId"]["pattern"]
+        for name in ("CreateRecipeVersionRequest", "UpdateRecipeVersionRequest")
+    }
+
+    # ACT / ASSERT
+    for name, pattern in patterns.items():
+        for product_id in ("prod-ib2w5aw4ynhey", "47489723-7305-4e22-8b22-b0d57054f216"):
+            assertpy.assert_that(re.match(pattern, product_id)).described_as(f"{name} {product_id}").is_not_none()
+        assertpy.assert_that(re.match(pattern, "ami-0123")).described_as(name).is_none()
+    assertpy.assert_that(re.match(patterns["UpdateRecipeVersionRequest"], "")).is_not_none()

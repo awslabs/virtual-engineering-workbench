@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 /* eslint-disable complexity */
 import {
+  DiscoverMarketplaceSubscriptionsResponse,
+  GetImagesResponse,
   GetRecipeResponse,
   Recipe,
   RecipeComponentVersion,
@@ -12,6 +14,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { WizardProps } from '@cloudscape-design/components';
 import { useNotifications } from '../../../../../layout';
 import { i18n } from './recipe-version-wizard.translations';
+import { getAwsPublishedBaseImages, getMarketplaceBaseImages } from './marketplace-base-images';
 import useSwr from 'swr';
 type GetIntegrationsResponse = { integrations?: Array<{ integrationId: string, name: string }> };
 
@@ -22,6 +25,8 @@ const MAX_VOLUME_SIZE = 500;
 
 interface ServiceAPI {
   getRecipe: (projectId: string, recipeId: string) => Promise<GetRecipeResponse>,
+  discoverMarketplaceSubscriptions: (projectId: string) => Promise<DiscoverMarketplaceSubscriptionsResponse>,
+  getImages: (projectId: string) => Promise<GetImagesResponse>,
   getIntegrations?: (projectId: string) => Promise<GetIntegrationsResponse>,
   getIntegrationComponentList?: (
     projectId: string,
@@ -54,6 +59,30 @@ const FETCH_INTEGRATIONS_KEY = (
   }
   return [
     'integrations',
+    projectId,
+  ];
+};
+
+const FETCH_PROJECT_IMAGES_KEY = (
+  projectId: string,
+) => {
+  if (!projectId) {
+    return null;
+  }
+  return [
+    'project-images-for-base-image',
+    projectId,
+  ];
+};
+
+const FETCH_MARKETPLACE_IMAGES_KEY = (
+  projectId: string,
+) => {
+  if (!projectId) {
+    return null;
+  }
+  return [
+    'marketplace-subscriptions',
     projectId,
   ];
 };
@@ -92,6 +121,10 @@ export const useRecipeVersionWizard = ({
   const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>(
     recipeVersion?.recipeVersionIntegrations || []
   );
+  // Base image: a Marketplace product ID, an imported AWS-published image ID, or '' for the default.
+  const [baseImage, setBaseImage] = useState(
+    recipeVersion?.parentImageProductId || recipeVersion?.parentImageId || ''
+  );
 
   useEffect(() => {
     if (recipeVersion?.recipeVersionDescription) {
@@ -102,6 +135,9 @@ export const useRecipeVersionWizard = ({
     }
     if (recipeVersion?.recipeVersionIntegrations) {
       setSelectedIntegrations(recipeVersion.recipeVersionIntegrations);
+    }
+    if (recipeVersion?.parentImageProductId || recipeVersion?.parentImageId) {
+      setBaseImage(recipeVersion.parentImageProductId || recipeVersion.parentImageId || '');
     }
   }, [recipeVersion]);
   const [integrationComponents, setIntegrationComponents] = useState<ComponentVersionEntry[]>([]);
@@ -177,6 +213,52 @@ export const useRecipeVersionWizard = ({
       onError: (err) => {
         showErrorNotification({
           header: i18n.fetchRecipeError,
+          content: err.message
+        });
+      }
+    }
+  );
+
+  const marketplaceImagesFetcher = ([
+    ,
+    projectId,
+  ]: [
+      url: string,
+      projectId: string,
+  ]) => {
+    return serviceApi.discoverMarketplaceSubscriptions(projectId);
+  };
+
+  const { data: marketplaceImages, isLoading: isMarketplaceImagesLoading } = useSwr(
+    FETCH_MARKETPLACE_IMAGES_KEY(projectId),
+    marketplaceImagesFetcher, {
+      shouldRetryOnError: false,
+      onError: (err) => {
+        showErrorNotification({
+          header: i18n.fetchMarketplaceImagesError,
+          content: err.message
+        });
+      }
+    }
+  );
+
+  const projectImagesFetcher = ([
+    ,
+    projectId,
+  ]: [
+      url: string,
+      projectId: string,
+  ]) => {
+    return serviceApi.getImages(projectId);
+  };
+
+  const { data: projectImages, isLoading: isProjectImagesLoading } = useSwr(
+    FETCH_PROJECT_IMAGES_KEY(projectId),
+    projectImagesFetcher, {
+      shouldRetryOnError: false,
+      onError: (err) => {
+        showErrorNotification({
+          header: i18n.fetchAwsPublishedImagesError,
           content: err.message
         });
       }
@@ -329,5 +411,18 @@ export const useRecipeVersionWizard = ({
     setSelectedIntegrations,
     integrationComponents,
     isLoadingIntegrationComponents,
+    marketplaceImages: getMarketplaceBaseImages(
+      marketplaceImages?.subscriptions,
+      data?.recipe?.recipePlatform,
+      data?.recipe?.recipeArchitecture,
+    ),
+    awsPublishedImages: getAwsPublishedBaseImages(
+      projectImages?.images,
+      data?.recipe?.recipePlatform,
+      data?.recipe?.recipeArchitecture,
+    ),
+    isMarketplaceImagesLoading: isMarketplaceImagesLoading || isProjectImagesLoading,
+    baseImage,
+    setBaseImage,
   };
 };

@@ -98,6 +98,18 @@ export interface RecipeVersion {
      * @memberof RecipeVersion
      */
     lastUpdatedBy: string;
+    /**
+     * AWS Marketplace AMI product the recipe version builds on, if any
+     * @type {string}
+     * @memberof RecipeVersion
+     */
+    parentImageProductId?: string;
+    /**
+     * Imported AWS-published image the recipe version builds on, if any
+     * @type {string}
+     * @memberof RecipeVersion
+     */
+    parentImageId?: string;
 }
 
 /**
@@ -142,6 +154,8 @@ export function RecipeVersionFromJSONTyped(json: any, ignoreDiscriminator: boole
         'createdBy': json['createdBy'],
         'lastUpdateDate': json['lastUpdateDate'],
         'lastUpdatedBy': json['lastUpdatedBy'],
+        'parentImageProductId': !exists(json, 'parentImageProductId') ? undefined : json['parentImageProductId'],
+        'parentImageId': !exists(json, 'parentImageId') ? undefined : json['parentImageId'],
     };
 }
 
@@ -166,5 +180,7 @@ export function RecipeVersionToJSON(value?: RecipeVersion | null): any {
         'createdBy': value.createdBy,
         'lastUpdateDate': value.lastUpdateDate,
         'lastUpdatedBy': value.lastUpdatedBy,
+        'parentImageProductId': value.parentImageProductId,
+        'parentImageId': value.parentImageId,
     };
 }

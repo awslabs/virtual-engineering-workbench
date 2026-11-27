@@ -3,6 +3,7 @@ import {
   RecipeComponentVersion,
   RecipeVersion,
 } from '../../../../../services/API/proserve-wb-packaging-api';
+import { toBaseImageRequest } from '../shared/recipe-version-wizard/marketplace-base-images';
 import { useNotifications } from '../../../../layout';
 import { useState, useEffect, useMemo } from 'react';
 import { i18n } from './update-recipe-version.translations';
@@ -190,6 +191,7 @@ export const useUpdateRecipeVersion = ({
     recipeVersionVolumeSize: string,
     versionReleaseType?: string,
     integrations?: string[],
+    baseImage?: string,
   ) {
     if (projectId && recipeId && recipeVersionId) {
       setUpdateRecipeVersionInProgress(true);
@@ -203,6 +205,7 @@ export const useUpdateRecipeVersion = ({
           recipeComponentsVersions,
           recipeVersionVolumeSize,
           recipeVersionIntegrations: integrations,
+          ...toBaseImageRequest(baseImage || '', true),
         }
       ).then(() => {
         showSuccessNotification({

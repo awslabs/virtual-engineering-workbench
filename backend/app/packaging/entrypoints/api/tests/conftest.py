@@ -1024,6 +1024,8 @@ def create_recipe_version(authenticated_event, lambda_context):
         recipe_version_description: str = GlobalVariables.TEST_RECIPE_VERSION_DESCRIPTION.value,
         recipe_version_release_type: str = GlobalVariables.TEST_RECIPE_VERSION_RELEASE_TYPE.value,
         recipe_version_volume_size: str = GlobalVariables.TEST_RECIPE_VERSION_VOLUME_SIZE.value,
+        parent_image_product_id: str | None = None,
+        parent_image_id: str | None = None,
     ):
         from app.packaging.entrypoints.api import handler
 
@@ -1032,6 +1034,8 @@ def create_recipe_version(authenticated_event, lambda_context):
             recipeVersionDescription=recipe_version_description,
             recipeVersionReleaseType=recipe_version_release_type,
             recipeVersionVolumeSize=recipe_version_volume_size,
+            parentImageProductId=parent_image_product_id,
+            parentImageId=parent_image_id,
         )
         evt = authenticated_event(
             json.dumps(request.model_dump()),
@@ -1146,6 +1150,8 @@ def update_recipe_version(authenticated_event, lambda_context):
         project_id: str = GlobalVariables.TEST_PROJECT_ID.value,
         recipe_version_description: str = GlobalVariables.TEST_RECIPE_VERSION_DESCRIPTION.value,
         recipe_version_volume_size: str = GlobalVariables.TEST_RECIPE_VERSION_VOLUME_SIZE.value,
+        parent_image_product_id: str | None = None,
+        parent_image_id: str | None = None,
     ):
         from app.packaging.entrypoints.api import handler
 
@@ -1153,6 +1159,8 @@ def update_recipe_version(authenticated_event, lambda_context):
             recipeComponentsVersions=recipe_version_components_versions,
             recipeVersionDescription=recipe_version_description,
             recipeVersionVolumeSize=recipe_version_volume_size,
+            parentImageProductId=parent_image_product_id,
+            parentImageId=parent_image_id,
         )
         evt = authenticated_event(
             json.dumps(request.model_dump()),

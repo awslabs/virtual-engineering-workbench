@@ -57,6 +57,7 @@ def handle_decide_action(event: step_function_model.DecideActionRequest):
         licenseArn=result.license_arn,
         homeRegion=result.home_region,
         grantName=result.grant_name,
+        grantDecision=result.grant_decision.value if result.grant_decision else None,
     ).model_dump(by_alias=True)
 
 

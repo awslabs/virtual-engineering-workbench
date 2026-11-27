@@ -8,6 +8,9 @@ class DiscoveredMarketplaceSubscription(BaseModel):
     productCode: str = Field(..., title="ProductCode")
     # AWS Marketplace product id (``prod-...``), from the license's product SKU.
     productId: Optional[str] = Field(None, title="ProductId")
+    platform: Optional[str] = Field(None, title="Platform")
+    architecture: Optional[str] = Field(None, title="Architecture")
+    rootDeviceName: Optional[str] = Field(None, title="RootDeviceName")
     hubRegionAmiId: str = Field(..., title="HubRegionAmiId")
     regionalAmiIds: dict[str, str] = Field(..., title="RegionalAmiIds")
     licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")

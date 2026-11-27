@@ -145,6 +145,7 @@ def bootstrap(
             platform: str,
             architecture: str,
             integrations: list,
+            marketplace_metadata: dict | None = None,
         ):
             return create_automated_version_event_handler.handle(
                 ami_id=ami_id,
@@ -168,6 +169,7 @@ def bootstrap(
                 product_rc_version_limit_param_name=app_config.get_product_rc_version_limit_param_name(),
                 stack_srv=stack_service,
                 file_service=file_service,
+                marketplace_metadata=marketplace_metadata,
             )
 
         return _handle_event
