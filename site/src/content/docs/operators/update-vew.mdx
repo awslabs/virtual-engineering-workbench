@@ -1,0 +1,56 @@
+---
+title: Update VEW
+description: Re-run deploy.sh against a newer checkout to update the platform stacks in place.
+sidebar:
+  order: 3
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+An update is the same script you deployed with, run again from a newer checkout with the configuration you already have. CDK updates the stacks in place; there is no separate upgrade path.
+
+<Aside type="caution" title="The script edits tracked files">
+`deploy.sh` patches your checkout before deploying: the org and app prefixes, Cognito region and VPC name in `backend/infra/config.py`, the Lambda architecture and endpoint toggles in `backend/infra/constants.py`, and the app name, OIDC settings and deployment flags in `frontend/infrastructure/cdk.json`. Those edits stay in the working tree, so `git pull` in the directory you deployed from can conflict with them. Reset those files first, or update in a fresh clone and copy your configuration across.
+</Aside>
+
+## Update
+
+<Steps>
+
+1. Get the new code. In a fresh clone, or after resetting the patched files:
+
+   ```bash
+   git fetch origin && git checkout main && git pull
+   ```
+
+2. Copy in the configuration the last deployment saved. `deploy.sh` writes it as `.deploy-config-<env>` in the repository root, and that file — not your hand-written one — is the one with every resolved value, including a self-signed certificate ARN if VEW generated one.
+
+3. Preview the change:
+
+   ```bash
+   ./deploy.sh --diff --config .deploy-config-<env>
+   ```
+
+   `--diff` synthesizes and diffs the stacks without deploying. It needs the hub VPC to exist already, because the backend stacks look it up while synthesizing, and it deliberately skips two side effects: it does not overwrite the live OIDC secret, and it does not import a self-signed certificate.
+
+4. Apply it:
+
+   ```bash
+   ./deploy.sh --config .deploy-config-<env>
+   ```
+
+   The phases are the same as a first deployment and most of them are quick the second time. `--dry-run` instead validates prerequisites and configuration and stops; `--yes` auto-confirms the prompts, for a pipeline.
+
+5. Read the summary. It reprints the portal URL, the admin user, any additional app clients with their SSM paths, and the DNS records still to create.
+
+</Steps>
+
+## What an update does and does not touch
+
+- **Changed:** the hub account's stacks — Lambda functions, API Gateway, DynamoDB tables, the frontend bundle in S3, the Cognito pool, and the MCP gateway and CLI endpoint when they are configured.
+- **Preserved:** your data. Components, recipes, images, products, product versions and project memberships live in DynamoDB and Service Catalog and are not replaced by a deployment. The one exception is the seeding phase, which rewrites the admin's rows and the default program on every run.
+- **Untouched:** workbenches already running. They are provisioned products in the spoke accounts, not part of the platform stacks. A newer image reaches a user as a new product version, which they upgrade to themselves from the portal.
+
+## Changing configuration
+
+Editing the configuration and re-running is also how you change the deployment rather than the code: adding the `mcp-gateway-agentcore` app client to `ADDITIONAL_APP_CLIENTS` to [turn on the MCP gateway](../../tools/mcp/), switching to a real certificate, adding `OIDC_*` parameters, or tightening `RESOURCE_TAGS`. Every parameter is in the [Configuration reference](../configuration/).

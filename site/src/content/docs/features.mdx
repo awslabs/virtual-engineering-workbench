@@ -1,0 +1,96 @@
+---
+title: Features
+description: What VEW does for platform engineers, developers, administrators, pipelines, agents and operators.
+template: splash
+sidebar:
+  hidden: true
+---
+
+import Aws from '../../components/Aws.astro';
+
+export const b = import.meta.env.BASE_URL.replace(/\/$/, '');
+export const repo = 'https://github.com/awslabs/virtual-engineering-workbench';
+
+<div class="not-content landing features-page">
+
+<section class="page-head">
+  <p class="eyebrow">Features</p>
+  <h1>What VEW does today.</h1>
+  <p class="lede">Grouped by who uses it. Every item is in the public repository and deployable with <code>deploy.sh</code>.</p>
+</section>
+
+<section class="fgroup">
+  <header><Aws name="ec2-image-builder" size={40} /><h2>Build images</h2><p>For platform engineers</p></header>
+  <ul class="feat">
+    <li><strong>Components, recipes and pipelines.</strong> VEW builds on EC2 Image Builder and adds its own versioning and project scoping.</li>
+    <li><strong>Mandatory components.</strong> Admins pin components per platform, OS and architecture, and VEW adds them to every matching recipe.</li>
+    <li><strong>Version diffs.</strong> You can compare two component versions, or two product versions, side by side as YAML.</li>
+    <li><strong>Automatic versions.</strong> When a pipeline builds a new image, VEW can create a product version from it without any clicks.</li>
+    <li><strong>Base images.</strong> A recipe builds on Ubuntu 24, Windows Server 2025, or an AWS Marketplace AMI: either a product you have subscribed to, whose license data carries through to the images built from it, or an AMI that AWS publishes, imported into the project. VEW checks that the base image's platform and architecture match the recipe's, and that the volume is large enough for it.</li>
+    <li><strong>Tests before release.</strong> Component and recipe tests run on a temporary instance, which VEW terminates whether the tests pass or fail.</li>
+  </ul>
+</section>
+
+<section class="fgroup">
+  <header><Aws name="service-catalog" size={40} /><h2>Publish products</h2><p>For platform engineers</p></header>
+  <ul class="feat">
+    <li><strong>Product templates.</strong> A CloudFormation template defines the network, instance type, storage and the AMI a product launches with.</li>
+    <li><strong>Stages.</strong> A version is published to DEV, QA or PROD, and an <code>-rc</code> version lets you test it before promotion.</li>
+    <li><strong>Technologies and portfolios.</strong> Onboarding an account to a technology creates that technology's Service Catalog portfolio in the account. Each onboarded account has one stage and one Region.</li>
+    <li><strong>Marketplace images as products.</strong> You can import a subscribed AMI and publish it as a product, and VEW grants its license to the spoke account that runs it.</li>
+    <li><strong>Upgrade notifications.</strong> VEW tells a user when an upgrade fails, and it prevents downgrades and cross-updates.</li>
+  </ul>
+</section>
+
+<section class="fgroup">
+  <header><Aws name="ec2" size={40} /><h2>Launch and use</h2><p>For developers</p></header>
+  <ul class="feat">
+    <li><strong>Self-service catalog.</strong> You browse the products your project allows and launch one by choosing a Region, a stage, a version and an instance size.</li>
+    <li><strong>Lifecycle actions.</strong> You can start, stop, upgrade and terminate a product. Stopping it at the end of the day keeps its storage.</li>
+    <li><strong>Connections from the browser.</strong> A product can offer Amazon DCV in a tab, the DCV client, RDP or SSH. Which options appear depends on the product and on deployment-wide toggles, and VEW adds your IP address to the security group when you connect.</li>
+    <li><strong>Virtual targets and workbenches.</strong> VEW treats a simulated ECU and a desktop IDE as the same kind of thing: a product in the catalog.</li>
+    <li><strong>Per-user limits.</strong> A user may hold five of each product per project and stage, and six in QA. The launch wizard shows how many you hold against the limit.</li>
+  </ul>
+</section>
+
+<section class="fgroup">
+  <header><Aws name="verified-permissions" size={40} /><h2>Govern</h2><p>For administrators</p></header>
+  <ul class="feat">
+    <li><strong>Projects and roles.</strong> A user holds a membership and a role in each project, and the same person can hold different roles in different projects. Some portal pages call a project a program.</li>
+    <li><strong>Cedar policies.</strong> Amazon Verified Permissions authorizes the protected operations a person makes through the portal, the CLI or the MCP gateway, and the UI cannot grant what a policy refuses. See <a href={`${b}/concepts/authorization-model/`}>how each API authorizes</a>.</li>
+    <li><strong>Hub and spoke accounts.</strong> VEW runs in the hub account. Workbenches run and are billed in the spoke accounts.</li>
+    <li><strong>Stage access per role.</strong> Deployment configuration sets which stages a role may launch from. By default every role may use DEV only.</li>
+    <li><strong>Corporate login.</strong> Cognito federates your OIDC identity provider, and native Cognito users are required to use MFA.</li>
+  </ul>
+</section>
+
+<section class="fgroup">
+  <header><Aws name="api-gateway" size={40} /><h2>Automate</h2><p>For pipelines and agents</p></header>
+  <ul class="feat">
+    <li><strong><code>vew</code> CLI.</strong> The CLI is a single Rust binary. It speaks plain OIDC, so an external provider federates through Cognito, and it derives its commands from the API specifications.</li>
+    <li><strong>Service-to-service APIs.</strong> A client authenticates with Cognito client credentials and a scope per operation, which lets it build images and launch products without a user. The packaging routes also require a project assignment.</li>
+    <li><strong>MCP gateway.</strong> The gateway exposes over 100 tools to an MCP client that speaks HTTP transport and OAuth 2.0 with PKCE, and it authorizes each call as the signed-in user.</li>
+    <li><strong>Sign-in over SSH.</strong> <code>--no-browser</code> prints the sign-in URL so you can open it on another machine, though a person still has to finish the callback. Unattended automation uses the service-to-service APIs instead.</li>
+  </ul>
+</section>
+
+<section class="fgroup">
+  <header><Aws name="cloud-development-kit" size={40} /><h2>Deploy and run</h2><p>For operators</p></header>
+  <ul class="feat">
+    <li><strong>One script.</strong> <code>deploy.sh</code> runs interactively or from a config file, and a Docker image runs it if you would rather not install the toolchain.</li>
+    <li><strong>Public or private.</strong> A public deployment uses CloudFront and WAF; a private one uses internal load balancers that only your network can reach. AWS serves the Cognito sign-in page publicly either way.</li>
+    <li><strong>Serverless.</strong> VEW runs on Lambda, API Gateway, DynamoDB, EventBridge and Step Functions, which costs about <a href={`${repo}#cost-estimate`}>$25–35 a month</a> with nothing running.</li>
+    <li><strong>Private CA support.</strong> Each stack can request its certificate from your AWS Private CA, and ACM renews it.</li>
+    <li><strong>Tags you require.</strong> <code>RESOURCE_TAGS</code> applies your mandatory tags twice over: to the frontend and backend stacks' own taggable resources, and to what VEW creates while running — Image Builder build resources and the AMIs they distribute, the instances component and recipe tests run on, and every provisioned product it launches. For an organization whose policies deny untagged resources, this is what makes a deployment possible at all.</li>
+  </ul>
+</section>
+
+<section class="final">
+  <h2>See what's coming next.</h2>
+  <div class="actions">
+    <a class="btn primary" href={`${b}/roadmap/`}>Roadmap</a>
+    <a class="btn ghost" href={`${b}/getting-started/`}>Get started</a>
+  </div>
+</section>
+
+</div>

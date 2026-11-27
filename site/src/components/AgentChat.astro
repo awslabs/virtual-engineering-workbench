@@ -1,0 +1,35 @@
+---
+// Illustrative agent session against the VEW MCP gateway. The operation names
+// and their order must stay real: creating a version does not publish it, so
+// promotion is its own call, and LaunchProduct answers 202 with an empty body
+// rather than a provisioned-product id. The example shows operation names
+// only, no arguments; the ids in the replies are illustrative.
+const chat = `<span class="c">// an MCP client, pointed at the VEW gateway</span>
+
+<span class="u">you</span>    The IVI team's Android image is a week old.
+       If there's a newer one, publish it to QA
+       and launch one for me.
+
+<span class="a">agent</span>  <span class="t">packaging.GetImages</span>
+       → newest image 2026.11.12 (recipe v3.2);
+         the QA product version is on 2026.11.05
+       <span class="t">publishing.CreateProductVersion</span>
+       → vers-3f90 on "Android 15 IVI device"
+       <span class="t">publishing.PromoteProductVersion</span>
+       → vers-3f90 promoted to QA
+       <span class="t">provisioning.LaunchProduct</span>
+       → launch accepted; status reaches RUNNING
+         in a few minutes
+
+<span class="c">// tool names follow the API operations;
+// protected calls are authorized as you</span>`;
+---
+<pre class="term agent-term not-content" aria-label="Example agent conversation"><code set:html={chat} /></pre>
+<style is:global>
+  /* The .term frame itself lives in custom.css, so the hero terminal and this
+     one cannot drift apart; only the speaker colours are local. */
+  .term .u { color: var(--accent-band); font-weight: 700; }
+  .term .a { color: #3ddc84; font-weight: 700; }
+  .term .t { color: #9fd0ff; }
+  .term .c { color: #9fb3c8; }
+</style>

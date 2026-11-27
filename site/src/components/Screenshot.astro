@@ -1,0 +1,31 @@
+---
+// Without `src` the frame renders as a labelled placeholder, so a page's
+// layout can be finished before the screenshot exists.
+interface Props { src?: string; alt?: string; label?: string; caption?: string; compact?: boolean }
+const { src, alt = '', label = 'Screenshot', caption, compact = false } = Astro.props;
+---
+<figure class:list={["shot", "not-content", { compact }]}>
+  <div class="chrome" aria-hidden="true"><span></span><span></span><span></span><i>vew.example.com</i></div>
+  {src ? (
+    <img src={src} alt={alt} loading="lazy" />
+  ) : (
+    <div class="placeholder" role="img" aria-label={`${label} (placeholder)`}>
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>
+      <strong>{label}</strong>
+      <small>Placeholder. Screenshot to follow.</small>
+    </div>
+  )}
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+<style>
+  .shot { margin: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--sep); background: var(--sl-color-bg); box-shadow: 0 24px 60px -24px rgb(0 0 0 / .55); }
+  .chrome { display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: var(--sl-color-gray-6); border-bottom: 1px solid var(--sep); }
+  .chrome span { width: 10px; height: 10px; border-radius: 50%; background: var(--sl-color-gray-4); }
+  .chrome i { margin-left: 10px; flex: 1; font: 12px/1.6 ui-monospace, monospace; font-style: normal; color: var(--sl-color-text); border: 1px solid var(--sep); background: var(--sl-color-bg); border-radius: 6px; padding: 0 10px; }
+  img { display: block; width: 100%; }
+  .compact .placeholder { aspect-ratio: 16 / 5; }
+  .placeholder { aspect-ratio: 16 / 10; display: grid; place-content: center; justify-items: center; gap: .4rem; color: var(--sl-color-text); text-align: center; padding: 1rem;
+    background: repeating-linear-gradient(135deg, transparent 0 14px, rgb(128 128 128 / .07) 14px 28px); }
+  .placeholder strong { color: var(--sl-color-text); font-weight: 600; }
+  figcaption { font-size: .9rem; color: var(--sl-color-text); padding: .5rem .9rem; border-top: 1px solid var(--sep); }
+</style>

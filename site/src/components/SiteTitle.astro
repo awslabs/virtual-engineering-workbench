@@ -1,0 +1,45 @@
+---
+// Starlight's SiteTitle plus top-level navigation. Overriding SiteTitle (not
+// Header) keeps Starlight's responsive header grid intact; the links sit next
+// to the title. The nav stays on narrow screens because the splash pages
+// (start, Features, Roadmap) have no sidebar to fall back on, so hiding it
+// left the start page with no route to Features or Roadmap on a phone.
+import Default from '@astrojs/starlight/components/SiteTitle.astro';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const items = [
+  { href: `${base}/features/`, label: 'Features' },
+  { href: `${base}/roadmap/`, label: 'Roadmap' },
+  { href: `${base}/getting-started/`, label: 'Docs' },
+];
+const path = Astro.url.pathname.replace(/\/$/, '');
+const isDocs = (href: string) => href.endsWith('/getting-started/') && !path.endsWith('/features') && !path.endsWith('/roadmap') && path !== base && path !== '';
+---
+<Default><slot /></Default>
+<nav class="topnav" aria-label="Site">
+  {items.map((i) => {
+    const active = path === i.href.replace(/\/$/, '') || isDocs(i.href);
+    return <a href={i.href} aria-current={active ? 'page' : undefined}>{i.label}</a>;
+  })}
+</nav>
+<style>
+  .topnav { display: flex; gap: 1rem; margin-left: 1rem; align-items: center; }
+  @media (min-width: 72rem) { .topnav { gap: 1.4rem; margin-left: 1.5rem; } }
+  .topnav a { color: var(--sl-color-text); text-decoration: none; font-weight: 600; padding: .3rem 0; border-bottom: 2px solid transparent; white-space: nowrap; font-size: .95rem; }
+  @media (max-width: 30rem) { .topnav { gap: .8rem; } .topnav a { font-size: .85rem; } }
+  .topnav a:hover, .topnav a[aria-current] { border-bottom-color: var(--accent-fill); }
+</style>
+<style is:global>
+  /* Under 50rem the 29-character site title and the nav cannot both fit, and
+     the title was the one being clipped mid-word. Keep the logo, keep the
+     title for assistive tech, and give the space to the nav. */
+  @media (max-width: 50rem) {
+    a.site-title > span {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+</style>

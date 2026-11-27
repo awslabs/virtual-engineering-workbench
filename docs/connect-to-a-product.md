@@ -1,10 +1,10 @@
 # Connect to a product
 
-Once your product is in **Running** state, there are up to three ways to connect: DCV in the browser, the DCV desktop client, or SSH. DCV gives you a full graphical desktop; SSH gives you a terminal. The portal shows only the options that are enabled:
+Once your product is in **Running** state, there are up to four ways to connect: DCV in the browser, the DCV desktop client, RDP, or SSH. DCV and RDP give you a full graphical desktop; SSH gives you a terminal. The portal shows only the options that are enabled:
 
 - **DCV** appears only when the product's `DCVConnectionOptions` feature toggle is on (set in the product template's `FeatureToggles` output, or globally). The product also needs the Amazon DCV component in its image. Example products such as [`examples/freertos`](../examples/freertos/product.yaml) do not enable it.
+- **RDP** appears only when the `RDPConnectionOption` feature toggle is on, in the product template or globally.
 - **SSH** appears only when the deployment allows it. The `SSH_CONNECTION_OPTION` setting in `config.env` controls this and defaults to `"true"`.
-- **RDP** appears only when the `RDPConnectionOption` feature toggle is on.
 
 If you see no connection option, ask your administrator which of these is set.
 
@@ -27,6 +27,16 @@ Better performance than the browser, especially for graphics-heavy workloads.
 4. If you don't have the DCV client yet, download it from the link on the page and install it.
 5. Download the connection file and open it with the DCV client.
 6. Log in with your credentials if prompted.
+
+## RDP
+
+For a Windows product, where you would rather use the Remote Desktop client you already have.
+
+1. Go to **My workbenches** or **My virtual targets**.
+2. Select your product and choose **Log in**.
+3. Choose **RDP** and choose **Continue**. Tick **Extend to all monitors** first if you want the session to span them.
+4. Download the connection file and open it with your Remote Desktop client. It carries the instance's address and your user name in the form `DOMAIN\USERID`, and asks for a 1920×1080 session.
+5. If the product allows a password login, the page has a **Reveal password** control; use that password when the client prompts.
 
 ## SSH
 

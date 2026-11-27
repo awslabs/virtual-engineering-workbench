@@ -1,0 +1,96 @@
+---
+// The packaging flow as a drawn diagram, same accent-line style as the chapter
+// illustrations. Component -> recipe -> pipeline (with test gate) -> image -> product version.
+---
+<figure class="factory-flow not-content">
+<div class="ff-scroll">
+<svg viewBox="0 0 640 376" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-labelledby="ff-title">
+  <title id="ff-title">Components are combined into a recipe, a pipeline builds and tests an image, and the image is published as a product version to a stage.</title>
+  <!-- components -->
+  <g class="o">
+    <rect x="24" y="40" width="112" height="36" rx="6"/>
+    <rect x="24" y="90" width="112" height="36" rx="6"/>
+    <rect x="24" y="140" width="112" height="36" rx="6"/>
+    <path d="M40 58h18M40 108h18M40 158h18" stroke-width="3"/>
+    <path d="M66 54h50M66 62h34M66 104h50M66 112h28M66 154h50M66 162h40" stroke-opacity=".55"/>
+  </g>
+  <text x="24" y="28" class="lbl">Components</text>
+  <text x="24" y="200" class="sub">install steps, versioned</text>
+  <!-- arrows to recipe -->
+  <path class="o" d="M136 58h24q16 0 16 16v24M136 108h40M136 158h24q16 0 16-16v-24"/>
+  <path class="o" d="M176 108h30"/>
+  <path class="o" d="M202 102l8 6-8 6"/>
+  <!-- recipe -->
+  <g class="o">
+    <rect x="214" y="60" width="124" height="96" rx="8"/>
+    <path d="M232 84h88M232 100h88M232 116h60" stroke-opacity=".55"/>
+    <path d="M226 130h100" stroke-dasharray="3 5"/>
+  </g>
+  <text x="214" y="48" class="lbl">Recipe</text>
+  <text x="214" y="200" class="sub">ordered, on a base OS</text>
+  <!-- arrow to pipeline -->
+  <path class="o" d="M338 108h40"/><path class="o" d="M372 102l8 6-8 6"/>
+  <!-- pipeline / gear with test gate -->
+  <g class="o">
+    <circle cx="430" cy="108" r="30"/>
+    <circle cx="430" cy="108" r="11"/>
+    <path d="M430 68v-8M430 148v8M390 108h-8M470 108h8M402 80l-6-6M458 136l6 6M458 80l6-6M402 136l-6 6"/>
+  </g>
+  <text x="396" y="48" class="lbl">Pipeline</text>
+  <!-- test gate -->
+  <g class="g">
+    <path d="M430 146v34"/>
+    <rect x="394" y="180" width="72" height="30" rx="15"/>
+    <path d="M412 195l8 8 14-16"/>
+  </g>
+  <text x="430" y="236" class="sub">tested on a fresh instance</text>
+  <!-- arrow to image -->
+  <path class="o" d="M460 108h60"/><path class="o" d="M512 102l8 6-8 6"/>
+  <!-- image (AMI) -->
+  <g class="o">
+    <rect x="528" y="72" width="88" height="72" rx="8"/>
+    <rect x="542" y="86" width="60" height="44" rx="4" stroke-opacity=".55"/>
+    <path d="M572 86v44M542 108h60" stroke-opacity=".35"/>
+  </g>
+  <text x="528" y="60" class="lbl">Image</text>
+  <text x="566" y="164" class="sub" text-anchor="end">versioned AMI</text>
+  <!-- down to product version -->
+  <path class="o" d="M572 144v70"/><path class="o" d="M566 206l6 8 6-8"/>
+  <!-- product version row with stages -->
+  <g class="o">
+    <rect x="24" y="250" width="592" height="110" rx="10"/>
+  </g>
+  <text x="44" y="282" class="lbl">Product version</text>
+  <text x="44" y="304" class="sub">template + image, published to a stage</text>
+  <g class="stages">
+    <rect x="44" y="318" width="86" height="28" rx="14" class="o"/><text x="87" y="337" class="pill" text-anchor="middle">DEV</text>
+    <path class="o" d="M130 332h26"/><path class="o" d="M150 326l6 6-6 6"/>
+    <rect x="160" y="318" width="86" height="28" rx="14" class="o"/><text x="203" y="337" class="pill" text-anchor="middle">QA</text>
+    <path class="o" d="M246 332h26"/><path class="o" d="M266 326l6 6-6 6"/>
+    <rect x="276" y="318" width="86" height="28" rx="14" class="o"/><text x="319" y="337" class="pill" text-anchor="middle">PROD</text>
+    <text x="380" y="337" class="sub">release candidates in between</text>
+  </g>
+</svg>
+</div>
+<figcaption>How an image becomes a launchable product. Components, recipes, images and product versions are versioned; the pipeline is a configuration, updated in place, and it tests each image it builds on a new instance before you can publish it.</figcaption>
+</figure>
+<style>
+  .factory-flow { margin: 0; border: 1px solid var(--sep); border-radius: 14px; padding: 1rem 1rem .6rem; background: var(--sl-color-bg); color: var(--sl-color-text); }
+  .factory-flow svg { display: block; width: 100%; height: auto; }
+  /* Below ~660px the diagram's labels scale down with it and stop being
+     readable (13.5px on the artboard becomes 7px on a phone). Hold the
+     artboard near its drawn size and let it scroll sideways instead. Only the
+     drawing scrolls; the caption stays where it can be read. */
+  @media (max-width: 660px) {
+    .ff-scroll { overflow-x: auto; }
+    .ff-scroll svg { width: 600px; }
+  }
+  .factory-flow .o { stroke: var(--accent-fill); }
+  .factory-flow .g { stroke: #3ddc84; }
+  :root[data-theme='light'] .factory-flow .g { stroke: #1a8f4e; }
+  .factory-flow text { stroke: none; fill: var(--sl-color-text); font-family: var(--sl-font); }
+  .factory-flow .lbl { font-size: 17px; font-weight: 700; }
+  .factory-flow .sub { font-size: 13.5px; }
+  .factory-flow .pill { font-size: 13px; font-weight: 700; }
+  .factory-flow figcaption { font-size: .9rem; padding: .7rem .2rem 0; border-top: 1px solid var(--sep); margin-top: .6rem; }
+</style>

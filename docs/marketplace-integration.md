@@ -70,7 +70,7 @@ If the list is empty, the hub account has no active Marketplace subscriptions. S
 2. Proceed to the image details step. Fill in the **Image Name**, **OS Version**, and at least one **Component Version**.
 3. Review the summary and choose **Import**.
 
-The image appears in the catalog with a purple **Marketplace** badge. The detail page includes a Marketplace Metadata section with subscription details.
+The image appears in the image list with a grey **Marketplace** badge. The subscription behind it is on the **Subscriptions** page, which lists the product name, product code, hub AMI id, regions, status and ownership model.
 
 VEW does not trust the details the browser sends. The import request carries the AMI id and the product code. VEW re-runs discovery for the project on the server and imports only when exactly one current subscription matches both. The license ARN, home region, regional AMI ids and ownership model come from that result, not from the request. If the subscription changed since the list was loaded, the import is rejected and you refresh the list.
 

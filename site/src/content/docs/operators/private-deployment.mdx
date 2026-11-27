@@ -1,0 +1,60 @@
+---
+title: Private deployment
+description: Run VEW behind internal load balancers, reachable only from your own network.
+sidebar:
+  order: 2
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+export const b = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+In private mode the portal and the APIs are not reachable from the internet. They sit behind internal Application Load Balancers in a VPC, and users reach them over the corporate network: VPN, Direct Connect or Transit Gateway. One endpoint stays public: the Cognito hosted login domain, which AWS serves.
+
+<img src={`${b}/assets/architecture-private.png`} alt="Private deployment architecture" />
+
+## What changes against public mode
+
+| | Public | Private |
+| --- | --- | --- |
+| Frontend | CloudFront, Lambda@Edge, S3, WAF | Internal ALB serving the web app |
+| APIs | Public API Gateway endpoints | Private API Gateway endpoints through VPC interface endpoints, fronted by an internal ALB |
+| Region | Backend in any Region, frontend in `us-east-1` because CloudFront-scoped WAF exists only there | Backend and frontend in one Region of your choice |
+| DNS | CloudFront domain or your custom domain | Your custom domain, in a Route 53 private hosted zone VEW can create |
+| Certificate | CloudFront's default certificate, or an ACM certificate in `us-east-1` for a custom domain | Regional ACM certificate, one from an AWS Private CA, or a self-signed one VEW generates |
+| Lambdas | Outside the VPC | Those that call another bounded context are attached to the VPC |
+
+## Configure it
+
+Set these in your deploy configuration:
+
+```bash
+PRIVATE_DEPLOYMENT=true
+AWS_REGION=eu-central-1            # any region
+CUSTOM_DOMAIN=vew.corp.example     # required
+API_CUSTOM_DOMAIN=api.vew.corp.example  # required
+```
+
+Then choose how the TLS certificate is handled:
+
+- **`CERT_ARN`** set: VEW uses your regional ACM certificate.
+- **`PRIVATE_CA_ARN`** set instead: each stack requests a certificate for its domain from that AWS Private CA through ACM, which renews it. The CA must be in `AWS_REGION` and must allow ACM to issue: `aws acm-pca create-permission --certificate-authority-arn <arn> --principal acm.amazonaws.com --actions IssueCertificate GetCertificate ListPermissions --region <AWS_REGION>`.
+- **Neither**: VEW generates a self-signed certificate valid for 397 days and imports it into ACM. Clients must trust it, so distribute it through your device management; otherwise browsers reject the portal and the API calls fail.
+
+<Aside type="caution" title="The self-signed path fails on the first run">
+On a first deployment with neither `CERT_ARN` nor `PRIVATE_CA_ARN`, the frontend stack fails with "Certificate ARN or private CA ARN is required when making a private deployment." The script imports the self-signed certificate after it has already decided what to pass to the frontend, so that stack is given no certificate. The script saves the configuration it resolved as `.deploy-config-<env>` and writes the imported certificate's ARN into it, so **running `./deploy.sh --config .deploy-config-<env>` completes the deployment**. To avoid the failed run, set `CERT_ARN` or `PRIVATE_CA_ARN` yourself.
+</Aside>
+
+`PRIVATE_DNS_AUTOMATE=true` (the default) creates a Route 53 private hosted zone associated with the hub VPC and alias records for both domains. Set it to `false` to manage DNS yourself; the script prints the records to create.
+
+<Aside type="tip" title="Network ranges">
+Tighten `allowed-cidrs-for-private-api-endpoint` in `backend/infra/config.py` from the default RFC 1918 ranges to your corporate CIDRs.
+</Aside>
+
+## The VPC
+
+VEW deploys into the VPC named `vpc-{org}-{app}-{env}`, which the deploy script creates when it is missing: three subnets, with one NAT gateway in `dev` and three in `qa` and `prod`. Set `HUB_VPC_NAME` instead to adopt an existing VPC — that VPC must already exist, because the script refuses to create a VPC under a name you gave it and stops if the name does not resolve.
+
+## Full reference
+
+Every parameter is listed in the [Configuration reference](../configuration/).

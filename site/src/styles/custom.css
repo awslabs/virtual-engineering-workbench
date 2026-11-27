@@ -1,0 +1,285 @@
+/* ---------- Theme: the VEW portal's palette on Starlight ----------
+   The site uses the same colours as the product, so the two agree. The portal
+   runs stock Cloudscape (@cloudscape-design/components ^3.0.1228) with no
+   applyTheme() call, and these are its values: accent #006ce0, dark chrome
+   #0f1b2a, body text #000716 on white and #f9f9fa on dark.
+
+   Three accent variables, because one value cannot do every job:
+     --accent      fills, rules and drawn strokes
+     --accent-ink  accent as type on the page background
+     --accent-band accent as type on the dark bands, where #006ce0 would be
+                   only 3.49:1 and #42b4ff is 7.60:1
+     --accent-fg   the text colour that sits on an accent fill
+   Contrast, all AA or better: #006ce0 on white 4.97:1, white on #006ce0
+   4.97:1, #42b4ff on #0f1b2a 7.60:1, #000716 on white 20.15:1. */
+:root {
+  --sl-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --aws-ink: #0f1b2a;          /* the dark chrome behind the hero and bands */
+  --accent-fill: #006ce0;      /* the accent fill colour */
+  --sep: #c6c6cd;              /* visible border/separator */
+  --accent-ink: #006ce0;
+  --accent-band: #42b4ff;
+  --accent-fg: #fff;
+  --accent-hover: #00478f;
+}
+:root[data-theme='light'] {
+  --sl-color-white: #000716;   /* Starlight: "white" = text colour */
+  --sl-color-gray-1: #000716;
+  --sl-color-gray-2: #000716;
+  --sl-color-gray-3: #424650;  /* Cloudscape secondary text */
+  --sl-color-gray-4: #8c8c94;
+  --sl-color-gray-5: #c6c6cd;
+  --sl-color-gray-6: #f2f3f3;  /* Cloudscape layout background */
+  --sl-color-gray-7: #ffffff;
+  --sl-color-black: #ffffff;   /* bg */
+  --sl-color-text: #000716;
+  --sl-color-hairline: #c6c6cd;
+  --sl-color-hairline-light: #e9ebed;
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #ffffff;
+  --sl-color-accent-low: #f0fbff;
+  --sl-color-accent: #006ce0;
+  --sl-color-accent-high: #002b66;
+  --sep: #c6c6cd;
+}
+:root[data-theme='dark'] {
+  --sl-color-white: #f9f9fa;
+  --sl-color-gray-1: #f9f9fa;
+  --sl-color-gray-2: #f9f9fa;
+  --sl-color-gray-3: #d1d5db;
+  --sl-color-gray-4: #8c8c94;
+  --sl-color-gray-5: #414d5c;
+  --sl-color-gray-6: #192534;  /* Cloudscape dark surface */
+  --sl-color-black: #0f1b2a;   /* not pure black: Cloudscape dark layout */
+  --sl-color-text: #f9f9fa;
+  --sl-color-hairline: #5f6b7a;
+  --sl-color-hairline-light: #414d5c;
+  --sl-color-bg: #0f1b2a;
+  --sl-color-bg-nav: #0f1b2a;
+  --sl-color-bg-sidebar: #0f1b2a;
+  --sl-color-accent-low: #192534;
+  --sl-color-accent: #42b4ff;
+  --sl-color-accent-high: #d1f1ff;
+  --sep: #5f6b7a;
+  --accent-ink: #42b4ff;
+}
+/* Starlight tints the site title with --sl-color-accent, which is the blue the
+   docs use for links. Keep the chrome on the near-black/near-white palette. */
+.site-title { font-weight: 700; color: var(--sl-color-text); }
+.sidebar-pane, .right-sidebar, header.header { border-color: var(--sep) !important; }
+.sl-markdown-content :is(hr, table, th, td) { border-color: var(--sep); }
+.sl-markdown-content code:not(pre code) { background: var(--sl-color-bg); border: 1px solid var(--sl-color-gray-5); }
+
+/* ---------- Start page ---------- */
+body:has(.landing) .content-panel:first-of-type { display: none; }
+body:has(.landing) footer.sl-flex { display: none; }
+body:has(.landing) .main-frame .main-pane { padding: 0; }
+body:has(.landing) main > .content-panel { padding: 0; border: 0; }
+body:has(.landing) .sl-container { max-width: none; margin: 0; min-width: 0; }
+body:has(.landing) .main-pane, body:has(.landing) main { min-width: 0; overflow-x: clip; }
+
+.landing { --w: 1080px; --accent: var(--accent-fill); color: var(--sl-color-text); line-height: 1.5; }
+.landing h1, .landing h2, .landing h3 { margin: 0; border: 0; letter-spacing: -0.015em; line-height: 1.15; }
+.landing p { margin: 0; }
+.landing section { max-width: var(--w); margin: 0 auto; padding: clamp(3rem, 6vw, 4.5rem) 1.5rem 0; min-width: 0; }
+/* Cloudscape colours its links rather than underlining them in the accent, so
+   matching the product means matching that. --accent-band on the dark bands,
+   where the accent itself would only reach 3.49:1. */
+.landing a:not(.btn):not(.path):not(.tile) { color: var(--accent-ink); text-decoration: underline;
+  text-decoration-color: currentColor; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.landing .hero a:not(.btn), .landing .final a:not(.btn), .landing .band a:not(.band-btn) {
+  color: var(--accent-band); text-decoration-color: currentColor; }
+
+.btn { display: inline-block; padding: .8rem 1.5rem; border-radius: 8px; font-weight: 700; text-decoration: none; line-height: 1.2; font-size: 1.05rem; }
+.btn.primary { background: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.ghost { color: inherit; border: 1px solid currentColor; }
+.btn.ghost:hover { background: rgb(128 128 128 / .12); }
+.actions { display: flex; gap: .9rem; flex-wrap: wrap; align-items: center; }
+
+/* Hero */
+.landing .hero { max-width: none; margin: 0; background: var(--aws-ink); color: #fff; border-bottom: 1px solid var(--sep);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3rem; align-items: center;
+  padding: clamp(3rem, 7vw, 5rem) max(1.5rem, calc((100% - var(--w)) / 2)); }
+/* On Features and Roadmap the eyebrow sits on the page background, so it needs
+   --accent-ink; in the hero it sits on the dark chrome and uses --accent-band. */
+.eyebrow { font-size: .85rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--accent-ink); margin-bottom: 1rem !important; }
+.hero .eyebrow { color: var(--accent-band); }
+/* Scoped to .landing: Starlight reuses .hero for its own 404 page, where a
+   white h1 landed on a white background at 1.00:1 in light mode. */
+.landing .hero h1 { font-size: clamp(2rem, 3.6vw, 2.9rem); font-weight: 800; color: #fff; }
+.landing .hero h1 em { font-style: normal; color: var(--accent-band); }
+.lede { margin: 1.3rem 0 1.8rem !important; color: #fff; font-size: 1.1rem; max-width: 32rem; }
+.caveat { margin-top: 1.2rem !important; font-size: .92rem; color: #fff; max-width: 32rem; opacity: .85; }
+.hero .btn.ghost { color: #fff; border-color: #fff; }
+.hero-text, .hero-term, .hero-shot { min-width: 0; }
+/* On a phone the 1600px-wide portal screenshot scales to ~360px and its own
+   text becomes unreadable, so crop to the product cards instead of showing a
+   whole illegible page. The nav rail is the leftmost ~26% of the image. */
+@media (max-width: 900px) {
+  .hero-shot img { aspect-ratio: 5 / 4; object-fit: cover; object-position: 88% 18%; }
+}
+.term, .term code { background: #000 !important; color: #fff !important; border: 0; padding: 0; font-size: inherit; }
+/* The transcripts are ~48 columns wide; the clamp keeps the widest line inside
+   a 390px phone instead of cutting it off at the edge of a scroll container.
+   The floor is .58rem, not .65rem: at 390px the widest line measured 356px
+   of content in a 340px box, so it still clipped by ~16px. */
+.term { margin: 1.5rem 0; border: 1px solid #6f7a89; border-radius: 10px; padding: 1.1rem 1.25rem; font: clamp(.58rem, 2.1vw, .84rem)/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; white-space: pre; }
+.landing .term { margin: 0; }
+.term .p { color: var(--accent-band); font-weight: 700; }
+.term .ok { color: #3ddc84; }
+.term .c { color: #9fb3c8; }
+
+/* Paths */
+.landing .paths { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; padding-top: 0; margin-top: -2rem; }
+.path { display: flex; flex-direction: column; gap: .4rem; padding: 1.4rem 1.4rem 1.6rem; border-radius: 12px; background: var(--sl-color-bg); border: 1px solid var(--sep); border-top: 4px solid var(--accent); color: inherit; text-decoration: none; box-shadow: 0 10px 30px -14px rgb(0 0 0 / .5); transition: transform .15s; }
+.path:hover { transform: translateY(-3px); }
+.path .n { font: 700 .8rem/1 ui-monospace, monospace; color: var(--accent-ink); letter-spacing: .05em; }
+.path h2 { font-size: 1.3rem; font-weight: 800; }
+.path p { font-size: .95rem; }
+.path::after { content: '→'; color: var(--accent-ink); font-weight: 700; margin-top: .4rem; }
+
+/* Final CTA */
+.landing .final { max-width: none; margin-top: clamp(3rem, 6vw, 4.5rem); padding: 3.5rem 1.5rem; background: var(--aws-ink); color: #fff; text-align: center; border-block: 1px solid var(--sep); }
+.final h2 { color: #fff; font-size: clamp(1.7rem, 3vw, 2.3rem); font-weight: 800; margin-bottom: 1.4rem; }
+.final .actions { justify-content: center; }
+.final .btn.ghost { color: #fff; border-color: #fff; }
+.colophon { max-width: var(--w); margin: 1.2rem auto 2.5rem !important; padding: 0 1.5rem; font-size: .9rem; text-align: center; }
+:root[data-theme='dark'] .landing .hero,
+:root[data-theme='dark'] .landing .final,
+:root[data-theme='dark'] .landing .band { background: #192534; }
+
+@media (max-width: 900px) {
+  .landing .hero { grid-template-columns: 1fr; }
+  .landing .paths { grid-template-columns: 1fr 1fr; }
+  .landing .paths { margin-top: 1.5rem; }
+}
+@media (max-width: 560px) { .landing .paths { grid-template-columns: 1fr; } }
+
+/* Features page */
+.page-head { padding-bottom: 1rem; }
+.page-head h1 { font-size: clamp(2rem, 3.6vw, 2.9rem); font-weight: 800; }
+.page-head .lede { color: var(--sl-color-text); }
+.fgroup { display: grid; grid-template-columns: 260px 1fr; gap: 2rem; padding-top: 2.2rem; }
+.fgroup header { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: .15rem .9rem; align-items: start; align-self: start; padding-top: .8rem; }
+.fgroup header > :first-child { grid-row: 1 / 3; }
+.fgroup header h2 { grid-column: 2; font-size: 1.3rem; font-weight: 800; line-height: 1.15; }
+.fgroup header p { grid-column: 2; font-size: .9rem; }
+.feat { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--sep); }
+.feat li { padding: .8rem 0; border-bottom: 1px solid var(--sep); }
+.feat strong { font-weight: 700; }
+@media (max-width: 900px) { .fgroup { grid-template-columns: 1fr; } }
+
+
+
+/* ---------- Chapters (Backstage-style narrative) ---------- */
+.chapter { position: relative; padding-top: clamp(3.5rem, 7vw, 6rem) !important; padding-bottom: clamp(3rem, 6vw, 5rem); }
+/* Illus.astro rewrites the drawn stroke to currentColor so the theme owns it.
+   --accent-fill, not --accent-ink: these are decorative line drawings and this
+   keeps the default theme looking exactly as it did. */
+.illus { display: block; margin-bottom: 1.2rem; color: var(--accent-fill); }
+/* Top-right, out of flow. As a float it narrowed the grids below it for their
+   whole height (grid containers avoid floats instead of wrapping round them),
+   which squeezed the Two-waits columns to a third of the page on a phone. */
+.chapter > .illus { position: absolute; top: clamp(3.5rem, 7vw, 6rem); right: 1.5rem; margin: 0; }
+.kicker { font-size: 1.05rem; font-weight: 700; color: var(--accent-ink); margin-bottom: .6rem !important; }
+.chapter h2 { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.08; margin-bottom: 1.6rem; max-width: 22ch; }
+.chapter h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: .5rem; }
+.chapter p, .chapter li { font-size: 1.05rem; line-height: 1.65; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
+.turn { margin-top: 2.2rem !important; font-size: 1.25rem !important; max-width: 46rem; padding-left: 1.2rem; border-left: 4px solid var(--accent); }
+.points { list-style: none; margin: 0; padding: 0; }
+.points li { padding: .9rem 0; border-top: 1px solid var(--sep); }
+.points li:last-child { border-bottom: 1px solid var(--sep); }
+.points strong { font-weight: 700; }
+/* Two-up variant, for a chapter whose visual sits elsewhere on the page.
+   The closing rule has to move to the bottom *row*, not the last item. */
+.points.cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 3.5rem; }
+.points.cols2 li:last-child { border-bottom: 0; }
+.points.cols2 li:nth-last-child(-n+2) { border-bottom: 1px solid var(--sep); }
+/* Top-aligned, not centred: the two columns differ in height by hundreds of
+   pixels, and centring opened a hole above the shorter one. */
+.ch-visual { min-width: 0; }
+/* A visual that runs the chapter's full width. The factory diagram is drawn at
+   640x420, so beside a column of text it rendered about 290px tall against 816px
+   of prose -- no alignment fixes that, and widening it inside a two-column grid
+   narrows the text and makes it taller still. Full width it is ~700px tall and
+   its own 13.5px labels are legible. */
+/* Capped rather than edge to edge: at the full 1032px the 640x420 artboard is
+   about 700px tall, which overpowers the chapter. 48rem keeps the labels at a
+   readable size without the diagram becoming the page. */
+.ch-wide { margin-top: 2.5rem; min-width: 0; max-width: 48rem; margin-left: auto; margin-right: auto; }
+/* The two transcripts are a comparison -- the same platform driven by a script
+   and by an agent -- so they sit side by side, which reads as "either of
+   these" where stacking read as "first this, then that". They need the full
+   page width: in a half-column each would be ~250px and the ~48-column lines
+   would scroll. */
+.term-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; align-items: start; margin-top: 2.5rem; }
+.term-pair > figure { margin: 0; min-width: 0; }
+.term-pair figcaption { font-size: .85rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: .6rem; }
+@media (max-width: 900px) { .term-pair { grid-template-columns: 1fr; gap: 2rem; } }
+
+.landing .band { max-width: none; position: relative; margin: clamp(2rem, 4vw, 3rem) 0 0; padding: clamp(2.5rem, 5vw, 3.5rem) 1.5rem; background: var(--aws-ink); color: #fff; clip-path: polygon(0 10%, 100% 0, 100% 90%, 0 100%); text-align: center; }
+.band + .chapter { padding-top: clamp(2.5rem, 5vw, 4rem) !important; }
+.band-in { max-width: var(--w); margin: 0 auto; display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 2rem; flex-wrap: wrap; }
+.band h2 { font-size: clamp(1.3rem, 2.4vw, 1.8rem); font-weight: 700; color: #fff; margin: 0; letter-spacing: -0.01em; }
+.landing .band-btn, .landing a.band-btn { display: inline-block; background: var(--accent); color: var(--accent-fg) !important; text-decoration: none !important; font-weight: 700; padding: .7rem 1.4rem; border-radius: 8px; }
+.landing .band-btn:hover { background: var(--accent-hover); }
+
+@media (max-width: 900px) {
+  .two { grid-template-columns: 1fr; gap: 2rem; }
+  .points.cols2 { grid-template-columns: 1fr; }
+  .points.cols2 li:nth-last-child(-n+2) { border-bottom: 0; }
+  .points.cols2 li:last-child { border-bottom: 1px solid var(--sep); }
+  .chapter h2 { max-width: none; }
+  /* Narrow screens: the illustration stacks above the kicker like the ones
+     stacks above the kicker rather than sitting over the heading. */
+  .chapter > .illus { position: static; margin-bottom: 1rem; }
+}
+
+.numbers { margin: 2rem 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; padding: 1.4rem 0; border-block: 1px solid var(--sep); }
+.numbers dt { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+.numbers dd { margin: .35rem 0 0; font-size: .95rem; }
+.chapter .intro { max-width: 46rem; margin-bottom: 1.8rem; }
+.source { margin-top: 1rem !important; font-size: .9rem !important; }
+@media (max-width: 900px) { .numbers { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .numbers { grid-template-columns: 1fr; } }
+
+/* Roadmap page */
+.roadmap .page-head .lede { color: var(--sl-color-text); max-width: 46rem; }
+.roadmap .belief h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 800; letter-spacing: -0.02em; max-width: 24ch; margin-bottom: 1rem; }
+.roadmap .belief p { font-size: 1.1rem; line-height: 1.65; max-width: 46rem; }
+.roadmap .themes h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 2rem; }
+.theme { display: grid; grid-template-columns: 300px 1fr; gap: 2.5rem; padding: 2rem 0; border-top: 1px solid var(--sep); }
+.theme:last-child { border-bottom: 1px solid var(--sep); }
+.theme-head { display: flex; align-items: flex-start; gap: .9rem; }
+.theme-head .num { font: 700 .9rem/1.6 ui-monospace, monospace; color: var(--accent-ink); letter-spacing: .05em; padding-top: .25rem; }
+.theme-head h3 { font-size: 1.45rem; font-weight: 800; line-height: 1.2; }
+.theme-body p { font-size: 1.02rem; line-height: 1.65; }
+.theme-body .where { margin-bottom: .9rem; }
+.theme-body .toward { padding-left: 1rem; border-left: 3px solid var(--accent); }
+.roadmap .honest h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: .5rem; }
+.roadmap .honest p { line-height: 1.65; }
+.roadmap .final p { margin-bottom: 1.4rem; }
+@media (max-width: 900px) { .theme { grid-template-columns: 1fr; gap: 1rem; } }
+
+/* Roadmap: destination */
+.destination h2 { font-size: clamp(1.8rem, 3.4vw, 2.6rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 2rem; max-width: 24ch; }
+.dest-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3.5rem; align-items: start; }
+.dest-arc { display: flex; flex-direction: column; }
+.arc-step { position: relative; padding: 0 0 1.8rem 2.2rem; border-left: 2px solid var(--sep); }
+.arc-step:last-child { padding-bottom: 0; border-left-color: transparent; }
+.arc-step::before { content: ''; position: absolute; left: -8px; top: .35rem; width: 14px; height: 14px; border-radius: 50%; background: var(--sl-color-bg); border: 2px solid var(--sep); }
+.arc-step.done::before { background: var(--sl-color-text); border-color: var(--sl-color-text); }
+.arc-step.next::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px rgb(0 108 224 / .25); }
+.arc-n { display: block; font: 700 .8rem/1 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .4rem; }
+.arc-step.next .arc-n { color: var(--accent-ink); }
+.arc-step h3 { font-size: 1.25rem; font-weight: 800; margin-bottom: .4rem; }
+.arc-step.next h3 { font-size: 1.45rem; }
+.arc-step p { line-height: 1.6; }
+.arc-step.next p { font-size: 1.05rem; }
+.dest-why h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: .6rem; }
+.dest-why p { line-height: 1.65; margin-bottom: 1rem; }
+.themes-intro { max-width: 46rem; margin: -1rem 0 1.8rem !important; }
+@media (max-width: 900px) { .dest-grid { grid-template-columns: 1fr; gap: 2rem; } }

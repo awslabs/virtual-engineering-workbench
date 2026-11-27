@@ -1,0 +1,132 @@
+---
+title: Virtual Engineering Workbench
+description: Virtual hardware and toolchains as a catalog on AWS. Open source, Apache-2.0.
+template: splash
+---
+
+import Screenshot from '../../components/Screenshot.astro';
+import FactoryFlow from '../../components/FactoryFlow.astro';
+import Terminal from '../../components/Terminal.astro';
+import AgentChat from '../../components/AgentChat.astro';
+import Illus from '../../components/Illus.astro';
+import Band from '../../components/Band.astro';
+
+export const b = import.meta.env.BASE_URL.replace(/\/$/, '');
+export const repo = 'https://github.com/awslabs/virtual-engineering-workbench';
+export const buildDate = import.meta.env.VEW_MAIN_DATE ?? 'unknown';
+
+<div class="not-content landing">
+
+{/* Hero */}
+<section class="hero">
+  <div class="hero-text">
+    <p class="eyebrow">Virtual Engineering Workbench · open source</p>
+    <h1>Virtual hardware and toolchains,<br/><em>as a catalog your team and agents can launch.</em></h1>
+    <p class="lede">Engineering teams wait twice: for a development environment, and for hardware to test on. VEW packages both as versioned products that developers, pipelines and AI agents launch in your own AWS account in minutes.</p>
+    <div class="actions">
+      <a class="btn primary" href={`${b}/getting-started/`}>Get started</a>
+      <a class="btn ghost" href={repo}>GitHub</a>
+    </div>
+    <p class="caveat">VEW is sample code for evaluation. Review and harden it before production use — see <a href={`${b}/project/security/`}>Security</a>.</p>
+  </div>
+  <div class="hero-shot"><Screenshot src={`${b}/screens/my-virtual-targets.png`} alt="The My virtual targets page in the VEW portal: two SDVA Demo Vehicle cards with stage, region, version and status, one stopped with a newer version available, one running with Stop and Log in buttons." /></div>
+</section>
+
+{/* Paths */}
+{/* Deployment order, so the numerals mean something: nothing can be used
+    until someone has deployed the platform and published a product. */}
+<section class="paths" aria-label="Where to start">
+  <a class="path" href={`${b}/getting-started/`}><span class="n">01</span><h2>Run the platform</h2><p>One script deploys the hub account and bootstraps a spoke account.</p></a>
+  <a class="path" href={`${b}/examples/freertos/`}><span class="n">02</span><h2>Build products</h2><p>Add components to a recipe, build an image and publish it as a product.</p></a>
+  <a class="path" href={`${b}/developers/launch-a-product/`}><span class="n">03</span><h2>Use a product</h2><p>Launch a product and connect to it from the browser.</p></a>
+  <a class="path" href={`${b}/tools/mcp/#which-route-is-yours`}><span class="n">04</span><h2>Automate it</h2><p>S2S APIs for pipelines, the CLI for scripts, MCP for agents.</p></a>
+</section>
+
+{/* Chapter 1 · The problem */}
+<section class="chapter problem">
+  <Illus name="problem" />
+  <p class="kicker">Why VEW exists</p>
+  <h2>Two bottlenecks, one catalog.</h2>
+  <div class="two">
+    <div>
+      <h3>Environment bottleneck</h3>
+      <p>Setting up a development environment is hand work, repeated for every developer: a long list of tools, each with its own license and configuration. Every install is different, so when a build breaks on one machine and not on another, the cause is hard to find.</p>
+    </div>
+    <div>
+      <h3>Hardware bottleneck</h3>
+      <p>Target hardware arrives late and is shared when it does. Verification queues behind a physical bench. Some ECU combinations can't be assembled on any physical rig. In a V-model process, a developer who changes one component waits for every stage below it.</p>
+    </div>
+  </div>
+  <dl class="numbers">
+    <div><dt>6–8 weeks</dt><dd>to set up a development environment</dd></div>
+    <div><dt>50+</dt><dd>tools per developer, each with a license</dd></div>
+    <div><dt>months</dt><dd>waiting for target hardware</dd></div>
+    <div><dt>days</dt><dd>in the queue for a test bench</dd></div>
+  </dl>
+  <p class="turn">VEW handles both the same way: you <strong>define an environment once and version it</strong>, and then a developer, a pipeline or an agent can launch it. Hardware is still needed, but it no longer gates every change.</p>
+  <p class="source">See the <a href={`${b}/what-is-vew/`}>problem in detail</a>.</p>
+</section>
+
+<Band text="See the full list of what VEW does today." cta="Features" href={`${b}/features/`} />
+
+{/* Chapter 2 · Catalog */}
+<section class="chapter catalog">
+  <Illus name="catalog" />
+  <p class="kicker">Tools, targets, environments</p>
+  <h2>Browse, launch, connect, stop.</h2>
+  <p class="intro">The portal lists the products your project allows. You pick a stage and a version, and the portal shows the state of each product and how to connect to it.</p>
+  <ul class="points cols2">
+    <li><strong>Launch and connect.</strong> Choose a product, a stage and a version. After a few minutes the product is running, and you connect to it from the browser.</li>
+    <li><strong>Tools, targets and environments.</strong> Tools are what you build with, targets are what you build for, and environments are the test and configuration data that make a result meaningful. The catalog delivers all three: the tools are installed in the image, and workbenches and virtual targets are products you launch.</li>
+    <li><strong>Stop at the end of the day.</strong> Stopping a product ends its EC2 compute charges. Its storage remains, and you still pay for that.</li>
+    <li><strong>Role-based catalog.</strong> The catalog shows only the products your project and role permit, and Cedar policies enforce that limit on the backend.</li>
+  </ul>
+</section>
+
+{/* Chapter 3 · Factory */}
+<section class="chapter factory">
+  <Illus name="factory" />
+  <p class="kicker">Package and publish</p>
+  <h2>Pipeline images are built and tested in your account.</h2>
+  <ul class="points cols2">
+    <li><strong>Versioned components.</strong> Each install step is a versioned EC2 Image Builder component. You can compare two versions side by side as YAML.</li>
+    <li><strong>Recipes.</strong> A recipe is an ordered list of components on a base OS. Admins pin components per platform, OS and architecture, and VEW adds them to every matching recipe.</li>
+    <li><strong>Pipelines build and test.</strong> Each build runs on a new instance. The tests run on it before the image is accepted, and the instance is terminated whether they pass or fail.</li>
+    <li><strong>Staged releases.</strong> Publish a version to DEV, test it, then promote it to QA and PROD. Release candidate (<code>-rc</code>) versions let you test before each promotion, and users cannot downgrade by accident.</li>
+  </ul>
+  <div class="ch-wide">
+    <FactoryFlow />
+  </div>
+</section>
+
+<Band text="See what is planned" cta="Roadmap" href={`${b}/roadmap/`} />
+
+{/* Chapter 4 · Ways in */}
+<section class="chapter ways">
+  <Illus name="ways" />
+  <p class="kicker">Portal, CLI, APIs and MCP</p>
+  <h2>The same product serves a developer, a pipeline and an agent.</h2>
+  <p class="intro">A release cycle changes only when every developer and every pipeline runs the same definition. In VEW, one product launches as a developer workspace or as a CI runner with the same configuration, from one click in the portal or one API call.</p>
+  <ul class="points cols2">
+    <li><strong>The portal</strong> is for people. It is built in React and Cloudscape, and you browse, launch, connect and stop there.</li>
+    <li><strong>The <code>vew</code> CLI</strong> is for scripts. It is a single Rust binary that signs in with the deployment's Cognito user pool and derives its commands from the API specifications.</li>
+    <li><strong>Service-to-service APIs</strong> are for pipelines. A client holds an OAuth client credential with a scope per operation, and the packaging routes also require a project assignment. A build launches a new target from the same product definition, runs on it, then terminates it.</li>
+    <li><strong>The MCP gateway</strong> is for agents. It exposes over 100 tools to an MCP client that speaks HTTP transport and OAuth 2.0 with PKCE. The agent signs in as you, so Cedar policies limit it to what you are allowed to do.</li>
+  </ul>
+  <div class="term-pair">
+    <figure>
+      <figcaption>Driven by a script</figcaption>
+      <Terminal />
+    </figure>
+    <figure>
+      <figcaption>Driven by an agent</figcaption>
+      <AgentChat />
+    </figure>
+  </div>
+</section>
+
+<Band text="Deploy it in your own AWS account" cta="Get started" href={`${b}/getting-started/`} />
+
+<p class="colophon">Apache-2.0 · <a href={repo}>awslabs/virtual-engineering-workbench</a> · main as of {buildDate} · <a href={`${repo}/blob/main/AUTHORS.md`}>Authors</a></p>
+
+</div>

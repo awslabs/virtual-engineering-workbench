@@ -1,0 +1,47 @@
+---
+title: How it works
+description: The package, publish and provision workflow and the AWS services under it.
+sidebar:
+  order: 1
+---
+
+import Aws from '../../../components/Aws.astro';
+
+VEW delivers environments in three steps: packaging, publishing and provisioning. Each step adds VEW logic to one AWS service, so VEW has that service's reliability, limits and pricing.
+
+## 1. Packaging: build machine images
+
+<Aws name="ec2-image-builder" label="EC2 Image Builder" />
+
+Platform engineers define what goes into an image:
+
+1. **Components**: individual install or test steps, written as EC2 Image Builder component YAML. Admins set mandatory components per platform, OS and architecture; VEW adds them to every matching recipe.
+2. **Recipes**: an ordered list of components on a base image. That base is either one of VEW's own, Ubuntu 24 or Windows Server 2025, resolved from its mapping for the recipe's platform, architecture and OS; or an AWS Marketplace AMI, which is a product you have subscribed to or an AMI that AWS publishes and you have imported into the project. A Marketplace base has to match the recipe's platform and architecture, and the recipe's volume has to be large enough for it.
+3. **Pipelines**: builds that turn a recipe into a tested, versioned **image** (an AMI). A new image can automatically become a new product version.
+
+Components, recipes and images are versioned and scoped to a project. The portal can diff two component versions, or two product versions, side by side.
+
+## 2. Publishing: create products in the catalog
+
+<Aws name="service-catalog" label="AWS Service Catalog" />
+
+Images become launchable products:
+
+1. A **product template** is a CloudFormation template that defines network, security groups, instance type, storage and the AMI reference. The repository ships [examples](../../examples/freertos/).
+2. A **product** is created from the template and published to a Service Catalog portfolio. A portfolio belongs to one technology in one AWS account; [onboarding an account](../../platform/onboard-an-account/) to a technology creates it, and that account carries one stage and one Region.
+3. Each **product version** points at one image. Each version is published to DEV, QA or PROD, and `-rc` versions let you test before release.
+
+## 3. Provisioning: launch and manage
+
+<Aws name="ec2" label="Amazon EC2" />
+
+Developers use the portal:
+
+1. Browse **available products**, filtered by what their project and role allow.
+2. **Launch** a product. VEW provisions it through Service Catalog into a spoke account; the instance runs there, not in the platform account.
+3. **Start and stop** the product to control cost, **upgrade** it to a newer version, and **terminate** it when you are done.
+4. **Connect** through Amazon DCV in the browser, the DCV client, RDP or SSH, depending on what the product and the deployment allow. VEW adds your current IP address to a security group of your own, replacing the rule it added last time; the rule has no expiry of its own.
+
+## Accounts and access
+
+The workbenches run in **spoke** accounts, separate from the **hub** account that runs the platform, and a person reaches a product through a **project** they are a member of. [Accounts, stages and access](../accounts-and-access/) is the one place both are explained: which account holds what, how stages work, what a role decides, and what Cedar evaluates on each path in.

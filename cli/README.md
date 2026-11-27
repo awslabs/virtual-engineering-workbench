@@ -7,7 +7,7 @@ Written in Rust as a single self-contained binary. Cross-platform: macOS (Intel/
 ## Highlights
 
 - **Any OIDC provider** — auto-discovers endpoints via OpenID Connect Discovery 1.0 (RFC 8414). Tested with AWS Cognito, Keycloak, Auth0, Azure AD, and Okta. No provider-specific code or configuration. A VEW deployment accepts only tokens from its own Cognito user pool, so against VEW the `issuer_url` is that pool. See [Using an external identity provider](#using-an-external-identity-provider).
-- **Headless-friendly** — `--no-browser` (or `VEW_NO_BROWSER=1`) prints the login URL to stdout so you can authenticate from SSH sessions, containers, or CI runners.
+- **Headless-friendly** — `--no-browser` (or `VEW_NO_BROWSER=1`) prints the login URL to stdout, so you can sign in from an SSH session or a container by opening that URL on another machine. A person still has to finish the sign-in in a browser, so this is not a way to authenticate on a CI runner; use the service-to-service APIs for that.
 - **Scriptable** — `vew auth token` writes a raw access or ID token to stdout, ready to pipe into `curl` or any HTTP client.
 - **Discovers commands dynamically** — subcommands per bounded context are resolved from each service's OpenAPI spec at runtime; no CLI update needed when the backend adds an endpoint.
 

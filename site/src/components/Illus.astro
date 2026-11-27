@@ -1,0 +1,14 @@
+---
+const all = import.meta.glob('../assets/illus/*.svg', { query: '?raw', import: 'default', eager: true });
+interface Props { name: string; size?: number }
+const { name, size = 140 } = Astro.props;
+const raw = all[`../assets/illus/${name}.svg`];
+if (!raw) throw new Error(`Unknown illustration: ${name}`);
+// The source files draw in the accent colour. Swapping it for currentColor
+// lets CSS own it, so an alternate theme repaints the illustrations with
+// everything else instead of leaving them behind.
+const svg = raw
+  .replace(/<svg /, `<svg width="${size}" height="${size}" `)
+  .replace(/stroke="#ff9900"/gi, 'stroke="currentColor"');
+---
+<span class="illus"><Fragment set:html={svg} /></span>

@@ -1,0 +1,110 @@
+---
+title: Getting started
+description: Deploy VEW into your AWS account and launch your first workbench.
+sidebar:
+  order: 2
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+:::caution[Sample code]
+VEW is sample and reference code for evaluation. It is not intended for production use without additional security hardening. See [Security](../project/security/).
+:::
+
+You deploy VEW into your own AWS account with one script. This page covers the minimum steps. The [README](https://github.com/awslabs/virtual-engineering-workbench#deployment) has the full configuration reference.
+
+## Before you start
+
+- An AWS account that is a member of an **AWS Organization**, with admin or PowerUser credentials. The hub account (where VEW runs) and any spoke account (where workbenches run) must be in the same organization.
+- A region, with one caveat. A **public** deployment always puts its frontend — CloudFront, Lambda@Edge and their WAF — in `us-east-1`, because a `CLOUDFRONT`-scoped web ACL exists only there; the backend stays in `AWS_REGION`. With a custom domain the frontend needs a certificate in `us-east-1` too (`CERT_ARN_US_EAST_1`). A **private** deployment has no CloudFront and stays in one region.
+
+<Aside type="caution" title="A split public deployment loses two features">
+When the backend is not in `us-east-1`, the frontend and backend are in different regions, and two things read a parameter that is written in the frontend's region: `deploy.sh` then skips the **MCP gateway** entirely, and it skips the **`vew` CLI endpoint** unless you set both `API_CUSTOM_DOMAIN` and `CERT_ARN`. Deploy a public VEW wholly in `us-east-1` to keep both.
+</Aside>
+
+<Tabs>
+  <TabItem label="Local tools">
+    - AWS CLI v2 and AWS CDK v2
+    - Node.js 24+ and Yarn 4
+    - Python 3.13+ and uv
+    - jq and Docker
+
+    The README has a copy-paste [Ubuntu/WSL setup block](https://github.com/awslabs/virtual-engineering-workbench#ubuntu--wsl-setup).
+  </TabItem>
+  <TabItem label="Docker only">
+    AWS credentials and Docker, nothing else. You build the deployer image and run it in place of `./deploy.sh` — the command is in step 3.
+  </TabItem>
+</Tabs>
+
+## Deploy
+
+<Steps>
+
+1. Clone the repository and copy the sample configuration.
+
+   ```bash
+   git clone https://github.com/awslabs/virtual-engineering-workbench.git
+   cd virtual-engineering-workbench
+   cp config.env deploy-config.env
+   ```
+
+2. Edit `deploy-config.env`. At minimum: `AWS_ACCOUNT_ID`, `ADMIN_EMAIL`, `ADMIN_USER_ID`. Workbenches always run in a spoke account: set `SPOKE_ACCOUNT_ID` and its credentials (`AWS_PROFILE_SPOKE`, or `AWS_SPOKE_ACCESS_KEY_ID` and `AWS_SPOKE_SECRET_ACCESS_KEY`) to have the script bootstrap one, or onboard it yourself afterwards.
+
+3. Run the deploy script.
+
+   <Tabs>
+     <TabItem label="Local tools">
+     ```bash
+     ./deploy.sh --config deploy-config.env
+     ```
+     </TabItem>
+     <TabItem label="Docker">
+     ```bash
+     docker build -t vew-deployer .
+     docker run --rm -it \
+       -v "$(pwd)":/app \
+       -v /var/run/docker.sock:/var/run/docker.sock \
+       -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_SESSION_TOKEN \
+       -e AWS_SPOKE_ACCESS_KEY_ID -e AWS_SPOKE_SECRET_ACCESS_KEY -e AWS_SPOKE_SESSION_TOKEN \
+       -e AWS_DEFAULT_REGION=us-east-1 \
+       vew-deployer --config /app/deploy-config.env
+     ```
+     The Docker socket mount is needed for the image builds. The spoke variables carry the spoke account's credentials when the script bootstraps one.
+     </TabItem>
+   </Tabs>
+
+   It checks prerequisites, collects parameters, patches the source, bootstraps CDK, creates prerequisite resources, configures identity federation, deploys the frontend and backend, uploads the web app, seeds data and, if configured, bootstraps a spoke account. Expect roughly an hour on the first run.
+
+4. Sign in. The script prints the portal URL at the end.
+
+   With OIDC configured, sign in through your identity provider. **Without OIDC**, `deploy.sh` seeds the admin record in DynamoDB but creates no Cognito user: run the `aws cognito-idp admin-create-user` command it prints, then sign in with that user. [Set up sign-in and add users](../operators/sign-in-and-users/) covers both paths and how to add the next person.
+
+</Steps>
+
+<Aside type="tip" title="Idle cost">
+A minimal deployment with no running workbenches costs about **$25–35 a month**. WAF is the largest single item: three web ACLs at $5 each, plus rules. See the [cost estimate](https://github.com/awslabs/virtual-engineering-workbench#cost-estimate).
+</Aside>
+
+## First product
+
+<Steps>
+
+1. [Onboard a technology account](../platform/onboard-an-account/). Onboarding an account to a technology creates the technology's Service Catalog portfolio in that account, which products publish into. Each onboarded account has one stage and one Region.
+2. Follow the [FreeRTOS tutorial](../examples/freertos/) to create a component and a recipe, build an image, publish a product and launch it. It takes about 30 minutes of hands-on time.
+3. [Connect](../developers/connect-to-a-product/) to the running virtual target over SSH or DCV.
+
+</Steps>
+
+## When something fails
+
+**A phase of the deploy failed.** Every run writes a log to `.deploy-logs/deploy-<timestamp>.log` in the repository root; the failing command's output is at the end of it. If the failure was a CDK deployment, the log names the stack, and the stack's **Events** tab in the CloudFormation console gives the resource and the reason — which the script cannot see. Fix the cause and run the script again with the same config; it is written to be re-run.
+
+**"targets account … , expected …".** The script checks the credentials it was given against `AWS_ACCOUNT_ID` before deploying anything, and stops when they disagree. Point `AWS_PROFILE_HUB` at the hub account, or correct `AWS_ACCOUNT_ID`.
+
+**You signed in but the portal is empty.** You are signed in without a project membership. Without OIDC that usually means `custom:user_tid` does not match the `ADMIN_USER_ID` the deployment seeded — see [Set up sign-in and add users](../operators/sign-in-and-users/).
+
+**A product you expect is not in the catalog.** Three things filter it, and all three have to line up:
+
+- **Your role's stage access.** By default every role may launch from `DEV` only, so a version published to QA or PROD is invisible until you change `user-role-stage-access`.
+- **The Region.** A technology's portfolio lives in the account you onboarded, which has one Region. Products do not appear in another.
+- **The stage the version was published to.** A product with no version in the stage you are looking at has nothing to launch.

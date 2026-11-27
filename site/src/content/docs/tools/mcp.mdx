@@ -1,0 +1,72 @@
+---
+title: Connect an AI agent (MCP)
+description: Expose VEW's APIs as MCP tools through the AgentCore gateway, for MCP clients that support HTTP and OAuth 2.0 with PKCE.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import AgentChat from '../../../components/AgentChat.astro';
+
+VEW can publish its project, packaging, publishing and provisioning APIs as [Model Context Protocol](https://modelcontextprotocol.io/) tools through an Amazon Bedrock AgentCore Gateway. A client that supports HTTP transport and OAuth 2.0 authorization code with PKCE — Claude Code and Kiro both do — then sees those four contexts' public operations as tools it can call. The gateway accepts a Cognito JWT from the one app client you register for it, so a client that cannot do that sign-in cannot connect.
+
+<AgentChat />
+
+## Which route is yours
+
+Three ways to drive VEW without the portal, and the right one depends on whether a person is there:
+
+- **A pipeline, or anything else unattended** — the **service-to-service APIs**. An OAuth client with a scope per operation, no person in the loop. An S2S client is scoped to the deployment rather than to a project, except on the packaging routes, which also require an assignment. [Provisioning](../../platform/provisioning-s2s-api/) is the one a CI job needs — it has a worked unattended launch, from finding a product version to removing the product afterwards — and [packaging](../../platform/packaging-s2s-api/) covers components, recipes, pipelines and image builds.
+- **A script someone runs** — the [`vew` CLI](../cli/). Signing in uses the browser callback, so a person has to start it.
+- **An agent acting for a person** — the MCP gateway, the rest of this page.
+
+## How each client signs in
+
+| Way in | For | Authenticates as |
+| --- | --- | --- |
+| Portal | People, in the browser | The signed-in user |
+| [`vew` CLI](../cli/) | Scripts a person runs | The signed-in user |
+| [S2S APIs](../../platform/packaging-s2s-api/) | Pipelines, unattended jobs | An OAuth client holding the operation's scope, and on the packaging routes a project assignment too |
+| MCP gateway | AI agents in a supported MCP client | The user the agent signed in as |
+
+The portal, the CLI and the MCP gateway all land on the same Cedar policies. Service-to-service clients take a different path, [OAuth scopes rather than Cedar](../../concepts/authorization-model/).
+
+## How authorization works
+
+The gateway does not get its own permissions. It authenticates the caller against the VEW user pool, then a request interceptor forwards the caller's bearer token to the bounded-context API, which authorizes it exactly as it authorizes the portal. For example, an agent acting as you can launch a product in a project only if you can. [Authorization model](../../concepts/authorization-model/) has the detail.
+
+The gateway role holds no `execute-api:Invoke`. It can only invoke the interceptor and read the published specs.
+
+## What tools exist
+
+At deploy time, each enabled bounded context's OpenAPI document is transformed into the schema the gateway accepts. The transform rejects any tool with a missing, short or duplicate description, an undocumented parameter, or a duplicate name, so every tool an agent sees has its own name, its own description and documented parameters. It also drops the `/internal/` paths, the CORS preflights and the spec endpoints, which leaves **114 tools** across the four contexts — 55 packaging, 21 projects, 19 provisioning, 19 publishing. Each is named after its API operation (`LaunchProduct`, `ListProvisionableProducts`, …) prefixed with the bounded context it belongs to. A few operations carry an `x-mcp-operation-id` that renames them for the gateway, so the tool name is not always the REST operationId.
+
+The authorization, usecase and shared contexts are not exposed: they publish no OpenAPI document for the gateway to read.
+
+<Aside type="note" title="Naming">
+Exact tool names depend on the gateway version and the enabled bounded contexts. List them from your client with `tools/list`.
+</Aside>
+
+## Enable the gateway
+
+<Steps>
+
+1. Deploy the frontend and the backend in the same Region. The gateway reads its app client id from a parameter the frontend writes, so in the split a public deployment outside `us-east-1` produces, `deploy.sh` skips the gateway and prints a warning. See [Getting started](../../getting-started/).
+
+2. Add an app client named `mcp-gateway-agentcore` to `ADDITIONAL_APP_CLIENTS` in your deploy configuration, with callback URLs `http://localhost:<port>` and `http://localhost:<port>/callback` for the ports your client uses (19876–19880 are the documented defaults).
+
+3. Run `./deploy.sh` again. The gateway stack deploys only when both conditions hold. When they stop holding, the script tries to delete the stack it left behind and tells you if you have to remove it by hand.
+
+4. Read the gateway's settings from the outputs of its CloudFormation stack, `<org>-<app>-mcp-gateway-agentcore-<env>`: `GatewayUrl`, and `ClaudeMcpConfig` and `KiroMcpConfig`, which are ready-to-paste client configurations. The deploy summary itself prints the app clients and their SSM parameter paths, not the gateway URL.
+
+</Steps>
+
+## Connect a client
+
+<Aside type="tip" title="From the stack outputs">
+`ClaudeMcpConfig` is a ready-to-run `claude mcp add` command and `KiroMcpConfig` a kiro-cli `mcpServers` entry, both carrying the gateway URL and the client id. For any other client: that gateway URL is the MCP endpoint, and authentication is OAuth 2.0 authorization code with PKCE against the VEW user pool.
+</Aside>
+
+## Source
+
+The gateway code is in [`backend/app/mcp_gateway_agentcore`](https://github.com/awslabs/virtual-engineering-workbench/tree/main/backend/app/mcp_gateway_agentcore) and its stack is in [`backend/infra/backend/mcp_gateway_agentcore_app_stack.py`](https://github.com/awslabs/virtual-engineering-workbench/blob/main/backend/infra/backend/mcp_gateway_agentcore_app_stack.py).

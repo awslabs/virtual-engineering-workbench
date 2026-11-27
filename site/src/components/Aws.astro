@@ -1,0 +1,18 @@
+---
+// Official AWS Architecture Icon (2026-Q3 package), inlined so it has no runtime cost.
+const icons = import.meta.glob('../assets/aws/*.svg', { query: '?raw', import: 'default', eager: true });
+interface Props { name: string; label?: string; size?: number }
+const { name, label, size = 44 } = Astro.props;
+const raw = icons[`../assets/aws/${name}.svg`];
+if (!raw) throw new Error(`Unknown AWS icon: ${name}`);
+const svg = raw
+  .replace(/<\?xml[^>]*>/, '')
+  .replace(/<title>.*?<\/title>/s, '')
+  .replace(/<svg /, `<svg width="${size}" height="${size}" aria-hidden="true" focusable="false" `);
+---
+<span class="aws" title={label}><Fragment set:html={svg} />{label && <span class="lbl">{label}</span>}</span>
+<style>
+  .aws { display: inline-flex; flex-direction: column; align-items: center; gap: .35rem; text-align: center; }
+  .aws :global(svg) { border-radius: 10px; flex: none; }
+  .lbl { font-size: .8rem; line-height: 1.25; color: var(--sl-color-text); max-width: 7.5rem; }
+</style>
