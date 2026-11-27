@@ -15,7 +15,7 @@ anyhow = "1"
 chrono = { version = "0.4", features = ["serde"] }
 url = { version = "2", features = ["serde"] }
 rand = "0.8"
-sha2 = "0.10"
+sha2 = "0.11"
 base64 = "0.22"
 open = "5"
 jsonwebtoken = { version = "10.4", default-features = false, features = [
