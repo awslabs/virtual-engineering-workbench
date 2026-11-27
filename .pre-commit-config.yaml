@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -22,7 +22,7 @@ repos:
               backend/app/pipelines/adapters/tests/conftest.py
           )$
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: requirements-txt-fixer
         files: ^backend/.*\.(txt|in)$
