@@ -2068,3 +2068,175 @@ def test_resolve_aws_published_ami_should_return_400_for_non_aws_listing(
     result = handler.handler(event, lambda_context)
 
     assertpy.assert_that(result["statusCode"]).is_equal_to(400)
+
+
+MARKETPLACE_PRODUCT_ID = "prod-ib2w5aw4ynhey"
+
+
+def _recipe_component_versions():
+    return [
+        api_model.RecipeComponentVersion(
+            componentId=GlobalVariables.TEST_COMPONENT_ID.value,
+            componentName=GlobalVariables.TEST_COMPONENT_NAME.value,
+            componentVersionId=GlobalVariables.TEST_COMPONENT_VERSION_ID.value,
+            componentVersionName=GlobalVariables.TEST_COMPONENT_VERSION_NAME.value,
+            componentVersionType=GlobalVariables.TEST_COMPONENT_VERSION_TYPE.value,
+            order=1,
+        )
+    ]
+
+
+def test_create_recipe_version_should_pass_the_marketplace_parent_image(
+    mocked_dependencies, mocked_create_recipe_version_cmd_handler, create_recipe_version
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = create_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+        parent_image_product_id=MARKETPLACE_PRODUCT_ID,
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_create_recipe_version_cmd_handler.call_args.args[0]
+    assertpy.assert_that(command.parentImageProductId.value).is_equal_to(MARKETPLACE_PRODUCT_ID)
+
+
+def test_create_recipe_version_without_marketplace_parent_should_leave_it_unset(
+    mocked_dependencies, mocked_create_recipe_version_cmd_handler, create_recipe_version
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = create_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(200)
+    assertpy.assert_that(mocked_create_recipe_version_cmd_handler.call_args.args[0].parentImageProductId).is_none()
+
+
+def test_update_recipe_version_should_pass_the_marketplace_parent_image(
+    mocked_dependencies, mocked_update_recipe_version_cmd_handler, update_recipe_version
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = update_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+        parent_image_product_id=MARKETPLACE_PRODUCT_ID,
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_update_recipe_version_cmd_handler.call_args.args[0]
+    assertpy.assert_that(command.parentImageProductId.value).is_equal_to(MARKETPLACE_PRODUCT_ID)
+
+
+def test_create_recipe_version_should_reject_an_invalid_marketplace_product_id(
+    mocked_dependencies, mocked_create_recipe_version_cmd_handler, create_recipe_version
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = create_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+        parent_image_product_id="ami-0123456789abcdef0",
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(400)
+    mocked_create_recipe_version_cmd_handler.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "parent_image_product_id,expected_product_id,expected_reset",
+    (
+        (None, None, False),  # field left out: keep the current base image
+        ("", None, True),  # explicit empty: back to the platform default
+    ),
+)
+def test_update_recipe_version_base_image_keep_or_reset(
+    mocked_dependencies,
+    mocked_update_recipe_version_cmd_handler,
+    update_recipe_version,
+    parent_image_product_id,
+    expected_product_id,
+    expected_reset,
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = update_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+        parent_image_product_id=parent_image_product_id,
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_update_recipe_version_cmd_handler.call_args.args[0]
+    assertpy.assert_that(command.parentImageProductId).is_equal_to(expected_product_id)
+    assertpy.assert_that(command.resetParentImage).is_equal_to(expected_reset)
+
+
+def test_create_recipe_version_should_pass_an_imported_aws_published_image(
+    mocked_dependencies, mocked_create_recipe_version_cmd_handler, create_recipe_version
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = create_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+        parent_image_id="image-rhel9abc",
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_create_recipe_version_cmd_handler.call_args.args[0]
+    assertpy.assert_that(command.parentImageId.value).is_equal_to("image-rhel9abc")
+    assertpy.assert_that(command.parentImageProductId).is_none()
+
+
+@pytest.mark.parametrize(
+    "product_id,image_id,expected_image_id,expected_reset",
+    (
+        ("", "image-rhel9abc", "image-rhel9abc", True),  # wizard switching to an imported image
+        (None, "", None, True),  # explicit empty image: back to the platform default
+        (None, None, None, False),  # field left out: keep
+    ),
+)
+def test_update_recipe_version_with_imported_image(
+    mocked_dependencies,
+    mocked_update_recipe_version_cmd_handler,
+    update_recipe_version,
+    product_id,
+    image_id,
+    expected_image_id,
+    expected_reset,
+):
+    from app.packaging.entrypoints.api import handler
+
+    handler.dependencies = mocked_dependencies
+
+    status_code, _ = update_recipe_version(
+        recipe_id=GlobalVariables.TEST_RECIPE_ID.value,
+        recipe_version_id=GlobalVariables.TEST_RECIPE_VERSION_ID.value,
+        recipe_version_components_versions=_recipe_component_versions(),
+        parent_image_product_id=product_id,
+        parent_image_id=image_id,
+    )
+
+    assertpy.assert_that(status_code).is_equal_to(200)
+    command = mocked_update_recipe_version_cmd_handler.call_args.args[0]
+    assertpy.assert_that(command.parentImageId.value if command.parentImageId else None).is_equal_to(expected_image_id)
+    assertpy.assert_that(command.resetParentImage).is_equal_to(expected_reset)

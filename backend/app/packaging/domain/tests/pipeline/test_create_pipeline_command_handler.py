@@ -356,3 +356,53 @@ def test_create_pipeline_command_should_raise_an_exception_with_invalid_pipeline
 
     # ASSERT
     assertpy.assert_that(str(exec_info.value)).is_equal_to(exception_message)
+
+
+@pytest.mark.parametrize(
+    "supported,should_fail",
+    (
+        (None, False),  # default parent image: no restriction
+        (TEST_BUILD_INSTANCE_TYPES, False),
+        (["m7i.2xlarge"], True),  # Marketplace parent that does not run on the build types
+    ),
+)
+def test_create_pipeline_command_should_check_build_types_against_the_marketplace_parent(
+    get_create_pipeline_command,
+    get_test_recipe_version_with_specific_version_name_and_status,
+    message_bus_mock,
+    recipe_version_query_service_mock,
+    recipe_query_service_mock,
+    mock_recipe_object,
+    pipeline_service_mock,
+    uow_mock,
+    supported,
+    should_fail,
+):
+    # ARRANGE
+    released = get_test_recipe_version_with_specific_version_name_and_status(
+        status=recipe_version.RecipeVersionStatus.Released, version_name="1.0.0"
+    )
+    released.parentImageProductId = "prod-ib2w5aw4ynhey" if supported else None
+    released.parentImageSupportedInstanceTypes = supported
+    recipe_version_query_service_mock.get_recipe_version.return_value = released
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    pipeline_service_mock.get_pipeline_allowed_build_instance_types.return_value = TEST_BUILD_INSTANCE_TYPES
+
+    def _act():
+        create_pipeline_command_handler.handle(
+            command=get_create_pipeline_command(),
+            message_bus=message_bus_mock,
+            recipe_version_qry_srv=recipe_version_query_service_mock,
+            recipe_qry_srv=recipe_query_service_mock,
+            pipeline_srv=pipeline_service_mock,
+            uow=uow_mock,
+        )
+
+    # ACT / ASSERT
+    if should_fail:
+        with pytest.raises(domain_exception.DomainException, match="prod-ib2w5aw4ynhey does not support instance"):
+            _act()
+        message_bus_mock.publish.assert_not_called()
+    else:
+        _act()
+        message_bus_mock.publish.assert_called_once()

@@ -1,10 +1,13 @@
 import logging
 
 import assertpy
+import pytest
 
 from app.packaging.domain.model.image.image_constants import SubscriptionOwnership
 from app.packaging.domain.query_services.marketplace_subscription_domain_query_service import (
     MarketplaceSubscriptionDomainQueryService,
+    to_recipe_architecture,
+    to_recipe_platform,
 )
 from app.packaging.domain.value_objects.shared import project_id_value_object
 
@@ -34,7 +37,9 @@ def test_discover_should_return_vew_managed_when_the_hub_subscribed_and_may_gran
     mock_marketplace_license_service.list_received_licenses.return_value = [
         get_test_received_license(allowed_operations=["CreateGrant"])
     ]
-    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [get_test_marketplace_ami()]
+    mock_marketplace_ami_service.list_marketplace_amis_by_product_id.return_value = [
+        get_test_marketplace_ami().model_copy(update={"rootDeviceName": "/dev/sda1"})
+    ]
     mock_marketplace_ami_service.get_regional_ami_ids.return_value = {}
     mock_image_query_service.get_images.return_value = []
 
@@ -55,8 +60,28 @@ def test_discover_should_return_vew_managed_when_the_hub_subscribed_and_may_gran
     assertpy.assert_that(sub.licenseGrantAllowed).is_true()
     assertpy.assert_that(sub.licenseConfigurationArn).is_equal_to("arn:aws:license-manager::123:license/lic-1")
     assertpy.assert_that(sub.alreadyImported).is_false()
-    # The Marketplace product id lets a purchase hand off to the import wizard
+    # What the recipe wizard needs to offer the product as a parent image.
     assertpy.assert_that(sub.productId).is_equal_to("sku-1")
+    assertpy.assert_that(sub.platform).is_equal_to("Linux")
+    assertpy.assert_that(sub.architecture).is_equal_to("amd64")
+    assertpy.assert_that(sub.rootDeviceName).is_equal_to("/dev/sda1")
+
+
+@pytest.mark.parametrize(
+    "ec2_platform,ec2_architecture,expected_platform,expected_architecture",
+    (
+        ("Linux/UNIX", "x86_64", "Linux", "amd64"),
+        ("Windows", "x86_64", "Windows", "amd64"),
+        ("Windows BYOL", "x86_64", "Windows", "amd64"),
+        ("Red Hat Enterprise Linux", "arm64", "Linux", "arm64"),
+        (None, "i386", "Linux", None),
+    ),
+)
+def test_ec2_image_attributes_should_map_to_recipe_terms(
+    ec2_platform, ec2_architecture, expected_platform, expected_architecture
+):
+    assertpy.assert_that(to_recipe_platform(ec2_platform)).is_equal_to(expected_platform)
+    assertpy.assert_that(to_recipe_architecture(ec2_architecture)).is_equal_to(expected_architecture)
 
 
 def test_discover_should_return_externally_managed_when_license_without_agreement(

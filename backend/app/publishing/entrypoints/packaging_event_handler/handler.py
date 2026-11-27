@@ -51,6 +51,7 @@ def handle_image_registration_completed_event(
         platform=event.platform,
         architecture=event.architecture,
         integrations=event.integrations,
+        marketplaceMetadata=event.marketplace_metadata,
     )
 
     dependencies.update_ami_read_model_event_handler(new_ami, event.retired_ami_ids)
@@ -117,6 +118,7 @@ def handle_automated_image_registration_completed_event(
             platform=event.platform,
             architecture=event.architecture,
             integrations=event.integrations,
+            marketplace_metadata=event.marketplace_metadata,
         )
     except Exception as e:
         logger.error(

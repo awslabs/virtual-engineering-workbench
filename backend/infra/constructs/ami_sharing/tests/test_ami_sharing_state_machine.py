@@ -1,6 +1,7 @@
 import json
 
 import assertpy
+import pytest
 
 
 def _entered_states(history: list[dict]) -> list[str]:
@@ -98,6 +99,8 @@ def test_ami_sharing_license_grant_path(start_execution, wait_for_execution, moc
             "VerifyLaunchPermissionLambda",
             "VerifyLaunchPermissionChoice",
             "PassMarketplaceAmi",
+            "GrantAfterShareChoice",
+            "PassNoGrantAfterShare",
             "SucceedAmiSharingLambda",
             "SuccessState",
         ]
@@ -130,6 +133,8 @@ def test_ami_sharing_verify_external_grant_path(start_execution, wait_for_execut
             "VerifyLaunchPermissionLambda",
             "VerifyLaunchPermissionChoice",
             "PassMarketplaceAmi",
+            "GrantAfterShareChoice",
+            "PassNoGrantAfterShare",
             "SucceedAmiSharingLambda",
             "SuccessState",
         ]
@@ -180,6 +185,8 @@ GRANT_REFUSED_FALLBACK_STATES = [
     "VerifyLaunchPermissionLambda",
     "VerifyLaunchPermissionChoice",
     "PassMarketplaceAmi",
+    "GrantAfterShareChoice",
+    "PassNoGrantAfterShare",
     "SucceedAmiSharingLambda",
     "SuccessState",
 ]
@@ -240,3 +247,136 @@ def test_ami_sharing_does_not_fall_back_on_a_transient_grant_error(
     entered = _entered_states(history)
     assertpy.assert_that(entered).contains("FailAmiSharingLambda")
     assertpy.assert_that(entered).does_not_contain("VerifyExternalGrantLambda")
+
+
+def _assert_fail_lambda_ran(history: list[dict]) -> None:
+    """The Fail lambda must complete. If it cannot resolve $.error, Step Functions fails the
+    execution with States.Runtime before the lambda runs, so the version is never marked Failed."""
+    exited = [e["stateExitedEventDetails"]["name"] for e in history if e.get("stateExitedEventDetails")]
+    assertpy.assert_that(exited).contains("FailAmiSharingLambda")
+    runtime_errors = [e for e in history if "States.Runtime" in json.dumps(e, default=str)]
+    assertpy.assert_that(runtime_errors).is_empty()
+
+
+def _assert_succeeded(status, output):
+    assertpy.assert_that(status).is_equal_to("SUCCEEDED")
+    assertpy.assert_that(output).is_not_none()
+    output_parsed = json.loads(output)
+    assertpy.assert_that(output_parsed["succeedAmiSharingResponse"]["eventType"]).is_equal_to(
+        "SucceedAmiSharingResponse"
+    )
+
+
+# Images built on a Marketplace AMI: our own AMI is shared or copied first, then the
+# spoke gets the parent's license.
+
+
+@pytest.mark.parametrize(
+    "test_name,share_states",
+    (
+        ("ShareThenLicenseGrantPath", ["PassShare", "ShareAmiLambda"]),
+        ("CopyThenLicenseGrantPath", ["CopyAmiLambda", "VerifyCopyLambda", "ShareAmiLambda"]),
+    ),
+)
+def test_pipeline_image_on_marketplace_ami_is_shared_then_granted(
+    start_execution, wait_for_execution, mocked_test_event, test_name, share_states
+):
+    # ACT: our own AMI built on a Marketplace AMI
+    execution_arn = start_execution(test_name=test_name, test_event=mocked_test_event())
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT: shared/copied first, then the license is granted and the launch checked in the spoke
+    _assert_succeeded(status, output)
+    entered = _entered_states(history)
+    expected_order = share_states + [
+        "CreateLicenseGrantAfterShareLambda",
+        "AcceptLicenseGrantAfterShareLambda",
+        "VerifyLaunchPermissionAfterShareLambda",
+        "SucceedAmiSharingLambda",
+    ]
+    assertpy.assert_that([s for s in entered if s in expected_order]).is_equal_to(expected_order)
+    assertpy.assert_that(entered).does_not_contain("CreateLicenseGrantLambda", "PassNoGrantAfterShare")
+
+
+def test_pipeline_image_on_externally_managed_marketplace_ami_verifies_the_grant(
+    start_execution, wait_for_execution, mocked_test_event
+):
+    # ACT
+    execution_arn = start_execution(test_name="DoneThenVerifyExternalGrantPath", test_event=mocked_test_event())
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    _assert_succeeded(status, output)
+    entered = _entered_states(history)
+    assertpy.assert_that(entered).contains(
+        "PassDone", "VerifyExternalGrantAfterShareLambda", "VerifyLaunchPermissionAfterShareLambda"
+    )
+    assertpy.assert_that(entered).does_not_contain("CreateLicenseGrantAfterShareLambda")
+
+
+def test_pipeline_image_on_marketplace_ami_fails_without_external_grant(
+    start_execution, wait_for_execution, mocked_test_event
+):
+    # ACT
+    execution_arn = start_execution(test_name="DoneThenVerifyExternalGrantNotFoundPath", test_event=mocked_test_event())
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("FAILED")
+    assertpy.assert_that(_entered_states(history)).contains("PassGrantNotVerifiedError", "FailAmiSharingLambda")
+    _assert_fail_lambda_ran(history)
+
+
+def test_pipeline_image_on_marketplace_ami_fails_when_the_spoke_cannot_see_it(
+    start_execution, wait_for_execution, mocked_test_event
+):
+    # ACT
+    execution_arn = start_execution(test_name="ShareThenLicenseGrantNotAccessiblePath", test_event=mocked_test_event())
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("FAILED")
+    entered = _entered_states(history)
+    assertpy.assert_that(entered).contains(
+        "VerifyLaunchPermissionAfterShareChoice", "PassLaunchPermissionDeniedAfterShareError", "FailAmiSharingLambda"
+    )
+    assertpy.assert_that(entered).does_not_contain("SucceedAmiSharingLambda")
+    _assert_fail_lambda_ran(history)
+
+
+def test_pipeline_image_falls_back_to_the_spoke_grant_when_aws_refuses_the_grant(
+    start_execution, wait_for_execution, mocked_test_event
+):
+    # ACT
+    execution_arn = start_execution(
+        test_name="ShareThenLicenseGrantRejectedFallbackPath", test_event=mocked_test_event()
+    )
+    status, output, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT: the same safety net as the direct LICENSE_GRANT path
+    _assert_succeeded(status, output)
+    assertpy.assert_that(json.loads(output)["licenseGrantError"]["Error"]).is_equal_to("LicenseGrantRejectedException")
+    entered = _entered_states(history)
+    assertpy.assert_that(entered).contains(
+        "CreateLicenseGrantAfterShareLambda",
+        "VerifyExternalGrantAfterShareLambda",
+        "VerifyLaunchPermissionAfterShareLambda",
+    )
+    assertpy.assert_that(entered).does_not_contain("AcceptLicenseGrantAfterShareLambda", "FailAmiSharingLambda")
+
+
+def test_pipeline_image_fails_when_aws_refuses_the_grant_and_the_spoke_has_none(
+    start_execution, wait_for_execution, mocked_test_event
+):
+    # ACT
+    execution_arn = start_execution(
+        test_name="ShareThenLicenseGrantRejectedNoSpokeGrantPath", test_event=mocked_test_event()
+    )
+    status, _, history = wait_for_execution(execution_arn=execution_arn)
+
+    # ASSERT
+    assertpy.assert_that(status).is_equal_to("FAILED")
+    assertpy.assert_that(_entered_states(history)).contains(
+        "VerifyExternalGrantAfterShareLambda", "PassGrantNotVerifiedError", "FailAmiSharingLambda"
+    )
+    _assert_fail_lambda_ran(history)

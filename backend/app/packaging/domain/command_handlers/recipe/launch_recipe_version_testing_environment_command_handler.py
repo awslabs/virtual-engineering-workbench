@@ -6,6 +6,7 @@ from app.packaging.domain.commands.recipe import (
 )
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.recipe import (
+    marketplace_instance_types,
     recipe_version,
     recipe_version_test_execution,
 )
@@ -52,10 +53,15 @@ def handle(
     instance_id = recipe_version_test_execution_instance_id_value_object.from_str(
         recipe_version_testing_srv.launch_testing_environment(
             image_upstream_id=recipe_version_entity.parentImageUpstreamId,
-            instance_type=recipe_version_testing_srv.get_testing_environment_instance_type(
-                architecture=recipe_entity.recipeArchitecture,
-                platform=recipe_entity.recipePlatform,
-                os_version=recipe_entity.recipeOsVersion,
+            # A Marketplace parent only launches on the instance types its offer lists.
+            instance_type=marketplace_instance_types.choose_instance_type(
+                recipe_version_testing_srv.get_testing_environment_instance_type(
+                    architecture=recipe_entity.recipeArchitecture,
+                    platform=recipe_entity.recipePlatform,
+                    os_version=recipe_entity.recipeOsVersion,
+                ),
+                recipe_version_entity.parentImageSupportedInstanceTypes,
+                recipe_version_entity.parentImageProductId,
             ),
             volume_size=int(recipe_version_entity.recipeVersionVolumeSize),
         )

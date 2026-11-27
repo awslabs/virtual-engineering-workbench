@@ -42,6 +42,24 @@ export interface DiscoveredMarketplaceSubscription {
      * @type {string}
      * @memberof DiscoveredMarketplaceSubscription
      */
+    platform?: string;
+    /**
+     *
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    architecture?: string;
+    /**
+     *
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    rootDeviceName?: string;
+    /**
+     *
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
     hubRegionAmiId?: string;
     /**
      *
@@ -133,6 +151,9 @@ export function DiscoveredMarketplaceSubscriptionFromJSONTyped(json: any, ignore
         'productName': !exists(json, 'productName') ? undefined : json['productName'],
         'productCode': !exists(json, 'productCode') ? undefined : json['productCode'],
         'productId': !exists(json, 'productId') ? undefined : json['productId'],
+        'platform': !exists(json, 'platform') ? undefined : json['platform'],
+        'architecture': !exists(json, 'architecture') ? undefined : json['architecture'],
+        'rootDeviceName': !exists(json, 'rootDeviceName') ? undefined : json['rootDeviceName'],
         'hubRegionAmiId': !exists(json, 'hubRegionAmiId') ? undefined : json['hubRegionAmiId'],
         'regionalAmiIds': !exists(json, 'regionalAmiIds') ? undefined : json['regionalAmiIds'],
         'licenseConfigurationArn': !exists(json, 'licenseConfigurationArn') ? undefined : json['licenseConfigurationArn'],
@@ -160,6 +181,9 @@ export function DiscoveredMarketplaceSubscriptionToJSON(value?: DiscoveredMarket
         'productName': value.productName,
         'productCode': value.productCode,
         'productId': value.productId,
+        'platform': value.platform,
+        'architecture': value.architecture,
+        'rootDeviceName': value.rootDeviceName,
         'hubRegionAmiId': value.hubRegionAmiId,
         'regionalAmiIds': value.regionalAmiIds,
         'licenseConfigurationArn': value.licenseConfigurationArn,

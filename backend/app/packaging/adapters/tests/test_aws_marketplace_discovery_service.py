@@ -164,6 +164,7 @@ def test_should_list_marketplace_amis_by_product_code(mock_moto_calls, get_marke
     assertpy.assert_that(result).is_length(1)
     assertpy.assert_that(result[0].amiId).is_equal_to(GlobalVariables.TEST_AMI_ID.value)
     assertpy.assert_that(result[0].region).is_equal_to(region)
+    assertpy.assert_that(result[0].rootDeviceName).is_equal_to("/dev/sda1")
 
 
 def test_should_list_received_licenses(mock_moto_calls, get_marketplace_discovery_srv):
@@ -373,3 +374,57 @@ def test_should_skip_a_region_that_publishes_no_ami(mock_moto_calls, get_marketp
 
     # ASSERT
     assertpy.assert_that(result).is_empty()
+
+
+def _instance_type_offer_terms(offerId):
+    return {
+        "offerTerms": [
+            {"legalTerm": {"id": "term-legal", "type": "LegalTerm"}},
+            {
+                "usageBasedPricingTerm": {
+                    "id": "term-usage",
+                    "rateCards": [
+                        {
+                            "rateCard": [
+                                {"dimensionKey": "m7i.2xlarge", "price": "0"},
+                                {"dimensionKey": "t3.medium" if offerId == "offer-private" else "m7i.2xlarge"},
+                                {"dimensionKey": "UserHours", "price": "0"},
+                            ]
+                        }
+                    ],
+                }
+            },
+        ]
+    }
+
+
+def test_should_list_supported_instance_types_across_offers(mock_moto_calls, get_marketplace_discovery_srv):
+    # ARRANGE: the shared mock map also serves the offer-discovery adapter, so these
+    # two operations are set up here rather than in conftest.
+    mock_moto_calls["ListPurchaseOptions"].return_value = {
+        "purchaseOptions": [
+            {"purchaseOptionId": "offer-public", "purchaseOptionType": "OFFER"},
+            {"purchaseOptionId": "offer-private", "purchaseOptionType": "OFFER"},
+        ]
+    }
+    mock_moto_calls["GetOfferTerms"].side_effect = _instance_type_offer_terms
+
+    # ACT
+    result = get_marketplace_discovery_srv.list_supported_instance_types("prod-ib2w5aw4ynhey")
+
+    # ASSERT: union of all offers' usage dimensions that look like instance types
+    mock_moto_calls["ListPurchaseOptions"].assert_called_once_with(
+        filters=[{"filterType": "PRODUCT_ID", "filterValues": ["prod-ib2w5aw4ynhey"]}]
+    )
+    assertpy.assert_that(mock_moto_calls["GetOfferTerms"].call_count).is_equal_to(2)
+    assertpy.assert_that(result).is_equal_to(["m7i.2xlarge", "t3.medium"])
+
+
+def test_should_not_restrict_instance_types_when_offers_cannot_be_read(mock_moto_calls, get_marketplace_discovery_srv):
+    # ARRANGE
+    mock_moto_calls["ListPurchaseOptions"].side_effect = ClientError(
+        {"Error": {"Code": "AccessDeniedException", "Message": "denied"}}, "ListPurchaseOptions"
+    )
+
+    # ACT / ASSERT
+    assertpy.assert_that(get_marketplace_discovery_srv.list_supported_instance_types("prod-ib2w5aw4ynhey")).is_empty()

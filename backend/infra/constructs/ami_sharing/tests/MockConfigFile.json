@@ -92,6 +92,78 @@
                     "AcceptLicenseGrantLambda": "MockedAcceptLicenseGrantLambda",
                     "VerifyLaunchPermissionLambda": "MockedVerifyLaunchPermissionLambda",
                     "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda"
+                },
+                "ShareThenLicenseGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaShareThenLicenseGrant",
+                    "CreateLicenseGrantAfterShareLambda": "MockedCreateLicenseGrantLambda",
+                    "AcceptLicenseGrantAfterShareLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionAfterShareLambda": "MockedVerifyLaunchPermissionLambda"
+                },
+                "CopyThenLicenseGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaCopyThenLicenseGrant",
+                    "CreateLicenseGrantAfterShareLambda": "MockedCreateLicenseGrantLambda",
+                    "AcceptLicenseGrantAfterShareLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionAfterShareLambda": "MockedVerifyLaunchPermissionLambda"
+                },
+                "DoneThenVerifyExternalGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaDoneThenVerifyExternalGrant",
+                    "VerifyExternalGrantAfterShareLambda": "MockedVerifyExternalGrantLambdaSuccess",
+                    "VerifyLaunchPermissionAfterShareLambda": "MockedVerifyLaunchPermissionLambda"
+                },
+                "DoneThenVerifyExternalGrantNotFoundPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaDoneThenVerifyExternalGrant",
+                    "VerifyExternalGrantAfterShareLambda": "MockedVerifyExternalGrantLambdaNotFound"
+                },
+                "ShareThenLicenseGrantNotAccessiblePath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "CopyAmiLambda": "MockedCopyAmiLambda",
+                    "VerifyCopyLambda": "MockedVerifyCopyLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaShareThenLicenseGrant",
+                    "CreateLicenseGrantAfterShareLambda": "MockedCreateLicenseGrantLambda",
+                    "AcceptLicenseGrantAfterShareLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyLaunchPermissionAfterShareLambda": "MockedVerifyLaunchPermissionLambdaNotAccessible"
+                },
+                "ShareThenLicenseGrantRejectedFallbackPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaShareThenLicenseGrant",
+                    "CreateLicenseGrantAfterShareLambda": "MockedCreateLicenseGrantLambdaRejected",
+                    "AcceptLicenseGrantAfterShareLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyExternalGrantAfterShareLambda": "MockedVerifyExternalGrantLambdaSuccess",
+                    "VerifyLaunchPermissionAfterShareLambda": "MockedVerifyLaunchPermissionLambda"
+                },
+                "ShareThenLicenseGrantRejectedNoSpokeGrantPath": {
+                    "FailAmiSharingLambda": "MockedFailAmiSharingLambda",
+                    "SucceedAmiSharingLambda": "MockedSucceedAmiSharingLambda",
+                    "ShareAmiLambda": "MockedShareAmiLambda",
+                    "DecideActionLambda": "MockedDecideActionLambdaShareThenLicenseGrant",
+                    "CreateLicenseGrantAfterShareLambda": "MockedCreateLicenseGrantLambdaRejected",
+                    "AcceptLicenseGrantAfterShareLambda": "MockedAcceptLicenseGrantLambda",
+                    "VerifyExternalGrantAfterShareLambda": "MockedVerifyExternalGrantLambdaNotFound",
+                    "VerifyLaunchPermissionAfterShareLambda": "MockedVerifyLaunchPermissionLambda"
                 }
             }
         }
@@ -119,7 +191,8 @@
                         "projectId": null,
                         "licenseArn": null,
                         "homeRegion": null,
-                        "grantName": null
+                        "grantName": null,
+                        "grantDecision": null
                     }
                 }
             }
@@ -137,7 +210,8 @@
                         "projectId": null,
                         "licenseArn": null,
                         "homeRegion": null,
-                        "grantName": null
+                        "grantName": null,
+                        "grantDecision": null
                     }
                 }
             }
@@ -155,7 +229,8 @@
                         "projectId": null,
                         "licenseArn": null,
                         "homeRegion": null,
-                        "grantName": null
+                        "grantName": null,
+                        "grantDecision": null
                     }
                 }
             }
@@ -173,7 +248,8 @@
                         "projectId": null,
                         "licenseArn": null,
                         "homeRegion": null,
-                        "grantName": null
+                        "grantName": null,
+                        "grantDecision": null
                     }
                 }
             }
@@ -191,7 +267,8 @@
                         "projectId": "proj-12345",
                         "licenseArn": "arn:aws:license-manager:eu-west-3:111111111111:license:l-12345",
                         "homeRegion": "eu-west-3",
-                        "grantName": "VEW-prod-11111111-222222222222"
+                        "grantName": "VEW-prod-11111111-222222222222",
+                        "grantDecision": null
                     }
                 }
             }
@@ -209,7 +286,8 @@
                         "projectId": "proj-12345",
                         "licenseArn": "arn:aws:license-manager:eu-west-3:111111111111:license:l-12345",
                         "homeRegion": "eu-west-3",
-                        "grantName": "VEW-prod-11111111-222222222222"
+                        "grantName": "VEW-prod-11111111-222222222222",
+                        "grantDecision": null
                     }
                 }
             }
@@ -335,6 +413,63 @@
                 "Throw": {
                     "Error": "LicenseGrantRejectedException",
                     "Cause": "Cannot accept license grant: the spoke account has not received it"
+                }
+            }
+        },
+        "MockedDecideActionLambdaShareThenLicenseGrant": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "SHARE",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": null,
+                        "region": "eu-west-3",
+                        "imageId": "ami-12345",
+                        "projectId": "proj-12345",
+                        "licenseArn": "arn:aws:license-manager::111111111111:license:l-0123456789abcdef0123456789abcdef",
+                        "homeRegion": "us-east-1",
+                        "grantName": "VEW-prod-dt3ycosm-123456789012",
+                        "grantDecision": "LICENSE_GRANT"
+                    }
+                }
+            }
+        },
+        "MockedDecideActionLambdaCopyThenLicenseGrant": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "COPY",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": null,
+                        "region": "eu-west-3",
+                        "imageId": "ami-12345",
+                        "projectId": "proj-12345",
+                        "licenseArn": "arn:aws:license-manager::111111111111:license:l-0123456789abcdef0123456789abcdef",
+                        "homeRegion": "us-east-1",
+                        "grantName": "VEW-prod-dt3ycosm-123456789012",
+                        "grantDecision": "LICENSE_GRANT"
+                    }
+                }
+            }
+        },
+        "MockedDecideActionLambdaDoneThenVerifyExternalGrant": {
+            "0": {
+                "Return": {
+                    "Payload": {
+                        "eventType": "DecideActionResponse",
+                        "decision": "DONE",
+                        "originalAmiId": "ami-12345",
+                        "copiedAmiId": "ami-67890",
+                        "region": "eu-west-3",
+                        "imageId": "ami-12345",
+                        "projectId": "proj-12345",
+                        "licenseArn": "arn:aws:license-manager::111111111111:license:l-0123456789abcdef0123456789abcdef",
+                        "homeRegion": "us-east-1",
+                        "grantName": "VEW-prod-dt3ycosm-123456789012",
+                        "grantDecision": "VERIFY_EXTERNAL_GRANT"
+                    }
                 }
             }
         }

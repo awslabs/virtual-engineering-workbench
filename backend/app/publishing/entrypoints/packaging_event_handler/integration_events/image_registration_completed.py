@@ -35,3 +35,5 @@ class ImageRegistrationCompleted(BaseModel):
     architecture: str = Field(..., alias="architecture")
     integrations: list[str] = Field([], title="integrations")
     create_date: str = Field(..., alias="createDate")
+    # Set when the image was built on an AWS Marketplace AMI (license data of that parent).
+    marketplace_metadata: dict | None = Field(None, alias="marketplaceMetadata")

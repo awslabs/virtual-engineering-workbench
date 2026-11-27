@@ -13,6 +13,8 @@ DECIDE_ACTION_FIELDS = {
     "licenseArn",
     "homeRegion",
     "grantName",
+    # Read by GrantAfterShareChoice; null unless a shared pipeline image needs a license.
+    "grantDecision",
 }
 
 

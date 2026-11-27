@@ -117,6 +117,9 @@ from app.packaging.domain.query_services import (
 from app.packaging.domain.query_services.aws_published_ami_domain_query_service import (
     AwsPublishedAmiDomainQueryService,
 )
+from app.packaging.domain.query_services.marketplace_base_image_domain_query_service import (
+    MarketplaceBaseImageDomainQueryService,
+)
 from app.packaging.domain.query_services.marketplace_subscription_domain_query_service import (
     MarketplaceSubscriptionDomainQueryService,
 )
@@ -338,6 +341,18 @@ def bootstrap(  # noqa: C901
         boto_session=session,
     )
 
+    marketplace_base_image_qry_svc = MarketplaceBaseImageDomainQueryService(
+        license_service=marketplace_discovery_svc,
+        agreement_service=marketplace_discovery_svc,
+        ami_service=marketplace_discovery_svc,
+        parameter_service=parameter_srv,
+        ami_validation_service=ami_validation_svc,
+        region=app_config.get_default_region(),
+        logger=logger,
+        offer_service=marketplace_discovery_svc,
+        image_query_service=image_qry_srv,
+    )
+
     component_domain_qry_srv = component_domain_query_service.ComponentDomainQueryService(
         component_qry_srv=dynamodb_component_query_service.DynamoDBComponentQueryService(
             table_name=app_config.get_table_name(),
@@ -528,6 +543,7 @@ def bootstrap(  # noqa: C901
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
                 component_qry_srv=component_qry_srv,
+                marketplace_base_image_qry_srv=marketplace_base_image_qry_svc,
             )
 
         return _handle_command
@@ -575,6 +591,7 @@ def bootstrap(  # noqa: C901
                 mandatory_components_list_qry_srv=mandatory_components_list_qry_srv,
                 system_configuration_mapping=system_configuration_mapping,
                 component_qry_srv=component_qry_srv,
+                marketplace_base_image_qry_srv=marketplace_base_image_qry_svc,
             )
 
         return _handle_command

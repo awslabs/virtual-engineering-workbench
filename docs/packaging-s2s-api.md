@@ -284,7 +284,10 @@ the UI names, `componentVersionType`, and `order`:
 
 Components are sorted by `order`; existing mandatory components are added by the
 domain workflow. `recipeVersionReleaseType` is accepted only when the
-version is created; it is not an update field. A successful recipe create returns
+version is created; it is not an update field. The s2s API cannot choose an AWS
+Marketplace base image (that is a UI and user API option). Updating a version that
+already builds on one keeps its base image. For a Marketplace product it checks the volume size against
+the product's root volume; for an AWS-published image it does not. A successful recipe create returns
 `recipeId`; a version create/update/retire action returns `recipeVersionId`.
 `DELETE` archives the recipe base or retires the version; it never physically
 deletes the underlying UI resource.

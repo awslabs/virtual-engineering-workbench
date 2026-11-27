@@ -50,6 +50,18 @@ export interface UpdateRecipeVersionRequest {
      * @memberof UpdateRecipeVersionRequest
      */
     recipeVersionIntegrations?: Array<string>;
+    /**
+     * AWS Marketplace AMI product to build on; empty string for the platform default parent image; omit to keep the current parent image
+     * @type {string}
+     * @memberof UpdateRecipeVersionRequest
+     */
+    parentImageProductId?: string;
+    /**
+     * Imported AWS-published image (AWS_PUBLISHED_AMI) to build on; empty string for the platform default parent image; omit to keep the current parent image
+     * @type {string}
+     * @memberof UpdateRecipeVersionRequest
+     */
+    parentImageId?: string;
 }
 
 /**
@@ -78,6 +90,8 @@ export function UpdateRecipeVersionRequestFromJSONTyped(json: any, ignoreDiscrim
         'recipeVersionDescription': json['recipeVersionDescription'],
         'recipeVersionVolumeSize': json['recipeVersionVolumeSize'],
         'recipeVersionIntegrations': !exists(json, 'recipeVersionIntegrations') ? undefined : json['recipeVersionIntegrations'],
+        'parentImageProductId': !exists(json, 'parentImageProductId') ? undefined : json['parentImageProductId'],
+        'parentImageId': !exists(json, 'parentImageId') ? undefined : json['parentImageId'],
     };
 }
 
@@ -94,5 +108,7 @@ export function UpdateRecipeVersionRequestToJSON(value?: UpdateRecipeVersionRequ
         'recipeVersionDescription': value.recipeVersionDescription,
         'recipeVersionVolumeSize': value.recipeVersionVolumeSize,
         'recipeVersionIntegrations': value.recipeVersionIntegrations,
+        'parentImageProductId': value.parentImageProductId,
+        'parentImageId': value.parentImageId,
     };
 }

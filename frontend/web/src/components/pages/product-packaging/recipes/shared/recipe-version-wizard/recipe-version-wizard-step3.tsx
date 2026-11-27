@@ -4,6 +4,8 @@ import { i18n } from './recipe-version-wizard.translations';
 import {
   RecipeComponentVersion,
   ComponentVersionEntry,
+  DiscoveredMarketplaceSubscription,
+  Image,
 } from '../../../../../../services/API/proserve-wb-packaging-api';
 import { ValueWithLabel } from '../../../../shared/value-with-label';
 import { ComponentVersionEntriesView } from '../../../shared';
@@ -20,6 +22,9 @@ export interface RecipeVersionWizardStep3Props {
   integrationComponentsVersions: ComponentVersionEntry[],
   availableIntegrations: Integration[],
   selectedIntegrations: string[],
+  baseImage: string,
+  marketplaceImages: DiscoveredMarketplaceSubscription[],
+  awsPublishedImages: Image[],
 }
 
 
@@ -37,7 +42,13 @@ export const RecipeVersionWizardStep3: FC<RecipeVersionWizardStep3Props> = ({
   integrationComponentsVersions,
   selectedIntegrations,
   availableIntegrations,
+  baseImage,
+  marketplaceImages,
+  awsPublishedImages,
 }) => {
+  const baseImageLabel = marketplaceImages.find(image => image.productId === baseImage)?.productName
+    || awsPublishedImages.find(image => image.imageId === baseImage)?.imageName
+    || baseImage;
   return <SpaceBetween direction='vertical' size='l'>
     <SpaceBetween direction='vertical' size='xs'>
       <Header
@@ -66,6 +77,7 @@ export const RecipeVersionWizardStep3: FC<RecipeVersionWizardStep3Props> = ({
           <ValueWithLabel label={i18n.step1InputReleaseType} data-test="recipe-release-type">
             {versionReleaseType}
           </ValueWithLabel>
+          {getBaseImageReviewColumn()}
           {getIntegrationsReviewColumn()}
         </ColumnLayout>
       </Container>
@@ -95,10 +107,19 @@ export const RecipeVersionWizardStep3: FC<RecipeVersionWizardStep3Props> = ({
   </SpaceBetween>;
 
   function getReviewColumnCount() {
-    if (selectedIntegrations.length > EMPTY) {
+    if (selectedIntegrations.length > EMPTY || baseImage) {
       return COL_COUNT_WITH_INTEGRATIONS;
     }
     return COL_COUNT_NO_INTEGRATIONS;
+  }
+
+  function getBaseImageReviewColumn() {
+    if (!baseImage) {
+      return <></>;
+    }
+    return <ValueWithLabel label={i18n.step1BaseImage} data-test="recipe-base-image">
+      {baseImageLabel}
+    </ValueWithLabel>;
   }
 
   function getIntegrationsReviewColumn() {

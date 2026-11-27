@@ -169,3 +169,47 @@ def test_handle_should_log_the_instance_id_before_recording_it(
 
     # ASSERT
     assertpy.assert_that(caplog.text).contains(get_test_instance_id)
+
+
+@pytest.mark.parametrize(
+    "supported,expected_instance_type",
+    (
+        (None, "m8i.2xlarge"),  # default parent image: configured type
+        (["m8i.2xlarge", "m7i.2xlarge"], "m8i.2xlarge"),  # Marketplace parent that allows it
+        (["m7i.2xlarge", "m8i.8xlarge"], "m7i.2xlarge"),  # Marketplace parent that does not (live Ubuntu offer)
+    ),
+)
+@freeze_time("2023-09-29")
+def test_handle_should_launch_on_an_instance_type_the_marketplace_parent_supports(
+    recipe_query_service_mock,
+    recipe_version_query_service_mock,
+    recipe_version_testing_service_mock,
+    launch_recipe_version_testing_environment_command_mock,
+    uow_mock,
+    mock_recipe_object,
+    mock_recipe_version_object,
+    get_test_instance_id,
+    supported,
+    expected_instance_type,
+):
+    # ARRANGE
+    mock_recipe_version_object.parentImageProductId = "prod-ib2w5aw4ynhey" if supported else None
+    mock_recipe_version_object.parentImageSupportedInstanceTypes = supported
+    recipe_query_service_mock.get_recipe.return_value = mock_recipe_object
+    recipe_version_query_service_mock.get_recipe_version.return_value = mock_recipe_version_object
+    recipe_version_testing_service_mock.get_testing_environment_instance_type.return_value = "m8i.2xlarge"
+    recipe_version_testing_service_mock.launch_testing_environment.return_value = get_test_instance_id
+
+    # ACT
+    launch_recipe_version_testing_environment_command_handler.handle(
+        command=launch_recipe_version_testing_environment_command_mock,
+        recipe_qry_srv=recipe_query_service_mock,
+        recipe_version_qry_srv=recipe_version_query_service_mock,
+        recipe_version_testing_srv=recipe_version_testing_service_mock,
+        uow=uow_mock,
+        logger=logging.getLogger(),
+    )
+
+    # ASSERT
+    launch_kwargs = recipe_version_testing_service_mock.launch_testing_environment.call_args.kwargs
+    assertpy.assert_that(launch_kwargs["instance_type"]).is_equal_to(expected_instance_type)

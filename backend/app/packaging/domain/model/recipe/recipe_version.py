@@ -47,6 +47,16 @@ class RecipeVersion(unit_of_work.Entity):
     recipeId: str = Field(..., title="RecipeId")
     recipeVersionId: str = Field(default_factory=generate_version_id, title="RecipeVersionId")
     parentImageUpstreamId: str = Field(..., title="ParentImageUpstreamId")
+    # Set when the version builds on an AWS Marketplace AMI instead of the platform default.
+    parentImageProductId: typing.Optional[str] = Field(None, title="ParentImageProductId")
+    # Or an AMI that AWS publishes (Windows Server, RHEL, ...) imported into the project (AWS_PUBLISHED_AMI).
+    parentImageId: typing.Optional[str] = Field(None, title="ParentImageId")
+    # License data of that Marketplace parent, handed on to the images built from this version.
+    parentImageMarketplaceMetadata: typing.Optional[dict] = Field(None, title="ParentImageMarketplaceMetadata")
+    # Instance types that Marketplace parent launches on (recipe testing, pipeline builds); None = no restriction.
+    parentImageSupportedInstanceTypes: typing.Optional[list[str]] = Field(
+        None, title="ParentImageSupportedInstanceTypes"
+    )
     recipeComponentsVersions: list[component_version_entry.ComponentVersionEntry] = Field(
         ..., title="RecipeComponentsVersions"
     )

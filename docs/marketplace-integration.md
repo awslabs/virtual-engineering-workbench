@@ -1,6 +1,6 @@
 # Use AWS Marketplace images
 
-VEW can import AMIs from your AWS Marketplace subscriptions into the image catalog. Once imported, you publish them as products the same way you would any other image — the only difference is how VEW handles licensing in the spoke account.
+VEW can import AMIs from your AWS Marketplace subscriptions into the image catalog, or use them as the base image of a recipe. Once imported or built, you publish them as products the same way you would any other image — the only difference is how VEW handles licensing in the spoke account.
 
 You can also find and subscribe to Marketplace AMI products from inside VEW, accept private offers, and list or cancel the account's agreements. Those features are described from [Get a Marketplace product from inside VEW](#get-a-marketplace-product-from-inside-vew) onwards. Both halves use the hub account: VEW subscribes in the hub account, and imports from the hub account's subscriptions.
 
@@ -77,6 +77,28 @@ VEW does not trust the details the browser sends. The import request carries the
 If you've already imported a particular product, it shows as **Already Imported** in the subscription list (dimmed and non-selectable).
 
 An AMI can be imported into one project only. Once a project has imported an AMI, importing the same AMI into another project fails with "already imported in another project", and that stays true after the first project retires its image. This applies to Marketplace AMIs and existing AMIs alike, because VEW records an imported AMI, and authorizes its licence grants, against a single project.
+
+## Build a recipe on a Marketplace image
+
+Instead of importing a Marketplace AMI as is, you can use it as the base image of a recipe version and add your own components on top. This is also the way to use one Marketplace product in several projects: each build produces its own AMI, so the one-project-per-AMI rule for imports does not apply.
+
+1. Create or update a recipe version. In step 1, choose the product under **Base image**. The list shows the subscribed products that match the recipe's platform and architecture and whose root volume is on `/dev/sda1`, the device recipes size.
+2. Set the volume size to at least the product's root volume size. VEW checks this when you save.
+3. Build the recipe as usual. VEW resolves the product to its latest AMI through the public SSM parameter `/aws/service/marketplace/<product-id>/latest`, or the newest AMI that names the product if the seller doesn't publish that parameter. Updating the version resolves it again, the same way the default base image is refreshed.
+
+An imported AWS-published image (for example Windows Server or RHEL, see [Import an AMI that AWS publishes](#import-an-ami-that-aws-publishes)) can be the base image too. It appears in the same list. API clients select it with `parentImageId` (the image ID, `image-...`) instead of `parentImageProductId`. AWS is the seller of record for these images, so there is no licence to record or grant. A request may set only one of the two fields.
+
+To go back to the default operating system image, choose **Default operating system image** in step 1. API clients do the same with an empty string in either field. If an update leaves both fields out, the version keeps its current base image.
+
+A Marketplace AMI only launches on the instance types its offer lists, and sellers often don't list the newest families yet. VEW reads that list when you save the version:
+
+- Recipe testing uses the configured test instance type if the product supports it, and otherwise the closest supported type of the same size (for example `m7i.2xlarge` instead of `m8i.2xlarge`).
+- A pipeline only accepts build instance types that the product supports. If none of the allowed build instance types fits, an administrator has to add a supported type to the allowed list (`allowed_build_instance_types` in the pipelines configuration).
+- Workbench templates in the spoke must also use instance types the product supports.
+
+Images built this way are your own AMIs, so publishing shares or copies them to the spoke account like any other pipeline image. The spoke still needs the Marketplace license to launch them: for a **VEW Managed** subscription VEW creates and accepts the grant after sharing, and for an **Externally Managed** one it checks the spoke's grant, or creates the grant itself when the hub's licence allows it, as described in [Publish a product version](#publish-a-product-version).
+
+EC2 Image Builder and recipe testing run in the image service account. In the default deployment that is the hub account, so the hub subscription covers them. If you deploy with a separate image service account, that account must also be entitled to the product (its own subscription or a grant), or the build fails when it launches the Marketplace AMI.
 
 ## Publish a product version
 
