@@ -131,7 +131,7 @@ class ServiceCatalogProductsService(products_service.ProductsService):
                 record = sc_client.describe_record(Id=record_id)
                 parts = [
                     " ".join(piece for piece in (error.get("Code"), error.get("Description")) if piece).strip()
-                    for error in (record or {}).get("RecordErrors") or []
+                    for error in ((record or {}).get("RecordDetail") or {}).get("RecordErrors") or []
                 ]
                 joined = "; ".join(part for part in parts if part)
                 if joined:
