@@ -15,6 +15,19 @@ class PackagingBCActions(enum.StrEnum):
     CreateRecipe = "CreateRecipe"
     CreateRecipeVersion = "CreateRecipeVersion"
     DiscoverMarketplaceSubscriptions = "DiscoverMarketplaceSubscriptions"
+    # Marketplace procurement actions. Gated to admins because they can
+    # commit real money to AWS Marketplace agreements.
+    ListMarketplacePurchaseOptions = "ListMarketplacePurchaseOptions"
+    GetMarketplaceOffer = "GetMarketplaceOffer"
+    CreateMarketplaceQuote = "CreateMarketplaceQuote"
+    AcceptMarketplaceQuote = "AcceptMarketplaceQuote"
+    CancelMarketplaceAgreement = "CancelMarketplaceAgreement"
+    ListMarketplaceAgreements = "ListMarketplaceAgreements"
+    # Public-catalog browse actions. Read-only, no money moves —
+    # commitment happens through the accept-quote flow.
+    SearchMarketplaceListings = "SearchMarketplaceListings"
+    GetMarketplaceListing = "GetMarketplaceListing"
+    GetMarketplaceFacets = "GetMarketplaceFacets"
     GenerateComponentVersionDefinition = "GenerateComponentVersionDefinition"
     GetComponent = "GetComponent"
     GetComponents = "GetComponents"
@@ -42,6 +55,9 @@ class PackagingBCActions(enum.StrEnum):
     ImportImage = "ImportImage"
     ListImportableAmis = "ListImportableAmis"
     ReleaseComponentVersion = "ReleaseComponentVersion"
+    # Read-only: resolves an AWS-published listing to AMI candidates. Granted
+    # alongside ImportImage, but separate so the permission says what it does.
+    ResolveAwsPublishedAmi = "ResolveAwsPublishedAmi"
     ReleaseRecipeVersion = "ReleaseRecipeVersion"
     RetireComponentVersion = "RetireComponentVersion"
     RetirePipeline = "RetirePipeline"

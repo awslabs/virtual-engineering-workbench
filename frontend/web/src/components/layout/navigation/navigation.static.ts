@@ -47,6 +47,11 @@ export const ROUTE_REGULAR_EXPRESSIONS = {
   pipelines: /^\/pipelines$/giu,
   createPipeline: /^\/pipelines-create$/giu,
   updatePipeline: /^\/pipelines\/.*\/pipelines-update$/giu,
+  marketplaceSubscriptions: /^\/projects\/[^/]+\/marketplace$/giu,
+  marketplaceBrowse: /^\/projects\/[^/]+\/marketplace\/browse$/giu,
+  marketplaceListingDetail: /^\/projects\/[^/]+\/marketplace\/listings\/[^/]+$/giu,
+  marketplaceAgreements: /^\/projects\/[^/]+\/marketplace\/agreements$/giu,
+  marketplaceProcurementWizard: /^\/projects\/[^/]+\/marketplace\/procure$/giu,
 };
 
 
@@ -93,6 +98,10 @@ export enum RouteNames {
   ImportImage = 'ImportImage',
   MandatoryComponentsLists = 'MandatoryComponentsLists',
   MarketplaceSubscriptions = 'MarketplaceSubscriptions',
+  MarketplaceBrowse = 'MarketplaceBrowse',
+  MarketplaceListingDetail = 'MarketplaceListingDetail',
+  MarketplaceAgreements = 'MarketplaceAgreements',
+  MarketplaceProcurementWizard = 'MarketplaceProcurementWizard',
   CreateMandatoryComponentsList = 'CreateMandatoryComponentsList',
   UpdateMandatoryComponentsList = 'UpdateMandatoryComponentsList',
   ViewMandatoryComponentsList = 'ViewMandatoryComponentsList',
@@ -241,5 +250,25 @@ export const USER_NAVIGATION_MAP = [{
 {
   pathRegexMatcher: ROUTE_REGULAR_EXPRESSIONS.myVirtualTargets,
   routeName: RouteNames.VirtualTargetDetails,
+},
+{
+  pathRegexMatcher: ROUTE_REGULAR_EXPRESSIONS.marketplaceSubscriptions,
+  routeName: RouteNames.MarketplaceSubscriptions,
+},
+{
+  pathRegexMatcher: ROUTE_REGULAR_EXPRESSIONS.marketplaceBrowse,
+  routeName: RouteNames.MarketplaceBrowse,
+},
+{
+  pathRegexMatcher: ROUTE_REGULAR_EXPRESSIONS.marketplaceListingDetail,
+  routeName: RouteNames.MarketplaceListingDetail,
+},
+{
+  pathRegexMatcher: ROUTE_REGULAR_EXPRESSIONS.marketplaceAgreements,
+  routeName: RouteNames.MarketplaceAgreements,
+},
+{
+  pathRegexMatcher: ROUTE_REGULAR_EXPRESSIONS.marketplaceProcurementWizard,
+  routeName: RouteNames.MarketplaceProcurementWizard,
 },
 ];

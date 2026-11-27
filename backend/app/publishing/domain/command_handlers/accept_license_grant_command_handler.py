@@ -34,12 +34,14 @@ def handle(
         spoke_account_id=grant_entity.targetAccountId,
     )
 
+    # Write only the two fields this command changes. Writing back the whole
+    # entity read before the AWS call would overwrite anything another writer
+    # changed in the meantime.
     with uow:
-        grant_entity.status = license_grant.LicenseGrantStatus.Active
-        grant_entity.lastUpdateDate = current_time
-        uow.get_repository(license_grant.LicenseGrantPrimaryKey, license_grant.LicenseGrant).update_entity(
+        uow.get_repository(license_grant.LicenseGrantPrimaryKey, license_grant.LicenseGrant).update_attributes(
             license_grant.LicenseGrantPrimaryKey(projectId=command.projectId.value, grantId=command.grantId.value),
-            grant_entity,
+            status=license_grant.LicenseGrantStatus.Active,
+            lastUpdateDate=current_time,
         )
         uow.commit()
 

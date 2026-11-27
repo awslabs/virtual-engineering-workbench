@@ -23,6 +23,11 @@ from app.packaging.domain.commands.component import (
     validate_component_version_command,
 )
 from app.packaging.domain.commands.image import create_image_command, import_image_command
+from app.packaging.domain.commands.marketplace import (
+    accept_agreement_request_command,
+    cancel_agreement_command,
+    create_agreement_request_command,
+)
 from app.packaging.domain.commands.pipeline import (
     create_pipeline_command,
     retire_pipeline_command,
@@ -76,6 +81,11 @@ from app.packaging.domain.value_objects.image import (
     platform_value_object,
     product_code_value_object,
     product_id_value_object,
+)
+from app.packaging.domain.value_objects.marketplace import (
+    agreement_id_value_object,
+    agreement_request_id_value_object,
+    offer_id_value_object,
 )
 from app.packaging.domain.value_objects.pipeline import (
     pipeline_build_instance_types_value_object,
@@ -153,6 +163,7 @@ TAG_RECIPES = "Recipes"
 TAG_RECIPE_VERSIONS = "Recipe Versions"
 TAG_RECIPE_TESTING = "Recipe Testing"
 TAG_IMAGES = "Images"
+TAG_MARKETPLACE = "Marketplace"
 
 
 @tracer.capture_method
@@ -1535,6 +1546,12 @@ def import_image(
     regional_ami_ids = None
     home_region = None
     license_grant_allowed = False
+    marketplace_listing_id = None
+
+    if image_source.value == ImageSource.AWS_PUBLISHED_AMI:
+        # Only the listing is taken from the caller. The command handler
+        # resolves it again and derives the rest of the metadata from the AMI.
+        marketplace_listing_id = request.marketplaceMetadata.listingId if request.marketplaceMetadata else None
 
     if image_source.value == ImageSource.MARKETPLACE_PRODUCT:
         requested_metadata = request.marketplaceMetadata
@@ -1582,6 +1599,7 @@ def import_image(
         marketplaceProductCode=marketplace_product_code,
         licenseConfigurationArn=license_configuration_arn,
         subscriptionOwnership=subscription_ownership,
+        marketplaceListingId=marketplace_listing_id,
         regionalAmiIds=regional_ami_ids,
         homeRegion=home_region,
         licenseGrantAllowed=license_grant_allowed,
@@ -1620,6 +1638,356 @@ def discover_marketplace_subscriptions(
                 api_model.DiscoveredMarketplaceSubscription.model_validate(s.model_dump()) for s in subscriptions
             ],
             discoveredAt=datetime.now(timezone.utc).isoformat(),
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@tracer.capture_method
+@app.post("/projects/<project_id>/images/aws-published/resolve", tags=[TAG_IMAGES])
+def resolve_aws_published_ami(
+    request: api_model.ResolveAwsPublishedAmiRequest,
+    project_id: str,
+) -> api_gateway.Response[api_model.ResolveAwsPublishedAmiResponse]:
+    """Resolves an AWS-published Marketplace listing to the AMI(s) to import.
+
+    Read-only. Returns 400 when the listing references more than one product
+    and when no AMI can be identified for the product. When ``unambiguous``
+    is false the caller must let the user pick from ``candidates``; nothing
+    is guessed.
+    """
+    result = dependencies.aws_published_ami_qry_svc.resolve_listing(
+        project_id=project_id_value_object.from_str(project_id),
+        listing_id=request.listingId,
+    )
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.ResolveAwsPublishedAmiResponse.model_validate(result.model_dump()),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+# --- In-VEW Marketplace procurement endpoints ---
+
+
+@app.get("/projects/<project_id>/marketplace/purchase-options", tags=[TAG_MARKETPLACE])
+def list_marketplace_purchase_options(
+    project_id: str,
+) -> api_gateway.Response[api_model.ListPurchaseOptionsResponse]:
+    """List AWS Marketplace AMI purchase options available to this VEW."""
+    project_id_value_object.from_str(project_id)
+    options = dependencies.marketplace_offer_discovery_svc.list_purchase_options()
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.ListPurchaseOptionsResponse(
+            purchaseOptions=[api_model.MarketplacePurchaseOptionResponseItem(**o.model_dump()) for o in options]
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.get("/projects/<project_id>/marketplace/offers/<offer_id>", tags=[TAG_MARKETPLACE])
+def get_marketplace_offer(
+    project_id: str,
+    offer_id: str,
+) -> api_gateway.Response[api_model.GetMarketplaceOfferResponse]:
+    """Return full offer detail (proposal, seller, pricing, associated products) and
+    every attached term so the buyer UI can render a quote-review page.
+    """
+    project_id_value_object.from_str(project_id)
+    offer_id_vo = offer_id_value_object.from_str(offer_id)
+    offer = dependencies.marketplace_offer_discovery_svc.get_offer(offer_id_vo.value)
+    terms = dependencies.marketplace_offer_discovery_svc.get_offer_terms(offer_id_vo.value)
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetMarketplaceOfferResponse(
+            offerId=offer.offerId,
+            catalog=offer.catalog,
+            offerName=offer.offerName,
+            agreementProposalId=offer.agreementProposalId,
+            sellerOfRecordDisplayName=offer.sellerOfRecordDisplayName,
+            sellerOfRecordProfileId=offer.sellerOfRecordProfileId,
+            pricingModelType=offer.pricingModelType,
+            pricingModelDisplayName=offer.pricingModelDisplayName,
+            expirationTime=offer.expirationTime,
+            availableFromTime=offer.availableFromTime,
+            associatedProducts=[
+                api_model.MarketplaceOfferProductAssociationResponseItem(**p.model_dump())
+                for p in offer.associatedProducts
+            ],
+            terms=[api_model.MarketplaceOfferTermResponseItem(**t.model_dump()) for t in terms],
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.post("/projects/<project_id>/marketplace/offers/<offer_id>/quotes", tags=[TAG_MARKETPLACE])
+def create_marketplace_quote(
+    project_id: str,
+    offer_id: str,
+    request: api_model.CreateAgreementRequestRequest,
+) -> api_gateway.Response[api_model.CreateAgreementRequestResponse]:
+    """Create a Marketplace agreement request (the buyer's quote). Returns
+    the short-lived ``agreementRequestId`` the caller confirms via the
+    ``.../accept`` endpoint.
+    """
+    command = create_agreement_request_command.CreateAgreementRequestCommand(
+        projectId=project_id_value_object.from_str(project_id),
+        offerId=offer_id_value_object.from_str(offer_id),
+        requestedTerms=request.requestedTerms,
+        clientToken=request.clientToken,
+    )
+    quote = dependencies.command_bus.handle(command=command)
+    charge = quote.chargeSummary
+    return api_gateway.Response(
+        status_code=HTTPStatus.CREATED,
+        body=api_model.CreateAgreementRequestResponse(
+            agreementRequestId=quote.agreementRequestId,
+            # Serialised as strings: AWS returns these as BoundedString and
+            # a JSON number would risk a float round-trip on money. All
+            # three are None for usage-based pricing, where AWS has no
+            # up-front total.
+            estimatedAgreementValue=(
+                str(charge.newAgreementValue) if charge and charge.newAgreementValue is not None else None
+            ),
+            estimatedAgreementValueAfterTax=(
+                str(charge.newAgreementValueAfterTax)
+                if charge and charge.newAgreementValueAfterTax is not None
+                else None
+            ),
+            estimatedCurrencyCode=charge.currencyCode if charge else None,
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.post(
+    "/marketplace/quotes/<agreement_request_id>/accept",
+    tags=[TAG_MARKETPLACE],
+)
+def accept_marketplace_quote(
+    agreement_request_id: str,
+) -> api_gateway.Response[api_model.AcceptAgreementRequestResponse]:
+    """Confirm a previously created agreement request. Returns the durable
+    ``agreementId`` under which the buyer's subscription now lives.
+
+    Account-scoped: accepting a quote commits the buyer *account* to an AWS
+    Marketplace agreement, so the route carries no ``projectId``; see
+    ``cancel_marketplace_agreement`` for the authorization model.
+    """
+    command = accept_agreement_request_command.AcceptAgreementRequestCommand(
+        agreementRequestId=agreement_request_id_value_object.from_str(agreement_request_id),
+    )
+    agreement_id = dependencies.command_bus.handle(command=command)
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.AcceptAgreementRequestResponse(agreementId=agreement_id),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.delete(
+    "/marketplace/agreements/<agreement_id>",
+    tags=[TAG_MARKETPLACE],
+)
+def cancel_marketplace_agreement(
+    agreement_id: str,
+) -> api_gateway.Response[api_model.CancelAgreementResponse]:
+    """Cancel an active Marketplace agreement.
+
+    Account-scoped, not project-scoped: a Marketplace agreement is an
+    account-level AWS resource. The buyer account holds one set of
+    subscriptions and AWS exposes no project dimension on them, so there is
+    no project that owns a given agreement and no project to authorize
+    against. Authorization is a platform-level check (admin of at least one
+    project), the same for accept, list and cancel.
+    """
+    command = cancel_agreement_command.CancelAgreementCommand(
+        agreementId=agreement_id_value_object.from_str(agreement_id),
+    )
+    dependencies.command_bus.handle(command=command)
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.CancelAgreementResponse(agreementId=agreement_id),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.get(
+    "/marketplace/agreements",
+    tags=[TAG_MARKETPLACE],
+)
+@tracer.capture_method
+def list_marketplace_agreements() -> api_gateway.Response[api_model.ListMarketplaceAgreementsResponse]:
+    """List the buyer account's active AWS Marketplace agreements (AMI-only).
+
+    Account-scoped: it returns every active AMI agreement in the buyer AWS
+    account, because a Marketplace agreement has no project dimension to
+    filter by. The route therefore carries no ``projectId``, and
+    authorization is the platform-level check described on
+    ``cancel_marketplace_agreement``.
+
+    Uses ``AwsMarketplaceDiscoveryService.list_active_agreements()``. The
+    AMI-only invariant is enforced inside the adapter after the call,
+    because SearchAgreements rejects a ``ResourceType`` filter combined
+    with ``Status``.
+
+    Each row is enriched with human-readable ``productName``,
+    ``offerName``, and ``pricingModelType`` via one ``GetOffer`` call per
+    agreement (the offer response also carries the associated product's
+    name, so a separate ``GetProduct`` call is not needed). Enrichment is
+    best-effort: any per-row failure yields ``None`` for the enrichment
+    fields but the row still appears in the response so the UI can fall
+    back to showing raw IDs.
+    """
+    agreements = dependencies.marketplace_discovery_svc.list_active_agreements()
+
+    enriched_items: list[api_model.MarketplaceAgreementResponseItem] = []
+    for a in agreements:
+        product_name: str | None = None
+        offer_name: str | None = None
+        pricing_model_type: str | None = None
+        try:
+            offer = dependencies.marketplace_offer_discovery_svc.get_offer(a.offerId)
+            offer_name = offer.offerName
+            pricing_model_type = offer.pricingModelType
+            # The offer response carries the associated products' names —
+            # find the association whose productId matches this agreement's
+            # productId and use its productName. Falls back to the first
+            # association's name if no direct match (rare: the AMI-only guard
+            # rejects multi-product offers at quote time, so agreements
+            # created through VEW are single-product).
+            match = next(
+                (p for p in offer.associatedProducts if p.productId == a.productId),
+                offer.associatedProducts[0] if offer.associatedProducts else None,
+            )
+            product_name = match.productName if match else None
+        except Exception as e:
+            logger.warning(
+                "Enrichment failed for agreement %s (offer %s): %s — falling back to raw IDs",
+                a.agreementId,
+                a.offerId,
+                e,
+            )
+
+        enriched_items.append(
+            api_model.MarketplaceAgreementResponseItem(
+                agreementId=a.agreementId,
+                productId=a.productId,
+                offerId=a.offerId,
+                status=a.status,
+                acceptanceDate=a.acceptanceDate,
+                productName=product_name,
+                offerName=offer_name,
+                pricingModelType=pricing_model_type,
+            )
+        )
+
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.ListMarketplaceAgreementsResponse(agreements=enriched_items),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+# --- Public catalog browse endpoints (marketplace-discovery.SearchListings) ---
+
+
+@app.get(
+    "/projects/<project_id>/marketplace/listings",
+    tags=[TAG_MARKETPLACE],
+)
+@tracer.capture_method
+def search_marketplace_listings(
+    project_id: str,
+    search_text: Annotated[str | None, Query(alias="searchText")] = None,
+    category: Annotated[list[str] | None, Query(alias="category")] = None,
+    pricing_model: Annotated[list[str] | None, Query(alias="pricingModel")] = None,
+    publisher: Annotated[list[str] | None, Query(alias="publisher")] = None,
+    rating: Annotated[list[str] | None, Query(alias="rating")] = None,
+    next_token: Annotated[str | None, Query(alias="nextToken")] = None,
+    max_results: Annotated[int | None, Query(alias="maxResults")] = None,
+) -> api_gateway.Response[api_model.SearchMarketplaceListingsResponse]:
+    """Search the AWS Marketplace public catalog for AMI listings.
+
+    Hard-locks ``FULFILLMENT_OPTION_TYPE=AMAZON_MACHINE_IMAGE`` and
+    ``NUMBER_OF_PRODUCTS=SINGLE_PRODUCT`` server-side. Additional facet
+    filters (category, pricing model, publisher, rating) are optional
+    and pass through from the query string.
+    """
+    project_id_value_object.from_str(project_id)
+    result = dependencies.marketplace_listing_discovery_svc.search_listings(
+        search_text=search_text,
+        category_filters=category,
+        pricing_model_filters=pricing_model,
+        publisher_filters=publisher,
+        rating_filters=rating,
+        next_token=next_token,
+        max_results=max_results if max_results is not None else 25,
+    )
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.SearchMarketplaceListingsResponse(
+            listings=[
+                api_model.MarketplaceListingSummaryItem.model_validate(li.model_dump()) for li in result.listings
+            ],
+            nextToken=result.nextToken,
+            totalResults=result.totalResults,
+        ),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.get(
+    "/projects/<project_id>/marketplace/listings/<listing_id>",
+    tags=[TAG_MARKETPLACE],
+)
+@tracer.capture_method
+def get_marketplace_listing(
+    project_id: str,
+    listing_id: str,
+) -> api_gateway.Response[api_model.GetMarketplaceListingResponse]:
+    """Return full detail for a single Marketplace listing.
+
+    Response includes ``primaryOfferId`` which the frontend hands off to
+    the procurement wizard (``initialOfferId`` prop)
+    to skip the browse-offers step and land the user on the
+    review-terms page.
+    """
+    project_id_value_object.from_str(project_id)
+    detail = dependencies.marketplace_listing_discovery_svc.get_listing(listing_id)
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetMarketplaceListingResponse.model_validate(detail.model_dump()),
+        content_type=content_types.APPLICATION_JSON,
+    )
+
+
+@app.get(
+    "/projects/<project_id>/marketplace/facets",
+    tags=[TAG_MARKETPLACE],
+)
+@tracer.capture_method
+def get_marketplace_facets(
+    project_id: str,
+) -> api_gateway.Response[api_model.GetMarketplaceFacetsResponse]:
+    """Return the filter facets available on the AMI browse surface
+    (Category, Pricing model, Publisher, Rating) with their value counts.
+
+    Used by the browse UI to render the filter sidebar. Facets not
+    useful for AMI-only browsing (PRICING_UNIT, DEPLOYED_ON_AWS,
+    NUMBER_OF_PRODUCTS) are dropped by the adapter.
+    """
+    project_id_value_object.from_str(project_id)
+    facet_set = dependencies.marketplace_listing_discovery_svc.search_facets()
+    return api_gateway.Response(
+        status_code=HTTPStatus.OK,
+        body=api_model.GetMarketplaceFacetsResponse(
+            facets={
+                name: [api_model.MarketplaceFacetValueItem(**v.model_dump()) for v in values]
+                for name, values in facet_set.facets.items()
+            },
+            totalResults=facet_set.totalResults,
         ),
         content_type=content_types.APPLICATION_JSON,
     )

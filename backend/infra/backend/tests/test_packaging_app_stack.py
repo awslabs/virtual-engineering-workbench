@@ -75,8 +75,8 @@ def test_domain_event_handler_keeps_the_build_logs_bucket(template):
 
 
 def test_stack_grants_only_the_marketplace_and_license_manager_actions_packaging_calls(template):
-    """Marketplace discovery calls SearchAgreements and ListReceivedLicenses. Anything more
-    is privilege the stack cannot use."""
+    """The Marketplace actions are the ones discovery, browse, procurement and the agreement
+    event listener call. Anything more is privilege the stack cannot use."""
     policies = template.find_resources("AWS::IAM::Policy")
     actions = []
     for policy in policies.values():
@@ -84,7 +84,20 @@ def test_stack_grants_only_the_marketplace_and_license_manager_actions_packaging
             action = statement.get("Action")
             actions.extend(action if isinstance(action, list) else [action])
     granted = {a for a in actions if isinstance(a, str)}
-    assert {a for a in granted if a.startswith("aws-marketplace:")} == {"aws-marketplace:SearchAgreements"}
+    assert {a for a in granted if a.startswith("aws-marketplace:")} == {
+        "aws-marketplace:SearchAgreements",
+        "aws-marketplace:DescribeAgreement",
+        "aws-marketplace:GetProduct",
+        "aws-marketplace:ListPurchaseOptions",
+        "aws-marketplace:GetOffer",
+        "aws-marketplace:GetOfferTerms",
+        "aws-marketplace:CreateAgreementRequest",
+        "aws-marketplace:AcceptAgreementRequest",
+        "aws-marketplace:CancelAgreement",
+        "aws-marketplace:SearchListings",
+        "aws-marketplace:GetListing",
+        "aws-marketplace:SearchFacets",
+    }
     assert {a for a in granted if a.startswith("license-manager:")} == {
         "license-manager:ListReceivedLicenses",
     }
@@ -96,4 +109,9 @@ def test_stack_declares_no_scheduled_jobs_entrypoint(template):
     assert "SCHEDULED" not in packaging_app_stack.Entrypoint.__members__
     assert "scheduled" not in {entry.value for entry in packaging_app_stack.Entrypoint}
     rule_names = [rule["Properties"].get("Name", "") for rule in template.find_resources("AWS::Events::Rule").values()]
-    assert not [name for name in rule_names if "marketplace" in str(name).lower()]
+    # The agreement event rule targets the marketplace-agreement-events Lambda, not a scheduled job.
+    assert not [
+        name
+        for name in rule_names
+        if "marketplace" in str(name).lower() and "marketplace-agreement-event-rule" not in str(name)
+    ]

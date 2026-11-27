@@ -1,3 +1,4 @@
+import logging
 from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional
@@ -6,8 +7,17 @@ from app.packaging.domain.commands.image import import_image_command
 from app.packaging.domain.events.image import image_imported
 from app.packaging.domain.exceptions import domain_exception
 from app.packaging.domain.model.image import image
-from app.packaging.domain.model.image.image_constants import ImageSource
+from app.packaging.domain.model.image.image_constants import (
+    AWS_PUBLISHED_AMI_OWNER_IDS,
+    ImageSource,
+    SubscriptionOwnership,
+)
 from app.packaging.domain.ports import ami_validation_service, image_query_service
+from app.packaging.domain.ports.marketplace_agreement_service import MarketplaceAgreementService
+from app.packaging.domain.query_services.aws_published_ami_domain_query_service import (
+    AwsPublishedAmiDomainQueryService,
+    AwsPublishedAmiResolutionResult,
+)
 from app.packaging.domain.read_models.ami_description import AmiDescription
 from app.packaging.domain.value_objects.image.marketplace_metadata_value_object import (
     MarketplaceMetadataValueObject,
@@ -15,6 +25,8 @@ from app.packaging.domain.value_objects.image.marketplace_metadata_value_object 
 )
 from app.shared.adapters.message_bus import message_bus
 from app.shared.adapters.unit_of_work_v2 import unit_of_work
+
+logger = logging.getLogger(__name__)
 
 EC2_TO_VEW_ARCHITECTURE = {
     "arm64": "arm64",
@@ -60,13 +72,106 @@ def _validate_and_build_marketplace_metadata(
     )
 
 
+def _resolve_aws_published_import(
+    command: import_image_command.ImportImageCommand,
+    aws_published_qry_svc: Optional[AwsPublishedAmiDomainQueryService],
+) -> AwsPublishedAmiResolutionResult:
+    """Resolve the listing again and confirm it offers the AMI being imported.
+
+    The caller sends an AMI id, and for this source there is no Image Service
+    ownership check to fall back on, so the id is only trusted when the
+    server's own resolution of the listing offers it. That resolution applies
+    the product-code match, the vendor owner and the billing code, so a
+    product-coded AMI from another seller, a private rebuild of a Marketplace
+    instance, or a BYOL variant of the same OS are all refused here.
+    """
+    if aws_published_qry_svc is None:
+        raise domain_exception.DomainException("AWS-published AMI import is not available in this deployment.")
+    if not command.marketplaceListingId:
+        raise domain_exception.DomainException("marketplaceMetadata.listingId is required for AWS_PUBLISHED_AMI.")
+
+    resolution = aws_published_qry_svc.resolve_listing(command.projectId, command.marketplaceListingId)
+    offered = {c.amiId for c in resolution.candidates}
+    if resolution.resolved:
+        offered.add(resolution.resolved.amiId)
+    if command.amiId.value not in offered:
+        raise domain_exception.DomainException(
+            f"AMI {command.amiId.value} is not offered by Marketplace listing {command.marketplaceListingId}."
+        )
+    return resolution
+
+
+def _build_aws_published_metadata(
+    command: import_image_command.ImportImageCommand,
+    ami_desc: AmiDescription,
+    agreement_svc: Optional[MarketplaceAgreementService],
+    marketplace_product_id: str,
+) -> dict:
+    """Metadata for an AWS-published AMI.
+
+    An AMI that carries a Marketplace product code is licensed through an
+    agreement, so ``productCode`` and ``subscriptionOwnership=VEW_MANAGED``
+    are recorded and the agreement id is looked up for convenience. An
+    agreement names its Marketplace product, not the EC2 product code, so the
+    lookup matches on the product id of the resolved listing. An AMI
+    with no product code is licensed through the EC2 billing code, has no
+    agreement to point at, and is recorded as ``AWS_MANAGED`` so a later
+    reader does not mistake the empty fields for a broken import.
+
+    ``regionalAmiIds`` holds only the region the AMI was resolved in. The
+    caller's own list is ignored, because those ids end up in the published
+    product template and nothing has checked them.
+    """
+    product_codes = ami_desc.productCodes or []
+    product_code = product_codes[0].productCodeId if product_codes else None
+
+    agreement_id: Optional[str] = None
+    if product_code and agreement_svc is not None:
+        try:
+            for agreement in agreement_svc.list_active_agreements():
+                if agreement.productId == marketplace_product_id:
+                    agreement_id = agreement.agreementId
+                    break
+        except Exception:
+            # Best effort: productCode is enough to find the agreement later,
+            # and an auxiliary lookup must not fail the import.
+            logger.warning("Could not look up the agreement for product code %s", product_code, exc_info=True)
+            agreement_id = None
+
+    subscription_ownership = (
+        SubscriptionOwnership.VEW_MANAGED.value if product_code else SubscriptionOwnership.AWS_MANAGED.value
+    )
+
+    return {
+        "productCode": product_code,
+        "subscriptionOwnership": subscription_ownership,
+        "regionalAmiIds": {ami_desc.region: command.amiId.value},
+        "licenseConfigurationArn": None,
+        "homeRegion": command.homeRegion,
+        "agreementId": agreement_id,
+    }
+
+
 def _describe_and_validate_ami(command, ami_validation_svc, image_source):
-    if image_source == ImageSource.MARKETPLACE_PRODUCT:
+    if image_source in (ImageSource.MARKETPLACE_PRODUCT, ImageSource.AWS_PUBLISHED_AMI):
+        # Both are third-party-owned images, so the Image Service account
+        # listing cannot describe them. For AWS_PUBLISHED_AMI the describe
+        # also reports the ProductCodes field, which drives the owner check
+        # below.
         ami_desc = ami_validation_svc.describe_marketplace_image(command.amiId.value)
     else:
         ami_desc = ami_validation_svc.describe_image(command.amiId.value)
     if ami_desc.state != "available":
         raise domain_exception.DomainException(f"AMI {command.amiId.value} is not available (state: {ami_desc.state}).")
+    if image_source == ImageSource.AWS_PUBLISHED_AMI:
+        # Second belt behind the resolution check in
+        # ``_resolve_aws_published_import``. An AMI with no product code is
+        # identified by its owner and name alone, so require a known vendor
+        # owner; a product-coded AMI is identified by the code itself.
+        if not ami_desc.productCodes and ami_desc.ownerId not in AWS_PUBLISHED_AMI_OWNER_IDS:
+            raise domain_exception.DomainException(
+                f"AMI {command.amiId.value} is not published by a recognised AWS Marketplace vendor."
+            )
     if image_source == ImageSource.EXISTING_AMI:
         if not command.imageServiceAccountId:
             raise domain_exception.DomainException(
@@ -144,6 +249,8 @@ def handle(
     ami_validation_svc: ami_validation_service.AmiValidationService,
     image_qry_srv: image_query_service.ImageQueryService,
     msg_bus: message_bus.MessageBus,
+    agreement_svc: Optional[MarketplaceAgreementService] = None,
+    aws_published_qry_svc: Optional[AwsPublishedAmiDomainQueryService] = None,
 ) -> str:
     image_source = command.imageSource.value
 
@@ -155,6 +262,10 @@ def handle(
 
     _reject_already_imported_ami(command, image_qry_srv)
 
+    resolution = None
+    if image_source == ImageSource.AWS_PUBLISHED_AMI:
+        resolution = _resolve_aws_published_import(command, aws_published_qry_svc)
+
     ami_desc = _describe_and_validate_ami(command, ami_validation_svc, image_source)
 
     marketplace_metadata: Optional[dict] = None
@@ -162,6 +273,8 @@ def handle(
         marketplace_metadata = asdict(
             _validate_and_build_marketplace_metadata(command, ami_validation_svc, ami_desc.region)
         )
+    elif resolution is not None:
+        marketplace_metadata = _build_aws_published_metadata(command, ami_desc, agreement_svc, resolution.productId)
 
     encryption_type, kms_key_id = _detect_encryption(ami_desc)
 

@@ -25,6 +25,14 @@ from app.packaging.adapters.services import (
     parameter_service,
 )
 from app.packaging.adapters.services.aws_marketplace_discovery_service import AwsMarketplaceDiscoveryService
+from app.packaging.adapters.services.aws_marketplace_listing_discovery_service import (
+    AwsMarketplaceListingDiscoveryService,
+)
+from app.packaging.adapters.services.aws_marketplace_offer_discovery_service import (
+    AwsMarketplaceOfferDiscoveryService,
+)
+from app.packaging.adapters.services.aws_marketplace_procurement_service import AwsMarketplaceProcurementService
+from app.packaging.adapters.services.aws_published_ami_resolver import AwsPublishedAmiResolver
 from app.packaging.adapters.services.ec2_ami_validation_service import Ec2AmiValidationService
 from app.packaging.domain.command_handlers.component import (
     archive_component_command_handler,
@@ -40,6 +48,11 @@ from app.packaging.domain.command_handlers.component import (
     validate_component_version_command_handler,
 )
 from app.packaging.domain.command_handlers.image import create_image_command_handler, import_image_command_handler
+from app.packaging.domain.command_handlers.marketplace import (
+    accept_agreement_request_command_handler,
+    cancel_agreement_command_handler,
+    create_agreement_request_command_handler,
+)
 from app.packaging.domain.command_handlers.pipeline import (
     create_pipeline_command_handler,
     retire_pipeline_command_handler,
@@ -67,6 +80,11 @@ from app.packaging.domain.commands.component import (
     validate_component_version_command,
 )
 from app.packaging.domain.commands.image import create_image_command, import_image_command
+from app.packaging.domain.commands.marketplace import (
+    accept_agreement_request_command,
+    cancel_agreement_command,
+    create_agreement_request_command,
+)
 from app.packaging.domain.commands.pipeline import (
     create_pipeline_command,
     retire_pipeline_command,
@@ -80,7 +98,11 @@ from app.packaging.domain.commands.recipe import (
     retire_recipe_version_command,
     update_recipe_version_command,
 )
+from app.packaging.domain.ports.aws_published_ami_resolver_service import AwsPublishedAmiResolverService
 from app.packaging.domain.ports.marketplace_agreement_service import MarketplaceAgreementService
+from app.packaging.domain.ports.marketplace_listing_discovery_service import MarketplaceListingDiscoveryService
+from app.packaging.domain.ports.marketplace_offer_discovery_service import MarketplaceOfferDiscoveryService
+from app.packaging.domain.ports.marketplace_procurement_service import MarketplaceProcurementService
 from app.packaging.domain.query_services import (
     component_domain_query_service,
     component_version_domain_query_service,
@@ -91,6 +113,9 @@ from app.packaging.domain.query_services import (
     recipe_domain_query_service,
     recipe_version_domain_query_service,
     recipe_version_test_execution_domain_query_service,
+)
+from app.packaging.domain.query_services.aws_published_ami_domain_query_service import (
+    AwsPublishedAmiDomainQueryService,
 )
 from app.packaging.domain.query_services.marketplace_subscription_domain_query_service import (
     MarketplaceSubscriptionDomainQueryService,
@@ -130,6 +155,11 @@ class Dependencies(BaseModel):
     component_definition_service: aws_component_definition_service.AWSComponentDefinitionService
     marketplace_discovery_svc: MarketplaceAgreementService | None = None
     marketplace_subscription_qry_svc: MarketplaceSubscriptionDomainQueryService | None = None
+    aws_published_ami_resolver: AwsPublishedAmiResolverService | None = None
+    aws_published_ami_qry_svc: AwsPublishedAmiDomainQueryService | None = None
+    marketplace_offer_discovery_svc: MarketplaceOfferDiscoveryService | None = None
+    marketplace_listing_discovery_svc: MarketplaceListingDiscoveryService | None = None
+    marketplace_procurement_svc: MarketplaceProcurementService | None = None
     ami_validation_svc: Ec2AmiValidationService | None = None
     image_service_account_id: str = ""
     available_regions: list[str] = []
@@ -167,6 +197,22 @@ def bootstrap(  # noqa: C901
             event_bus_name=app_config.get_domain_event_bus_name(),
             bounded_context_name=app_config.get_bounded_context_name(),
             logger=logger,
+        ),
+        metrics_client=metrics_client,
+        logger=logger,
+    )
+    # The Marketplace write commands publish through event_publication,
+    # which absorbs a raised publish and emits MarketplaceEventPublishFailed.
+    # Raising on PutEvents per-entry failures makes those failures reach that
+    # metric instead of being lost silently in an HTTP 200 response. Other
+    # commands keep the default bus: they publish after committing state.
+    marketplace_message_bus = message_bus_metrics.MessageBusMetrics(
+        inner=event_bridge_message_bus.EventBridgeMessageBus(
+            events_api=events_api,
+            event_bus_name=app_config.get_domain_event_bus_name(),
+            bounded_context_name=app_config.get_bounded_context_name(),
+            logger=logger,
+            raise_on_failed_entries=True,
         ),
         metrics_client=metrics_client,
         logger=logger,
@@ -275,6 +321,19 @@ def bootstrap(  # noqa: C901
     )
 
     marketplace_discovery_svc = AwsMarketplaceDiscoveryService(
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+
+    marketplace_offer_discovery_svc = AwsMarketplaceOfferDiscoveryService(
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+    marketplace_listing_discovery_svc = AwsMarketplaceListingDiscoveryService(
+        region=app_config.get_default_region(),
+        boto_session=session,
+    )
+    marketplace_procurement_svc = AwsMarketplaceProcurementService(
         region=app_config.get_default_region(),
         boto_session=session,
     )
@@ -624,6 +683,47 @@ def bootstrap(  # noqa: C901
                 ami_validation_svc=ami_validation_svc,
                 image_qry_srv=image_qry_srv,
                 msg_bus=message_bus,
+                agreement_svc=marketplace_discovery_svc,
+                aws_published_qry_svc=aws_published_ami_qry_svc,
+            )
+
+        return _handle_command
+
+    def _create_agreement_request_cmd_handler_factory():
+        def _handle_command(command: create_agreement_request_command.CreateAgreementRequestCommand):
+            return create_agreement_request_command_handler.handle(
+                command=command,
+                offer_discovery_svc=marketplace_offer_discovery_svc,
+                procurement_svc=marketplace_procurement_svc,
+                agreement_svc=marketplace_discovery_svc,
+                msg_bus=marketplace_message_bus,
+                logger=logger,
+                metrics_client=metrics_client,
+            )
+
+        return _handle_command
+
+    def _accept_agreement_request_cmd_handler_factory():
+        def _handle_command(command: accept_agreement_request_command.AcceptAgreementRequestCommand):
+            return accept_agreement_request_command_handler.handle(
+                command=command,
+                procurement_svc=marketplace_procurement_svc,
+                msg_bus=marketplace_message_bus,
+                logger=logger,
+                metrics_client=metrics_client,
+            )
+
+        return _handle_command
+
+    def _cancel_agreement_cmd_handler_factory():
+        def _handle_command(command: cancel_agreement_command.CancelAgreementCommand):
+            return cancel_agreement_command_handler.handle(
+                command=command,
+                procurement_svc=marketplace_procurement_svc,
+                agreement_svc=marketplace_discovery_svc,
+                msg_bus=marketplace_message_bus,
+                logger=logger,
+                metrics_client=metrics_client,
             )
 
         return _handle_command
@@ -721,7 +821,21 @@ def bootstrap(  # noqa: C901
             validate_component_version_command.ValidateComponentVersionCommand,
             _validate_component_version_command_handler_factory(),
         )
+        .register_handler(
+            create_agreement_request_command.CreateAgreementRequestCommand,
+            _create_agreement_request_cmd_handler_factory(),
+        )
+        .register_handler(
+            accept_agreement_request_command.AcceptAgreementRequestCommand,
+            _accept_agreement_request_cmd_handler_factory(),
+        )
+        .register_handler(
+            cancel_agreement_command.CancelAgreementCommand,
+            _cancel_agreement_cmd_handler_factory(),
+        )
     )
+
+    aws_published_ami_resolver = AwsPublishedAmiResolver(boto_session=session)
 
     marketplace_subscription_qry_svc = MarketplaceSubscriptionDomainQueryService(
         agreement_service=marketplace_discovery_svc,
@@ -729,6 +843,16 @@ def bootstrap(  # noqa: C901
         license_service=marketplace_discovery_svc,
         image_qry_svc=image_qry_srv,
         available_regions=app_config.get_available_regions(),
+        logger=logger,
+    )
+
+    available_regions = app_config.get_available_regions()
+    aws_published_ami_qry_svc = AwsPublishedAmiDomainQueryService(
+        listing_service=marketplace_listing_discovery_svc,
+        resolver=aws_published_ami_resolver,
+        image_qry_svc=image_qry_srv,
+        # Same hub-region rule as discover(): first available region.
+        hub_region=available_regions[0] if available_regions else app_config.get_default_region(),
         logger=logger,
     )
 
@@ -747,7 +871,12 @@ def bootstrap(  # noqa: C901
         pipeline_srv=pipeline_srv,
         component_definition_service=component_version_definition_srv,
         marketplace_discovery_svc=marketplace_discovery_svc,
+        marketplace_offer_discovery_svc=marketplace_offer_discovery_svc,
+        marketplace_listing_discovery_svc=marketplace_listing_discovery_svc,
+        marketplace_procurement_svc=marketplace_procurement_svc,
         marketplace_subscription_qry_svc=marketplace_subscription_qry_svc,
+        aws_published_ami_resolver=aws_published_ami_resolver,
+        aws_published_ami_qry_svc=aws_published_ami_qry_svc,
         ami_validation_svc=ami_validation_svc,
         image_service_account_id=app_config.get_ami_factory_account_id(),
         available_regions=app_config.get_available_regions(),

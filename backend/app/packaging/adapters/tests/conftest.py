@@ -245,9 +245,9 @@ class GlobalVariables(Enum):
     TEST_COMPONENT_LICENSE_DASHBOARD_URL = "https://proserve.license.com/index.php?action=dashboard.view&dashboardid=1"
     TEST_COMPONENT_SOFTWARE_VERSION_NOTES = "This is a test component version note."
     TEST_COMPONENT_VERSION_YAML_DEFINITION = "Name: Test component"
-    TEST_MARKETPLACE_AGREEMENT_ID = "agr-123"
-    TEST_MARKETPLACE_PRODUCT_ID = "prod-456"
-    TEST_MARKETPLACE_OFFER_ID = "offer-789"
+    TEST_MARKETPLACE_AGREEMENT_ID = "agmt-1234567890abcdef"
+    TEST_MARKETPLACE_PRODUCT_ID = "prod-vew-test-1"
+    TEST_MARKETPLACE_OFFER_ID = "offer-abc123"
     TEST_MARKETPLACE_PRODUCT_CODE = "abc123def456ghi"
     TEST_MARKETPLACE_PRODUCT_NAME = "My Product"
     TEST_MARKETPLACE_PUBLISHER = "Acme Corp"
@@ -387,11 +387,22 @@ def mock_moto_calls(
     mock_update_infrastructure_config_response,
     mock_update_pipeline_response,
     mock_search_agreements_response,
+    mock_describe_agreement_response,
     mock_describe_entity_response,
     mock_describe_images_response,
     mock_list_received_licenses_response,
     mock_assume_role_response,
     mock_get_caller_identity_response,
+    mock_list_purchase_options_response,
+    mock_get_offer_response,
+    mock_get_offer_terms_response,
+    mock_get_product_response,
+    mock_create_agreement_request_response,
+    mock_accept_agreement_request_response,
+    mock_cancel_agreement_response,
+    mock_search_listings_response,
+    mock_get_listing_response,
+    mock_search_facets_response,
 ):
     create_component = "CreateComponent"
     delete_component = "DeleteComponent"
@@ -434,11 +445,22 @@ def mock_moto_calls(
         update_infrastructure_config: mock.MagicMock(return_value=mock_update_infrastructure_config_response),
         update_pipeline: mock.MagicMock(return_value=mock_update_pipeline_response),
         "SearchAgreements": mock.MagicMock(return_value=mock_search_agreements_response),
+        "DescribeAgreement": mock.MagicMock(return_value=mock_describe_agreement_response),
         "DescribeEntity": mock.MagicMock(return_value=mock_describe_entity_response),
         "DescribeImages": mock.MagicMock(return_value=mock_describe_images_response),
         "ListReceivedLicenses": mock.MagicMock(return_value=mock_list_received_licenses_response),
         "AssumeRole": mock.MagicMock(return_value=mock_assume_role_response),
         "GetCallerIdentity": mock.MagicMock(return_value=mock_get_caller_identity_response),
+        "ListPurchaseOptions": mock.MagicMock(return_value=mock_list_purchase_options_response),
+        "GetOffer": mock.MagicMock(return_value=mock_get_offer_response),
+        "GetOfferTerms": mock.MagicMock(return_value=mock_get_offer_terms_response),
+        "GetProduct": mock.MagicMock(return_value=mock_get_product_response),
+        "CreateAgreementRequest": mock.MagicMock(return_value=mock_create_agreement_request_response),
+        "AcceptAgreementRequest": mock.MagicMock(return_value=mock_accept_agreement_request_response),
+        "CancelAgreement": mock.MagicMock(return_value=mock_cancel_agreement_response),
+        "SearchListings": mock.MagicMock(return_value=mock_search_listings_response),
+        "GetListing": mock.MagicMock(return_value=mock_get_listing_response),
+        "SearchFacets": mock.MagicMock(return_value=mock_search_facets_response),
     }
 
     def _interceptor(self, operation_name, kwarg):
@@ -1609,6 +1631,18 @@ def mock_search_agreements_response():
 
 
 @pytest.fixture()
+def mock_describe_agreement_response():
+    return {
+        "agreementId": GlobalVariables.TEST_MARKETPLACE_AGREEMENT_ID.value,
+        "proposalSummary": {
+            "resources": [{"id": GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value, "type": "AmiProduct"}],
+            "offerId": GlobalVariables.TEST_MARKETPLACE_OFFER_ID.value,
+        },
+        "status": "ACTIVE",
+    }
+
+
+@pytest.fixture()
 def mock_describe_entity_response():
     return {
         "DetailsDocument": {
@@ -1696,3 +1730,331 @@ def get_ami_validation_srv():
 @pytest.fixture()
 def mock_get_caller_identity_response():
     return {"Account": GlobalVariables.AWS_ACCOUNT_ID.value}
+
+
+# --- Marketplace Offer Discovery + Procurement fixtures ---
+#
+# All fixtures below mirror the real AWS response shapes for
+# marketplace-discovery + marketplace-agreement operations in the botocore
+# service-2 models. This is deliberate: hand-invented shapes let adapter
+# tests pass while masking real integration failures. If a boto3 upgrade
+# changes these shapes,
+# regenerate them from ``.venv/lib/.../botocore/data/marketplace-*/*.json.gz``
+# and keep the fixtures aligned.
+
+
+@pytest.fixture()
+def mock_list_purchase_options_response():
+    return {
+        "purchaseOptions": [
+            {
+                "purchaseOptionId": "po-abc123",
+                "catalog": "AWSMarketplace",
+                "purchaseOptionType": "OFFER",
+                "purchaseOptionName": "Standard AMI Offer",
+                "availableFromTime": datetime(2024, 1, 1),
+                "expirationTime": datetime(2030, 1, 1),
+                "sellerOfRecord": {
+                    "sellerProfileId": "seller-1",
+                    "displayName": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value,
+                },
+                "badges": [],
+                "associatedEntities": [
+                    {
+                        "product": {
+                            "productId": GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value,
+                            "productName": GlobalVariables.TEST_MARKETPLACE_PRODUCT_NAME.value,
+                            "manufacturer": {
+                                "sellerProfileId": "seller-1",
+                                "displayName": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value,
+                            },
+                        },
+                        "offer": {
+                            "offerId": GlobalVariables.TEST_MARKETPLACE_OFFER_ID.value,
+                            "offerName": "Standard AMI Offer",
+                            "sellerOfRecord": {
+                                "sellerProfileId": "seller-1",
+                                "displayName": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value,
+                            },
+                        },
+                    }
+                ],
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def mock_get_offer_response():
+    return {
+        "offerId": GlobalVariables.TEST_MARKETPLACE_OFFER_ID.value,
+        "catalog": "AWSMarketplace",
+        "offerName": "Standard AMI Offer",
+        "agreementProposalId": "at-proposalabc123",
+        "sellerOfRecord": {
+            "sellerProfileId": "seller-1",
+            "displayName": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value,
+        },
+        "pricingModel": {
+            "pricingModelType": "UsageBasedPricing",
+            "displayName": "Usage-based pricing",
+        },
+        "availableFromTime": datetime(2024, 1, 1),
+        "expirationTime": datetime(2030, 1, 1),
+        "associatedEntities": [
+            {
+                "product": {
+                    "productId": GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value,
+                    "productName": GlobalVariables.TEST_MARKETPLACE_PRODUCT_NAME.value,
+                    "manufacturer": {
+                        "sellerProfileId": "seller-1",
+                        "displayName": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value,
+                    },
+                }
+            }
+        ],
+    }
+
+
+@pytest.fixture()
+def mock_get_product_response():
+    return {
+        "productId": GlobalVariables.TEST_MARKETPLACE_PRODUCT_ID.value,
+        "catalog": "AWSMarketplace",
+        "productName": GlobalVariables.TEST_MARKETPLACE_PRODUCT_NAME.value,
+        "manufacturer": {
+            "sellerProfileId": "seller-1",
+            "displayName": GlobalVariables.TEST_MARKETPLACE_PUBLISHER.value,
+        },
+        "fulfillmentOptionSummaries": [
+            {
+                "fulfillmentOptionType": "AMAZON_MACHINE_IMAGE",
+                "displayName": "64-bit (x86) Amazon Machine Image",
+            }
+        ],
+    }
+
+
+@pytest.fixture()
+def mock_get_offer_terms_response():
+    return {
+        "offerTerms": [
+            {
+                "legalTerm": {
+                    "id": "term-legal-1",
+                    "type": "LegalTerm",
+                    "documents": [{"type": "CustomEula", "url": "https://example/eula"}],
+                }
+            },
+            {
+                "usageBasedPricingTerm": {
+                    "id": "term-usage-1",
+                    "type": "UsageBasedPricingTerm",
+                    "currencyCode": "USD",
+                    "rateCards": [],
+                }
+            },
+        ]
+    }
+
+
+@pytest.fixture()
+def mock_create_agreement_request_response():
+    return {
+        "agreementRequestId": "ar-1234567890abc",
+        "chargeSummary": {
+            "currencyCode": "USD",
+            "newAgreementValue": "42.00",
+            "newAgreementValueAfterTax": "46.20",
+        },
+    }
+
+
+@pytest.fixture()
+def mock_accept_agreement_request_response():
+    return {"agreementId": GlobalVariables.TEST_MARKETPLACE_AGREEMENT_ID.value}
+
+
+@pytest.fixture()
+def mock_cancel_agreement_response():
+    return {}
+
+
+@pytest.fixture()
+def get_marketplace_offer_discovery_srv():
+    from app.packaging.adapters.services.aws_marketplace_offer_discovery_service import (
+        AwsMarketplaceOfferDiscoveryService,
+    )
+
+    return AwsMarketplaceOfferDiscoveryService(region=GlobalVariables.TEST_REGION.value)
+
+
+@pytest.fixture()
+def get_marketplace_procurement_srv():
+    from app.packaging.adapters.services.aws_marketplace_procurement_service import AwsMarketplaceProcurementService
+
+    return AwsMarketplaceProcurementService(region=GlobalVariables.TEST_REGION.value)
+
+
+# --- Public-catalog-browse fixtures ------------------------------
+
+
+@pytest.fixture()
+def mock_search_listings_response():
+    """A ``SearchListings`` response containing a single AMI listing.
+
+    Shape mirrors a real public-catalog ``SearchListings`` response.
+    """
+    return {
+        "totalResults": 7385,
+        "listingSummaries": [
+            {
+                "listingId": "prodview-testlisting01",
+                "listingName": "Test AMI Listing",
+                "publisher": {
+                    "sellerProfileId": "seller-test-01",
+                    "displayName": "Test Seller Inc.",
+                },
+                "catalog": "AWSMarketplace",
+                "shortDescription": "A test AMI listing for unit tests.",
+                "logoThumbnailUrl": "https://example.com/logo.png",
+                "categories": [
+                    {
+                        "categoryId": "cat-01",
+                        "displayName": "Operating Systems",
+                    }
+                ],
+                "fulfillmentOptionSummaries": [
+                    {
+                        "fulfillmentOptionType": "AMAZON_MACHINE_IMAGE",
+                        "displayName": "Amazon Machine Image",
+                    }
+                ],
+                "pricingModels": [{"pricingModelType": "FREE", "displayName": "Free"}],
+                "badges": [{"badgeType": "DEPLOYED_ON_AWS", "displayName": "Deployed on AWS"}],
+                "reviewSummary": {
+                    "reviewSourceSummaries": [
+                        {
+                            "sourceId": "AWS_MARKETPLACE",
+                            "sourceName": "AWS Marketplace",
+                            "sourceUrl": "https://example.com/reviews",
+                            "averageRating": "4.5",
+                            "totalReviews": 42,
+                        }
+                    ]
+                },
+                "associatedEntities": [
+                    {
+                        "product": {
+                            "productId": "prod-test01",
+                            "productName": "Test Product",
+                            "manufacturer": {
+                                "sellerProfileId": "seller-test-01",
+                                "displayName": "Test Seller Inc.",
+                            },
+                        },
+                        "offer": {
+                            "offerId": "offer-test01",
+                            "sellerOfRecord": {
+                                "sellerProfileId": "seller-test-01",
+                                "displayName": "Test Seller Inc.",
+                            },
+                        },
+                    }
+                ],
+            }
+        ],
+        "nextToken": "opaque-next-token",
+    }
+
+
+@pytest.fixture()
+def mock_get_listing_response():
+    return {
+        "listingId": "prodview-testlisting01",
+        "listingName": "Test AMI Listing",
+        "catalog": "AWSMarketplace",
+        "shortDescription": "Short description.",
+        "longDescription": "Long description explaining the listing in detail.",
+        "logoThumbnailUrl": "https://example.com/logo.png",
+        "publisher": {
+            "sellerProfileId": "seller-test-01",
+            "displayName": "Test Seller Inc.",
+        },
+        "categories": [{"categoryId": "cat-01", "displayName": "Operating Systems"}],
+        "fulfillmentOptionSummaries": [
+            {
+                "fulfillmentOptionType": "AMAZON_MACHINE_IMAGE",
+                "displayName": "Amazon Machine Image",
+            }
+        ],
+        "pricingModels": [{"pricingModelType": "FREE", "displayName": "Free"}],
+        "badges": [{"badgeType": "DEPLOYED_ON_AWS", "displayName": "Deployed on AWS"}],
+        "highlights": ["Highlight one", "Highlight two"],
+        "useCases": ["Use case A"],
+        "resources": [
+            {
+                "resourceType": "MANUFACTURER_INSTRUCTIONS",
+                "contentType": "LINK",
+                "value": "https://example.com/docs",
+                "displayName": "Docs",
+            }
+        ],
+        "associatedEntities": [
+            {
+                "product": {
+                    "productId": "prod-test01",
+                    "productName": "Test Product",
+                    "manufacturer": {
+                        "sellerProfileId": "seller-test-01",
+                        "displayName": "Test Seller Inc.",
+                    },
+                },
+                "offer": {
+                    "offerId": "offer-test01",
+                    "sellerOfRecord": {
+                        "sellerProfileId": "seller-test-01",
+                        "displayName": "Test Seller Inc.",
+                    },
+                },
+            }
+        ],
+    }
+
+
+@pytest.fixture()
+def mock_search_facets_response():
+    return {
+        "totalResults": 10000,
+        "listingFacets": {
+            "FULFILLMENT_OPTION_TYPE": [
+                {
+                    "value": "AMAZON_MACHINE_IMAGE",
+                    "displayName": "Amazon Machine Image",
+                    "count": 7385,
+                }
+            ],
+            "CATEGORY": [
+                {"value": "cat-01", "displayName": "Operating Systems", "count": 500},
+                {"value": "cat-02", "displayName": "Security", "count": 200, "parent": "cat-parent"},
+            ],
+            "PRICING_MODEL": [
+                {"value": "FREE", "displayName": "Free", "count": 5000},
+                {"value": "USAGE", "displayName": "Usage", "count": 3000},
+            ],
+            "PUBLISHER": [{"value": "seller-test-01", "displayName": "Test Seller Inc.", "count": 42}],
+            "AVERAGE_CUSTOMER_RATING": [{"value": "5.0", "displayName": "5.0", "count": 100}],
+            # Should be filtered out by the adapter (not in _EXPOSED_FACETS):
+            "PRICING_UNIT": [{"value": "UNITS", "displayName": "Units", "count": 100}],
+            "DEPLOYED_ON_AWS": [{"value": "DEPLOYED_ON_AWS", "displayName": "Deployed on AWS", "count": 1}],
+        },
+    }
+
+
+@pytest.fixture()
+def get_marketplace_listing_discovery_srv():
+    from app.packaging.adapters.services.aws_marketplace_listing_discovery_service import (
+        AwsMarketplaceListingDiscoveryService,
+    )
+
+    return AwsMarketplaceListingDiscoveryService(region=GlobalVariables.TEST_REGION.value)

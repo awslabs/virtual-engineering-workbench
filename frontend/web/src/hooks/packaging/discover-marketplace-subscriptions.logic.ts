@@ -56,6 +56,9 @@ export const useDiscoverMarketplaceSubscriptions = (
   return {
     subscriptions,
     isLoading,
+    // True once a response has arrived, including an empty one. Distinguishes
+    // "no subscriptions" from "not fetched yet".
+    isLoaded: data !== undefined,
     discover,
   };
 };

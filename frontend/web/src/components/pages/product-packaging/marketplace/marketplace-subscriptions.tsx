@@ -10,10 +10,11 @@ import {
   StatusIndicator,
   Table,
   TableProps,
+  Tabs,
   TextFilter,
 } from '@cloudscape-design/components';
 import { useCollection } from '@cloudscape-design/collection-hooks';
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import {
   DiscoveredMarketplaceSubscription as MarketplaceSubscription,
   DiscoverMarketplaceSubscriptionsResponse,
@@ -41,6 +42,8 @@ interface MarketplaceSubscriptionsProps {
 
 const MarketplaceSubscriptions: FC<MarketplaceSubscriptionsProps> = ({ serviceApi }) => {
   const { navigateTo } = useNavigationPaths();
+  const [productTypeTab, setProductTypeTab] =
+    useState<'AmiProduct' | 'ContainerProduct' | 'SaaSProduct'>('AmiProduct');
   const {
     subscriptions,
     isLoading: loading,
@@ -104,11 +107,14 @@ const MarketplaceSubscriptions: FC<MarketplaceSubscriptionsProps> = ({ serviceAp
       cell: (item) =>
         <SpaceBetween direction="horizontal" size="xs">
           <Button
-            disabled={item.alreadyImported}
+            // Enable when either (a) fresh subscription, or (b) already
+            // imported but a newer AMI is available. Only disable when
+            // the project already has the latest AMI for this product.
+            disabled={item.alreadyImported && !item.newerVersionAvailable}
             onClick={() => navigateTo(RouteNames.ImportImage)}
-            data-test="import-btn"
+            data-test={item.newerVersionAvailable ? 'update-btn' : 'import-btn'}
           >
-            {i18n.importButton}
+            {item.newerVersionAvailable ? i18n.updateButton : i18n.importButton}
           </Button>
         </SpaceBetween>,
     },
@@ -162,45 +168,87 @@ const MarketplaceSubscriptions: FC<MarketplaceSubscriptionsProps> = ({ serviceAp
 
   function renderContent() {
     return (
-      <Table
-        data-test="marketplace-subscriptions-table"
-        {...collectionProps}
-        trackBy="productCode"
-        loading={loading}
-        items={items}
-        onSortingChange={onSortingChange}
-        empty={
-          <EmptyGridNotification title="No subscriptions" subTitle="No marketplace subscriptions found." />
-        }
-        filter={
-          <TextFilter
-            data-test="filter-input"
-            {...filterProps}
-            filteringPlaceholder={i18n.columnProductName}
-            filteringAriaLabel="Filter subscriptions"
-          />
-        }
-        pagination={<Pagination {...paginationProps} />}
-        columnDefinitions={columnDefinitions}
-        header={
-          <Header
-            variant="h2"
-            counter={`(${subscriptions.length})`}
-            actions={
-              <SpaceBetween direction="horizontal" size="xs">
-                <Button onClick={load} iconName="refresh" data-test="refresh-btn">
-                  {i18n.refreshButton}
-                </Button>
-                <Link href={MARKETPLACE_URL} external>
-                  {i18n.subscribeButton}
-                </Link>
-              </SpaceBetween>
+      <SpaceBetween size="l">
+        <Tabs
+          activeTabId={productTypeTab}
+          onChange={({ detail }) => {
+            if (detail.activeTabId === 'AmiProduct') {
+              setProductTypeTab('AmiProduct');
             }
-          >
-            {i18n.header}
-          </Header>
-        }
-      />
+          }}
+          tabs={[
+            { id: 'AmiProduct', label: i18n.productTypeTabAmi },
+            {
+              id: 'ContainerProduct',
+              label:
+                <span>
+                  {i18n.productTypeTabContainer}
+                  {' '}
+                  <Badge>{i18n.comingSoonBadge}</Badge>
+                </span>
+              ,
+              disabled: true,
+            },
+            {
+              id: 'SaaSProduct',
+              label:
+                <span>
+                  {i18n.productTypeTabSaas}
+                  {' '}
+                  <Badge>{i18n.comingSoonBadge}</Badge>
+                </span>
+              ,
+              disabled: true,
+            },
+          ]}
+        />
+        <Table
+          data-test="marketplace-subscriptions-table"
+          {...collectionProps}
+          trackBy="productCode"
+          loading={loading}
+          items={items}
+          onSortingChange={onSortingChange}
+          empty={
+            <EmptyGridNotification title="No subscriptions" subTitle="No marketplace subscriptions found." />
+          }
+          filter={
+            <TextFilter
+              data-test="filter-input"
+              {...filterProps}
+              filteringPlaceholder={i18n.columnProductName}
+              filteringAriaLabel="Filter subscriptions"
+            />
+          }
+          pagination={<Pagination {...paginationProps} />}
+          columnDefinitions={columnDefinitions}
+          header={
+            <Header
+              variant="h2"
+              counter={`(${subscriptions.length})`}
+              actions={
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button
+                    variant="primary"
+                    onClick={() => navigateTo(RouteNames.MarketplaceProcurementWizard)}
+                    data-test="procure-btn"
+                  >
+                    {i18n.procureButton}
+                  </Button>
+                  <Button onClick={load} iconName="refresh" data-test="refresh-btn">
+                    {i18n.refreshButton}
+                  </Button>
+                  <Link href={MARKETPLACE_URL} external>
+                    {i18n.subscribeButton}
+                  </Link>
+                </SpaceBetween>
+              }
+            >
+              {i18n.header}
+            </Header>
+          }
+        />
+      </SpaceBetween>
     );
   }
 

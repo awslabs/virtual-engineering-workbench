@@ -296,6 +296,7 @@ _dev_packaging_config = {
     "component-version-testing-reserved-concurrency": 10,
     "domain-events-reserved-concurrency": 10,
     "image-builder-events-reserved-concurrency": 10,
+    "marketplace-agreement-events-reserved-concurrency": 10,
     "recipe-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-defs-{{environment}}-{{image_service_account_id}}-{{region}}",
     "recipe-test-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-recipes-tests-{{environment}}-{{image_service_account_id}}-{{region}}",
     "build-logs-s3-bucket-name": f"{ORGANIZATION_PREFIX}-{APPLICATION_PREFIX}-build-logs-{{environment}}-{{image_service_account_id}}-{{region}}",

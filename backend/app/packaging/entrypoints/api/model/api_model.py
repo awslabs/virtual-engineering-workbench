@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -723,11 +723,15 @@ class ComponentVersionDetailInput(BaseModel):
 
 class MarketplaceMetadataInput(BaseModel):
     productCode: str = Field(..., title="ProductCode")
+    # Required for AWS_PUBLISHED_AMI: the backend resolves the listing again
+    # and accepts amiId only if it is one of the AMIs that resolution offers.
+    listingId: Optional[str] = Field(None, max_length=128, title="ListingId")
 
 
 class DiscoveredMarketplaceSubscription(BaseModel):
     productName: Optional[str] = Field(None, title="ProductName")
     productCode: Optional[str] = Field(None, title="ProductCode")
+    productId: Optional[str] = Field(None, title="ProductId")
     hubRegionAmiId: Optional[str] = Field(None, title="HubRegionAmiId")
     regionalAmiIds: Optional[Dict[str, str]] = Field(None, title="RegionalAmiIds")
     licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")
@@ -919,10 +923,276 @@ class ImportImageRequest(BaseModel):
     marketplaceMetadata: Optional[MarketplaceMetadataInput] = Field(None, title="MarketplaceMetadata")
 
 
+class ResolveAwsPublishedAmiRequest(BaseModel):
+    # A LISTING id, not a product id: the backend reads the product back from
+    # GetListing, so the caller cannot choose which product gets resolved.
+    listingId: str = Field(..., max_length=128, title="ListingId")
+
+
+class AwsPublishedAmiCandidateItem(BaseModel):
+    amiId: str = Field(..., title="AmiId")
+    amiName: str = Field(..., title="AmiName")
+    ownerId: str = Field(..., title="OwnerId")
+    architecture: Optional[str] = Field(None, title="Architecture")
+    platformDetails: Optional[str] = Field(None, title="PlatformDetails")
+    usageOperation: Optional[str] = Field(None, title="UsageOperation")
+    creationDate: Optional[str] = Field(None, title="CreationDate")
+    region: str = Field(..., title="Region")
+
+
+class ResolveAwsPublishedAmiResponse(BaseModel):
+    listingId: str = Field(..., title="ListingId")
+    productId: str = Field(..., title="ProductId")
+    productName: str = Field(..., title="ProductName")
+    region: str = Field(..., title="Region")
+    unambiguous: bool = Field(..., title="Unambiguous")
+    resolved: Optional[AwsPublishedAmiCandidateItem] = Field(None, title="Resolved")
+    candidates: List[AwsPublishedAmiCandidateItem] = Field(default_factory=list, title="Candidates")
+    alreadyImportedAmiIds: List[str] = Field(default_factory=list, title="AlreadyImportedAmiIds")
+
+
 class DiscoverMarketplaceSubscriptionsResponse(BaseModel):
     subscriptions: Optional[List[DiscoveredMarketplaceSubscription]] = Field(None, title="Subscriptions")
     discoveredAt: Optional[str] = Field(None, title="DiscoveredAt")
 
 
+# --- Marketplace procurement API models ---
+
+
+class MarketplacePurchaseOptionResponseItem(BaseModel):
+    purchaseOptionId: str = Field(..., title="PurchaseOptionId")
+    purchaseOptionType: str = Field(..., title="PurchaseOptionType")
+    purchaseOptionName: Optional[str] = Field(None, title="PurchaseOptionName")
+    catalog: str = Field(..., title="Catalog")
+    offerId: str = Field(..., title="OfferId")
+    productId: str = Field(..., title="ProductId")
+    productName: Optional[str] = Field(None, title="ProductName")
+    sellerOfRecordDisplayName: Optional[str] = Field(None, title="SellerOfRecordDisplayName")
+    availableFromTime: Optional[str] = Field(None, title="AvailableFromTime")
+    expirationTime: Optional[str] = Field(None, title="ExpirationTime")
+    partOfOfferSet: bool = Field(False, title="PartOfOfferSet")
+
+
+class ListPurchaseOptionsResponse(BaseModel):
+    purchaseOptions: List[MarketplacePurchaseOptionResponseItem] = Field(default_factory=list, title="PurchaseOptions")
+
+
+class MarketplaceOfferProductAssociationResponseItem(BaseModel):
+    productId: str = Field(..., title="ProductId")
+    productName: Optional[str] = Field(None, title="ProductName")
+    partOfOfferSet: bool = Field(False, title="PartOfOfferSet")
+
+
+class MarketplaceOfferTermResponseItem(BaseModel):
+    termId: str = Field(..., title="TermId")
+    termType: str = Field(..., title="TermType")
+    rawTerm: dict = Field(default_factory=dict, title="RawTerm")
+
+
+class GetMarketplaceOfferResponse(BaseModel):
+    offerId: str = Field(..., title="OfferId")
+    catalog: str = Field(..., title="Catalog")
+    offerName: Optional[str] = Field(None, title="OfferName")
+    agreementProposalId: str = Field(..., title="AgreementProposalId")
+    sellerOfRecordDisplayName: Optional[str] = Field(None, title="SellerOfRecordDisplayName")
+    sellerOfRecordProfileId: Optional[str] = Field(None, title="SellerOfRecordProfileId")
+    pricingModelType: Optional[str] = Field(None, title="PricingModelType")
+    pricingModelDisplayName: Optional[str] = Field(None, title="PricingModelDisplayName")
+    expirationTime: Optional[str] = Field(None, title="ExpirationTime")
+    availableFromTime: Optional[str] = Field(None, title="AvailableFromTime")
+    associatedProducts: List[MarketplaceOfferProductAssociationResponseItem] = Field(
+        default_factory=list, title="AssociatedProducts"
+    )
+    terms: List[MarketplaceOfferTermResponseItem] = Field(default_factory=list, title="Terms")
+
+
+CLIENT_TOKEN_PATTERN = r"^[a-zA-Z0-9-]+$"
+
+
+class CreateAgreementRequestRequest(BaseModel):
+    # AWS product type discriminator. Only AmiProduct is accepted; future
+    # product types will extend this Literal. This is the OpenAPI-contract
+    # layer of the product-type enforcement, which is also enforced in the
+    # command handler and in the discovery adapters.
+    productType: Literal["AmiProduct"] = Field("AmiProduct", title="ProductType")
+    # Bounds mirror the OpenAPI schema and are asserted equal to it by
+    # test_request_models_enforce_the_schema_bounds. maxItems 50 is well
+    # above the largest real AMI offer term set (single-product AMI offers
+    # carry well under 10 terms); the point is a ceiling, not a fit.
+    requestedTerms: List[dict] = Field(..., max_length=50, title="RequestedTerms")
+    # Idempotency key for CreateAgreementRequest. Length and charset are
+    # AWS's documented ClientToken constraints (1-64 of [a-zA-Z0-9-]), so a
+    # token that passes here is never rejected by AWS for its format. The
+    # handler derives a sha256 hex digest (64) when the caller omits it.
+    clientToken: Optional[str] = Field(None, max_length=64, pattern=CLIENT_TOKEN_PATTERN, title="ClientToken")
+
+
+class CreateAgreementRequestResponse(BaseModel):
+    """The buyer's quote, returned before they confirm the purchase.
+
+    The three estimate fields mirror AWS's ``ChargeSummary``. They are
+    serialised as strings rather than numbers: AWS itself returns the
+    amounts as ``BoundedString``, and a JSON number would invite a
+    float round-trip on a monetary value. The frontend types them as
+    ``string | null`` and renders them verbatim.
+
+    All three are legitimately ``None`` for pure usage-based pricing (AMI
+    hourly), where AWS does not know the total up front -- the UI shows
+    "usage-based pricing" in that case. Without them a paid CONTRACT total
+    could not reach the UI and every quote would render as usage-based.
+    """
+
+    agreementRequestId: str = Field(..., title="AgreementRequestId")
+    estimatedAgreementValue: Optional[str] = Field(None, title="EstimatedAgreementValue")
+    estimatedAgreementValueAfterTax: Optional[str] = Field(None, title="EstimatedAgreementValueAfterTax")
+    estimatedCurrencyCode: Optional[str] = Field(None, title="EstimatedCurrencyCode")
+
+
+class AcceptAgreementRequestResponse(BaseModel):
+    agreementId: str = Field(..., title="AgreementId")
+
+
+class CancelAgreementResponse(BaseModel):
+    agreementId: str = Field(..., title="AgreementId")
+
+
+class MarketplaceAgreementResponseItem(BaseModel):
+    """One row of the buyer-side agreement list. Mirrors the
+    ``MarketplaceAgreement`` read model 1:1. AMI-only enforcement happens
+    client-side in the adapter, because SearchAgreements rejects a
+    ResourceType filter combined with Status --
+    SearchAgreements rejects a ResourceType filter combined with Status."""
+
+    agreementId: str = Field(..., title="AgreementId")
+    productId: str = Field(..., title="ProductId")
+    offerId: str = Field(..., title="OfferId")
+    status: str = Field(..., title="Status")
+    acceptanceDate: Optional[str] = Field(None, title="AcceptanceDate")
+    # Optional human-readable enrichment. Server-side ``GetOffer`` supplies
+    # ``offerName``, ``pricingModelType``, and the associated product's
+    # ``productName``. Values are ``None`` when the enrichment call fails
+    # (rate limit, permission drift, product delisted) — clients should
+    # fall back to showing the raw IDs.
+    productName: Optional[str] = Field(None, title="ProductName")
+    offerName: Optional[str] = Field(None, title="OfferName")
+    pricingModelType: Optional[str] = Field(None, title="PricingModelType")
+
+
+class ListMarketplaceAgreementsResponse(BaseModel):
+    agreements: List[MarketplaceAgreementResponseItem] = Field(default_factory=list, title="Agreements")
+
+
 class ListImportableAmisResponse(BaseModel):
     amis: Optional[List[ImportableAmi]] = Field(None, title="Amis")
+
+
+# --- Public catalog browse (marketplace-discovery.SearchListings) ---
+
+
+class MarketplaceListingPublisherItem(BaseModel):
+    sellerProfileId: str = Field(..., title="SellerProfileId")
+    displayName: str = Field(..., title="DisplayName")
+
+
+class MarketplaceListingCategoryItem(BaseModel):
+    categoryId: str = Field(..., title="CategoryId")
+    displayName: str = Field(..., title="DisplayName")
+    parent: Optional[str] = Field(None, title="Parent")
+
+
+class MarketplaceListingBadgeItem(BaseModel):
+    badgeType: str = Field(..., title="BadgeType")
+    displayName: str = Field(..., title="DisplayName")
+
+
+class MarketplaceListingPricingModelItem(BaseModel):
+    pricingModelType: str = Field(..., title="PricingModelType")
+    displayName: str = Field(..., title="DisplayName")
+
+
+class MarketplaceListingFulfillmentOptionSummaryItem(BaseModel):
+    fulfillmentOptionType: str = Field(..., title="FulfillmentOptionType")
+    displayName: str = Field(..., title="DisplayName")
+
+
+class MarketplaceListingReviewSourceItem(BaseModel):
+    sourceId: str = Field(..., title="SourceId")
+    sourceName: str = Field(..., title="SourceName")
+    sourceUrl: Optional[str] = Field(None, title="SourceUrl")
+    averageRating: Optional[str] = Field(None, title="AverageRating")
+    totalReviews: Optional[int] = Field(None, title="TotalReviews")
+
+
+class MarketplaceListingResourceItem(BaseModel):
+    resourceType: str = Field(..., title="ResourceType")
+    contentType: Optional[str] = Field(None, title="ContentType")
+    value: Optional[str] = Field(None, title="Value")
+    displayName: Optional[str] = Field(None, title="DisplayName")
+
+
+class MarketplaceListingAssociatedEntityItem(BaseModel):
+    productId: str = Field(..., title="ProductId")
+    productName: str = Field(..., title="ProductName")
+    productManufacturer: Optional[MarketplaceListingPublisherItem] = Field(None, title="ProductManufacturer")
+    offerId: Optional[str] = Field(None, title="OfferId")
+    offerSellerOfRecord: Optional[MarketplaceListingPublisherItem] = Field(None, title="OfferSellerOfRecord")
+
+
+class MarketplaceListingSummaryItem(BaseModel):
+    listingId: str = Field(..., title="ListingId")
+    listingName: str = Field(..., title="ListingName")
+    catalog: str = Field(..., title="Catalog")
+    shortDescription: Optional[str] = Field(None, title="ShortDescription")
+    logoThumbnailUrl: Optional[str] = Field(None, title="LogoThumbnailUrl")
+    publisher: MarketplaceListingPublisherItem = Field(..., title="Publisher")
+    categories: List[MarketplaceListingCategoryItem] = Field(default_factory=list, title="Categories")
+    fulfillmentOptionSummaries: List[MarketplaceListingFulfillmentOptionSummaryItem] = Field(
+        default_factory=list, title="FulfillmentOptionSummaries"
+    )
+    pricingModels: List[MarketplaceListingPricingModelItem] = Field(default_factory=list, title="PricingModels")
+    badges: List[MarketplaceListingBadgeItem] = Field(default_factory=list, title="Badges")
+    reviewSummary: List[MarketplaceListingReviewSourceItem] = Field(default_factory=list, title="ReviewSummary")
+    primaryProductId: Optional[str] = Field(None, title="PrimaryProductId")
+    primaryOfferId: Optional[str] = Field(None, title="PrimaryOfferId")
+
+
+class SearchMarketplaceListingsResponse(BaseModel):
+    listings: List[MarketplaceListingSummaryItem] = Field(default_factory=list, title="Listings")
+    nextToken: Optional[str] = Field(None, title="NextToken")
+    totalResults: Optional[int] = Field(None, title="TotalResults")
+
+
+class GetMarketplaceListingResponse(BaseModel):
+    listingId: str = Field(..., title="ListingId")
+    listingName: str = Field(..., title="ListingName")
+    catalog: str = Field(..., title="Catalog")
+    shortDescription: Optional[str] = Field(None, title="ShortDescription")
+    longDescription: Optional[str] = Field(None, title="LongDescription")
+    logoThumbnailUrl: Optional[str] = Field(None, title="LogoThumbnailUrl")
+    publisher: MarketplaceListingPublisherItem = Field(..., title="Publisher")
+    categories: List[MarketplaceListingCategoryItem] = Field(default_factory=list, title="Categories")
+    fulfillmentOptionSummaries: List[MarketplaceListingFulfillmentOptionSummaryItem] = Field(
+        default_factory=list, title="FulfillmentOptionSummaries"
+    )
+    pricingModels: List[MarketplaceListingPricingModelItem] = Field(default_factory=list, title="PricingModels")
+    badges: List[MarketplaceListingBadgeItem] = Field(default_factory=list, title="Badges")
+    highlights: List[str] = Field(default_factory=list, title="Highlights")
+    useCases: List[str] = Field(default_factory=list, title="UseCases")
+    resources: List[MarketplaceListingResourceItem] = Field(default_factory=list, title="Resources")
+    associatedEntities: List[MarketplaceListingAssociatedEntityItem] = Field(
+        default_factory=list, title="AssociatedEntities"
+    )
+    primaryOfferId: Optional[str] = Field(None, title="PrimaryOfferId")
+    primaryProductId: Optional[str] = Field(None, title="PrimaryProductId")
+
+
+class MarketplaceFacetValueItem(BaseModel):
+    value: str = Field(..., title="Value")
+    displayName: str = Field(..., title="DisplayName")
+    count: int = Field(..., title="Count")
+    parent: Optional[str] = Field(None, title="Parent")
+
+
+class GetMarketplaceFacetsResponse(BaseModel):
+    facets: Dict[str, List[MarketplaceFacetValueItem]] = Field(default_factory=dict, title="Facets")
+    totalResults: Optional[int] = Field(None, title="TotalResults")

@@ -1,6 +1,7 @@
 import assertpy
 from openapi_spec_validator import validate_spec
 
+from app.packaging.entrypoints.api.model import api_model
 from app.shared.test_utils import openapi_analyzer
 
 
@@ -59,3 +60,11 @@ def test_api_schema_should_have_auth_configured(api_schema):
 
     # ASSERT
     assertpy.assert_that(methods_wo_auth).described_as("Methods without auth detected").is_empty()
+
+
+def test_client_token_pattern_matches_between_schema_and_model(api_schema):
+    # The schema and the request model each declare the clientToken charset; they must agree.
+    schema_prop = api_schema["components"]["schemas"]["CreateAgreementRequestRequest"]["properties"]["clientToken"]
+    model_prop = api_model.CreateAgreementRequestRequest.model_json_schema()["properties"]["clientToken"]["anyOf"][0]
+
+    assert schema_prop["pattern"] == model_prop["pattern"] == api_model.CLIENT_TOKEN_PATTERN

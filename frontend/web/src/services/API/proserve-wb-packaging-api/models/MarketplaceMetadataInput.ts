@@ -12,6 +12,7 @@
  * Do not edit the class manually.
  */
 
+import { exists, mapValues } from '../runtime';
 /**
  * Identifies the Marketplace subscription to revalidate server-side before import
  * @export
@@ -19,7 +20,13 @@
  */
 export interface MarketplaceMetadataInput {
     /**
-     *
+     * Marketplace listing the AMI was resolved from. Required when imageSource is AWS_PUBLISHED_AMI: the backend resolves the listing again and accepts amiId only if that resolution offers it.
+     * @type {string}
+     * @memberof MarketplaceMetadataInput
+     */
+    listingId?: string;
+    /**
+     * Marketplace product code of the subscription the AMI belongs to.
      * @type {string}
      * @memberof MarketplaceMetadataInput
      */
@@ -46,6 +53,7 @@ export function MarketplaceMetadataInputFromJSONTyped(json: any, ignoreDiscrimin
     }
     return {
 
+        'listingId': !exists(json, 'listingId') ? undefined : json['listingId'],
         'productCode': json['productCode'],
     };
 }
@@ -59,6 +67,7 @@ export function MarketplaceMetadataInputToJSON(value?: MarketplaceMetadataInput 
     }
     return {
 
+        'listingId': value.listingId,
         'productCode': value.productCode,
     };
 }

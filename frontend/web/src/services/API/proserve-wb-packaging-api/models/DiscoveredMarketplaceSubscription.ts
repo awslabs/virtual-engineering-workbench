@@ -32,6 +32,12 @@ export interface DiscoveredMarketplaceSubscription {
      */
     productCode?: string;
     /**
+     * AWS Marketplace product id (prod-...) of the subscription.
+     * @type {string}
+     * @memberof DiscoveredMarketplaceSubscription
+     */
+    productId?: string;
+    /**
      *
      * @type {string}
      * @memberof DiscoveredMarketplaceSubscription
@@ -126,6 +132,7 @@ export function DiscoveredMarketplaceSubscriptionFromJSONTyped(json: any, ignore
 
         'productName': !exists(json, 'productName') ? undefined : json['productName'],
         'productCode': !exists(json, 'productCode') ? undefined : json['productCode'],
+        'productId': !exists(json, 'productId') ? undefined : json['productId'],
         'hubRegionAmiId': !exists(json, 'hubRegionAmiId') ? undefined : json['hubRegionAmiId'],
         'regionalAmiIds': !exists(json, 'regionalAmiIds') ? undefined : json['regionalAmiIds'],
         'licenseConfigurationArn': !exists(json, 'licenseConfigurationArn') ? undefined : json['licenseConfigurationArn'],
@@ -152,6 +159,7 @@ export function DiscoveredMarketplaceSubscriptionToJSON(value?: DiscoveredMarket
 
         'productName': value.productName,
         'productCode': value.productCode,
+        'productId': value.productId,
         'hubRegionAmiId': value.hubRegionAmiId,
         'regionalAmiIds': value.regionalAmiIds,
         'licenseConfigurationArn': value.licenseConfigurationArn,

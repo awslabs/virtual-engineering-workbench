@@ -6,6 +6,7 @@ import {
   DiscoverMarketplaceSubscriptionsResponse,
   ListImportableAmisResponse,
 } from '../../../../services/API/proserve-wb-packaging-api';
+import { AwsPublishedAmiAPI } from '../../../../services/API/aws-published-ami-api';
 import { RouteNames } from '../../../layout/navigation/navigation.static';
 import { i18n } from './import-image-wizard.translations';
 import { BreadcrumbItem } from '../../../layout';
@@ -14,6 +15,7 @@ import { WorkbenchAppLayout } from
 import { useImportImageWizard } from './import-image-wizard.logic';
 import { ImportImageStepSource } from './import-image-step-source';
 import { ImportImageStepAmi } from './import-image-step-ami';
+import { ImportImageStepAwsPublished } from './import-image-step-aws-published';
 import { ImportImageStepDetails } from './import-image-step-details';
 import { ImportImageStepPlatform } from './import-image-step-platform';
 import { ImportImageStepSoftware } from './import-image-step-software';
@@ -34,12 +36,20 @@ interface ServiceAPI {
 
 interface ImportImageWizardProps {
   serviceApi: ServiceAPI,
+  awsPublishedApi?: AwsPublishedAmiAPI,
 }
 
 export const ImportImageWizard: FC<ImportImageWizardProps> = (
-  { serviceApi },
+  { serviceApi, awsPublishedApi },
 ) => {
-  const logic = useImportImageWizard({ serviceApi });
+  const logic = useImportImageWizard({ serviceApi, awsPublishedApi });
+
+  // The step-2 title and content both depend on the source.
+  const step2Title = {
+    EXISTING_AMI: i18n.step2TitleAmi,
+    MARKETPLACE_PRODUCT: i18n.step2TitleSubscription,
+    AWS_PUBLISHED_AMI: i18n.step2TitleAwsPublished,
+  }[logic.imageSource];
 
   const steps = [
     {
@@ -47,22 +57,32 @@ export const ImportImageWizard: FC<ImportImageWizardProps> = (
       content: <ImportImageStepSource
         imageSource={logic.imageSource}
         setImageSource={logic.setImageSource}
+        awsPublishedAvailable={!!logic.awsListingId}
       />,
     },
     {
-      title: logic.imageSource === 'EXISTING_AMI'
-        ? i18n.step2TitleAmi : i18n.step2TitleSubscription,
-      content: <ImportImageStepAmi
-        imageSource={logic.imageSource}
-        importableAmis={logic.importableAmis}
-        loadingAmis={logic.loadingAmis}
-        selectedAmi={logic.selectedAmi}
-        setSelectedAmi={logic.setSelectedAmi}
-        subscriptions={logic.subscriptions}
-        loadingSubscriptions={logic.loadingSubscriptions}
-        selectedSubscription={logic.selectedSubscription}
-        handleSubscriptionSelection={logic.handleSubscriptionSelection}
-      />,
+      title: step2Title,
+      content: logic.imageSource === 'AWS_PUBLISHED_AMI'
+        ? <ImportImageStepAwsPublished
+          resolution={logic.awsResolution}
+          resolveError={logic.awsResolveError}
+          isResolving={logic.loadingAwsResolution}
+          candidates={logic.awsCandidates}
+          selectedCandidate={logic.selectedAwsCandidate}
+          onSelectCandidate={logic.handleAwsCandidateSelection}
+        />
+        : <ImportImageStepAmi
+          imageSource={logic.imageSource}
+          importableAmis={logic.importableAmis}
+          loadingAmis={logic.loadingAmis}
+          selectedAmi={logic.selectedAmi}
+          setSelectedAmi={logic.setSelectedAmi}
+          subscriptions={logic.subscriptions}
+          loadingSubscriptions={logic.loadingSubscriptions}
+          selectedSubscription={logic.selectedSubscription}
+          handleSubscriptionSelection={logic.handleSubscriptionSelection}
+          handoffStatus={logic.handoffStatus}
+        />,
     },
     {
       title: i18n.step3Title,
@@ -94,7 +114,7 @@ export const ImportImageWizard: FC<ImportImageWizardProps> = (
       title: i18n.step6Title,
       content: <ImportImageStepReview
         imageSource={logic.imageSource}
-        amiId={logic.selectedAmi?.amiId || logic.amiId}
+        amiId={logic.selectedAmiId}
         selectedSubscription={logic.selectedSubscription}
         imageName={logic.imageName}
         platform={logic.platform}

@@ -202,6 +202,22 @@ export const RouterAuth = (): React.ReactElement => {
         element={getComponentFor(RouteNames.MarketplaceSubscriptions)}
       />
       <Route
+        path={getPathFor(RouteNames.MarketplaceBrowse)}
+        element={getComponentFor(RouteNames.MarketplaceBrowse)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MarketplaceListingDetail)}
+        element={getComponentFor(RouteNames.MarketplaceListingDetail)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MarketplaceAgreements)}
+        element={getComponentFor(RouteNames.MarketplaceAgreements)}
+      />
+      <Route
+        path={getPathFor(RouteNames.MarketplaceProcurementWizard)}
+        element={getComponentFor(RouteNames.MarketplaceProcurementWizard)}
+      />
+      <Route
         path={getPathFor(RouteNames.Images)}
         element={getComponentFor(RouteNames.Images)}
       />

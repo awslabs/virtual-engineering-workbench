@@ -1,6 +1,7 @@
 import {
   Alert,
   Badge,
+  Box,
   Container,
   Header,
   SpaceBetween,
@@ -12,7 +13,7 @@ import {
   DiscoveredMarketplaceSubscription as MarketplaceSubscription,
   ImportableAmi,
 } from '../../../../services/API/proserve-wb-packaging-api';
-import { ImageSource } from './import-image-wizard.logic';
+import { HandoffStatus, ImageSource } from './import-image-wizard.logic';
 import { i18n } from './import-image-wizard.translations';
 
 const FIRST_ITEM_INDEX = 0;
@@ -27,6 +28,7 @@ interface Props {
   loadingSubscriptions: boolean,
   selectedSubscription: MarketplaceSubscription | null,
   handleSubscriptionSelection: (item: MarketplaceSubscription) => void,
+  handoffStatus?: HandoffStatus,
 }
 
 export const ImportImageStepAmi: FC<Props> = ({
@@ -39,6 +41,7 @@ export const ImportImageStepAmi: FC<Props> = ({
   loadingSubscriptions,
   selectedSubscription,
   handleSubscriptionSelection,
+  handoffStatus = 'none',
 }) => {
   if (imageSource === 'EXISTING_AMI') {
     return (
@@ -72,6 +75,20 @@ export const ImportImageStepAmi: FC<Props> = ({
     <Container header={<Header variant="h2">{i18n.marketplaceSubscriptionsHeader}</Header>}>
       <SpaceBetween size="m">
         <Alert type="info">{i18n.marketplaceAlert}</Alert>
+        {handoffStatus === 'alreadyImported' &&
+          <Alert type="info" data-test="handoff-already-imported">
+            {i18n.handoffAlreadyImported}
+          </Alert>
+        }
+        {handoffStatus === 'unavailable' &&
+          <Alert
+            type="info"
+            header={i18n.handoffUnavailableHeader}
+            data-test="handoff-unavailable"
+          >
+            {i18n.handoffUnavailable}
+          </Alert>
+        }
         <Table
           data-test="subscription-table"
           loading={loadingSubscriptions}
@@ -82,7 +99,7 @@ export const ImportImageStepAmi: FC<Props> = ({
             handleSubscriptionSelection(item);
           }}
           selectionType="single"
-          isItemDisabled={(item) => item.alreadyImported === true}
+          isItemDisabled={(item) => item.alreadyImported === true && !item.newerVersionAvailable}
           columnDefinitions={[
             {
               id: 'productName',
@@ -106,16 +123,30 @@ export const ImportImageStepAmi: FC<Props> = ({
             {
               id: 'alreadyImported',
               header: i18n.columnStatus,
-              cell: (item) =>
-                item.alreadyImported
+              cell: (item) => {
+                if (item.newerVersionAvailable) {
+                  return <StatusIndicator type="warning">{i18n.statusUpdateAvailable}</StatusIndicator>;
+                }
+                return item.alreadyImported
                   ? <StatusIndicator type="success">{i18n.statusImported}</StatusIndicator>
-                  : <StatusIndicator type="pending">{i18n.statusAvailable}</StatusIndicator>,
+                  : <StatusIndicator type="pending">{i18n.statusAvailable}</StatusIndicator>;
+              },
             },
           ]}
           header={
             <Header counter={`(${subscriptions.length})`}>
               {i18n.availableSubscriptionsHeader}
             </Header>
+          }
+          empty={
+            <SpaceBetween size="xs">
+              <Box textAlign="center" color="text-body-secondary">
+                {i18n.subscriptionsEmptyPrimary}
+              </Box>
+              <Box textAlign="center" color="text-body-secondary" fontSize="body-s">
+                {i18n.subscriptionsEmptyHint}
+              </Box>
+            </SpaceBetween>
           }
         />
         {selectedSubscription?.subscriptionOwnership === 'EXTERNALLY_MANAGED' &&

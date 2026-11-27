@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 class DiscoveredMarketplaceSubscription(BaseModel):
     productName: str = Field(..., title="ProductName")
     productCode: str = Field(..., title="ProductCode")
+    # AWS Marketplace product id (``prod-...``), from the license's product SKU.
+    productId: Optional[str] = Field(None, title="ProductId")
     hubRegionAmiId: str = Field(..., title="HubRegionAmiId")
     regionalAmiIds: dict[str, str] = Field(..., title="RegionalAmiIds")
     licenseConfigurationArn: Optional[str] = Field(None, title="LicenseConfigurationArn")
