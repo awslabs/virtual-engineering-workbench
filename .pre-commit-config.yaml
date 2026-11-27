@@ -33,7 +33,7 @@ repos:
         language: python
         language_version: python3.13
   - repo: https://github.com/psf/black
-    rev: 25.1.0
+    rev: 26.10.1
     hooks:
       - id: black
         files: ^backend/
